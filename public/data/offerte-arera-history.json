@@ -44611,6 +44611,68 @@
       ]
     },
     {
+      "key": "gas:027184GSFML01XXXXB2609DOGFIXCANA",
+      "recordType": "single",
+      "commodity": "gas",
+      "offerCode": "027184GSFML01XXXXB2609DOGFIXCANA",
+      "providerKey": "greenius",
+      "providerName": "Greenius",
+      "providerVat": "04362490403",
+      "offerName": "LA STESSA GAS NATURALE 24 MESI",
+      "customerType": "privato",
+      "firstSeen": "2026-09-29",
+      "lastSeen": "2026-09-29",
+      "active": true,
+      "versions": [
+        {
+          "catalogDate": "2026-09-29",
+          "validFrom": "27/09/2026_00:00:00",
+          "validTo": "08/10/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.685,
+          "annualFixedFee": 144.0,
+          "durationMonths": 12,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://greenius.it/la-stessa/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 027184GSFML01XXXXB2609DOGFIXCANA",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        }
+      ]
+    },
+    {
+      "key": "luce:027184ESFML01XXB2609DOE0FFIXCANA",
+      "recordType": "single",
+      "commodity": "luce",
+      "offerCode": "027184ESFML01XXB2609DOE0FFIXCANA",
+      "providerKey": "greenius",
+      "providerName": "Greenius",
+      "providerVat": "04362490403",
+      "offerName": "LA STESSA ENERGIA ELETTRICA 24 MESI",
+      "customerType": "privato",
+      "firstSeen": "2026-09-29",
+      "lastSeen": "2026-09-29",
+      "active": true,
+      "versions": [
+        {
+          "catalogDate": "2026-09-29",
+          "validFrom": "11/09/2026_00:00:00",
+          "validTo": "08/10/2026_23:59:59",
+          "priceType": "fisso",
+          "price": 0.1689,
+          "annualFixedFee": 132.0,
+          "durationMonths": 12,
+          "priceQuality": "prezzo_esplicito",
+          "url": "https://greenius.it/la-stessa/",
+          "source": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 027184ESFML01XXB2609DOE0FFIXCANA",
+          "indexName": null,
+          "indexValueAtCapture": null,
+          "spreadEstimate": null
+        }
+      ]
+    },
+    {
       "key": "gas:000265GSVML01XX000ACTV2GGCXAXV24",
       "recordType": "single",
       "commodity": "gas",
@@ -86929,10 +86991,10 @@
     }
   ],
   "statistics": {
-    "totalOffers": 2274,
-    "activeOffers": 705,
+    "totalOffers": 2276,
+    "activeOffers": 707,
     "inactiveOffers": 1569,
-    "totalVersions": 3358,
-    "currentCatalogRecords": 705
+    "totalVersions": 3360,
+    "currentCatalogRecords": 707
   }
 }

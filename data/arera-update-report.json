@@ -3,7 +3,7 @@
   "aggiornatoIl": "2026-09-29",
   "pubblicazioneAutorizzata": true,
   "statistiche": {
-    "totaleRighe": 705,
+    "totaleRighe": 707,
     "fileLuce": "PO_Offerte_E_MLIBERO_20260929.xml",
     "fileGas": "PO_Offerte_G_MLIBERO_20260929.xml",
     "fileDual": "PO_Offerte_D_MLIBERO_20260929.xml",
@@ -15,7 +15,7 @@
     "scontiFonteGas": 223,
     "scontiFonteDual": 2,
     "scontiConPrezzoSupportatoFonte": 393,
-    "offertePrivati": 496,
+    "offertePrivati": 498,
     "offerteBusiness": 185,
     "offerteDualPrivati": 23,
     "offerteDualBusiness": 1,

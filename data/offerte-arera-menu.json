@@ -1,6 +1,6 @@
 {
   "versioneDati": "arera-menu-2026-09-29",
-  "trasformatoreVersione": "arera-menu-v5-sconti-durata-esplicita",
+  "trasformatoreVersione": "arera-menu-v6-partner-greenius",
   "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data. Le offerte variabili sono stimate con indice corrente del motore quando ARERA espone solo lo spread.",
   "aggiornatoIl": "2026-09-29",
   "indiciUsati": {
@@ -48,7 +48,7 @@
     }
   },
   "statistiche": {
-    "totaleRighe": 705,
+    "totaleRighe": 707,
     "fileLuce": "PO_Offerte_E_MLIBERO_20260929.xml",
     "fileGas": "PO_Offerte_G_MLIBERO_20260929.xml",
     "fileDual": "PO_Offerte_D_MLIBERO_20260929.xml",
@@ -60,7 +60,7 @@
     "scontiFonteGas": 223,
     "scontiFonteDual": 2,
     "scontiConPrezzoSupportatoFonte": 393,
-    "offertePrivati": 496,
+    "offertePrivati": 498,
     "offerteBusiness": 185,
     "offerteDualPrivati": 23,
     "offerteDualBusiness": 1,
@@ -22988,6 +22988,140 @@
           "scontoIndice": 1
         }
       ],
+      "dettagliTecnici": []
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "fisso",
+      "nome": "LA STESSA GAS NATURALE 24 MESI",
+      "codice": "027184GSFML01XXXXB2609DOGFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "27/09/2026_00:00:00",
+      "dataFine": "08/10/2026_23:59:59",
+      "customerType": "privato",
+      "tipoClienteCodice": "01",
+      "tipoOffertaCodice": "01",
+      "durataMesi": 12,
+      "indiceRiferimento": null,
+      "prezzo": 0.685,
+      "quotaFissaAnnua": 144.0,
+      "url": "https://greenius.it/la-stessa/",
+      "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 027184GSFML01XXXXB2609DOGFIXCANA",
+      "score": 1103.0,
+      "qualitaPrezzo": "prezzo_esplicito",
+      "provenienzaPrezzo": {
+        "valore": 0.685,
+        "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20260929.xml",
+        "codiceOfferta": "027184GSFML01XXXXB2609DOGFIXCANA",
+        "etichettaOriginale": "Prezzo Gas",
+        "unitaMisuraCodice": "04",
+        "unitaMisura": "€/Smc",
+        "periodoValidita": {
+          "dataInizio": "27/09/2026_00:00:00",
+          "dataFine": "08/10/2026_23:59:59",
+          "consumoDa": null,
+          "consumoA": null
+        },
+        "testoVicino": "Prezzo Gas | macroarea 04 | tipologia 01 | fascia 01",
+        "ruolo": "prezzo_principale_selezionato",
+        "motivoScarto": null,
+        "fascia": "01",
+        "componenteIndice": 2,
+        "intervalloIndice": 1
+      },
+      "provenienzaQuotaFissa": [
+        {
+          "valore": 144.0,
+          "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20260929.xml",
+          "codiceOfferta": "027184GSFML01XXXXB2609DOGFIXCANA",
+          "etichettaOriginale": "Totale Corrispettivi Fissi Annui (CCV)",
+          "unitaMisuraCodice": "01",
+          "unitaMisura": "€/anno",
+          "periodoValidita": {
+            "dataInizio": "27/09/2026_00:00:00",
+            "dataFine": "08/10/2026_23:59:59",
+            "consumoDa": null,
+            "consumoA": null
+          },
+          "testoVicino": "Totale Corrispettivi Fissi Annui (CCV) | macroarea 01 | tipologia 01",
+          "ruolo": "quota_fissa_selezionata",
+          "motivoScarto": null,
+          "fascia": "00",
+          "componenteIndice": 1,
+          "intervalloIndice": 1
+        }
+      ],
+      "sconti": [],
+      "dettagliTecnici": []
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "fisso",
+      "nome": "LA STESSA ENERGIA ELETTRICA 24 MESI",
+      "codice": "027184ESFML01XXB2609DOE0FFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "11/09/2026_00:00:00",
+      "dataFine": "08/10/2026_23:59:59",
+      "customerType": "privato",
+      "tipoClienteCodice": "01",
+      "tipoOffertaCodice": "01",
+      "durataMesi": 12,
+      "indiceRiferimento": null,
+      "prezzo": 0.1689,
+      "quotaFissaAnnua": 132.0,
+      "url": "https://greenius.it/la-stessa/",
+      "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data - codice 027184ESFML01XXB2609DOE0FFIXCANA",
+      "score": 588.03,
+      "qualitaPrezzo": "prezzo_esplicito",
+      "provenienzaPrezzo": {
+        "valore": 0.1689,
+        "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20260929.xml",
+        "codiceOfferta": "027184ESFML01XXB2609DOE0FFIXCANA",
+        "etichettaOriginale": "Prezzo Energia",
+        "unitaMisuraCodice": "03",
+        "unitaMisura": "€/kWh",
+        "periodoValidita": {
+          "dataInizio": "11/09/2026_00:00:00",
+          "dataFine": "08/10/2026_23:59:59",
+          "consumoDa": null,
+          "consumoA": null
+        },
+        "testoVicino": "Prezzo Energia | macroarea 04 | tipologia 01 | fascia 01",
+        "ruolo": "prezzo_principale_selezionato",
+        "motivoScarto": null,
+        "fascia": "01",
+        "componenteIndice": 2,
+        "intervalloIndice": 1
+      },
+      "provenienzaQuotaFissa": [
+        {
+          "valore": 132.0,
+          "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20260929.xml",
+          "codiceOfferta": "027184ESFML01XXB2609DOE0FFIXCANA",
+          "etichettaOriginale": "Totale Corrispettivi Fissi Annui (CCV)",
+          "unitaMisuraCodice": "01",
+          "unitaMisura": "€/anno",
+          "periodoValidita": {
+            "dataInizio": "11/09/2026_00:00:00",
+            "dataFine": "08/10/2026_23:59:59",
+            "consumoDa": null,
+            "consumoA": null
+          },
+          "testoVicino": "Totale Corrispettivi Fissi Annui (CCV) | macroarea 01 | tipologia 01",
+          "ruolo": "quota_fissa_selezionata",
+          "motivoScarto": null,
+          "fascia": "00",
+          "componenteIndice": 1,
+          "intervalloIndice": 1
+        }
+      ],
+      "sconti": [],
       "dettagliTecnici": []
     },
     {

@@ -1,0 +1,4793 @@
+{
+  "versioneDati": "partner-menu-2026-09-29-v1",
+  "schemaVersion": 1,
+  "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; ranking economico indipendente dal canale commerciale.",
+  "aggiornatoIl": "2026-09-29",
+  "offerte": [
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "fisso",
+      "nome": "LA STESSA GAS NATURALE 24 MESI",
+      "codice": "027184GSFML01XXXXB2609DOGFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 24,
+      "indiceRiferimento": "",
+      "prezzo": 0.685,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE",
+        "sourceDocument": "04_09_2026__08_10_2026__027184GSFML01XXXXB2609DOGFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "04_09_2026__08_10_2026__027184GSFML01XXXXB2609DOGFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|gas|027184GSFML01XXXXB2609DOGFIXCANA",
+        "sourceFile": "04_09_2026__08_10_2026__027184GSFML01XXXXB2609DOGFIXCANA.pdf",
+        "sourceHash": "aed8b5cb9053e1996ea3fd62b23ba56c1f403a9ab7ee963cf018ab050ef5a0e3",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.685,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|gas|027184GSFML01XXXXB2609DOGFIXCANA"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA",
+      "codice": "027184GNVML01XXXXX2609DOGCAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.825448,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread, CAP)",
+        "sourceDocument": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609DOGCAPRES2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609DOGCAPRES2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGCAPRES2",
+        "sourceFile": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609DOGCAPRES2.pdf",
+        "sourceHash": "319f5b1c0b566b7f066ab03d9e5d78b45a1ab5b6b0216eef35a82e661d0c62f9",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.139,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.899,
+            "unit": "EUR/Smc",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGCAPRES2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA GIADA",
+      "codice": "027184GNVML01XXXXX2609DOGPSVRESI",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.856448,
+      "quotaFissaAnnua": 90.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESI.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESI.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa giada",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESI",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESI.pdf",
+        "sourceHash": "91189e7387c53ca91ad2e255a3a0c3816c833a8e5c6a8dda0a9581d520cc3e3e",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.17,
+          "annualFixedFee": 90.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa giada",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESI"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA ZAFFIRO",
+      "codice": "027184GNVML01XXXXX2609DOGPSVRESK",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.806448,
+      "quotaFissaAnnua": 156.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESK.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESK.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa zaffiro",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESK",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESK.pdf",
+        "sourceHash": "588a772b616a73f071313b74099c1a5accc649088a8266191bf7df2bd4ec4cad",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.12,
+          "annualFixedFee": 156.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa zaffiro",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESK"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA RUBINO",
+      "codice": "027184GNVML01XXXXX2609DOGPSVRESL",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.826448,
+      "quotaFissaAnnua": 180.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESL.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESL.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa rubino",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESL",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESL.pdf",
+        "sourceHash": "748df0b65a83f4ed50bdb4667f1f61aa3733583ba9bc2243772b59fccb58d92c",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.14,
+          "annualFixedFee": 180.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa rubino",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESL"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA AMBRA",
+      "codice": "027184GNVML01XXXXX2609DOGPSVRESM",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.826448,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESM.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESM.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa ambra",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESM",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESM.pdf",
+        "sourceHash": "af4289aacae6058bd3e2872f634928a618e9686bc43f051c1f6dfd9f8ad29f40",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.14,
+          "annualFixedFee": 132.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa ambra",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESM"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA OPALE",
+      "codice": "027184GNVML01XXXXX2609DOGPSVRESN",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.786448,
+      "quotaFissaAnnua": 180.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESN.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESN.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa opale",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESN.pdf",
+        "sourceHash": "247c34f0997c8e0842a10e4567ccb54e2783a0813c52c25b4556331c9b9fc3d9",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.1,
+          "annualFixedFee": 180.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa opale",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "CASA SMERALDO",
+      "codice": "027184GSVML01XXXXX2609DOGPSVRESJ",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.786448,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609DOGPSVRESJ.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609DOGPSVRESJ.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa smeraldo",
+        "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609DOGPSVRESJ",
+        "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609DOGPSVRESJ.pdf",
+        "sourceHash": "ef0c9ccc987a07d79875d199ed9a4a52a1027ec7e072e7784668353001dfe873",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.1,
+          "annualFixedFee": 132.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa smeraldo",
+      "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609DOGPSVRESJ"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "fisso",
+      "nome": "LA STESSA ENERGIA ELETTRICA 24 MESI",
+      "codice": "027184ESFML01XXB2609DOE0FFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 24,
+      "indiceRiferimento": "",
+      "prezzo": 0.18579,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE comprensivo perdite",
+        "sourceDocument": "04_09_2026__08_10_2026__027184ESFML01XXB2609DOE0FFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "04_09_2026__08_10_2026__027184ESFML01XXB2609DOE0FFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|luce|027184ESFML01XXB2609DOE0FFIXCANA",
+        "sourceFile": "04_09_2026__08_10_2026__027184ESFML01XXB2609DOE0FFIXCANA.pdf",
+        "sourceHash": "5d11d942269af14b68f43c4287b143a66ebb187a933101201e75ca6b69b032e1",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.18579,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "included"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": true,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|luce|027184ESFML01XXB2609DOE0FFIXCANA"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA",
+      "codice": "027184ENVML01XXX2609DOEF0CAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.189,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread netto perdite, CAP)",
+        "sourceDocument": "07_09_2026__12_10_2026__027184ENVML01XXX2609DOEF0CAPRES2 (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "07_09_2026__12_10_2026__027184ENVML01XXX2609DOEF0CAPRES2 (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|luce|027184ENVML01XXX2609DOEF0CAPRES2",
+        "sourceFile": "07_09_2026__12_10_2026__027184ENVML01XXX2609DOEF0CAPRES2 (1).pdf",
+        "sourceHash": "29fe73556a8e612546acaece6f2b0a83e1716e2c8f29292b144951899b9759d8",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.0259,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.189,
+            "unit": "EUR/kWh",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|luce|027184ENVML01XXX2609DOEF0CAPRES2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA GIADA",
+      "codice": "027184ENVOL01XXX2609DOE01PORRESI",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.211999,
+      "quotaFissaAnnua": 90.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa giada",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESI",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf",
+        "sourceHash": "e0e22c12f10d7c7725c365e5ca71325448a8f11535cd0eb12523caeea4798c8d",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.032,
+          "annualFixedFee": 90.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa giada",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESI"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA ZAFFIRO",
+      "codice": "027184ENVOL01XXX2609DOE01PORRESK",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.201999,
+      "quotaFissaAnnua": 156.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa zaffiro",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESK",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf",
+        "sourceHash": "c22a6c798bd85edbda953ef7fc5c8d2e60668d35e693e42778f07ee2f8c818f9",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.022,
+          "annualFixedFee": 156.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa zaffiro",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESK"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA RUBINO",
+      "codice": "027184ENVOL01XXX2609DOE01PORRESL",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.211999,
+      "quotaFissaAnnua": 180.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa rubino",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESL",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf",
+        "sourceHash": "2909a26ca45f5d81a07503749919ee79e7f650503ac4fd4b03f5e137e4a7afad",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.032,
+          "annualFixedFee": 180.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa rubino",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESL"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA AMBRA",
+      "codice": "027184ENVOL01XXX2609DOE01PORRESM",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.211999,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa ambra",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESM",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf",
+        "sourceHash": "ebf82ddf34e3ba0259fca6dfefc386f2b4d07d178b7ce584bb109d09186cd847",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.032,
+          "annualFixedFee": 132.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa ambra",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESM"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA OPALE",
+      "codice": "027184ENVOL01XXX2609DOE01PORRESN",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.191999,
+      "quotaFissaAnnua": 180.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa opale",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESN",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf",
+        "sourceHash": "83164e0f3f29369a6da22c8aa8307d625bdea3401fe45772621f5a1941ea21ef",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.012,
+          "annualFixedFee": 180.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa opale",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESN"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA PUN",
+      "codice": "027184ESVOL01XXX2609DOE01PORRES4",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.179999,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa pun",
+        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf",
+        "sourceHash": "aee26cf94df7035afcb8406b6969f5889fedf7a6fd125e677559b29e18555e54",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.0,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa pun",
+      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA SMERALDO",
+      "codice": "027184ESVOL01XXX2609DOE01PORRESJ",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.191999,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa smeraldo",
+        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf",
+        "sourceHash": "1df0c58726652d5bf915f156261437bdab23fa09b815c9571d09b18eb7823e23",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.012,
+          "annualFixedFee": 132.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa smeraldo",
+      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ"
+    }
+  ],
+  "offerteBusiness": [
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "IN CONTROL BUSINESS",
+      "codice": "027184GNVML01XXXXX2609AUGCAPSOHK",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.834448,
+      "quotaFissaAnnua": 240.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread, CAP)",
+        "sourceDocument": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609AUGCAPSOHK.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609AUGCAPSOHK.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGCAPSOHK",
+        "sourceFile": "07_09_2026__12_10_2026__027184GNVML01XXXXX2609AUGCAPSOHK.pdf",
+        "sourceHash": "8a152b9ff924b28cc97aeaa07eac5940960bec5093b3d8f53446bf3d661347d7",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.148,
+          "annualFixedFee": 240.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.925,
+            "unit": "EUR/Smc",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGCAPSOHK"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "ZAFFIRO BUSINESS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSN3",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.846448,
+      "quotaFissaAnnua": 264.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN3.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN3.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "zaffiro business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN3",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN3.pdf",
+        "sourceHash": "06514e03d1066042f55cb721f6006d01defd3963ce7579b1d05f9405550c3343",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.16,
+          "annualFixedFee": 264.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "zaffiro business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN3"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "RUBINO BUSINESS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSN4",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.926448,
+      "quotaFissaAnnua": 324.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN4.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN4.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "rubino business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN4",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN4.pdf",
+        "sourceHash": "c2179ed7a9b275ad5f7117699a42e1f2c7b73470cb303597e14fc4cde2c9c8f5",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.24,
+          "annualFixedFee": 324.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "rubino business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN4"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "AMBRA BUSINESS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSN5",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.926448,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN5.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN5.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ambra business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN5",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN5.pdf",
+        "sourceHash": "d862094e17712fba40847d083bc6ce91c61962c6685699ed13464c537b3bf40b",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.24,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ambra business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN5"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "AMETISTA BUSINESS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSN6",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.886448,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN6.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN6.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ametista business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN6",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN6.pdf",
+        "sourceHash": "47bb7fea087bd3d60f9a75475742fabd7c9fc0906ff2bfba95e2d0329166e8a7",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.2,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ametista business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN6"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "SMERALDO BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP1",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.766448,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP1.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP1.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "smeraldo business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP1",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP1.pdf",
+        "sourceHash": "cb898d87094645a98dfafbe0260c19ec4acc808675763c9ff30763fbe8bae20c",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.08,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "smeraldo business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP1"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "ONICE BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.806448,
+      "quotaFissaAnnua": 264.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "onice business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP2",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP2.pdf",
+        "sourceHash": "56f915687c1fd7f0cbb5882e6e149972ea6bb9a8913c271532a70926493eb038",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.12,
+          "annualFixedFee": 264.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "onice business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "ZAFFIRO BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP3",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.846448,
+      "quotaFissaAnnua": 324.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP3.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP3.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "zaffiro business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP3",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP3.pdf",
+        "sourceHash": "af62f8e9ec4ed1e611a4e2e8e0602f9c8454fc36a934507252fb090e7e4382b6",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.16,
+          "annualFixedFee": 324.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "zaffiro business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP3"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "RUBINO BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP4",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.926448,
+      "quotaFissaAnnua": 384.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP4.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP4.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "rubino business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP4",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP4.pdf",
+        "sourceHash": "cf005cd0c7da769c028594643d02e1929534006dcfd2ebee3c27bc166bbb1a2a",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.24,
+          "annualFixedFee": 384.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "rubino business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP4"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "AMBRA BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP5",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.926448,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP5.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP5.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ambra business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP5",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP5.pdf",
+        "sourceHash": "03a493522594705d7ad613f94096f35fc28c817e043468a238f70404e6d7116b",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.24,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ambra business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP5"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "AMETISTA BUSINESS PLUS",
+      "codice": "027184GNVML01XXXXX2609AUGPSVBSP6",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.886448,
+      "quotaFissaAnnua": 264.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP6.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP6.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ametista business plus",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP6",
+        "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP6.pdf",
+        "sourceHash": "b66dae446f8dbe1bca58506d42a1fe222b260b9e2a0e6c81231c921a29a361cf",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.2,
+          "annualFixedFee": 264.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "COP",
+              "value": 0.06,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Capacità di trasporto - quota fissa CTE",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ametista business plus",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP6"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "SMERALDO BUSINESS",
+      "codice": "027184GSVML01XXXXX2609AUGPSVBSN1",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.766448,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN1.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN1.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "smeraldo business",
+        "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN1",
+        "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN1.pdf",
+        "sourceHash": "446a7cb5103759ffb40af048932cf72ed387517238f125a59b4cf07d35188376",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.08,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "smeraldo business",
+      "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN1"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "ONICE BUSINESS",
+      "codice": "027184GSVML01XXXXX2609AUGPSVBSN2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.806448,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "onice business",
+        "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN2",
+        "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN2.pdf",
+        "sourceHash": "5b843a9c94cf9660a38cd1c1d82066ae252c8b79b2154f45a188c7587bd94bd5",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.686448,
+          "fixedPrice": null,
+          "spread": 0.12,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "onice business",
+      "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "IN CONTROL BUSINESS",
+      "codice": "027184ENVML01XXX2609AUEF0CAPSOHK",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-10-07",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.192,
+      "quotaFissaAnnua": 240.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread netto perdite, CAP)",
+        "sourceDocument": "07_09_2026__12_10_2026__027184ENVML01XXX2609AUEF0CAPSOHK.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "07_09_2026__12_10_2026__027184ENVML01XXX2609AUEF0CAPSOHK.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control business",
+        "canonicalKey": "04362490403|luce|027184ENVML01XXX2609AUEF0CAPSOHK",
+        "sourceFile": "07_09_2026__12_10_2026__027184ENVML01XXX2609AUEF0CAPSOHK.pdf",
+        "sourceHash": "ef120d48787031ffb0c2b61dd845797339b215a8491422df4ed50409ad92b9d8",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.0279,
+          "annualFixedFee": 240.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00385,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.006302,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.192,
+            "unit": "EUR/kWh",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control business",
+      "canonicalKey": "04362490403|luce|027184ENVML01XXX2609AUEF0CAPSOHK"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "ZAFFIRO BUSINESS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSN3",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.199999,
+      "quotaFissaAnnua": 264.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN3.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN3.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "zaffiro business",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN3",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN3.pdf",
+        "sourceHash": "21ce356985f1a58a0b622bce9218d83a7b69d7bc274596551a1f9f0df280d96b",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.02,
+          "annualFixedFee": 264.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "zaffiro business",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN3"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "AMBRA BUSINESS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSN5",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.209999,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN5.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN5.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ambra business",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN5",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN5.pdf",
+        "sourceHash": "7e2367fde9322edceade37b816b01297dca909daf35fffc5b06d6a3523ad8b81",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.03,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ambra business",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN5"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "AMETISTA BUSINESS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSN6",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.204999,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN6.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN6.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ametista business",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN6",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN6.pdf",
+        "sourceHash": "e7d8ff90a4823f09908d7d1e8eb7b1794422a9d5f0f7cd679e64a18ceeb68b77",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.025,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ametista business",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN6"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "OPALE BUSINESS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSN7",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.189999,
+      "quotaFissaAnnua": 324.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN7.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN7.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "opale business",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN7",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN7.pdf",
+        "sourceHash": "ab50290b0c85b36b2638cb22597cb4635de42bda12e364bcf994eef9b494c440",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.01,
+          "annualFixedFee": 324.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "opale business",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN7"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "SMERALDO BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP1",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.189999,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP1.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP1.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "smeraldo business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP1",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP1.pdf",
+        "sourceHash": "fc5d3927749e94258281cfa13593a8be876b410624404bb9ba1f1a627769c7aa",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.01,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "smeraldo business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP1"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "ONICE BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.194999,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "onice business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP2",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP2.pdf",
+        "sourceHash": "1123d5c28b36b35050ec84e00bf603f2fa724b2ba325d8ef3dda6cb03d64046a",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.015,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "onice business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "ZAFFIRO BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP3",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.199999,
+      "quotaFissaAnnua": 264.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP3.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP3.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "zaffiro business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP3",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP3.pdf",
+        "sourceHash": "08b21f705b19d706330b80d8afd857e46cba4910593b04a167b6e025e817b037",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.02,
+          "annualFixedFee": 264.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "zaffiro business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP3"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "RUBINO BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP4",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.209999,
+      "quotaFissaAnnua": 324.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP4.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP4.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "rubino business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP4",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP4.pdf",
+        "sourceHash": "f99705c5e226a0e404af63de117bf16f1404800da815871a584d7e6c8030f6cc",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.03,
+          "annualFixedFee": 324.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "rubino business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP4"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "AMBRA BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP5",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.209999,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP5.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP5.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ambra business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP5",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP5.pdf",
+        "sourceHash": "6d45926a216d166d7f2d8ef83af41994e08bd049d1d929413a9c2a6805ef2d91",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.03,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ambra business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP5"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "AMETISTA BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP6",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.204999,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP6.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP6.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "ametista business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP6",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP6.pdf",
+        "sourceHash": "172ccaf71e24162fdffa59f8a4c08ff06cb61252192b6cdfb234f883d425b7a7",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.025,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "ametista business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP6"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "OPALE BUSINESS PLUS",
+      "codice": "027184ENVOL01XXX2609AUE01PORBSP7",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.189999,
+      "quotaFissaAnnua": 324.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP7.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP7.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "opale business plus",
+        "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP7",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP7.pdf",
+        "sourceHash": "6ed274ef4bd3b70d6d0c86cc97bf58abde1841d7576ed2485ccc69c106bffad1",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.01,
+          "annualFixedFee": 324.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Modulazione",
+              "value": 0.0121,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "opale business plus",
+      "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP7"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "SMERALDO BUSINESS",
+      "codice": "027184ESVOL01XXX2609AUE01PORBSN1",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.189999,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN1.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN1.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "smeraldo business",
+        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN1",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN1.pdf",
+        "sourceHash": "3e099658f5577c14b20e33a2d78dfe904813ba5409e673684329768e24c39c36",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.01,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "smeraldo business",
+      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN1"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "ONICE BUSINESS",
+      "codice": "027184ESVOL01XXX2609AUE01PORBSN2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.194999,
+      "quotaFissaAnnua": 204.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "onice business",
+        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN2",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN2.pdf",
+        "sourceHash": "49e9ada0c16d4328498a8400110de93641992471a5864e01a73906a625ab5b7f",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.179999,
+          "fixedPrice": null,
+          "spread": 0.015,
+          "annualFixedFee": 204.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Energia verde",
+              "value": 0.00209,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "onice business",
+      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN2"
+    }
+  ],
+  "statistiche": {
+    "fileAttiviLetti": 44,
+    "offertePrivateAttive": 17,
+    "offerteBusinessAttive": 27,
+    "offerteScaduteEscluse": 0
+  }
+}
