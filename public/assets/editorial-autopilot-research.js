@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.75";
+  const VERSION = "0.12.76";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -844,9 +844,26 @@
   }
 
   function currentEditorialCycle() {
-    // Il ciclo corrente nasce dalla ricerca più recente che ha selezionato
-    // un'opportunità. I run social del ciclo precedente possono avvenire dopo
-    // (es. il lunedì) e non devono spostare la barra di avanzamento sul vecchio articolo.
+    // Se esiste già un articolo realmente in lavorazione, quello è il ciclo corrente.
+    // La sola "ricerca più recente" può restare indietro di alcuni giorni rispetto
+    // alla bozza effettivamente avviata (es. ricerca venerdì, bozza martedì).
+    const activeRecord = articleHistoryRecords().find((record) => articleCompletionState(record).tone !== "success") || null;
+    if (activeRecord?.opportunityId && activeRecord?.articleId) {
+      const anchor = automationRuns.find((run) => {
+        return String(run?.run_type || "") === "research"
+          && automationRunOpportunityId(run) === activeRecord.opportunityId;
+      }) || activeRecord.runs?.[activeRecord.runs.length - 1] || null;
+      return {
+        opportunityId: activeRecord.opportunityId,
+        articleId: activeRecord.articleId,
+        article: activeRecord.article || null,
+        record: activeRecord,
+        anchor,
+      };
+    }
+
+    // Fallback: prima che esista una bozza/articolo, il ciclo nasce dalla ricerca
+    // più recente che ha selezionato un'opportunità.
     const anchor = automationRuns.find((run) => {
       return String(run?.run_type || "") === "research" && Boolean(automationRunOpportunityId(run));
     }) || null;
@@ -856,6 +873,8 @@
     return {
       opportunityId,
       articleId: automationRunArticleId(articleRun),
+      article: null,
+      record: null,
       anchor,
     };
   }
@@ -871,7 +890,18 @@
       }
       return true;
     }) || null;
-    if (!run) return { label: "da eseguire", tone: "pending", at: "" };
+    if (!run) {
+      if (runType === "research" && cycle.opportunityId) {
+        const at = cycle.anchor?.finished_at || cycle.anchor?.started_at || cycle.anchor?.created_at || "";
+        return { label: "completato", tone: "success", at };
+      }
+      if (cycle.record) {
+        const fallback = articleStepState(cycle.record, runType);
+        if (fallback?.tone && fallback.tone !== "pending") return { ...fallback, at: "" };
+        if (runType === "article_prepare" && cycle.articleId) return { label: "completato", tone: "success", at: "" };
+      }
+      return { label: "da eseguire", tone: "pending", at: "" };
+    }
     const at = run.finished_at || run.started_at || run.created_at || "";
     const status = String(run.status || "");
     if (status === "success") {
@@ -882,6 +912,38 @@
     if (status === "failed") return { label: "errore", tone: "failed", at };
     if (status === "running") return { label: "in corso", tone: "running", at };
     return { label: status || "da eseguire", tone: "pending", at };
+  }
+
+  function compactAutomationRuns(runs) {
+    const rows = Array.isArray(runs) ? runs : [];
+    const shouldHide = new Set();
+    const timeOf = (run) => {
+      const value = run?.started_at || run?.created_at || "";
+      const ms = Date.parse(value);
+      return Number.isFinite(ms) ? ms : null;
+    };
+
+    for (const run of rows) {
+      if (String(run?.run_type || "") !== "article_prepare") continue;
+      if (String(run?.details?.stage || "") !== "background_started") continue;
+      const opportunityId = automationRunOpportunityId(run);
+      const articleId = automationRunArticleId(run);
+      if (!opportunityId || !articleId) continue;
+      const startedAt = timeOf(run);
+      const continuation = rows.find((candidate) => {
+        if (candidate === run) return false;
+        if (String(candidate?.run_type || "") !== "article_prepare") return false;
+        if (String(candidate?.details?.stage || "") === "background_started") return false;
+        if (automationRunOpportunityId(candidate) !== opportunityId) return false;
+        if (automationRunArticleId(candidate) !== articleId) return false;
+        const candidateAt = timeOf(candidate);
+        if (startedAt === null || candidateAt === null) return true;
+        return candidateAt >= startedAt && candidateAt - startedAt <= 30 * 60 * 1000;
+      });
+      if (continuation) shouldHide.add(String(run.id || ""));
+    }
+
+    return rows.filter((run) => !shouldHide.has(String(run?.id || "")));
   }
 
   function articlePublicUrl(article) {
@@ -1094,7 +1156,7 @@
           ${articleDraftMarkup(record)}
           ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
           ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
-          ${(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
+          ${compactAutomationRuns(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${compactAutomationRuns(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
         </div>
       </details>`;
     }).join("");
@@ -1118,10 +1180,14 @@
       ["social_related", "Post OffertaLogica"],
     ].map(([type, title]) => ({ title, ...cycleRunState(type, cycle) }));
     const startedAt = cycle.anchor?.started_at || cycle.anchor?.created_at || "";
+    const currentTitle = String(cycle.article?.title || "").trim();
+    const cycleNote = currentTitle
+      ? `Articolo corrente: ${currentTitle}${startedAt ? ` · ricerca del ${dateIt(startedAt)}` : ""}.`
+      : startedAt ? `Ricerca del ${dateIt(startedAt)}. La barra mostra esclusivamente l’avanzamento del nuovo articolo selezionato da questa ricerca.` : "";
     const carryover = pendingCarryoverRecord();
     const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
     const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
-    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${startedAt ? `<small class="ol-cycle-overview-note">Ricerca del ${esc(dateIt(startedAt))}. La barra mostra esclusivamente l’avanzamento del nuovo articolo selezionato da questa ricerca.</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${cycleNote ? `<small class="ol-cycle-overview-note">${esc(cycleNote)}</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
   }
 
   function renderSocialPlan(section) {
@@ -1160,7 +1226,8 @@
       renderCycleOverview(section);
       return;
     }
-    const visibleRuns = automationRunsExpanded ? automationRuns : automationRuns.slice(0, 5);
+    const displayRuns = compactAutomationRuns(automationRuns);
+    const visibleRuns = automationRunsExpanded ? displayRuns : displayRuns.slice(0, 5);
     list.innerHTML = visibleRuns.map((run) => {
       const details = run?.details || {};
       const diagnostic = [];
@@ -1185,8 +1252,8 @@
         </div>
       </details>`;
     }).join("");
-    if (toolbar) toolbar.hidden = automationRuns.length <= 5;
-    if (toggle) toggle.textContent = automationRunsExpanded ? "Mostra solo gli ultimi 5" : `Mostra storico (${automationRuns.length})`;
+    if (toolbar) toolbar.hidden = displayRuns.length <= 5;
+    if (toggle) toggle.textContent = automationRunsExpanded ? "Mostra solo gli ultimi 5" : `Mostra storico (${displayRuns.length})`;
     renderCycleOverview(section);
   }
 
