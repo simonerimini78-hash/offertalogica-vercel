@@ -118,6 +118,31 @@
     }
     @media(min-width:701px){.ol-menu-backdrop{display:none!important}}
     @media(prefers-reduced-motion:reduce){.ol-menu-backdrop,.ol-menu-drawer,.ol-menu-toggle span,.ol-menu-toggle::before,.ol-menu-toggle::after{transition:none!important}}
+  
+
+    /* v0.10.16 — simmetria controlli simulatore e menu realmente utilizzabili */
+    .bill-compare{grid-template-columns:minmax(0,1fr) minmax(0,1fr);column-gap:16px;row-gap:10px}
+    .bill-tools{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:8px;height:74px;min-height:74px;align-items:center;padding:10px 14px}
+    .bill-tools>.tool-button{width:100%!important;min-width:0;min-height:42px!important;height:42px!important;margin:0!important;padding:8px 10px!important;text-align:center}
+    .offer-picker,.offer-picker-grid{width:100%}
+    .offer-picker-grid{display:grid!important;grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important;align-items:center}
+    .offer-picker .field{display:block!important;min-width:0}
+    .offer-picker .field select{display:block;width:100%!important;min-width:0!important;max-width:none!important;height:42px!important;min-height:42px!important;padding:8px 30px 8px 10px!important;text-align:left}
+    .simulate-action{grid-column:2;display:flex;justify-content:center;padding:0}
+    .simulate-action .button{width:100%!important;min-height:48px;border-radius:12px;font-size:15px}
+    @media(max-width:700px){
+      .bill-compare{grid-template-columns:1fr!important;gap:9px}
+      .bill-tools{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:1fr!important;height:58px!important;min-height:58px!important;gap:7px!important;padding:8px 10px!important}
+      .bill-tools>.tool-button{height:42px!important;min-height:42px!important;font-size:11.5px!important;padding:7px 6px!important;white-space:nowrap}
+      .offer-picker-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:1fr!important;gap:7px!important}
+      .offer-picker .field select{height:42px!important;min-height:42px!important;font-size:11.5px!important;padding:7px 25px 7px 8px!important}
+      .simulate-action{grid-column:1;padding-top:0}
+      .simulate-action .button{min-height:44px;font-size:13px}
+    }
+    @media(max-width:360px){
+      .bill-tools>.tool-button,.offer-picker .field select{font-size:10.5px!important}
+      .tool-icon{display:none}
+    }
   </style>
 </head>
 <body>
@@ -200,9 +225,8 @@
             </ul>
             <footer class="bill-total"><span>Totale bolletta simulata</span><strong id="simulated-total">—</strong></footer>
           </article>
+          <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Simula la bolletta</button></div>
         </div>
-
-        <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Simula l'offerta</button></div>
         <div class="upload-status" id="upload-status" role="status" aria-live="polite"></div>
         <div class="history-status" id="history-status" role="status" aria-live="polite"></div>
         <section class="saving-band" id="saving-box" aria-label="Differenza tra bolletta reale e simulata"><div class="saving-copy"><span id="saving-label">Differenza su questa bolletta</span><strong id="saving-total">—</strong><small id="saving-percent">Stesso periodo e stessi consumi</small></div><div class="saving-equation"><strong id="saving-equation">— → —</strong><span>Bolletta reale → bolletta simulata</span></div></section>
@@ -347,7 +371,7 @@
     if(row.fornitura==="dual"&&row.luce&&row.gas){const id=String(row.codice||`${row.providerKey}-${row.nome}`),name=String(row.nome||"Offerta luce e gas"),provider=String(row.providerLabel||row.fornitore||"Fornitore"),url=String(row.url||"");return {version:1,id,name,provider,providerKey:String(row.providerKey||""),type:String(row.tipo||"fisso"),supply:"dual",customerType:String(row.customerType||"privato"),codes:[row.codiceOffertaLuce,row.codiceOffertaGas].filter(Boolean),url,activationOffer:activationOffer(id,name,provider,"dual",url),components:{luce:{price:Number(row.luce.prezzo),annualFixedFee:Number(row.luce.quotaFissaAnnua),type:String(row.luce.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaLuce||row.luce.codice||""),indexName:String(row.luce.indiceRiferimento||"")},gas:{price:Number(row.gas.prezzo),annualFixedFee:Number(row.gas.quotaFissaAnnua),type:String(row.gas.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaGas||row.gas.codice||""),indexName:String(row.gas.indiceRiferimento||"")}}};}
     const commodity=String(row.commodity||"");if(!["luce","gas"].includes(commodity))return null;const id=String(row.codice||`${row.providerKey}-${row.nome}`),name=String(row.nome||"Offerta"),provider=String(row.providerLabel||row.fornitore||"Fornitore"),url=String(row.url||"");return {version:1,id,name,provider,providerKey:String(row.providerKey||""),type:String(row.tipo||"fisso"),supply:commodity,customerType:String(row.customerType||"privato"),codes:[row.codice].filter(Boolean),url,activationOffer:activationOffer(id,name,provider,commodity,url),components:{[commodity]:{price:Number(row.prezzo),annualFixedFee:Number(row.quotaFissaAnnua),type:String(row.tipo||"fisso"),code:String(row.codice||""),indexName:String(row.indiceRiferimento||"")}}};
   }
-  function offerCompatible(offer){const customer=customerTypeFromDocs();const supply=new Set(commoditiesFromDocs());if(customer&&offer.customerType&&offer.customerType!==customer)return false;const keys=Object.keys(offer.components||{});if(!keys.length)return false;return keys.length===supply.size&&keys.every((key)=>supply.has(key));}
+  function offerCompatible(offer){const customer=customerTypeFromDocs();const supply=new Set(commoditiesFromDocs());if(customer&&offer.customerType&&offer.customerType!==customer)return false;const keys=Object.keys(offer.components||{});if(!keys.length)return false;if(!supply.size)return true;return keys.length===supply.size&&keys.every((key)=>supply.has(key));}
   function normalizeProvider(value){return String(value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"");}
   function providerKeyForOffer(offer){if(offer?.providerKey)return String(offer.providerKey);const needle=normalizeProvider(offer?.provider);const brands=state.catalog?.brands?.providers||{};const exact=Object.entries(brands).find(([key,item])=>normalizeProvider(key)===needle||normalizeProvider(item?.label)===needle);return exact?.[0]||needle;}
   function offerKey(offer){return `${offer.customerType||""}|${offer.supply||""}|${offer.id||offer.name}`;}
@@ -357,19 +381,17 @@
   function resolvePreselectedOffer(pre){if(!pre||!offerCompatible(pre))return null;const match=state.offers.find((offer)=>sameOfferSelection(offer,pre));if(match)return {...match,source:pre.source||match.source||"",activationOffer:pre.activationOffer||match.activationOffer||null};return pre;}
   function renderProviderSelect(){
     const select=$("provider-select");if(!select)return;const selectedOfferKey=state.selected?providerKeyForOffer(state.selected):"";const current=select.value||selectedOfferKey;select.innerHTML="";
-    if(!state.docs.length){select.add(new Option("Fornitore",""));select.disabled=true;return;}
-    const brands=state.catalog?.brands?.providers||{},seen=new Map();Object.entries(brands).forEach(([key,item])=>{const label=String(item?.label||key).trim();if(label)seen.set(String(key),label);});
-    state.offers.forEach((offer)=>{const key=providerKeyForOffer(offer),label=String(offer.provider||"").trim();if(key&&label&&!seen.has(key))seen.set(key,label);});
+    const brands=state.catalog?.brands?.providers||{},seen=new Map();
+    state.offers.forEach((offer)=>{const key=providerKeyForOffer(offer),brandLabel=String(brands?.[key]?.label||"").trim(),label=brandLabel||String(offer.provider||"").trim();if(key&&label&&!seen.has(key))seen.set(key,label);});
     select.add(new Option("Seleziona un fornitore…",""));[...seen.entries()].sort((a,b)=>a[1].localeCompare(b[1],"it",{sensitivity:"base"})).forEach(([key,label])=>select.add(new Option(label,key)));select.disabled=false;if(current&&[...select.options].some((opt)=>opt.value===current))select.value=current;
   }
   function renderOfferSelect(){
     const select=$("offer-select"),providerSelect=$("provider-select");if(!select)return;const providerKey=String(providerSelect?.value||"");const selectedKey=state.selected?offerKey(state.selected):"";select.innerHTML="";
-    if(!state.docs.length){select.add(new Option("Offerta",""));select.disabled=true;$("simulate-selected-offer").disabled=true;return;}
     if(!providerKey){state.filtered=[];select.add(new Option("Seleziona prima un fornitore",""));select.disabled=true;$("simulate-selected-offer").disabled=true;return;}
     state.filtered=state.offers.filter((offer)=>providerKeyForOffer(offer)===providerKey);
     if(!state.filtered.length){select.add(new Option("Nessuna offerta compatibile per questo fornitore",""));select.disabled=true;$("simulate-selected-offer").disabled=true;return;}
     select.add(new Option("Seleziona un'offerta…",""));const unknownCustomer=!customerTypeFromDocs();state.filtered.forEach((offer,index)=>{const profile=unknownCustomer?` [${offer.customerType==="business"?"Business":"Privato"}]`:"";const option=new Option(`${offer.name}${profile}`,String(index));option.dataset.key=offerKey(offer);select.add(option);});
-    select.disabled=false;const match=state.filtered.findIndex((offer)=>offerKey(offer)===selectedKey);if(match>=0)select.value=String(match);$("simulate-selected-offer").disabled=!(select.value!=="");
+    select.disabled=false;const match=state.filtered.findIndex((offer)=>offerKey(offer)===selectedKey);if(match>=0)select.value=String(match);$("simulate-selected-offer").disabled=!state.docs.length||select.value==="";
   }
   async function loadCatalog(){
     if(state.catalog)return state.catalog;
@@ -382,7 +404,8 @@
       const {menu}=await loadCatalog();const customer=customerTypeFromDocs();const supply=commoditiesFromDocs();let rows=[];
       if(supply.length===2){if(customer==="business")rows=menu.offerteDualBusiness||[];else if(customer==="privato")rows=menu.offerteDual||[];else rows=[...(menu.offerteDual||[]),...(menu.offerteDualBusiness||[])];}
       else if(supply.length===1){let base=[];if(customer==="business")base=menu.offerteBusiness||[];else if(customer==="privato")base=menu.offerte||[];else base=[...(menu.offerte||[]),...(menu.offerteBusiness||[])];rows=base.filter((row)=>row.commodity===supply[0]);}
-      state.offers=rows.map(rawToOffer).filter(Boolean).filter(offerCompatible);
+      else rows=[...(menu.offerte||[]),...(menu.offerteBusiness||[]),...(menu.offerteDual||[]),...(menu.offerteDualBusiness||[])];
+      const deduped=new Map();rows.map(rawToOffer).filter(Boolean).filter(offerCompatible).forEach((offer)=>deduped.set(offerKey(offer),offer));state.offers=[...deduped.values()];
       const pre=safeJson(OFFER_KEY);state.preselectionIssue=null;if(pre){const resolved=resolvePreselectedOffer(pre);if(resolved){state.selected=resolved;const matchIndex=state.offers.findIndex((offer)=>sameOfferSelection(offer,resolved));if(matchIndex>=0)state.offers[matchIndex]=resolved;else state.offers.unshift(resolved);storeJson(OFFER_KEY,resolved);}else{state.selected=null;state.preselectionIssue=pre;storeJson(OFFER_KEY,null);}}
       renderProviderSelect();renderOfferSelect();
       const note=$("offer-selection-note");if(note){if(state.selected)note.innerHTML=`Offerta selezionata automaticamente: <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Puoi simularla subito oppure sceglierne un'altra.`;else if(state.preselectionIssue)note.innerHTML=`L'offerta scelta dalla card non è compatibile con la bolletta caricata. Seleziona un'offerta della stessa fornitura.`;else if(!customer)note.innerHTML=`Il tipo di utenza non è stato riconosciuto con certezza dalla bolletta: le offerte compatibili restano separate tra <strong>Privato</strong> e <strong>Business</strong>.`;else note.innerHTML=`Scegli prima il <strong>fornitore</strong> dal menu e poi l'offerta compatibile da simulare.`;}
@@ -463,14 +486,14 @@
   function syncMobileDisclosures(){if(window.matchMedia("(max-width:700px)").matches){document.querySelectorAll(".info-disclosure").forEach((node)=>node.removeAttribute("open"));$("seo-details")?.removeAttribute("open");}else{document.querySelectorAll(".info-disclosure").forEach((node)=>node.setAttribute("open",""));$("seo-details")?.setAttribute("open","");}}
   syncMobileDisclosures();
 
-  $("provider-select")?.addEventListener("change",()=>{const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);}renderOfferSelect();});$("offer-select")?.addEventListener("change",()=>{$("simulate-selected-offer").disabled=$("offer-select").value==="";});$("simulate-selected-offer")?.addEventListener("click",simulateSelected);
+  $("provider-select")?.addEventListener("change",()=>{const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);}renderOfferSelect();});$("offer-select")?.addEventListener("change",()=>{const select=$("offer-select"),index=Number(select?.value);state.selected=select?.value!==""&&Number.isInteger(index)?state.filtered[index]||null:null;storeJson(OFFER_KEY,state.selected);$("simulate-selected-offer").disabled=!state.docs.length||select?.value==="";});$("simulate-selected-offer")?.addEventListener("click",simulateSelected);
   $("back-to-offers")?.addEventListener("click",returnToOffers);$("activate-selected-offer")?.addEventListener("click",activateSelectedOffer);$("reset-simulator")?.addEventListener("click",resetSimulator);$("reset-simulator-bottom")?.addEventListener("click",resetSimulator);
 
   async function init(){
     const storedDocs=safeJson(DOCS_KEY);if(Array.isArray(storedDocs))state.docs=storedDocs.map(compactBill).filter(Boolean);const storedOffer=safeJson(OFFER_KEY);if(storedOffer)state.selected=storedOffer;if(state.docs.length)document.body.classList.add("simulator-has-docs");
     const payload=safeJson(PAYLOAD_KEY);if(payload?.summary&&payload?.bills?.length&&(location.hash==="#risultato"||state.docs.length)){renderPayload(payload);}
     if(state.docs.length){renderDocsPreview();setUploadStatus(`${state.docs.length} ${state.docs.length===1?"bolletta già disponibile":"bollette già disponibili"}. Puoi scegliere o cambiare l'offerta da simulare.`,"ready");await refreshOfferOptions();if(state.selected&&location.hash==="#risultato"){await loadCatalog();const history=historicalCheck(state.selected);state.history=history;renderHistory(history);const rebuilt=buildPayload(state.selected,history);if(rebuilt){storeJson(PAYLOAD_KEY,rebuilt);renderPayload(rebuilt);}}}
-    else {renderProviderSelect();renderOfferSelect();if(state.selected){setUploadStatus(`Offerta già selezionata: ${state.selected.provider} — ${state.selected.name}. Ora carica o fotografa la bolletta.`,"ready");$("offer-selection-note").innerHTML=`Hai scelto dalla card <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Carica o fotografa la bolletta: l'offerta resterà selezionata.`;}}
+    else {await refreshOfferOptions();if(state.selected){setUploadStatus(`Offerta già selezionata: ${state.selected.provider} — ${state.selected.name}. Ora carica o fotografa la bolletta.`,"ready");$("offer-selection-note").innerHTML=`Hai già scelto <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Carica o fotografa la bolletta: l'offerta resterà selezionata.`;}}
   }
   init().catch((error)=>setUploadStatus(error?.message||"Impossibile inizializzare il simulatore","error"));
 })();
