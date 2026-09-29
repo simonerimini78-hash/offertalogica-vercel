@@ -14994,6 +14994,7 @@ function selezioneOffertaSimulatore(offerta) {
       type: String(voce.tipoTariffa || offerta.tipo || "fisso"),
       code: String(codes[commodity] || ""),
       indexName: String(voce.formula?.indice || ""),
+      discounts: normalizzaScontiArera(voce.sconti || []),
     };
   });
   const customerType = offerta?.simulatorKind === "business" || LEAD_STATE?.customerType === "business" ? "business" : "privato";
@@ -15008,6 +15009,7 @@ function selezioneOffertaSimulatore(offerta) {
     supply: commodities.length === 2 ? "dual" : commodities[0],
     customerType,
     codes: Object.values(codes),
+    discounts: normalizzaScontiArera(offerta?.sconti || []),
     components,
     source: "card",
     activationOffer: offertaAttivazionePerSimulatore(offerta),
