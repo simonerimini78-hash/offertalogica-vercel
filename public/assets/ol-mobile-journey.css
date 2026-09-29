@@ -969,3 +969,104 @@
     @media (prefers-reduced-motion:reduce) {
       body .ol-fast-entry-option { transition: none !important; }
     }
+
+/* Simulatore bolletta: ingresso condiviso nelle pagine pubbliche OL */
+body .ol-simulator-entry {
+  width: min(1120px, calc(100% - 32px));
+  margin: 34px auto 22px;
+  padding: 22px 24px;
+  border: 1px solid rgba(8,127,58,.18);
+  border-radius: 22px;
+  background: linear-gradient(135deg, #f7fcf8 0%, #eef8f2 100%);
+  box-shadow: 0 12px 30px rgba(18,48,68,.07);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  box-sizing: border-box;
+}
+body .ol-simulator-entry-copy { min-width: 0; }
+body .ol-simulator-entry-kicker {
+  display: inline-block;
+  margin-bottom: 5px;
+  color: #087f3a;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .035em;
+  text-transform: uppercase;
+}
+body .ol-simulator-entry h2 {
+  margin: 0 0 7px !important;
+  color: #123044 !important;
+  font-size: clamp(21px, 2.2vw, 29px) !important;
+  line-height: 1.15 !important;
+}
+body .ol-simulator-entry p {
+  max-width: 720px;
+  margin: 0 !important;
+  color: #52677d !important;
+  font-size: 14px !important;
+  line-height: 1.5 !important;
+}
+body .ol-simulator-entry-actions {
+  flex: 0 0 auto;
+  display: grid;
+  gap: 9px;
+  min-width: 230px;
+  text-align: center;
+}
+body .ol-simulator-entry-primary,
+body .ol-simulator-entry-secondary {
+  display: inline-flex !important;
+  min-height: 44px;
+  align-items: center;
+  justify-content: center;
+  padding: 10px 16px !important;
+  border-radius: 12px;
+  font-weight: 800 !important;
+  text-decoration: none !important;
+  box-sizing: border-box;
+}
+body .ol-simulator-entry-primary {
+  border: 1px solid #087f3a;
+  background: #087f3a;
+  color: #fff !important;
+  box-shadow: 0 8px 18px rgba(8,127,58,.16);
+}
+body .ol-simulator-entry-primary:hover,
+body .ol-simulator-entry-primary:focus-visible { background: #066b31; }
+body .ol-simulator-entry-secondary {
+  border: 1px solid rgba(8,127,58,.22);
+  background: #fff;
+  color: #087f3a !important;
+  font-size: 13px;
+}
+body .ol-simulator-entry-primary:focus-visible,
+body .ol-simulator-entry-secondary:focus-visible,
+body .ol-simulator-footer-link:focus-visible {
+  outline: 3px solid rgba(37,99,235,.22) !important;
+  outline-offset: 3px !important;
+}
+body footer .ol-simulator-footer-link { font-weight: 700; }
+
+@media (max-width:700px) {
+  body .ol-simulator-entry {
+    width: min(100% - 20px, 620px);
+    margin: 24px auto 16px;
+    padding: 17px 15px;
+    border-radius: 18px;
+    display: grid;
+    gap: 15px;
+  }
+  body .ol-simulator-entry h2 { font-size: 21px !important; }
+  body .ol-simulator-entry p { font-size: 13px !important; }
+  body .ol-simulator-entry-actions { min-width: 0; width: 100%; }
+  body .ol-simulator-entry-primary,
+  body .ol-simulator-entry-secondary { width: 100%; }
+}
+
+@media (prefers-reduced-motion:reduce) {
+  body .ol-simulator-entry-primary,
+  body .ol-simulator-entry-secondary { transition: none !important; }
+}
+

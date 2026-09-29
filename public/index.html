@@ -4477,6 +4477,7 @@
             <nav class="social-entry-footer-links" aria-label="Informazioni e privacy">
                 <a href="/come-funziona.html">Come funziona</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
+                <a href="/simulatore-bolletta.html">Simulatore bolletta</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/fornitori/">Fornitori</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
                 <a href="/partner.html">Partner</a><span class="social-entry-footer-separator" aria-hidden="true">|</span>
@@ -10200,16 +10201,13 @@ function renderRankingBusiness(profile, ranking) {
       difference.textContent = `Costo superiore all'attuale di ${euro(Math.abs(item.differenza))} / anno`;
     }
     economics.append(costLabel, cost, difference);
-    const simulatorPayload = creaPayloadSimulatoreBolletta(item);
-    if (simulatorPayload) {
-      const simulatorButton = document.createElement("button");
-      simulatorButton.type = "button";
-      simulatorButton.className = "business-simulator-button";
-      simulatorButton.textContent = "Simula questa bolletta";
-      simulatorButton.setAttribute("aria-label", `Simula la bolletta business caricata con ${item.nome}`);
-      simulatorButton.addEventListener("click", () => apriSimulatoreBolletta(item));
-      economics.appendChild(simulatorButton);
-    }
+    const simulatorButton = document.createElement("button");
+    simulatorButton.type = "button";
+    simulatorButton.className = "business-simulator-button";
+    simulatorButton.textContent = creaPayloadSimulatoreBolletta(item) ? "Simula questa bolletta" : "Simula la tua bolletta";
+    simulatorButton.setAttribute("aria-label", `Apri il simulatore bolletta con ${item.nome}`);
+    simulatorButton.addEventListener("click", () => apriSimulatoreBolletta(item));
+    economics.appendChild(simulatorButton);
 
     card.append(position, main, economics);
     list.appendChild(card);
@@ -10955,6 +10953,7 @@ function creaSchedaOfferta(offerta) {
     <div class="offer-action-column">
       <p class="offer-action-benefit" aria-live="polite"></p>
       <div class="offer-action-row">
+        <button type="button" class="offer-simulator-link">Simula la tua bolletta</button>
         <a id="link-partner-${offerta.id}" href="#" style="background:var(--dark-btn); color:white; text-decoration:none; padding:10px 20px; border-radius:8px; font-size:13px; font-weight:bold; white-space:nowrap;">Vedi Offerta</a>
         <a class="offer-switcho-info-link" href="/switcho.html#come-funziona" aria-label="Come funziona la collaborazione tra OffertaLogica e Switcho" title="Come funziona la collaborazione con Switcho" hidden><span aria-hidden="true">i</span><span>Come funziona</span></a>
       </div>
@@ -12756,19 +12755,21 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b>${risparmioMensileHtml}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
           <span class="offer-cost-line"><span class="offer-metric-copy"><b>${costoStimatoLabel}</b>${costoMensileHtml}</span><strong>${euro(costo)} / anno</strong></span>
         </span>
-        ${simulazioneBollettaPayload ? `<button type="button" class="offer-simulator-link">Simula questa bolletta</button>` : ""}
       `;
       card.querySelector(":scope > .offer-details-toggle")?.remove();
       const actionColumnForDetails = card.querySelector(".offer-action-column");
       if (actionColumnForDetails) actionColumnForDetails.insertAdjacentHTML("afterend", dettagliCondizioniHtml);
       else saving.insertAdjacentHTML("beforeend", dettagliCondizioniHtml);
-      const simulatorButton = saving.querySelector(".offer-simulator-link");
-      simulatorButton?.setAttribute("aria-label", `Simula la bolletta caricata con ${titoloOffertaVisibile(offerta)}`);
-      simulatorButton?.addEventListener("click", (event) => {
-        event.preventDefault();
-        event.stopPropagation();
-        apriSimulatoreBolletta(offerta);
-      });
+      const simulatorButton = card.querySelector(".offer-simulator-link");
+      if (simulatorButton) {
+        simulatorButton.textContent = simulazioneBollettaPayload ? "Simula questa bolletta" : "Simula la tua bolletta";
+        simulatorButton.setAttribute("aria-label", `Apri il simulatore bolletta con ${titoloOffertaVisibile(offerta)}`);
+        simulatorButton.onclick = (event) => {
+          event.preventDefault();
+          event.stopPropagation();
+          apriSimulatoreBolletta(offerta);
+        };
+      }
       const billPrecisionButton = saving.querySelector(".offer-bill-precision");
       billPrecisionButton?.setAttribute("aria-label", `Carica bolletta per confronto preciso per ${titoloOffertaVisibile(offerta)}`);
       billPrecisionButton?.addEventListener("click", (event) => {
@@ -14778,6 +14779,83 @@ function datiBollettaCorrentePdf() {
 }
 
 const BILL_SIMULATOR_STORAGE_KEY = "offertalogicaBillSimulatorV1";
+const BILL_SIMULATOR_DOCS_STORAGE_KEY = "offertalogicaBillSimulatorDocsV1";
+const BILL_SIMULATOR_OFFER_STORAGE_KEY = "offertalogicaBillSimulatorOfferV1";
+
+function compattaDocumentoSimulatore(doc) {
+  if (!doc || typeof doc !== "object") return null;
+  const compact = {
+    kind: String(doc.kind || ""),
+    commodity: String(doc.commodity || ""),
+    customer_type: String(doc.customer_type || ""),
+    billing_period_start: String(doc.billing_period_start || ""),
+    billing_period_end: String(doc.billing_period_end || ""),
+    total_amount_eur: Number(doc.total_amount_eur),
+    fornitore: String(doc.fornitore || ""),
+    fornitore_luce: String(doc.fornitore_luce || ""),
+    fornitore_gas: String(doc.fornitore_gas || ""),
+  };
+  [
+    "consumo_periodo_luce_kwh", "consumo_periodo_gas_smc",
+    "prezzo_luce_eur_kwh", "prezzo_gas_eur_smc",
+    "prezzo_vendita_bolletta_luce_eur_kwh", "prezzo_vendita_bolletta_gas_eur_smc",
+    "quota_fissa_vendita_luce_eur_anno", "quota_fissa_vendita_gas_eur_anno",
+  ].forEach((key) => {
+    const value = Number(doc[key]);
+    compact[key] = Number.isFinite(value) ? value : null;
+  });
+  return compact.kind === "bolletta" && compact.billing_period_start && compact.billing_period_end && compact.total_amount_eur > 0
+    ? compact
+    : null;
+}
+
+function codiciOffertaPerSimulatore(offerta, commodities = []) {
+  const cert = offerta?.certificazione?.codici || {};
+  const explicit = Array.isArray(offerta?.codici) ? offerta.codici.map((item) => String(item || "").trim()).filter(Boolean) : [];
+  const output = {};
+  commodities.forEach((commodity, index) => {
+    const code = String(cert?.[commodity] || offerta?.[`codiceOfferta${commodity === "luce" ? "Luce" : "Gas"}`] || (explicit.length === commodities.length ? explicit[index] : explicit.length === 1 ? explicit[0] : "") || "").trim();
+    if (code) output[commodity] = code;
+  });
+  return output;
+}
+
+function selezioneOffertaSimulatore(offerta) {
+  if (!offerta || typeof offerta !== "object") return null;
+  const rawComponents = componentiOffertaSimulatore(offerta);
+  const commodities = Object.keys(rawComponents).filter((commodity) => ["luce", "gas"].includes(commodity));
+  if (!commodities.length) return null;
+  const codes = codiciOffertaPerSimulatore(offerta, commodities);
+  const components = {};
+  commodities.forEach((commodity) => {
+    const voce = rawComponents[commodity] || {};
+    let price = Number(voce.prezzoVariabile);
+    if (voce.formula) {
+      const resolved = Number(risolviPrezzoVariabile({ prezzoVariabile: voce.prezzoVariabile, formula: voce.formula }));
+      if (resolved > 0) price = resolved;
+    }
+    components[commodity] = {
+      price: Number.isFinite(price) ? price : null,
+      annualFixedFee: Number.isFinite(Number(voce.quotaFissaAnnua)) ? Number(voce.quotaFissaAnnua) : null,
+      type: String(voce.tipoTariffa || offerta.tipo || "fisso"),
+      code: String(codes[commodity] || ""),
+      indexName: String(voce.formula?.indice || ""),
+    };
+  });
+  const customerType = offerta?.simulatorKind === "business" || LEAD_STATE?.customerType === "business" ? "business" : "privato";
+  const name = offerta?.simulatorKind === "business" ? String(offerta?.nome || "Offerta business") : titoloOffertaVisibile(offerta);
+  return {
+    version: 1,
+    id: String(offerta?.id || offerta?.codice || name),
+    name,
+    provider: String(offerta?.provider || "Fornitore"),
+    type: String(offerta?.tipo || "fisso"),
+    supply: commodities.length === 2 ? "dual" : commodities[0],
+    customerType,
+    codes: Object.values(codes),
+    components,
+  };
+}
 
 function giorniInclusiviSimulatore(start, end) {
   const from = Date.parse(`${String(start || "")}T00:00:00Z`);
@@ -14965,6 +15043,7 @@ function creaPayloadSimulatoreBolletta(offerta) {
       type: String(offerta?.tipo || ""),
       supply: String(offerta?.fornitura || offerta?.ambito || ""),
       logo: String(brand?.logo || ""),
+      codes: selezioneOffertaSimulatore(offerta)?.codes || [],
     },
     source: {
       provider: [...new Set(simulazioni.map((item) => item.provider).filter(Boolean))].join(" + "),
@@ -14994,14 +15073,20 @@ function creaPayloadSimulatoreBolletta(offerta) {
 }
 
 function apriSimulatoreBolletta(offerta) {
+  const selection = selezioneOffertaSimulatore(offerta);
+  if (!selection) return false;
+  const docs = documentiBollettaSimulatore().map(compattaDocumentoSimulatore).filter(Boolean);
   const payload = creaPayloadSimulatoreBolletta(offerta);
-  if (!payload) return false;
   try {
-    sessionStorage.setItem(BILL_SIMULATOR_STORAGE_KEY, JSON.stringify(payload));
+    sessionStorage.setItem(BILL_SIMULATOR_OFFER_STORAGE_KEY, JSON.stringify(selection));
+    if (docs.length) sessionStorage.setItem(BILL_SIMULATOR_DOCS_STORAGE_KEY, JSON.stringify(docs));
+    else sessionStorage.removeItem(BILL_SIMULATOR_DOCS_STORAGE_KEY);
+    if (payload) sessionStorage.setItem(BILL_SIMULATOR_STORAGE_KEY, JSON.stringify(payload));
+    else sessionStorage.removeItem(BILL_SIMULATOR_STORAGE_KEY);
   } catch (error) {
     return false;
   }
-  window.location.href = "/simulatore-bolletta.html#risultato";
+  window.location.href = payload ? "/simulatore-bolletta.html#risultato" : "/simulatore-bolletta.html";
   return true;
 }
 
@@ -20040,7 +20125,7 @@ if (document.readyState === "loading") {
         <div class="ol-discovery-head"><h2 id="ol-discovery-title">Scopri OffertaLogica</h2><p>Guide e strumenti per capire le tue utenze e scegliere con più consapevolezza.</p></div>
         <div class="ol-discovery-grid">
           <details class="ol-discovery-card is-offers" data-discovery-card="offerte"><summary><strong>Offerte e fornitori</strong><span>Offerte aggiornate, operatori e cambio fornitore.</span></summary><div class="ol-discovery-links"><a href="/offerte-luce-gas-aggiornate.html" data-discovery-link="offerte-aggiornate">Offerte aggiornate</a><a href="/fornitori/" data-discovery-link="fornitori">Conosci i fornitori</a><a href="/come-cambiare-fornitore-luce-gas.html" data-discovery-link="cambio-fornitore">Come cambiare fornitore</a></div></details>
-          <details class="ol-discovery-card is-bill" data-discovery-card="bolletta"><summary><strong>Bolletta e risparmio</strong><span>Capisci cosa paghi e quali voci incidono davvero.</span></summary><div class="ol-discovery-links"><a href="/come-leggere-bolletta-luce-gas.html" data-discovery-link="leggere-bolletta">Come leggere la bolletta</a><a href="/prezzo-fisso-o-variabile-luce-gas.html" data-discovery-link="fisso-variabile">Prezzo fisso o variabile</a><a href="/quota-fissa-luce-gas-consumi-bassi.html" data-discovery-link="quota-fissa">Quota fissa e consumi</a><a href="/pun-psv-spread-luce-gas.html" data-discovery-link="pun-psv">PUN, PSV e spread spiegati</a></div></details>
+          <details class="ol-discovery-card is-bill" data-discovery-card="bolletta"><summary><strong>Bolletta e risparmio</strong><span>Capisci cosa paghi e quali voci incidono davvero.</span></summary><div class="ol-discovery-links"><a href="/simulatore-bolletta.html" data-discovery-link="simulatore-bolletta-footer">Simula la tua bolletta</a><a href="/come-leggere-bolletta-luce-gas.html" data-discovery-link="leggere-bolletta">Come leggere la bolletta</a><a href="/prezzo-fisso-o-variabile-luce-gas.html" data-discovery-link="fisso-variabile">Prezzo fisso o variabile</a><a href="/quota-fissa-luce-gas-consumi-bassi.html" data-discovery-link="quota-fissa">Quota fissa e consumi</a><a href="/pun-psv-spread-luce-gas.html" data-discovery-link="pun-psv">PUN, PSV e spread spiegati</a></div></details>
           <details class="ol-discovery-card is-guides" data-discovery-card="guide"><summary><strong>Guide e novità</strong><span>Approfondimenti pratici e sicurezza sulle utenze.</span></summary><div class="ol-discovery-links"><a href="/articoli.html" data-discovery-link="informa">OffertaLogica Informa</a><a href="/truffe-telefoniche-luce-gas.html" data-discovery-link="truffe">Truffe telefoniche: come difendersi</a><a href="/pun-oggi.html" data-discovery-link="pun-oggi">Prezzo luce oggi</a><a href="/psv-gas-oggi.html" data-discovery-link="psv-oggi">Prezzo gas oggi</a></div></details>
           <details class="ol-discovery-card is-home" data-discovery-card="casa"><summary><strong>Casa e servizi</strong><span>Energia, comfort e connessione oltre la bolletta.</span></summary><div class="ol-discovery-links"><a href="/fotovoltaico.html" data-discovery-link="fotovoltaico">Fotovoltaico</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione">Climatizzazione e pompa di calore</a><a href="/speed-test.html" data-discovery-link="speed-test">Internet e Speed Test</a><a href="/climatizzazione-pompa-di-calore.html" data-discovery-link="climatizzazione-2">Climatizzazione e comfort</a></div></details>
         </div>
@@ -20062,6 +20147,7 @@ if (document.readyState === "loading") {
     <nav class="site-footer-links" aria-label="Link del sito e contatti">
         <a href="/come-funziona.html">Come funziona</a>
         <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a>
+        <a href="/simulatore-bolletta.html">Simulatore bolletta</a>
         <a href="/fornitori/">Fornitori</a>
         <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
         <a href="/truffe-telefoniche-luce-gas.html">Sicurezza chiamate</a>

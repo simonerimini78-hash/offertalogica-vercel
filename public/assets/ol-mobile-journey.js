@@ -1,4 +1,4 @@
-/* OffertaLogica mobile journey v1.3.1 */
+/* OffertaLogica mobile journey v1.4.0 */
 (function () {
   'use strict';
 
@@ -15,6 +15,7 @@
 
   var MENU_ITEMS = [
     { href: '/offerte-luce-gas-aggiornate.html', label: 'Offerte aggiornate' },
+    { href: '/simulatore-bolletta.html', label: 'Simulatore bolletta' },
     { href: '/come-funziona.html', label: 'Come funziona' },
     { href: '/come-leggere-bolletta-luce-gas.html', label: 'Guida bolletta' },
     { href: '/fornitori/', label: 'Fornitori energia' },
@@ -268,6 +269,46 @@
     }
   }
 
+  function enhanceSimulatorEntry() {
+    if (samePath('/simulatore-bolletta.html')) return;
+
+    var footer = document.querySelector('footer');
+    if (!footer) return;
+
+    if (!document.querySelector('.ol-simulator-entry')) {
+      var section = document.createElement('section');
+      section.className = 'ol-simulator-entry';
+      section.setAttribute('aria-labelledby', 'ol-simulator-entry-title');
+      section.innerHTML = [
+        '<div class="ol-simulator-entry-copy">',
+          '<span class="ol-simulator-entry-kicker">Nuovo strumento OffertaLogica</span>',
+          '<h2 id="ol-simulator-entry-title">Simula la tua bolletta</h2>',
+          '<p>Carica o fotografa una bolletta e confronta gli stessi consumi con un’altra offerta, con controllo del periodo quando i dati storici sono disponibili.</p>',
+        '</div>',
+        '<div class="ol-simulator-entry-actions">',
+          '<a class="ol-simulator-entry-primary" href="/simulatore-bolletta.html">Simula la tua bolletta</a>',
+          '<a class="ol-simulator-entry-secondary" href="/simulatore-bolletta.html#come-funziona">Come funziona il simulatore</a>',
+        '</div>'
+      ].join('');
+      footer.parentNode.insertBefore(section, footer);
+    }
+
+    if (!footer.querySelector('a[href="/simulatore-bolletta.html"]')) {
+      var footerNav = footer.querySelector('nav') || footer.querySelector('div:last-of-type') || footer;
+      var link = document.createElement('a');
+      link.href = '/simulatore-bolletta.html';
+      link.textContent = 'Simulatore bolletta';
+      link.className = 'ol-simulator-footer-link';
+      if (footerNav.tagName === 'NAV') {
+        footerNav.appendChild(link);
+      } else {
+        var separator = document.createTextNode(' | ');
+        footerNav.appendChild(separator);
+        footerNav.appendChild(link);
+      }
+    }
+  }
+
   function init() {
     buildMenu();
     normalizeCalculatorCtas();
@@ -275,6 +316,7 @@
     enhanceTocs();
     enhanceTables();
     markOffersPage();
+    enhanceSimulatorEntry();
   }
 
   if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init, { once: true });
