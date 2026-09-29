@@ -370,21 +370,7 @@ if [ "$OFFER_PUBLISH" = "1" ] || [ "$ENERGY_PUBLISH" = "1" ]; then
   fi
 fi
 
-ADD_FILES=()
-if [ "$OFFER_PUBLISH" = "1" ]; then
-  ADD_FILES+=("data/offerte-arera-menu.json" "public/data/offerte-arera-menu.json" "data/offerte-arera-history.json" "public/data/offerte-arera-history.json" "data/arera-update-report.json" "public/offerte-luce-gas-aggiornate.html" "public/sitemap.xml")
-fi
-if [ "$PARAMS_PUBLISH" = "1" ]; then
-  ADD_FILES+=("data/calcolo-parametri.json" "public/data/calcolo-parametri.json")
-fi
-if [ "$ENERGY_PUBLISH" = "1" ]; then
-  ADD_FILES+=("public/data/energia-oggi.json" "public/pun-oggi.html" "public/psv-gas-oggi.html" "public/sitemap.xml")
-fi
-if [ "$PARTNER_PUBLISH" = "1" ]; then
-  ADD_FILES+=("data/offerte-partner.json" "public/data/offerte-partner.json")
-fi
-
-git -C "$REPO_DIR" add -- "${ADD_FILES[@]}"
+git -C "$REPO_DIR" add -- "${PUBLISH_FILES[@]}"
 
 if git -C "$REPO_DIR" diff --cached --quiet; then
   log "I dataset selezionati non producono differenze; nessun commit necessario."
