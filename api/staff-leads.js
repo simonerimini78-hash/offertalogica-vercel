@@ -16,6 +16,7 @@ const MANAGEMENT_NATIVE_TELEMETRY_TOOL_CODES = new Set([
   "fotovoltaico",
   "fotovoltaico_agricoltura",
   "climatizzazione_pdc",
+  "simulatore_bolletta",
 ]);
 const MANAGEMENT_DERIVED_TELEMETRY_TOOL_CODES = new Set([
   "energia_comparatore",
@@ -48,6 +49,7 @@ const FALLBACK_BUSINESS_CATALOG = Object.freeze({
   ],
   tools: [
     { tool_code: "speed_test", business_line_code: null, label: "Speed Test", page_path: "/speed-test.html", source_aliases: ["speed_test", "seo_speed_test"], status: "active", lead_enabled: false, monetization_enabled: false, sort_order: 5 },
+    { tool_code: "simulatore_bolletta", business_line_code: null, label: "Simulatore bolletta", page_path: "/simulatore-bolletta.html", source_aliases: ["simulator", "simulatore", "simulatore_bolletta"], status: "active", lead_enabled: false, monetization_enabled: false, sort_order: 8 },
     { tool_code: "energia_comparatore", business_line_code: "energia", label: "Comparatore luce e gas", page_path: "/", source_aliases: ["energia", "comparatore", "calcolatore", "site_free", "direct"], status: "active", lead_enabled: true, monetization_enabled: true, sort_order: 10 },
     { tool_code: "fotovoltaico", business_line_code: "fotovoltaico", label: "Fotovoltaico", page_path: "/fotovoltaico.html", source_aliases: ["fotovoltaico", "fotovoltaico_business", "seo_fotovoltaico"], status: "active", lead_enabled: true, monetization_enabled: true, sort_order: 20 },
     { tool_code: "fotovoltaico_agricoltura", business_line_code: "fotovoltaico", label: "Fotovoltaico Azienda Agricola", page_path: "/fotovoltaico.html", source_aliases: ["fotovoltaico_agricoltura"], status: "active", lead_enabled: true, monetization_enabled: true, sort_order: 21 },
@@ -216,6 +218,14 @@ async function callManagementRpc(accessToken, month) {
   }
 }
 
+function ensureBuiltinManagementTools(tools = []) {
+  const list = Array.isArray(tools) ? tools.slice() : [];
+  if (!list.some((tool) => normalizeCatalogCode(tool?.tool_code) === "simulatore_bolletta")) {
+    list.push({ tool_code: "simulatore_bolletta", business_line_code: null, label: "Simulatore bolletta", page_path: "/simulatore-bolletta.html", source_aliases: ["simulator", "simulatore", "simulatore_bolletta"], status: "active", lead_enabled: false, monetization_enabled: false, sort_order: 8 });
+  }
+  return list.sort((a, b) => Number(a?.sort_order || 999) - Number(b?.sort_order || 999));
+}
+
 function normalizeBusinessCatalog(value) {
   const validPayload = value && typeof value === "object"
     && Array.isArray(value.lines)
@@ -223,6 +233,7 @@ function normalizeBusinessCatalog(value) {
   if (!validPayload) {
     return {
       ...FALLBACK_BUSINESS_CATALOG,
+      tools: ensureBuiltinManagementTools(FALLBACK_BUSINESS_CATALOG.tools),
       fallback: true,
       reason: "catalog_response_invalid",
     };
@@ -231,7 +242,7 @@ function normalizeBusinessCatalog(value) {
     fallback: Boolean(value.fallback),
     release: value.release || "P12",
     lines: value.lines,
-    tools: value.tools,
+    tools: ensureBuiltinManagementTools(value.tools),
     checked_at: value.checked_at || null,
   };
 }
@@ -241,22 +252,88 @@ async function loadBusinessCatalog(accessToken) {
     return normalizeBusinessCatalog(await callStaffRpc(accessToken, "staff_owner_business_catalog", { p_include_archived: true }));
   } catch (error) {
     console.warn("staff-business-catalog-fallback", String(error?.message || error));
-    return { ...FALLBACK_BUSINESS_CATALOG, reason: String(error?.message || error) };
+    return { ...FALLBACK_BUSINESS_CATALOG, tools: ensureBuiltinManagementTools(FALLBACK_BUSINESS_CATALOG.tools), reason: String(error?.message || error) };
   }
+}
+
+async function loadSimulatorToolEconomics(period) {
+  if (!validManagementInterval(period)) return null;
+  const config = customerDbConfig();
+  if (!config.url || !config.key) return null;
+  const rows = [];
+  const pageSize = 1000;
+  const maxRows = 10000;
+  for (let offset = 0; offset < maxRows; offset += pageSize) {
+    const query = new URLSearchParams();
+    query.set("select", "id,category,source_system,status,amount_gross_eur,metadata,occurred_at");
+    query.append("occurred_at", `gte.${period.effective_from}`);
+    query.append("occurred_at", `lt.${period.effective_to}`);
+    query.append("source_system", "in.(site_pdf_ai,site_photo_ai)");
+    query.set("order", "occurred_at.asc");
+    query.set("limit", String(pageSize));
+    query.set("offset", String(offset));
+    const response = await fetch(`${config.url}/rest/v1/premium_economic_entries?${query.toString()}`, {
+      method: "GET",
+      headers: serviceReadHeaders(config.key),
+    });
+    if (!response.ok) throw new Error(`Customer DB premium_economic_entries: HTTP ${response.status}`);
+    const page = await response.json();
+    const list = Array.isArray(page) ? page : [];
+    rows.push(...list);
+    if (list.length < pageSize) break;
+    if (offset + pageSize >= maxRows) throw new Error("Costi simulatore oltre il limite di lettura sicura");
+  }
+  const simulatorRows = rows.filter((row) => {
+    const meta = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+    return normalizeCatalogCode(meta.tool_code) === "simulatore_bolletta" || normalizeCatalogCode(meta.source) === "simulator";
+  });
+  let failed = 0;
+  let unpriced = 0;
+  let real = 0;
+  let estimated = 0;
+  simulatorRows.forEach((row) => {
+    const meta = row?.metadata && typeof row.metadata === "object" ? row.metadata : {};
+    if (normalizeCatalogCode(meta.outcome) === "failed") failed += 1;
+    const status = normalizeCatalogCode(row?.status);
+    const amount = Math.max(0, Number(row?.amount_gross_eur || 0));
+    if (status === "unpriced") unpriced += 1;
+    else if (status === "estimated") estimated += amount;
+    else if (status === "incurred") real += amount;
+  });
+  return {
+    tool_code: "simulatore_bolletta",
+    analyses: simulatorRows.length,
+    failed,
+    unpriced,
+    cost_real_eur: roundMoney(real),
+    cost_estimated_eur: roundMoney(estimated),
+    cost_total_eur: roundMoney(real + estimated),
+  };
+}
+
+function mergeSimulatorToolEconomics(economics = {}, simulator = null) {
+  if (!simulator) return economics;
+  const tools = (Array.isArray(economics?.tools) ? economics.tools : []).filter((row) => normalizeCatalogCode(row?.tool_code) !== "simulatore_bolletta");
+  tools.push(simulator);
+  return { ...economics, tools };
 }
 
 async function loadBusinessEconomics(accessToken, period) {
   if (!validManagementInterval(period)) {
     return { available: true, tools: [], lines: [], unattributed_entries: 0, empty_by_baseline: true };
   }
+  const simulator = await loadSimulatorToolEconomics(period).catch((error) => {
+    console.warn("staff-simulator-economics-unavailable", String(error?.message || error));
+    return null;
+  });
   try {
     const payload = await callStaffRpc(accessToken, "staff_owner_business_economics_period", {
       p_from: period.effective_from,
       p_to: period.effective_to,
     });
-    return { available: true, ...payload };
+    return mergeSimulatorToolEconomics({ available: true, ...payload }, simulator);
   } catch (error) {
-    return { available: false, tools: [], lines: [], unattributed_entries: 0, reason: String(error?.message || error) };
+    return mergeSimulatorToolEconomics({ available: false, tools: [], lines: [], unattributed_entries: 0, reason: String(error?.message || error) }, simulator);
   }
 }
 

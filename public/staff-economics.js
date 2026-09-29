@@ -294,6 +294,36 @@
     }
   }
 
+  function emptyEditorialAiCosts() {
+    return {
+      editorial_ai_article_runs: 0, editorial_ai_article_failed: 0, editorial_ai_article_unpriced: 0,
+      editorial_ai_article_cost_real_eur: 0, editorial_ai_article_cost_estimated_eur: 0,
+      editorial_ai_image_runs: 0, editorial_ai_image_failed: 0, editorial_ai_image_unpriced: 0,
+      editorial_ai_image_cost_real_eur: 0, editorial_ai_image_cost_estimated_eur: 0,
+      editorial_ai_support_runs: 0, editorial_ai_support_failed: 0, editorial_ai_support_unpriced: 0,
+      editorial_ai_support_cost_real_eur: 0, editorial_ai_support_cost_estimated_eur: 0,
+      __editorialAiInstalled: false,
+    };
+  }
+
+  async function loadEditorialAiCosts() {
+    try {
+      const data = await rpc("premium_owner_editorial_ai_costs", { p_days: currentDays });
+      return { ...emptyEditorialAiCosts(), ...(data || {}), __editorialAiInstalled: true };
+    } catch (error) {
+      if (error?.kind === "not_installed") return emptyEditorialAiCosts();
+      throw error;
+    }
+  }
+
+  function editorialAiNote(runs, failed, unpriced, estimated, unit = "operazioni") {
+    const parts = [`${number(runs, 0)} ${unit}`];
+    if (Number(failed || 0) > 0) parts.push(`${number(failed, 0)} fallite`);
+    if (Number(unpriced || 0) > 0) parts.push(`${number(unpriced, 0)} senza prezzo`);
+    if (Number(estimated || 0) > 0) parts.push(`${money(estimated)} stimati`);
+    return parts.join(" · ");
+  }
+
   function renderBreakdowns(data) {
     const kpi = data?.kpi || {};
     const b = data?.breakdown || {};
@@ -310,8 +340,11 @@
     if (costs) {
       const photoRealTotal = Number(b.site_photo_ai_consumer_cost_real_eur || 0) + Number(b.site_photo_ai_business_cost_real_eur || 0) + Number(b.site_photo_ai_unknown_cost_real_eur || 0);
       const photoEstimatedTotal = Number(b.site_photo_ai_consumer_cost_estimated_eur || 0) + Number(b.site_photo_ai_business_cost_estimated_eur || 0) + Number(b.site_photo_ai_unknown_cost_estimated_eur || 0);
-      const ledgerOtherReal = Math.max(0, Number(b.ledger_cost_real_other_eur || 0) - photoRealTotal);
-      const ledgerOtherEstimated = Math.max(0, Number(b.ledger_cost_estimated_other_eur || 0) - photoEstimatedTotal);
+      const editorialRealTotal = Number(b.editorial_ai_article_cost_real_eur || 0) + Number(b.editorial_ai_image_cost_real_eur || 0) + Number(b.editorial_ai_support_cost_real_eur || 0);
+      const editorialEstimatedTotal = Number(b.editorial_ai_article_cost_estimated_eur || 0) + Number(b.editorial_ai_image_cost_estimated_eur || 0) + Number(b.editorial_ai_support_cost_estimated_eur || 0);
+      const editorialAlreadySeparated = b.__editorialAlreadySeparated === true;
+      const ledgerOtherReal = Math.max(0, Number(b.ledger_cost_real_other_eur || 0) - photoRealTotal - (editorialAlreadySeparated ? 0 : editorialRealTotal));
+      const ledgerOtherEstimated = Math.max(0, Number(b.ledger_cost_estimated_other_eur || 0) - photoEstimatedTotal - (editorialAlreadySeparated ? 0 : editorialEstimatedTotal));
       const rows = [
         breakdownRow("Analisi IA Premium", b.premium_ai_cost_eur, `${number(b.premium_ai_runs, 0)} analisi · ${number(b.premium_ai_failed, 0)} fallite`, "automatico"),
         breakdownRow("Analisi IA sito — Privati", b.site_pdf_ai_consumer_cost_real_eur,
@@ -322,6 +355,12 @@
           siteAiNote(b.site_photo_ai_consumer_runs, b.site_photo_ai_consumer_failed, b.site_photo_ai_consumer_unpriced, b.site_photo_ai_consumer_cost_estimated_eur), "automatico"),
         breakdownRow("Letture foto bolletta — Business", b.site_photo_ai_business_cost_real_eur,
           siteAiNote(b.site_photo_ai_business_runs, b.site_photo_ai_business_failed, b.site_photo_ai_business_unpriced, b.site_photo_ai_business_cost_estimated_eur), "automatico"),
+        breakdownRow("Editoriale — Generazione articoli", b.editorial_ai_article_cost_real_eur,
+          editorialAiNote(b.editorial_ai_article_runs, b.editorial_ai_article_failed, b.editorial_ai_article_unpriced, b.editorial_ai_article_cost_estimated_eur, "generazioni"), "automatico"),
+        breakdownRow("Editoriale — Generazione immagini", b.editorial_ai_image_cost_real_eur,
+          editorialAiNote(b.editorial_ai_image_runs, b.editorial_ai_image_failed, b.editorial_ai_image_unpriced, b.editorial_ai_image_cost_estimated_eur, "generazioni"), "automatico"),
+        breakdownRow("Editoriale — Supporto e controlli IA", b.editorial_ai_support_cost_real_eur,
+          editorialAiNote(b.editorial_ai_support_runs, b.editorial_ai_support_failed, b.editorial_ai_support_unpriced, b.editorial_ai_support_cost_estimated_eur, "chiamate"), "automatico"),
       ];
       if (Number(b.site_pdf_ai_unknown_runs || 0) > 0) {
         rows.push(breakdownRow("Analisi IA sito — Tipo non determinato", b.site_pdf_ai_unknown_cost_real_eur,
@@ -334,8 +373,8 @@
       rows.push(
         breakdownRow("Tempo operatore", b.human_cost_eur, `${number(Number(b.human_seconds || 0) / 3600, 2)} ore valorizzate con tariffa storica`, "automatico"),
         breakdownRow("Altri costi già registrati", b.legacy_recorded_cost_eur, "Eventi di costo esistenti non duplicati", "automatico"),
-        breakdownRow("Altri costi reali nel registro economico", ledgerOtherReal, "Esclude PDF e foto IA mostrati sopra", "registro"),
-        breakdownRow("Altri costi stimati nel registro", ledgerOtherEstimated, "Esclude PDF e foto IA mostrati sopra", "registro"),
+        breakdownRow("Altri costi reali nel registro economico", ledgerOtherReal, "Esclude PDF, foto ed Editoriale IA mostrati sopra", "registro"),
+        breakdownRow("Altri costi stimati nel registro", ledgerOtherEstimated, "Esclude PDF, foto ed Editoriale IA mostrati sopra", "registro"),
         breakdownRow("Costi ricorrenti stimati", b.scheduled_cost_estimated_eur, "Prorata di tariffe mensili/annuali attive", "tariffe"),
       );
       costs.innerHTML = rows.join("");
@@ -486,19 +525,25 @@
     loading = true;
     setStatus("info", "Aggiornamento contabilità e tariffe…");
     try {
-      const [data, photoCosts] = await Promise.all([
+      const [data, photoCosts, editorialCosts] = await Promise.all([
         rpc("premium_owner_economic_dashboard", { p_days: currentDays }),
         loadPhotoAiCosts(),
+        loadEditorialAiCosts(),
       ]);
       snapshot = data || {};
-      snapshot.breakdown = { ...(snapshot.breakdown || {}), ...(photoCosts || {}) };
+      const baseBreakdown = snapshot.breakdown || {};
+      const editorialAlreadySeparated = ["editorial_ai_article_runs", "editorial_ai_image_runs", "editorial_ai_support_runs"].some((key) => Object.prototype.hasOwnProperty.call(baseBreakdown, key));
+      snapshot.breakdown = { ...baseBreakdown, ...(photoCosts || {}), ...(editorialCosts || {}), __editorialAlreadySeparated: editorialAlreadySeparated };
       renderBaselineInfo(snapshot);
       renderKpis(snapshot);
       renderBreakdowns(snapshot);
       renderRates(Array.isArray(snapshot.rates) ? snapshot.rates : []);
       renderEntries(Array.isArray(snapshot.entries) ? snapshot.entries : []);
-      if (photoCosts?.__photoAiInstalled) setStatus("ok", `Dati aggiornati. Periodo: ultimi ${currentDays} giorni.`);
-      else setStatus("warn", `Dati aggiornati. I costi delle foto saranno separati dopo l'installazione della funzione premium_owner_photo_ai_costs.`);
+      const missingModules = [];
+      if (!photoCosts?.__photoAiInstalled) missingModules.push("foto bolletta");
+      if (!editorialCosts?.__editorialAiInstalled) missingModules.push("Editoriale IA");
+      if (!missingModules.length) setStatus("ok", `Dati aggiornati. Periodo: ultimi ${currentDays} giorni.`);
+      else setStatus("warn", `Dati aggiornati. Moduli da completare: ${missingModules.join(", ")}.`);
     } catch (error) {
       snapshot = null;
       clearEconomicData();
