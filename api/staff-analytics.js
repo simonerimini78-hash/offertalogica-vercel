@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.80";
+const VERSION = "0.12.81";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -4296,6 +4296,20 @@ function schedulerArticlePublishAuthRecoverable(slot, runs, schedulerKey) {
   return failed.every((run) => String(run?.last_error || "").includes("Sessione Redazione non valida o scaduta"));
 }
 
+function schedulerArticlePublishHumanReviewRecoverable(slot, runs, schedulerKey) {
+  if (String(slot?.kind || "") !== "article_publish") return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  if (matching.some((run) =>
+    String(run?.status || "") === "success"
+    && (run?.details?.publication_performed === true || String(run?.details?.stage || "") === "completed")
+  )) return false;
+  return matching.some((run) =>
+    String(run?.status || "") === "success"
+    && String(run?.details?.stage || "") === "waiting_human_review"
+    && run?.details?.publication_performed !== true
+  );
+}
+
 function schedulerArticlePrepareRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
   if (String(slot?.kind || "") !== "article_prepare") return false;
   if (Number(settings?.max_articles_per_cycle) <= 0) return false;
@@ -4733,6 +4747,15 @@ function schedulerArticleIntroAssetIsOlInforma(context) {
   );
 }
 
+function schedulerArticleImageIsExplicitlyApproved(asset) {
+  return Boolean(
+    /^https:\/\//i.test(String(asset?.url || ""))
+    && String(asset?.status || "") === "approved"
+    && String(asset?.approved_at || "").trim()
+    && validUuid(String(asset?.approved_by || ""))
+  );
+}
+
 async function schedulerPublishArticleIntro(user, context, platforms) {
   if (!Array.isArray(platforms) || !platforms.length) {
     return {
@@ -4765,7 +4788,7 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
     const imageAlreadyApproved = Boolean(
       imageState.current?.url
       && featuredImageUrl === String(imageState.current.url || "")
-      && isAutopilotGeneratedImageAsset(imageState.current),
+      && schedulerArticleImageIsExplicitlyApproved(imageState.current),
     );
     if (!imageAlreadyApproved) {
       const qaStatus = String(imageState.candidate?.qa?.status || "");
@@ -4779,10 +4802,10 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
           publication_performed: false,
         };
       }
-    }
-    const imageResult = await schedulerApproveArticleImage(user, context);
-    if (imageResult?.article?.id) {
-      nextContext = { ...context, article: imageResult.article, opportunity: imageResult.opportunity || context.opportunity };
+      const imageResult = await schedulerApproveArticleImage(user, context);
+      if (imageResult?.article?.id) {
+        nextContext = { ...context, article: imageResult.article, opportunity: imageResult.opportunity || context.opportunity };
+      }
     }
     const published = await serviceFetch("rpc/editorial_autopilot_publish_article", {
       method: "POST",
@@ -5106,7 +5129,8 @@ async function editorialAutopilotTick() {
     const attemptState = schedulerSlotAttemptState(runs, key);
     if (!attemptState.consumed) return true;
     return schedulerArticlePrepareRecoverable(slot, settings, runs, key)
-      || schedulerArticlePublishAuthRecoverable(slot, runs, key);
+      || schedulerArticlePublishAuthRecoverable(slot, runs, key)
+      || schedulerArticlePublishHumanReviewRecoverable(slot, runs, key);
   })[0] || null;
 
   // Ricerca e preparazione del nuovo articolo non dipendono dagli asset social di cicli precedenti.

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.79";
+  const VERSION = "0.12.81";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -881,6 +881,9 @@
 
   function cycleRunState(runType, cycle) {
     if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending", at: "" };
+    if (runType === "article_publish" && String(cycle?.record?.article?.status || "") === "published") {
+      return { label: "completato", tone: "success", at: cycle.record.article.published_at || cycle.record.article.updated_at || "" };
+    }
     const run = automationRuns.find((row) => {
       if (String(row?.run_type || "") !== runType) return false;
       if (automationRunOpportunityId(row) !== cycle.opportunityId) return false;
@@ -1419,7 +1422,7 @@
     const targetArticleId = String(row.target_article_id || "");
     if (targetArticleId && (row.status !== "selected" || type !== "new_article")) {
       return `<div class="ol-toolbar-group" style="margin-top:8px">
-        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
+        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
       </div>`;
     }
     if (row.status !== "selected") return "";
@@ -1427,7 +1430,7 @@
     const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
-      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
+      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -2259,6 +2262,15 @@
   function boot() {
     const observer = new MutationObserver(() => { ensureCard(); enforceArticleOnlySettings(); });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.addEventListener("offertalogica:editorial-article-updated", () => {
+      const section = document.querySelector("[data-search-console-card]");
+      if (!section) return;
+      Promise.all([
+        loadSocialPlan(section),
+        loadAutomationRuns(section),
+        loadOpportunities(section, true),
+      ]).catch(() => {});
+    });
     ensureCard();
     enforceArticleOnlySettings();
   }
