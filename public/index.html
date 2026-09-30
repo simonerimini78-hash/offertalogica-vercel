@@ -7369,6 +7369,24 @@ function analyticsNextSessionEventSeq() {
   return next;
 }
 
+const GA4_FUNNEL_EVENT_TYPES = new Set([
+  "comparison_completed",
+  "offers_rendered",
+  "offer_card_clicked",
+]);
+const GA4_MEASUREMENT_ID = "G-61HGBK4MDJ";
+
+function trackGa4FunnelEvent(eventType) {
+  const normalizedEventType = String(eventType || "").trim();
+  if (!GA4_FUNNEL_EVENT_TYPES.has(normalizedEventType)) return;
+  if (typeof window.gtag !== "function") return;
+  try {
+    window.gtag("event", normalizedEventType, { send_to: GA4_MEASUREMENT_ID });
+  } catch {
+    // Il tracciamento GA4 non deve mai interferire con il confronto.
+  }
+}
+
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (staffTrackingEscluso()) return;
@@ -7422,6 +7440,7 @@ function trackEvent(eventType, payload = {}) {
     },
   });
   if (engagement.nextStage) analyticsEngagementSetStage(engagement.nextStage);
+  trackGa4FunnelEvent(eventType);
 
   try {
     if (navigator.sendBeacon) {
