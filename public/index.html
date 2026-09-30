@@ -732,6 +732,7 @@
         .offer-path-option small { display: block; max-width: 440px; font-size: 12.5px; line-height: 1.4; font-weight: 650; }
         .offer-path-option.is-bill { border-color: rgba(22,163,74,.38); background: linear-gradient(145deg,#f0fdf4,#ecfdf5); color: #14532d; }
         .offer-path-option.is-switcho { border-color: rgba(8,152,154,.38); background: linear-gradient(145deg,#ecfeff,#f0fdfa); color: #115e59; }
+        .offer-path-option.is-offertalogica { border-color: rgba(22,163,74,.38); background: linear-gradient(145deg,#f0fdf4,#f8fafc); color: #14532d; }
         .offer-path-option.is-provider { border-color: rgba(37,99,235,.32); background: linear-gradient(145deg,#eff6ff,#f8fafc); color: #1e3a8a; }
         .offer-path-switcho-head { display: inline-flex; align-items: center; justify-content: center; gap: 9px; min-height: 28px; }
         .offer-path-switcho-head span { font-size: 12px; line-height: 1; font-weight: 900; letter-spacing: .08em; }
@@ -7369,24 +7370,6 @@ function analyticsNextSessionEventSeq() {
   return next;
 }
 
-const GA4_FUNNEL_EVENT_TYPES = new Set([
-  "comparison_completed",
-  "offers_rendered",
-  "offer_card_clicked",
-]);
-const GA4_MEASUREMENT_ID = "G-61HGBK4MDJ";
-
-function trackGa4FunnelEvent(eventType) {
-  const normalizedEventType = String(eventType || "").trim();
-  if (!GA4_FUNNEL_EVENT_TYPES.has(normalizedEventType)) return;
-  if (typeof window.gtag !== "function") return;
-  try {
-    window.gtag("event", normalizedEventType, { send_to: GA4_MEASUREMENT_ID });
-  } catch {
-    // Il tracciamento GA4 non deve mai interferire con il confronto.
-  }
-}
-
 function trackEvent(eventType, payload = {}) {
   if (!trackingApiDisponibile()) return;
   if (staffTrackingEscluso()) return;
@@ -7440,7 +7423,6 @@ function trackEvent(eventType, payload = {}) {
     },
   });
   if (engagement.nextStage) analyticsEngagementSetStage(engagement.nextStage);
-  trackGa4FunnelEvent(eventType);
 
   try {
     if (navigator.sendBeacon) {
@@ -7575,7 +7557,7 @@ function diagnosticaTrackingPdf(results = [], data = LEAD_STATE.pdfData || {}) {
   };
 }
 
-const PRIVACY_VERSION = "privacy-lead-v3-2026-07-04";
+const PRIVACY_VERSION = "privacy-lead-v4-2026-09-30";
 const STAFF_MODE_STORAGE_KEY = "offertalogicaStaffMode";
 const STAFF_MODE_LEAD_ID = "staff-preview";
 const STAFF_MOBILE_PREVIEW_STORAGE_KEY = "offertalogicaStaffMobilePreview";
@@ -10950,6 +10932,31 @@ function switchoSupportaFornitoreOfferta(offerta) {
   return keys.length > 0 && keys.every((key) => SWITCHO_VERIFIED_PROVIDER_KEYS_20260916.has(key));
 }
 
+// V111 — un partner OffertaLogica e' riconosciuto dalle sorgenti commerciali reali:
+// affiliazioni attive nel catalogo oppure CTE partner dirette validate. Non usiamo
+// una lista hardcoded di nomi, cosi' Enel/Plenitude e Greenius seguono la stessa regola.
+function providerKeysPartnerOffertaLogica() {
+  const keys = new Set();
+  OFFERTE_PROPOSTE
+    .filter((item) => offertaAttivabileOnline(item))
+    .forEach((item) => {
+      const key = chiaveFornitoreDaNome(item?.provider || item?.fornitore || "");
+      if (key) keys.add(key);
+    });
+  OFFERTE_PARTNER_DIRETTE.forEach((item) => {
+    const key = String(item?.providerKey || chiaveFornitoreDaNome(item?.providerLabel || item?.fornitore || "")).trim();
+    if (key) keys.add(key);
+  });
+  return keys;
+}
+
+function offertaSupportataDaOffertaLogica(offerta) {
+  const keys = providerKeysPercorsoOfferta(offerta);
+  if (!keys.length) return false;
+  const partnerKeys = providerKeysPartnerOffertaLogica();
+  return keys.every((key) => partnerKeys.has(key));
+}
+
 function urlUfficialeFornitoreOfferta(offerta) {
   const raw = String(offerta?.officialUrl || ((offerta?.destinationType === "arera" || offerta?.destinationStatus === "solo_confronto") ? offerta?.link : "") || "").trim();
   if (!/^https?:\/\//i.test(raw)) return "";
@@ -10975,9 +10982,11 @@ function testoProfiloStandardOfferta(offerta) {
 // trasformare l'interesse per una card in un confronto personalizzato. Il canale commerciale
 // della singola offerta viene spiegato soltanto dopo il clic e non altera il ranking.
 function testoAzioneOfferta(offerta, attivabileOnline) {
+  const offertaLogicaSupported = offertaSupportataDaOffertaLogica(offerta);
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
   if (modalitaCalcolo === "media") return "Scopri il tuo risparmio personalizzato";
   if (attivabileOnline) return "Vai all'offerta";
+  if (offertaLogicaSupported) return "Richiedi assistenza a OffertaLogica";
   if (switchoSupported) return "Continua con Switcho";
   return "Scopri le alternative attivabili";
 }
@@ -10985,6 +10994,7 @@ function testoAzioneOfferta(offerta, attivabileOnline) {
 function testoBeneficioAzioneOfferta(offerta, attivabileOnline) {
   if (modalitaCalcolo === "media") return "Ti interessa questa offerta?";
   if (attivabileOnline) return "Per questa offerta è disponibile un percorso online tramite OffertaLogica.";
+  if (offertaSupportataDaOffertaLogica(offerta)) return "Se preferisci, OffertaLogica può seguirti nei passaggi successivi.";
   if (switchoSupportaFornitoreOfferta(offerta)) return "Percorso assistito separato: su Switcho le offerte disponibili possono essere diverse.";
   return "La mostriamo nel ranking anche senza accordi commerciali: puoi vedere le alternative con un percorso disponibile.";
 }
@@ -12791,9 +12801,16 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       }
       if (link) {
         const mediaDiscoveryPath = modalitaCalcolo === "media";
+        const offertaLogicaSupported = offertaSupportataDaOffertaLogica(offerta);
         const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
-        const switchoPath = !mediaDiscoveryPath && !attivabileOnline && switchoSupported;
-        card.dataset.activationRoute = attivabileOnline ? "offertalogica" : switchoSupported ? "switcho" : "none";
+        const switchoPath = !mediaDiscoveryPath && !attivabileOnline && !offertaLogicaSupported && switchoSupported;
+        card.dataset.activationRoute = attivabileOnline
+          ? "offertalogica"
+          : offertaLogicaSupported
+            ? "offertalogica_assistance"
+            : switchoSupported
+              ? "switcho"
+              : "none";
         const benefit = card.querySelector(".offer-action-benefit");
         if (benefit) {
           benefit.textContent = testoBeneficioAzioneOfferta(offerta, attivabileOnline);
@@ -13563,6 +13580,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   const isAssistance = source === "assistance_callback";
   const isBusiness = source === "business";
   const isOfferSelection = source === "offer_selection";
+  const isOfferAssistance = isAssistance && LEAD_STATE.assistance?.reason === "offer_support" && Boolean(LEAD_STATE.selectedOffer?.name);
   const selectedOfferName = LEAD_STATE.selectedOffer?.name || "l\'offerta scelta";
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
@@ -13579,8 +13597,10 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
           : "Verifica e continua";
   }
   if (title) {
-    title.innerText = isAssistance
-      ? "Richiedi assistenza"
+    title.innerText = isOfferAssistance
+      ? "Fatti seguire da OffertaLogica"
+      : isAssistance
+        ? "Richiedi assistenza"
       : isBusiness
         ? "Verifica il numero"
         : isOfferSelection
@@ -13588,8 +13608,10 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
           : "Verifica il numero";
   }
   if (copy) {
-    copy.innerText = isAssistance
-      ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica non effettua chiamate telefoniche: se richiedi assistenza, ti contattiamo via email."
+    copy.innerText = isOfferAssistance
+      ? `Hai chiesto supporto per ${selectedOfferName}. Inserisci i tuoi dati e verifica il numero: ti contatteremo via email per aiutarti a proseguire.`
+      : isAssistance
+        ? "Inserisci i tuoi dati e verifica il numero. OffertaLogica non effettua chiamate telefoniche: se richiedi assistenza, ti contattiamo via email."
       : isBusiness
         ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
@@ -13682,6 +13704,13 @@ function leadValido() {
   return true;
 }
 
+function motivoAssistenzaLead() {
+  const reason = String(LEAD_STATE.assistance?.reason || "").trim();
+  if (LEAD_STATE.leadSource !== "assistance_callback" || reason !== "offer_support") return reason;
+  const offer = LEAD_STATE.selectedOffer || {};
+  return `Offerta: ${offer.provider || "Fornitore"} | ${offer.name || "offerta selezionata"} | ${offer.id || ""}`.slice(0, 180);
+}
+
 function creaProvaConsenso(consents) {
   return {
     version: PRIVACY_VERSION,
@@ -13765,7 +13794,7 @@ async function inviaOtp() {
           currentSupply: leggiOffertaAttuale(),
           businessProfile: LEAD_STATE.businessProfile,
           requestType: LEAD_STATE.leadSource === "assistance_callback" ? "assistance_callback" : "comparison",
-          assistanceReason: LEAD_STATE.assistance?.reason || "",
+          assistanceReason: motivoAssistenzaLead(),
           dataStewardship: {
             originalPdfStored: (LEAD_STATE.pdfDocuments || []).some((doc) => doc?.archive?.stored === true),
             internalImprovement: true,
@@ -13892,50 +13921,62 @@ function chiudiPercorsoOfferta() {
   a11yChiudiDialog(modal);
 }
 
+function configuraSecondoPercorsoOfferta(offertaLogicaSupported) {
+  const action = document.getElementById("offer-path-switcho");
+  if (!action) return;
+  action.classList.toggle("is-offertalogica", offertaLogicaSupported);
+  action.classList.toggle("is-switcho", !offertaLogicaSupported);
+  if (offertaLogicaSupported) {
+    action.innerHTML = `<strong>FATTI SEGUIRE DA OFFERTALOGICA</strong><small>Preferisci essere accompagnato? Lasciaci i tuoi contatti e ti aiutiamo noi a proseguire.</small>`;
+    action.setAttribute("aria-label", "Richiedi assistenza a OffertaLogica");
+    return;
+  }
+  // Il percorso non-partner Switcho resta identico alla versione precedente.
+  action.innerHTML = `<span class="offer-path-switcho-head"><span>CONTINUA CON</span><img class="offer-path-switcho-logo" src="/assets/logo-switcho.png" alt="Switcho"></span><small>Se preferisci, lascia che ti accompagnino nel cambio.</small>`;
+  action.setAttribute("aria-label", "Continua con Switcho");
+}
+
 function configuraPercorsoOffertaMedia(offerta) {
   const bill = document.getElementById("offer-path-bill");
-  const switcho = document.getElementById("offer-path-switcho");
+  const secondary = document.getElementById("offer-path-switcho");
   const alternatives = document.getElementById("offer-path-provider");
   const alternativesLabel = document.getElementById("offer-path-provider-label");
   const note = document.getElementById("offer-path-note");
   const attivabileOnline = offertaAttivabileOnline(offerta);
+  const offertaLogicaSupported = offertaSupportataDaOffertaLogica(offerta);
   const switchoSupported = switchoSupportaFornitoreOfferta(offerta);
   const profiloStandard = modalitaCalcolo === "media";
-  const alternativeAvailable = !attivabileOnline && !switchoSupported;
+  const alternativeAvailable = !attivabileOnline && !offertaLogicaSupported && !switchoSupported;
+  configuraSecondoPercorsoOfferta(offertaLogicaSupported);
 
   if (profiloStandard) {
-    // V110: qualunque offerta abbia generato interesse puo portare al ricalcolo completo
-    // sui consumi della bolletta. Il caricamento non promette che l'offerta cliccata resti
-    // nella stessa posizione: tutta la classifica viene ricalcolata.
+    // Qualunque offerta puo portare al ricalcolo completo sulla bolletta. Il secondo
+    // percorso segue invece la relazione commerciale reale: partner OL prima,
+    // Switcho soltanto per fornitori che non sono partner OffertaLogica.
     if (bill) bill.hidden = false;
-    if (switcho) switcho.hidden = !(attivabileOnline || switchoSupported);
+    if (secondary) secondary.hidden = !(offertaLogicaSupported || switchoSupported);
     if (alternatives) alternatives.hidden = true;
     if (alternativesLabel) alternativesLabel.textContent = "SCOPRI LE OFFERTE ATTIVABILI ONLINE";
-
-    // Nel profilo standard la nota sotto le azioni sarebbe una ripetizione dell'introduzione
-    // e delle due CTA. La nascondiamo per mantenere il popup breve e orientato alla scelta.
     if (note) note.hidden = true;
-    return { attivabileOnline, switchoSupported, alternativeAvailable: false, profiloStandard: true };
+    return { attivabileOnline, offertaLogicaSupported, switchoSupported, alternativeAvailable: false, profiloStandard: true };
   }
 
-  // Fuori dal profilo standard il confronto e gia personalizzato: conserviamo il routing
-  // commerciale esistente, senza chiedere una seconda personalizzazione.
   if (note) note.hidden = false;
   if (bill) bill.hidden = !attivabileOnline;
-  if (switcho) switcho.hidden = attivabileOnline ? false : !switchoSupported;
+  if (secondary) secondary.hidden = !(offertaLogicaSupported || switchoSupported);
   if (alternatives) alternatives.hidden = !alternativeAvailable;
   if (alternativesLabel) alternativesLabel.textContent = "SCOPRI LE OFFERTE ATTIVABILI ONLINE";
 
   if (note) {
-    if (attivabileOnline) {
-      note.textContent = "Puoi ottenere un confronto basato sui tuoi consumi reali caricando la bolletta. In alternativa puoi scegliere il percorso assistito Switcho, separato dal confronto OffertaLogica.";
+    if (offertaLogicaSupported) {
+      note.textContent = "Se preferisci essere accompagnato, puoi lasciare i tuoi contatti a OffertaLogica. L'eventuale trasmissione dei dati al fornitore resta un passaggio separato.";
     } else if (switchoSupported) {
       note.textContent = "Questa offerta non è attivabile tramite OffertaLogica. Switcho confronta anche questo fornitore, ma nel suo percorso può proporti un'offerta diversa da quella visualizzata qui.";
     } else {
       note.textContent = "Puoi tornare al ranking completo oppure vedere, in una selezione separata, le offerte per cui è disponibile un percorso online. Il ranking economico originale non viene modificato.";
     }
   }
-  return { attivabileOnline, switchoSupported, alternativeAvailable, profiloStandard: false };
+  return { attivabileOnline, offertaLogicaSupported, switchoSupported, alternativeAvailable, profiloStandard: false };
 }
 
 function apriPercorsoOffertaMedia(offerta) {
@@ -13949,8 +13990,8 @@ function apriPercorsoOffertaMedia(offerta) {
   if (route.profiloStandard) {
     if (title) title.textContent = "Scopri il tuo risparmio personalizzato";
     if (intro) {
-      if (route.attivabileOnline) {
-        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Puoi verificare quanto conviene sui tuoi consumi oppure scegliere il percorso assistito.`;
+      if (route.offertaLogicaSupported) {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> ti interessa nella stima standard. Puoi verificare quanto conviene sui tuoi consumi oppure chiedere assistenza a OffertaLogica.`;
       } else if (route.switchoSupported) {
         intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> non è attivabile direttamente tramite OffertaLogica. Puoi verificare quanto conviene sui tuoi consumi oppure continuare con Switcho.`;
       } else {
@@ -13961,13 +14002,17 @@ function apriPercorsoOffertaMedia(offerta) {
     if (title) {
       title.textContent = route.attivabileOnline
         ? "Scopri il tuo risparmio"
-        : route.switchoSupported
-          ? "Scopri come proseguire"
-          : "Questa offerta resta nel confronto";
+        : route.offertaLogicaSupported
+          ? "Come possiamo aiutarti"
+          : route.switchoSupported
+            ? "Scopri come proseguire"
+            : "Questa offerta resta nel confronto";
     }
     if (intro) {
       if (route.attivabileOnline) {
         intro.innerHTML = `Con <strong>${testoHtmlSicuro(nomeOfferta)}</strong> puoi passare dalla stima a un confronto basato sui tuoi consumi reali.`;
+      } else if (route.offertaLogicaSupported) {
+        intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è di un partner OffertaLogica. Se preferisci, puoi lasciarci i tuoi contatti e farti seguire da noi.`;
       } else if (route.switchoSupported) {
         intro.innerHTML = `<strong>${testoHtmlSicuro(nomeOfferta)}</strong> è nel confronto OffertaLogica, ma non è attivabile tramite noi. Se preferisci assistenza puoi continuare con Switcho.`;
       } else {
@@ -13981,7 +14026,7 @@ function apriPercorsoOffertaMedia(offerta) {
     ? "#offer-path-bill"
     : route.attivabileOnline
       ? "#offer-path-bill"
-      : route.switchoSupported
+      : (route.offertaLogicaSupported || route.switchoSupported)
         ? "#offer-path-switcho"
         : "#offer-path-provider";
   a11yApriDialog(modal, focusTarget);
@@ -13989,12 +14034,14 @@ function apriPercorsoOffertaMedia(offerta) {
   trackEvent("activation_channel_choice_opened", {
     source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
     route: route.profiloStandard
-      ? "personalization_recalculation"
+      ? (route.offertaLogicaSupported ? "offertalogica_assistance" : "personalization_recalculation")
       : route.attivabileOnline
         ? "offertalogica_partner"
-        : route.switchoSupported
-          ? "switcho_provider"
-          : "internal_activatable_view",
+        : route.offertaLogicaSupported
+          ? "offertalogica_assistance"
+          : route.switchoSupported
+            ? "switcho_provider"
+            : "internal_activatable_view",
     destinationType: LEAD_STATE.selectedOffer?.destinationType || "",
     destinationStatus: LEAD_STATE.selectedOffer?.destinationStatus || "",
     offerId: LEAD_STATE.selectedOffer?.id || "",
@@ -14011,9 +14058,6 @@ function proseguiPercorsoOffertaConBolletta() {
   const profiloStandard = modalitaCalcolo === "media";
   if (!profiloStandard && !offertaAttivabileOnline(offer)) return;
 
-  // Nel profilo standard il caricamento bolletta e una personalizzazione del confronto,
-  // non una selezione di canale commerciale. caricaBollettaDaOfferte traccia gia
-  // offers_bill_prompt_clicked con l'offerta che ha generato l'interesse.
   if (!profiloStandard) {
     trackEvent("activation_channel_selected", {
       source: "offer_card_precise",
@@ -14035,6 +14079,7 @@ function proseguiPercorsoOffertaConBolletta() {
 
 function proseguiPercorsoOffertaConSwitcho() {
   const offer = LEAD_STATE.selectedOffer || {};
+  if (offertaSupportataDaOffertaLogica(offer)) return;
   if (!offertaAttivabileOnline(offer) && !switchoSupportaFornitoreOfferta(offer)) return;
   trackEvent("activation_channel_selected", {
     source: "offer_card_media",
@@ -14063,6 +14108,33 @@ function proseguiPercorsoOffertaConSwitcho() {
     annualDelta: tracking.annualDelta || null,
   });
   apriSwitchoDirettoDaOfferta("offer_card_media_assisted", offer);
+}
+
+function proseguiPercorsoOffertaSecondario() {
+  const offer = LEAD_STATE.selectedOffer || {};
+  if (!offertaSupportataDaOffertaLogica(offer)) {
+    proseguiPercorsoOffertaConSwitcho();
+    return;
+  }
+  trackEvent("activation_channel_selected", {
+    source: modalitaCalcolo === "media" ? "offer_card_media" : "offer_card_precise",
+    channel: "offertalogica_assistance",
+    route: "offertalogica_assistance",
+    destinationType: offer.destinationType || "",
+    destinationStatus: offer.destinationStatus || "",
+    offerId: offer.id || "",
+    offerName: offer.name || "",
+    provider: offer.provider || "",
+  });
+  LEAD_STATE.assistance.reason = "offer_support";
+  chiudiPercorsoOfferta();
+  window.apriLeadModal?.("assistance_callback");
+  trackEvent("assistance_callback_started", {
+    reason: "offer_support",
+    offerId: offer.id || "",
+    offerName: offer.name || "",
+    provider: offer.provider || "",
+  });
 }
 
 function ripristinaRankingCompletoOfferte() {
@@ -14185,6 +14257,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   // negli altri casi mostriamo la spiegazione e una selezione interna separata di percorsi disponibili.
   if (!offertaAttivabileOnline(offerta)) {
     const tracking = LEAD_STATE.selectedOffer.rankingContext || {};
+    if (offertaSupportataDaOffertaLogica(offerta)) {
+      apriPercorsoOffertaMedia(offerta);
+      return;
+    }
     if (switchoSupportaFornitoreOfferta(offerta)) {
       trackEvent("offer_switcho_redirect", {
         route: "switcho_provider",
@@ -18473,6 +18549,7 @@ const PROVIDER_MATCHERS = [
   ["edison", ["edison"]],
   ["estra", ["estra", "estra energie"]],
   ["free", ["free luce e gas", "free lucegas"]],
+  ["greenius", ["greenius"]],
   ["butangas", ["butangas", "butan gas"]],
   ["unoenergy", ["unoenergy", "uno energy"]],
   ["enel", ["enel"]],
@@ -19755,7 +19832,7 @@ function collegaEventiUX() {
     if (event.target?.id === "lead-modal-backdrop") chiudiLeadModal();
   });
   document.getElementById("offer-path-bill")?.addEventListener("click", proseguiPercorsoOffertaConBolletta);
-  document.getElementById("offer-path-switcho")?.addEventListener("click", proseguiPercorsoOffertaConSwitcho);
+  document.getElementById("offer-path-switcho")?.addEventListener("click", proseguiPercorsoOffertaSecondario);
   document.getElementById("offer-path-provider")?.addEventListener("click", proseguiPercorsoOffertaConAlternative);
   document.getElementById("offer-path-close")?.addEventListener("click", chiudiPercorsoOfferta);
   document.getElementById("offer-path-backdrop")?.addEventListener("click", (event) => {
