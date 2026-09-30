@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.76";
+const VERSION = "0.12.77";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2800,25 +2800,68 @@ async function deleteEditorialDraftArticle(user, payload = {}) {
 }
 
 async function editorialSocialPlanPayload() {
-  const [items, channels] = await Promise.all([
-    serviceFetch("editorial_social_plan_items?select=*&order=updated_at.desc&limit=50"),
-    editorialSocialChannels(),
-  ]);
-  const targetIds = [...new Set((items || []).map((row) => row.destination_target_id).filter(Boolean))];
-  const articleIds = [...new Set((items || []).map((row) => row.source_article_id).filter(Boolean))];
-  let targets = [];
-  let articles = [];
-  if (targetIds.length) {
-    targets = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${targetIds.map((id) => encodeURIComponent(id)).join(",")})`);
+  // Il piano deve restare consultabile anche se un arricchimento secondario
+  // (canali, destinazioni o contenuto completo degli articoli) fallisce.
+  // In passato Promise.all rendeva l'intera vista indisponibile con HTTP 500.
+  const items = await serviceFetch("editorial_social_plan_items?select=*&order=updated_at.desc&limit=50");
+  const warnings = [];
+
+  let channels = [];
+  try {
+    channels = await editorialSocialChannels();
+  } catch (error) {
+    warnings.push(`channels: ${String(error?.message || error)}`);
+    console.warn("editorial_social_plan_channels_unavailable", error);
   }
-  if (articleIds.length) {
-    articles = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,content,sources,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+
+  const targetIds = [...new Set((items || [])
+    .map((row) => String(row.destination_target_id || "").trim())
+    .filter(validUuid))];
+  const articleIds = [...new Set((items || [])
+    .map((row) => String(row.source_article_id || "").trim())
+    .filter(validUuid))];
+
+  const targets = [];
+  for (let index = 0; index < targetIds.length; index += 12) {
+    const chunk = targetIds.slice(index, index + 12);
+    try {
+      const rows = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})`);
+      targets.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      warnings.push(`targets: ${String(error?.message || error)}`);
+      console.warn("editorial_social_plan_targets_unavailable", error);
+      break;
+    }
   }
+
+  const articles = [];
+  for (let index = 0; index < articleIds.length; index += 8) {
+    const chunk = articleIds.slice(index, index + 8);
+    const ids = chunk.map((id) => encodeURIComponent(id)).join(",");
+    try {
+      const rows = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,content,sources,featured_image_url,featured_image_alt&id=in.(${ids})`);
+      articles.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      // Fallback leggero: stato e piano rimangono visibili anche se il payload
+      // editoriale completo è troppo grande o una colonna non è disponibile.
+      try {
+        const rows = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,featured_image_url,featured_image_alt&id=in.(${ids})`);
+        articles.push(...(Array.isArray(rows) ? rows : []));
+        warnings.push(`article_detail_reduced: ${String(error?.message || error)}`);
+        console.warn("editorial_social_plan_article_detail_reduced", error);
+      } catch (fallbackError) {
+        warnings.push(`articles: ${String(fallbackError?.message || fallbackError)}`);
+        console.warn("editorial_social_plan_articles_unavailable", fallbackError);
+      }
+    }
+  }
+
   const targetMap = new Map((targets || []).map((row) => [row.id, row]));
   const articleMap = new Map((articles || []).map((row) => [row.id, row]));
   return {
     ok: true,
     version: VERSION,
+    warnings,
     channels,
     items: (items || []).map((row) => ({
       ...row,
