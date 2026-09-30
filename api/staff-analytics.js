@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.78";
+const VERSION = "0.12.79";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -4061,6 +4061,38 @@ function automationCronSecretEqual(left, right) {
   return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
+async function automationPersistTickState(result = null, error = null) {
+  let opportunityId = String(result?.opportunity_id || "").trim();
+  let opportunity = null;
+
+  if (validUuid(opportunityId)) {
+    const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence&id=eq.${encodeURIComponent(opportunityId)}&limit=1`);
+    opportunity = rows?.[0] || null;
+  } else {
+    const rows = await serviceFetch("editorial_research_opportunities?select=id,evidence&status=eq.selected&target_article_id=not.is.null&order=updated_at.desc&limit=1");
+    opportunity = rows?.[0] || null;
+    opportunityId = String(opportunity?.id || "").trim();
+  }
+
+  if (!validUuid(opportunityId) || !opportunity?.id) return;
+  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? { ...opportunity.evidence } : {};
+  const now = new Date().toISOString();
+  const heartbeat = {
+    at: now,
+    ok: !error,
+    action: error ? "failed" : String(result?.action || "idle"),
+    slot_kind: error ? null : String(result?.slot?.kind || "") || null,
+    slot_label: error ? null : String(result?.slot?.label || "") || null,
+    error: error ? String(error?.message || error).slice(0, 800) : null,
+    version: VERSION,
+  };
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunityId)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { evidence: { ...evidence, scheduler_heartbeat: heartbeat } },
+  });
+}
+
 async function automationCronAuthorized(req) {
   // Vercel Cron, quando CRON_SECRET e' configurato, invia
   // Authorization: Bearer <CRON_SECRET>. Manteniamo anche il vecchio
@@ -6186,7 +6218,18 @@ export default async function handler(req, res) {
     const action = String(req.query?.action || "");
     if (req.method === "GET" && action === "editorial-autopilot-tick") {
       if (!(await automationCronAuthorized(req))) return json(res, 401, { ok: false, error: "Autopilota scheduler non autorizzato" });
-      return json(res, 200, await editorialAutopilotTick());
+      try {
+        const result = await editorialAutopilotTick();
+        await automationPersistTickState(result).catch((heartbeatError) => {
+          console.warn("editorial_autopilot_heartbeat_persist_failed", heartbeatError);
+        });
+        return json(res, 200, result);
+      } catch (error) {
+        await automationPersistTickState(null, error).catch((heartbeatError) => {
+          console.warn("editorial_autopilot_heartbeat_persist_failed", heartbeatError);
+        });
+        throw error;
+      }
     }
 
     const user = await authenticatedAdmin(req);

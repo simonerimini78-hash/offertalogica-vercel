@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.76";
+  const VERSION = "0.12.79";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1164,6 +1164,59 @@
     renderCycleOverview(section);
   }
 
+  function schedulerActionLabel(action) {
+    return ({
+      idle: "nessuna azione: in attesa dello slot",
+      disabled: "scheduler disattivato",
+      research_collect_7: "raccolta Search Console 7 giorni",
+      research_collect_28: "raccolta Search Console 28 giorni",
+      research_collect_90: "raccolta Search Console 90 giorni",
+      research_plan: "ricerca e scelta opportunità completate",
+      article_generation_started: "generazione bozza avviata",
+      article_generation_check: "controllo generazione bozza",
+      image_candidate_generated: "immagine articolo generata",
+      image_qa_passed: "QA immagine articolo superata",
+      article_intro_social_copy_generated: "testo social dell’articolo preparato",
+      article_intro_social_card_generated: "card social dell’articolo generata",
+      article_intro_social_ready: "asset social dell’articolo pronto",
+      social_asset_brief_generated: "brief del post social preparato",
+      social_asset_cover_text_generated: "testo della card preparato",
+      social_asset_image_generated: "immagine social generata",
+      social_asset_image_qa_passed: "QA immagine social superata",
+      social_asset_card_generated: "card OL Informa generata",
+      social_asset_ready: "asset social pronto",
+      article_published: "articolo pubblicato",
+      article_published_social_check_required: "articolo pubblicato, social da verificare",
+      social_regeneration_published: "rigenerazione social pubblicata",
+      waiting_social_assets: "in attesa degli asset social",
+      background_social_error: "errore social in background",
+      failed: "tick terminato con errore",
+    })[String(action || "")] || String(action || "nessuna azione registrata").replaceAll("_", " ");
+  }
+
+  function schedulerHeartbeatMarkup(cycle, steps) {
+    const opportunity = opportunityRows.find((row) => String(row?.id || "") === String(cycle?.opportunityId || "")) || null;
+    const heartbeat = opportunity?.evidence?.scheduler_heartbeat && typeof opportunity.evidence.scheduler_heartbeat === "object"
+      ? opportunity.evidence.scheduler_heartbeat
+      : null;
+    const currentStep = steps.find((step) => step.tone !== "success") || null;
+    const phase = currentStep ? currentStep.title : "Ciclo completo";
+    if (!heartbeat?.at) {
+      return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota</strong><small>Fase corrente: ${esc(phase)}. Il prossimo heartbeat registrerà qui l’orario effettivo e l’azione eseguita.</small></div>`;
+    }
+
+    const lastMs = Date.parse(heartbeat.at);
+    const nextMs = Number.isFinite(lastMs) ? lastMs + (15 * 60 * 1000) : NaN;
+    const now = Date.now();
+    const delayed = Number.isFinite(nextMs) && now > nextMs + (5 * 60 * 1000);
+    const state = heartbeat.ok === false ? "errore" : delayed ? "ritardo da verificare" : "attivo";
+    const nextText = Number.isFinite(nextMs) ? dateIt(new Date(nextMs).toISOString()) : "—";
+    const action = schedulerActionLabel(heartbeat.action);
+    const slot = heartbeat.slot_label ? ` · slot ${heartbeat.slot_label}` : "";
+    const errorText = heartbeat.error ? ` · errore: ${heartbeat.error}` : "";
+    return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota · ${esc(state)}</strong><small>Ultimo tick effettivo: ${esc(dateIt(heartbeat.at))} · prossimo previsto: ${esc(nextText)}</small><small>Fase corrente: ${esc(phase)} · ultimo esito: ${esc(action)}${esc(slot)}${esc(errorText)}</small></div>`;
+  }
+
   function renderCycleOverview(section) {
     const box = section?.querySelector("[data-cycle-overview]");
     if (!box) return;
@@ -1187,7 +1240,7 @@
     const carryover = pendingCarryoverRecord();
     const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
     const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
-    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${cycleNote ? `<small class="ol-cycle-overview-note">${esc(cycleNote)}</small>` : ""}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${cycleNote ? `<small class="ol-cycle-overview-note">${esc(cycleNote)}</small>` : ""}${schedulerHeartbeatMarkup(cycle, steps)}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
   }
 
   function renderSocialPlan(section) {
