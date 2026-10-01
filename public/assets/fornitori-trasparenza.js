@@ -136,37 +136,72 @@
     return "altro";
   }
 
-  function commonComparableMetrics(a, b) {
+  function comparableMetricPairs(a, b) {
     const left = officialMetrics(a).filter((metric) => metric.comparable);
     const right = officialMetrics(b).filter((metric) => metric.comparable);
-    const matches = [];
-    left.forEach((ma) => right.forEach((mb) => {
-      if (ma.indicator !== mb.indicator) return;
-      if (String(ma.unit) !== String(mb.unit)) return;
-      if (String(ma.year) !== String(mb.year)) return;
-      if (bucket(ma.cluster) !== bucket(mb.cluster)) return;
-      matches.push([ma, mb]);
-    }));
+    const pairs = [];
     const seen = new Set();
-    return matches.filter(([ma]) => {
-      const key = `${ma.indicator}|${ma.unit}|${ma.year}|${bucket(ma.cluster)}`;
-      if (seen.has(key)) return false;
-      seen.add(key); return true;
-    }).slice(0, 6);
+
+    left.forEach((leftMetric) => {
+      const sector = bucket(leftMetric.cluster);
+      if (sector === "altro") return;
+      const candidates = right.filter((rightMetric) => (
+        rightMetric.indicator === leftMetric.indicator &&
+        String(rightMetric.unit) === String(leftMetric.unit) &&
+        bucket(rightMetric.cluster) === sector
+      ));
+      if (!candidates.length) return;
+
+      candidates.sort((first, second) => {
+        const firstSameYear = String(first.year) === String(leftMetric.year) ? 1 : 0;
+        const secondSameYear = String(second.year) === String(leftMetric.year) ? 1 : 0;
+        if (firstSameYear !== secondSameYear) return secondSameYear - firstSameYear;
+        return String(second.year).localeCompare(String(first.year), "it", { numeric: true });
+      });
+
+      const rightMetric = candidates[0];
+      const key = `${leftMetric.indicator}|${leftMetric.unit}|${sector}`;
+      if (seen.has(key)) return;
+      seen.add(key);
+      pairs.push({
+        left: leftMetric,
+        right: rightMetric,
+        sector,
+        sameYear: String(leftMetric.year) === String(rightMetric.year)
+      });
+    });
+
+    return pairs.slice(0, 6);
   }
 
   function renderCompare(primary) {
     const other = providers.get(compareSelect.value);
     if (!other || other.key === primary.key) {
-      compareResult.innerHTML = `<div class="empty-state">Scegli un secondo fornitore. OL mostrerà solo indicatori con stesso anno, unità e perimetro compatibile.</div>`;
+      compareResult.innerHTML = `<div class="empty-state">Scegli un secondo fornitore. Confronteremo solo lo stesso indicatore, nella stessa unità e nello stesso settore.</div>`;
       return;
     }
-    const rows = commonComparableMetrics(primary, other);
+
+    const rows = comparableMetricPairs(primary, other);
     if (!rows.length) {
-      compareResult.innerHTML = `<div class="empty-state">Non ci sono indicatori direttamente omogenei tra ${escapeHtml(primary.name)} e ${escapeHtml(other.name)} nel dataset verificato. OL non forza un confronto tra metriche diverse.</div>`;
+      compareResult.innerHTML = `<div class="empty-state">Nessun indicatore con stesso nome, unità e settore è disponibile per entrambi i fornitori.</div>`;
       return;
     }
-    compareResult.innerHTML = rows.map(([left, right]) => `<div class="compare-row"><span>${escapeHtml(left.indicator)}<br><small>${escapeHtml(left.year)} · ${escapeHtml(bucket(left.cluster))}</small></span><strong>${metricValue(left)}</strong><strong>${metricValue(right)}</strong></div>`).join("") + `<div class="compare-note">Colonna centrale: ${escapeHtml(primary.name)} · colonna destra: ${escapeHtml(other.name)}. Il confronto non produce un voto o un vincitore.</div>`;
+
+    const hasDifferentYears = rows.some((row) => !row.sameYear);
+    compareResult.innerHTML = `
+      <div class="compare-head" aria-hidden="true">
+        <span>Indicatore</span>
+        <strong>${escapeHtml(primary.name)}</strong>
+        <strong>${escapeHtml(other.name)}</strong>
+      </div>
+      ${rows.map(({ left, right, sector, sameYear }) => `
+        <div class="compare-row">
+          <span class="compare-indicator">${escapeHtml(left.indicator)}<small>${escapeHtml(sector)}</small></span>
+          <span class="compare-value"><strong>${metricValue(left)}</strong><small>${escapeHtml(left.year)}</small></span>
+          <span class="compare-value"><strong>${metricValue(right)}</strong><small>${escapeHtml(right.year)}</small></span>
+          ${sameYear ? "" : '<span class="compare-year-note">anni diversi</span>'}
+        </div>`).join("")}
+      <div class="compare-note">${hasDifferentYears ? "Gli anni diversi sono indicati sotto i valori. " : ""}Il confronto usa solo metriche omogenee per indicatore, unità e settore e non produce un voto.</div>`;
   }
 
   function updateCompareOptions(primary) {
