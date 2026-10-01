@@ -8271,6 +8271,27 @@ function normalizzaScontiArera(sconti, durataOffertaMesi = null) {
   }).filter(Boolean);
 }
 
+function normalizzaCondizioniRecessoArera(condizioni) {
+  if (!Array.isArray(condizioni)) return [];
+  return condizioni.map((condizione) => {
+    if (!condizione || typeof condizione !== "object") return null;
+    const tipologia = String(condizione.tipologia || "").trim();
+    const descrizione = String(condizione.descrizione || "").trim();
+    const altro = String(condizione.altro || "").trim();
+    if (tipologia && tipologia !== "05") return null;
+    if (!descrizione && !altro) return null;
+    return {
+      tipologia: tipologia || "05",
+      descrizione,
+      altro,
+      limitante: String(condizione.limitante || "").trim(),
+      sorgente: String(condizione.sorgente || "").trim(),
+      codiceOfferta: String(condizione.codiceOfferta || "").trim(),
+      condizioneIndice: String(condizione.condizioneIndice || "").trim(),
+    };
+  }).filter(Boolean);
+}
+
 function normalizzaProvenienzaPrezzoArera(provenienza) {
   if (!provenienza || typeof provenienza !== "object") return null;
   const periodo = provenienza.periodoValidita && typeof provenienza.periodoValidita === "object"
@@ -8315,6 +8336,7 @@ function normalizzaVoceOfferta(voce) {
     prezzoVariabile: numeroSicuro(voce.prezzoVariabile, 0),
     quotaFissaAnnua: numeroSicuro(voce.quotaFissaAnnua, 0),
     sconti: normalizzaScontiArera(voce.sconti),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(voce.condizioniRecessoAnticipato),
     riferimentoArera: normalizzaRiferimentoArera(voce.riferimentoArera),
   };
   if (voce.formula && typeof voce.formula === "object") {
@@ -8369,6 +8391,7 @@ function normalizzaOfferta(offerta, index) {
     luce,
     gas,
     sconti: normalizzaScontiArera(offerta.sconti),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(offerta.condizioniRecessoAnticipato),
     descrizione: offerta.descrizione || "",
     fonte: offerta.fonte || "",
     aggiornataIl: offerta.aggiornataIl || "",
@@ -9347,6 +9370,63 @@ function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
   return `${incluse}${nonIncluse}`;
 }
 
+function condizioneRecessoSenzaOnereArera(condizione) {
+  const testo = testoAreraNormalizzato([
+    condizione?.descrizione,
+    condizione?.altro,
+  ].filter(Boolean).join(" "));
+  if (!testo) return false;
+  return /\bnon applica alcun onere\b|\bnessun onere\b|\bnon ne prevede\b|\bsenza (?:alcun )?onere(?: di recesso)?\b|\bsenza costi (?:di )?recesso\b/.test(testo);
+}
+
+function condizioniRecessoOfferta(offerta) {
+  const result = [];
+  const topLevel = normalizzaCondizioniRecessoArera(offerta?.condizioniRecessoAnticipato);
+  const testiTopLevel = new Set();
+  topLevel.forEach((condizione) => {
+    const chiave = testoAreraNormalizzato(`${condizione.descrizione || ""} ${condizione.altro || ""}`);
+    if (chiave) testiTopLevel.add(chiave);
+    result.push({ ambito: "Offerta", condizione });
+  });
+
+  for (const [commodity, label] of [["luce", "Luce"], ["gas", "Gas"]]) {
+    const condizioni = normalizzaCondizioniRecessoArera(offerta?.[commodity]?.condizioniRecessoAnticipato);
+    condizioni.forEach((condizione) => {
+      const chiave = testoAreraNormalizzato(`${condizione.descrizione || ""} ${condizione.altro || ""}`);
+      if (chiave && testiTopLevel.has(chiave)) return;
+      result.push({ ambito: label, condizione });
+    });
+  }
+  return result;
+}
+
+function htmlCondizioniRecessoOfferta(offerta) {
+  const condizioni = condizioniRecessoOfferta(offerta);
+  if (!condizioni.length) return "";
+
+  const conOnere = condizioni.filter(({ condizione }) => !condizioneRecessoSenzaOnereArera(condizione));
+  const senzaOnere = condizioni.filter(({ condizione }) => condizioneRecessoSenzaOnereArera(condizione));
+  const htmlRighe = (voci) => voci.map(({ ambito, condizione }) => {
+    const testo = String(condizione?.descrizione || condizione?.altro || "").trim();
+    return `<div style="margin-top:4px;"><strong>${testoHtmlSicuro(ambito)}</strong>: ${testoHtmlSicuro(testo)}</div>`;
+  }).join("");
+
+  const avviso = conOnere.length
+    ? `<div style="margin-top:7px; padding:7px 9px; border:1px solid #fecaca; border-radius:9px; background:#fef2f2; color:#991b1b; font-size:12px; line-height:1.4;">
+        <strong>Onere di recesso anticipato</strong>
+        ${htmlRighe(conOnere)}
+        <div style="margin-top:4px; font-weight:600;">Non incluso nella spesa annua stimata: si applica solo nelle condizioni indicate dall'offerta.</div>
+      </div>`
+    : "";
+  const rassicurazione = senzaOnere.length
+    ? `<div style="margin-top:7px; padding:7px 9px; border:1px solid #bbf7d0; border-radius:9px; background:#f0fdf4; color:#166534; font-size:12px; line-height:1.4;">
+        <strong>Nessun onere di recesso anticipato indicato</strong>
+        ${htmlRighe(senzaOnere)}
+      </div>`
+    : "";
+  return `${avviso}${rassicurazione}`;
+}
+
 function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale, tipoTariffaConfronto = tipoTariffaAttuale) {
   const attuale = calcolaOfferta(offertaAttuale, tipoTariffaAttuale);
   const confronto = calcolaOfferta(offertaConfronto, tipoTariffaConfronto);
@@ -9817,53 +9897,49 @@ function htmlAuditCalcoloOfferta(offerta, costoOfferta) {
     const costoVoce = costoOfferta?.[commodity];
     if (!voceOfferta || !costoVoce || numeroSicuro(costoVoce.consumo, 0) <= 0) continue;
     const audit = auditRiferimentoOfferta(voceOfferta, costoVoce);
+    const stato = audit.completezza.stato === "stima_verificata_completa_sui_dati_modellati"
+      ? "calcolo completo sui dati disponibili"
+      : audit.completezza.stato === "stima_verificata_parziale"
+        ? "calcolo parziale sui dati disponibili"
+        : "stato non applicabile";
     const parti = [];
-    if (audit.codice) parti.push(`codice ARERA ${audit.codice}`);
-    if (audit.qualitaPrezzo) parti.push(`qualità ${audit.qualitaPrezzo}`);
-    parti.push(`provenienza ${audit.statoProvenienzaPrezzo}`);
-    parti.push(`stato ${etichettaStatoAudit(audit.completezza.stato)}`);
+    if (audit.codice) parti.push(`Codice offerta ARERA: ${audit.codice}`);
+    parti.push(stato);
 
+    const dettagli = [];
     const fontePrezzo = [];
-    if (audit.sorgentePrezzo) fontePrezzo.push(`sorgente ${audit.sorgentePrezzo}`);
+    if (audit.statoProvenienzaPrezzo) fontePrezzo.push(audit.statoProvenienzaPrezzo);
+    if (audit.sorgentePrezzo) fontePrezzo.push(audit.sorgentePrezzo);
     if (audit.etichettaPrezzo) fontePrezzo.push(`campo “${audit.etichettaPrezzo}”`);
     if (audit.unitaPrezzo) fontePrezzo.push(audit.unitaPrezzo);
     if (audit.dataInizioPrezzo || audit.dataFinePrezzo) {
       fontePrezzo.push(`validità ${audit.dataInizioPrezzo || "?"}–${audit.dataFinePrezzo || "?"}`);
     }
+    if (fontePrezzo.length) dettagli.push(`Prezzo: ${fontePrezzo.join(" · ")}`);
 
-    const indiceDettaglio = [];
     if (audit.indice) {
-      const periodo = audit.periodoIndice ? ` ${audit.periodoIndice}` : "";
-      const stato = audit.statoIndice ? ` · ${audit.statoIndice}` : "";
-      indiceDettaglio.push(`indice ${audit.indice.toUpperCase()}${periodo}${stato}`);
-      if (audit.fonteIndice) indiceDettaglio.push(`fonte ${audit.fonteIndice}`);
+      const indiceDettaglio = [`Indice ${audit.indice.toUpperCase()}${audit.periodoIndice ? ` ${audit.periodoIndice}` : ""}`];
+      if (audit.fonteIndice) indiceDettaglio.push(audit.fonteIndice);
       const dataIndice = formattaDataCatalogoCopertura(audit.acquisitoIndice);
-      if (dataIndice) indiceDettaglio.push(`acquisito ${dataIndice}`);
+      if (dataIndice) indiceDettaglio.push(`aggiornato ${dataIndice}`);
+      dettagli.push(indiceDettaglio.join(" · "));
     }
 
     const note = [...audit.completezza.mancanti, ...audit.completezza.limitazioni];
-    const dettagli = [
-      fontePrezzo.length ? fontePrezzo.join(" · ") : "",
-      indiceDettaglio.length ? indiceDettaglio.join(" · ") : "",
-      note.length ? note.join(" · ") : "",
-    ].filter(Boolean);
-    righe.push(`<small style="display:block; margin-top:3px; color:var(--text-muted);"><strong>${commodity === "luce" ? "Luce" : "Gas"}:</strong> ${testoHtmlSicuro(parti.join(" · "))}${dettagli.map((riga) => `<br><span>${testoHtmlSicuro(riga)}</span>`).join("")}</small>`);
+    if (note.length) dettagli.push(`Nota: ${note.join(" · ")}`);
+    righe.push(`<small style="display:block; margin-top:4px; color:var(--text-muted);"><strong>${commodity === "luce" ? "Luce" : "Gas"}:</strong> ${testoHtmlSicuro(parti.join(" · "))}${dettagli.map((riga) => `<br><span>${testoHtmlSicuro(riga)}</span>`).join("")}</small>`);
   }
+
   const dataCatalogo = formattaDataCatalogoCopertura(DATI_ARERA_MENU_META.aggiornatoIl);
   const regolateMeta = PARAMETRI_CALCOLO.componentiRegolateMeta || {};
   const dataRegolate = formattaDataCatalogoCopertura(regolateMeta.acquisitoIl);
-  const statoRegolate = String(regolateMeta.stato || "").replace(/_/g, " ");
   const meta = [
-    `motore ${MOTORE_CALCOLO_VERSION}`,
-    DATI_ARERA_MENU_META.versioneDati ? `catalogo ${DATI_ARERA_MENU_META.versioneDati}` : "",
-    dataCatalogo ? `catalogo aggiornato ${dataCatalogo}` : "",
-    DATI_CALCOLO_META.versioneDati ? `parametri ${DATI_CALCOLO_META.versioneDati}` : "",
-    regolateMeta.periodo ? `regolate ${regolateMeta.periodo}` : "",
-    statoRegolate ? `regolate ${statoRegolate}` : "",
-    dataRegolate ? `regolate acquisite ${dataRegolate}` : "",
+    dataCatalogo ? `Offerte aggiornate: ${dataCatalogo}` : "",
+    regolateMeta.periodo ? `Componenti regolate: ${regolateMeta.periodo}` : "",
+    dataRegolate ? `aggiornate ${dataRegolate}` : "",
   ].filter(Boolean).join(" · ");
   const fonteRegolate = String(regolateMeta.fonte || "").trim();
-  return `<div class="offer-calculation-audit" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);"><small style="display:block; font-weight:800; color:var(--text-color);">Tracciabilità del calcolo</small><small style="display:block; color:var(--text-muted);">${testoHtmlSicuro(meta)}</small>${fonteRegolate ? `<small style="display:block; color:var(--text-muted);">Fonte regolate: ${testoHtmlSicuro(fonteRegolate)}</small>` : ""}${righe.join("")}</div>`;
+  return `<div class="offer-calculation-audit" style="margin-top:8px; padding-top:8px; border-top:1px dashed var(--border);"><small style="display:block; font-weight:800; color:var(--text-color);">Dati e fonti del calcolo</small>${meta ? `<small style="display:block; color:var(--text-muted);">${testoHtmlSicuro(meta)}</small>` : ""}${fonteRegolate ? `<small style="display:block; color:var(--text-muted);">Fonte componenti regolate: ${testoHtmlSicuro(fonteRegolate)}</small>` : ""}${righe.join("")}</div>`;
 }
 
 function setDisplay(selector, display) {
@@ -12121,6 +12197,7 @@ function offertaPartnerConPrezziArera(offerta, attuale) {
         luce: voceDaRigaArera(dual.luce),
         gas: voceDaRigaArera(dual.gas),
         sconti: normalizzaScontiArera(dual.sconti),
+        condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(dual.condizioniRecessoAnticipato),
         descrizione: `Condizioni economiche giornaliere dalla specifica offerta dual ARERA. Il catalogo partner fornisce soltanto il percorso di attivazione. Codici: ${codici}`,
         fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo D. Codici: ${codici}`,
         aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
@@ -12243,6 +12320,7 @@ function offertaAreraRankingProvider(providerKey, tipo, tipoFornitura, attuale) 
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     sconti: normalizzaScontiArera(dual?.sconti),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(dual?.condizioniRecessoAnticipato),
     descrizione: `Ranking tecnico da Portale Offerte ARERA/AU (${sorgenteCatalogo}). Codici: ${codiciArera}`,
     fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}. Codici: ${codiciArera}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,
@@ -12800,6 +12878,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const risparmioLockedLabel = risparmio ? "Risparmio potenziale stimato" : "Costo stimato superiore";
       const savingLineClass = risparmio ? "offer-saving-line" : "offer-saving-line is-negative";
       const promozioniHtml = htmlPromozioniApplicateOfferta(offerta, costoOfferta);
+      const recessoHtml = htmlCondizioniRecessoOfferta(offerta);
       const simulazioneBollettaPayload = creaPayloadSimulatoreBolletta(offerta);
       if (title) {
         title.innerText = titoloOffertaVisibile(offerta);
@@ -12869,6 +12948,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
             <p>${testoHtmlSicuro(dettagliOfferta(offerta))}</p>
             ${alternativeNote}
             ${promozioniHtml}
+            ${recessoHtml}
             <small>${htmlDettaglioComponentiCosto(costoOfferta)}</small>
             <small style="display:block; margin-top:4px; color:var(--text-muted);"><strong>${testoHtmlSicuro(livelloStima.label)}:</strong> ${testoHtmlSicuro(livelloStima.detail)}</small>
             ${htmlAuditCalcoloOfferta(offerta, costoOfferta)}
@@ -18823,6 +18903,7 @@ function voceDaRigaArera(riga) {
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     sconti: normalizzaScontiArera(riga.sconti),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
     riferimentoArera: riferimentoAreraDaRiga(riga),
   };
 }
@@ -18872,6 +18953,7 @@ function offertaAreraDaRighe(providerKey, tipo, tipoFornitura, attuale) {
     luce: voceDaRigaArera(luce),
     gas: voceDaRigaArera(gas),
     sconti: normalizzaScontiArera(dual?.sconti),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(dual?.condizioniRecessoAnticipato),
     descrizione: `Compilazione automatica da Portale Offerte ARERA/AU (${sorgenteCatalogo}) per confronto nel modulo nuova offerta.`,
     fonte: `${DATI_ARERA_MENU_META.fonte} Catalogo ${sorgenteCatalogo}. Codici: ${codici}`,
     aggiornataIl: DATI_ARERA_MENU_META.aggiornatoIl,

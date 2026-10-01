@@ -21,7 +21,7 @@ from urllib.parse import urljoin
 NS = {"po": "http://www.acquirenteunico.it/schemas/SII_AU/OffertaRetail/01"}
 OPEN_DATA_URL = "https://www.ilportaleofferte.it/portaleOfferte/it/open-data.page"
 SOURCE_LABEL = "Portale Offerte ARERA/Acquirente Unico Open Data"
-CATALOG_TRANSFORMER_VERSION = "arera-menu-v6-partner-greenius"
+CATALOG_TRANSFORMER_VERSION = "arera-menu-v7-recesso-anticipato"
 PUN_FALLBACK: float | None = None
 PSV_FALLBACK: float | None = None
 PSBG_FALLBACK: float | None = None
@@ -697,6 +697,45 @@ def extracted_discounts(
     return discounts
 
 
+def extracted_early_exit_conditions(
+    offer: ET.Element,
+    source_path: Path,
+    code: str,
+) -> list[dict[str, str]]:
+    """Preserve the official Portale Offerte early-exit condition verbatim.
+
+    TIPOLOGIA_CONDIZIONE=05 is preserved as metadata only. No synthetic charge
+    is derived because the XML may expose a fixed amount, a stepped amount, a
+    dynamic cap, a reference to the CTE, or explicitly state that no charge
+    applies.
+    """
+    conditions: list[dict[str, str]] = []
+    for condition_index, condition in enumerate(
+        offer.findall("po:CondizioniContrattuali", NS),
+        start=1,
+    ):
+        typology = node_text(condition, "po:TIPOLOGIA_CONDIZIONE")
+        if typology != "05":
+            continue
+        description = node_text(condition, "po:DESCRIZIONE")
+        other = node_text(condition, "po:ALTRO")
+        limit = node_text(condition, "po:LIMITANTE")
+        if not description and not other:
+            continue
+        conditions.append(
+            {
+                "tipologia": typology,
+                "descrizione": description,
+                "altro": other,
+                "limitante": limit,
+                "sorgente": source_label_for(source_path),
+                "codiceOfferta": code,
+                "condizioneIndice": str(condition_index),
+            }
+        )
+    return conditions
+
+
 def annual_fee(values: list[dict[str, object]]) -> tuple[float | None, list[dict[str, object]]]:
     selected: list[dict[str, object]] = []
     by_component: dict[int, list[dict[str, object]]] = {}
@@ -932,6 +971,11 @@ def parse_offer_file(
             data_fine,
             duration,
         )
+        early_exit_conditions = extracted_early_exit_conditions(
+            offer,
+            path,
+            code,
+        )
 
         override_price, override_fee, override_quality, override_provenance, technical_details = apply_verified_override(
             overrides.get(code),
@@ -993,6 +1037,7 @@ def parse_offer_file(
                 "provenienzaPrezzo": price_provenance,
                 "provenienzaQuotaFissa": fee_provenance,
                 "sconti": discounts,
+                "condizioniRecessoAnticipato": early_exit_conditions,
                 "valoriEstratti": values,
                 "dettagliTecnici": technical_details,
             }
@@ -1085,6 +1130,11 @@ def parse_dual_file(
             data_fine,
             duration,
         )
+        early_exit_conditions = extracted_early_exit_conditions(
+            offer,
+            path,
+            code,
+        )
         rows.append(
             {
                 "providerKey": provider_key,
@@ -1107,6 +1157,7 @@ def parse_dual_file(
                 "fonte": f"{SOURCE_LABEL} - file D - codice {code}",
                 "score": round(float(light["score"]) + float(gas["score"]), 4),
                 "sconti": discounts,
+                "condizioniRecessoAnticipato": early_exit_conditions,
                 "luce": copy.deepcopy(light),
                 "gas": copy.deepcopy(gas),
             }
@@ -1472,6 +1523,19 @@ def public_row(row: dict[str, object]) -> dict[str, object]:
     return result
 
 
+def public_row_with_current_contract_metadata(
+    previous: dict[str, object],
+    candidate: dict[str, object],
+) -> dict[str, object]:
+    """Keep the last valid economics while refreshing deterministic contract metadata."""
+    result = public_row(previous)
+    conditions = candidate.get("condizioniRecessoAnticipato")
+    result["condizioniRecessoAnticipato"] = (
+        copy.deepcopy(conditions) if isinstance(conditions, list) else []
+    )
+    return result
+
+
 def is_last_valid_dual(row: dict[str, object] | None) -> bool:
     return bool(row) and not validate_dual_candidate(row or {})
 
@@ -1532,7 +1596,7 @@ def validate_and_merge(
                 }
             )
             if is_last_valid(previous):
-                final_by_key[key] = public_row(previous)
+                final_by_key[key] = public_row_with_current_contract_metadata(previous, candidate)
             continue
         final_by_key[key] = public_row(candidate)
 
@@ -1581,7 +1645,7 @@ def validate_and_merge(
                 }
             )
             if is_last_valid_dual(previous):
-                final_dual_by_key[code] = public_row(previous)
+                final_dual_by_key[code] = public_row_with_current_contract_metadata(previous, candidate)
             continue
         candidate["score"] = round(float(candidate["luce"]["score"]) + float(candidate["gas"]["score"]), 4)
         final_dual_by_key[code] = public_row(candidate)
@@ -1796,6 +1860,73 @@ def parsed_discount_stats(rows: list[dict[str, object]]) -> dict[str, int]:
     }
 
 
+def source_early_exit_condition_stats(
+    path: Path,
+    published_codes: set[str],
+) -> dict[str, object]:
+    tree = ET.parse(path)
+    total = 0
+    by_code: dict[str, int] = {}
+    for offer in tree.findall(".//po:offerta", NS):
+        code = node_text(offer, "po:IdentificativiOfferta/po:COD_OFFERTA")
+        if code not in published_codes:
+            continue
+        count = sum(
+            1
+            for condition in offer.findall("po:CondizioniContrattuali", NS)
+            if node_text(condition, "po:TIPOLOGIA_CONDIZIONE") == "05"
+            and (
+                node_text(condition, "po:DESCRIZIONE")
+                or node_text(condition, "po:ALTRO")
+            )
+        )
+        if count:
+            by_code[code] = count
+            total += count
+    return {
+        "condizioniRecessoFonte": total,
+        "condizioniRecessoPerCodice": by_code,
+    }
+
+
+def parsed_early_exit_condition_stats(rows: list[dict[str, object]]) -> dict[str, int]:
+    offers_with_conditions = 0
+    conditions_total = 0
+    for row in rows:
+        conditions = row.get("condizioniRecessoAnticipato")
+        if not isinstance(conditions, list):
+            raise RuntimeError(
+                f"Schema condizioni recesso mancante per offerta {row.get('codice')}"
+            )
+        if conditions:
+            offers_with_conditions += 1
+            conditions_total += len(conditions)
+    return {
+        "offerteConCondizioniRecesso": offers_with_conditions,
+        "condizioniRecessoTotali": conditions_total,
+    }
+
+
+def validate_early_exit_condition_integrity(
+    rows: list[dict[str, object]],
+    source_stats: dict[str, object],
+    label: str,
+) -> None:
+    expected_by_code = dict(source_stats.get("condizioniRecessoPerCodice") or {})
+    for row in rows:
+        code = str(row.get("codice") or "")
+        conditions = row.get("condizioniRecessoAnticipato")
+        if not isinstance(conditions, list):
+            raise RuntimeError(f"Schema condizioni recesso mancante per offerta {code}")
+        expected = int(expected_by_code.get(code, 0))
+        actual = len(conditions)
+        if actual != expected:
+            raise RuntimeError(
+                "Perdita metadata recesso "
+                f"{label} per offerta {code}: XML={expected}, parser={actual}"
+            )
+
+
 def build_staging_payload(
     files: dict[str, Path], as_of: datetime, root: Path
 ) -> tuple[dict[str, object], list[dict[str, object]]]:
@@ -1812,6 +1943,20 @@ def build_staging_payload(
     source_light = source_discount_stats(files["E"], {str(row.get("codice") or "") for row in light_rows})
     source_gas = source_discount_stats(files["G"], {str(row.get("codice") or "") for row in gas_rows})
     source_dual = source_discount_stats(files["D"], {str(row.get("codice") or "") for row in dual_rows})
+    recesso_stats = parsed_early_exit_condition_stats(rows)
+    dual_recesso_stats = parsed_early_exit_condition_stats(dual_rows)
+    source_recesso_light = source_early_exit_condition_stats(
+        files["E"], {str(row.get("codice") or "") for row in light_rows}
+    )
+    source_recesso_gas = source_early_exit_condition_stats(
+        files["G"], {str(row.get("codice") or "") for row in gas_rows}
+    )
+    source_recesso_dual = source_early_exit_condition_stats(
+        files["D"], {str(row.get("codice") or "") for row in dual_rows}
+    )
+    validate_early_exit_condition_integrity(light_rows, source_recesso_light, "luce")
+    validate_early_exit_condition_integrity(gas_rows, source_recesso_gas, "gas")
+    validate_early_exit_condition_integrity(dual_rows, source_recesso_dual, "dual")
     source_supported = (
         int(source_light["blocchiScontoConPrezzoSupportatoFonte"])
         + int(source_gas["blocchiScontoConPrezzoSupportatoFonte"])
@@ -1863,8 +2008,55 @@ def build_staging_payload(
             "scontiFonteGas": source_gas["blocchiScontoFonte"],
             "scontiFonteDual": source_dual["blocchiScontoFonte"],
             "scontiConPrezzoSupportatoFonte": source_supported,
+            **recesso_stats,
+            "offerteDualConCondizioniRecesso": dual_recesso_stats["offerteConCondizioniRecesso"],
+            "condizioniRecessoDualTotali": dual_recesso_stats["condizioniRecessoTotali"],
+            "condizioniRecessoFonteLuce": source_recesso_light["condizioniRecessoFonte"],
+            "condizioniRecessoFonteGas": source_recesso_gas["condizioniRecessoFonte"],
+            "condizioniRecessoFonteDual": source_recesso_dual["condizioniRecessoFonte"],
         },
     }, diagnostics
+
+
+def validate_published_early_exit_conditions(
+    staging_payload: dict[str, object],
+    payload: dict[str, object],
+) -> None:
+    def single_map(source: dict[str, object]) -> dict[tuple[str, str], list[object]]:
+        return {
+            row_key(row): copy.deepcopy(row.get("condizioniRecessoAnticipato") or [])
+            for row in existing_rows(source)
+            if all(row_key(row))
+        }
+
+    staging_single = single_map(staging_payload)
+    final_single = single_map(payload)
+    for key, expected in staging_single.items():
+        if key not in final_single:
+            continue
+        if final_single[key] != expected:
+            raise RuntimeError(
+                "Perdita metadata recesso dopo validazione economica per offerta "
+                f"{key[0]} ({key[1]})"
+            )
+
+    staging_dual = {
+        str(row.get("codice") or ""): copy.deepcopy(row.get("condizioniRecessoAnticipato") or [])
+        for row in existing_dual_rows(staging_payload)
+        if str(row.get("codice") or "")
+    }
+    final_dual = {
+        str(row.get("codice") or ""): copy.deepcopy(row.get("condizioniRecessoAnticipato") or [])
+        for row in existing_dual_rows(payload)
+        if str(row.get("codice") or "")
+    }
+    for code, expected in staging_dual.items():
+        if code not in final_dual:
+            continue
+        if final_dual[code] != expected:
+            raise RuntimeError(
+                f"Perdita metadata recesso dopo validazione economica per dual {code}"
+            )
 
 
 def build_validated_payload(
@@ -1874,6 +2066,7 @@ def build_validated_payload(
     staging_path = write_staging(root, staging_payload)
     previous_payload = read_json(root / "data" / "offerte-arera-menu.json")
     payload, report = validate_and_merge(staging_payload, previous_payload, diagnostics)
+    validate_published_early_exit_conditions(staging_payload, payload)
     return payload, report, staging_path
 
 
