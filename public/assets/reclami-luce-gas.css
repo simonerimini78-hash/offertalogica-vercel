@@ -16,3 +16,8 @@
   .date-field{margin-top:10px;padding:11px}.bill-intro h3{font-size:18px}.bill-intro p{font-size:13px}.upload-box{margin-top:10px;padding:12px}.privacy-note{font-size:10.5px}
   .content-layout{padding-top:22px}.panel{padding:15px}.panel h2{font-size:22px}.panel p,.panel li{font-size:14px}
 }
+
+/* v0.10.30: breadcrumb separato dalla hero e compatto; nessun pannello glass dedicato */
+main>.breadcrumbs{min-height:30px;margin:6px auto 2px;padding:4px 0;font-size:12.5px;line-height:1.25}
+@media(max-width:650px){main>.breadcrumbs{min-height:27px;margin:4px auto 1px;padding:3px 0;font-size:12px}.hero>.shell.hero-grid{padding:14px 13px!important;border-radius:16px!important}}
+@media(min-width:921px){main>.breadcrumbs{min-height:32px;margin:8px auto 4px;padding:3px 0;font-size:13.5px}.hero>.shell.hero-grid{padding:26px 28px!important;border-radius:28px!important}}
