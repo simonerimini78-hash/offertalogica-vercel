@@ -55,6 +55,21 @@
     file: null
   };
 
+
+  function applyProblemFromUrl() {
+    const params = new URLSearchParams(window.location.search);
+    const requested = params.get('problema');
+    if (!requested || !Object.prototype.hasOwnProperty.call(PROBLEMS, requested)) return;
+    const input = document.querySelector(`input[name="case-problem"][value="${requested}"]`);
+    if (!input) return;
+    input.checked = true;
+    state.problem = requested;
+    const tool = document.querySelector('#verifica-caso');
+    if (window.location.hash === '#verifica-caso' && tool) {
+      requestAnimationFrame(() => tool.scrollIntoView({ behavior: 'auto', block: 'start' }));
+    }
+  }
+
   function setStep(step) {
     state.step = step;
     $$('[data-case-panel]').forEach((panel) => {
@@ -372,6 +387,7 @@
     setUploadStatus('Nessun documento selezionato.');
     showError('problem', false);
     showError('status', false);
+    applyProblemFromUrl();
     setStep('problem');
   }
 
@@ -410,4 +426,5 @@
 
   const dateInput = $('#complaint-date');
   if (dateInput) dateInput.max = todayIso();
+  applyProblemFromUrl();
 })();
