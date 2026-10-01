@@ -21,3 +21,15 @@
 main>.breadcrumbs{min-height:30px;margin:6px auto 2px;padding:4px 0;font-size:12.5px;line-height:1.25}
 @media(max-width:650px){main>.breadcrumbs{min-height:27px;margin:4px auto 1px;padding:3px 0;font-size:12px}.hero>.shell.hero-grid{padding:14px 13px!important;border-radius:16px!important}}
 @media(min-width:921px){main>.breadcrumbs{min-height:32px;margin:8px auto 4px;padding:3px 0;font-size:13.5px}.hero>.shell.hero-grid{padding:26px 28px!important;border-radius:28px!important}}
+
+/* v0.10.31 — header comune OL, breadcrumb centrato, desktop/mobile coerenti */
+main>.breadcrumbs{justify-content:center;min-height:28px;margin:4px auto 6px;padding:2px 0;font-size:12.5px}
+@media(min-width:921px){main>.breadcrumbs{min-height:30px;margin:5px auto 8px;font-size:14px}.hero>.shell.hero-grid{padding:28px 30px!important}.hero-grid{align-items:center}.hero-note{align-self:center}}
+@media(max-width:650px){main>.breadcrumbs{justify-content:center;margin:3px auto 5px}.hero{padding-top:0}}
+@media print{.ol-public-header,.ol-menu-backdrop{display:none!important}}
+@media(max-width:650px){
+  .trust-strip{grid-template-columns:repeat(3,minmax(0,1fr));gap:1px;margin:7px auto 10px}
+  .trust-item{min-height:48px;padding:8px 5px;text-align:center;display:flex;align-items:center;justify-content:center}
+  .trust-item strong{margin:0;font-size:11px;line-height:1.2}
+  .trust-item span{display:none}
+}

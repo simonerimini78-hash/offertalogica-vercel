@@ -20,7 +20,8 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
-  <link rel="stylesheet" href="/assets/tutela-energia.css">
+  <link rel="stylesheet" href="/assets/ol-public-header.css?v=0.10.31">
+  <link rel="stylesheet" href="/assets/tutela-energia.css?v=0.10.31">
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -59,19 +60,32 @@
 </head>
 <body>
   <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
-  <header class="topbar">
-    <div class="shell topbar-inner">
-      <a class="brand" href="/" aria-label="Torna alla Home OffertaLogica"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"></a>
-      <nav class="nav" aria-label="Navigazione principale">
-        <a href="/">Calcolatore</a>
-        <a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a>
-        <a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
-        <a href="/tutela-energia.html" aria-current="page">Tutela energia</a>
-        <a href="/articoli.html">Informa</a>
-        <a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a>
-      </nav>
+  <header class="ol-public-header">
+    <div class="ol-public-header-inner">
+      <a class="ol-public-logo" href="/" aria-label="OffertaLogica.it">
+        <img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it - Confronta, scegli, risparmia">
+      </a>
+      <button type="button" class="ol-menu-toggle" id="ol-menu-toggle" aria-expanded="false" aria-controls="ol-menu-drawer" aria-label="Apri menu"><span aria-hidden="true"></span></button>
     </div>
   </header>
+  
+<div class="ol-menu-backdrop" id="ol-menu-backdrop" hidden>
+  <aside class="ol-menu-drawer" id="ol-menu-drawer" aria-label="Navigazione OffertaLogica">
+    <div class="ol-menu-head"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><button type="button" class="ol-menu-close" id="ol-menu-close" aria-label="Chiudi menu">×</button></div>
+    <nav class="ol-menu-nav" aria-label="Menu principale">
+      <a href="/#main-content"><strong>Confronta luce e gas</strong><small>Parti dal calcolatore OffertaLogica</small></a>
+      <a href="/offerte-luce-gas-aggiornate.html"><strong>Offerte aggiornate</strong><small>Consulta offerte e dati aggiornati</small></a>
+      <a href="/fornitori/"><strong>Fornitori</strong><small>Informazioni sui principali operatori</small></a>
+      <a href="/articoli.html"><strong>OffertaLogica Informa</strong><small>Guide, notizie e approfondimenti</small></a>
+      <a href="/come-leggere-bolletta-luce-gas.html"><strong>Bolletta e risparmio</strong><small>Capisci costi, prezzi e consumi</small></a>
+      <a href="/simulatore-bolletta.html"><strong>Simulatore storico bolletta</strong><small>Confronta la stessa bolletta con offerte dello stesso periodo</small></a>
+      <a href="/tutela-energia.html" aria-current="page"><strong>Tutela energia</strong><small>Bolletta, contratto, chiamate, reclami e problemi dopo il cambio</small></a>
+      <a href="/fotovoltaico.html"><strong>Casa e servizi</strong><small>Fotovoltaico, climatizzazione e Internet</small></a>
+      <a href="/#business-panel"><strong>Per aziende e attività</strong><small>Analisi preliminare per imprese e P.IVA</small></a>
+    </nav>
+    <nav class="ol-menu-secondary" aria-label="Altri link"><a href="/come-funziona.html">Come funziona</a><a href="/partner.html">Partner</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194">Privacy</a></nav>
+  </aside>
+</div>
 
   <section class="ol-app-access-bar" aria-label="Accessi alle app OffertaLogica">
     <div class="ol-app-access-inner">
@@ -86,10 +100,10 @@
     </nav>
 
     <section class="hero">
-      <div class="shell">
+      <div class="shell hero-copy-center">
         <div class="eyebrow">Centro tutela OffertaLogica</div>
-        <h1>Tutela energia: scegli lo strumento giusto.</h1>
-        <p>Bolletta, contratto, chiamate o contestazioni richiedono controlli diversi. Parti dall'area corretta e vai direttamente allo strumento utile.</p>
+        <h1>Tutela energia</h1>
+        <p>Bolletta, contratto, chiamate sospette o contestazioni: scegli l'area del problema e vai direttamente allo strumento utile.</p>
       </div>
     </section>
 
@@ -100,26 +114,30 @@
           <h2 id="route-title">Da dove vuoi partire?</h2>
         </div>
         <div class="route-grid">
-          <a class="route-card" href="/come-leggere-bolletta-luce-gas.html">
+          <article class="route-card">
             <span class="route-label">Bolletta</span>
-            <strong>Capire costi e dati</strong>
-            <span>Importi, consumi, voci e informazioni presenti in fattura.</span>
-          </a>
-          <a class="route-card" href="/come-cambiare-fornitore-luce-gas.html">
+            <h3>Capire costi e dati</h3>
+            <p>Importi, consumi, voci e informazioni presenti in fattura.</p>
+            <a class="route-cta" href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a>
+          </article>
+          <article class="route-card">
             <span class="route-label">Contratto e cambio</span>
-            <strong>Capire cosa succede nel passaggio</strong>
-            <span>Offerta, cambio venditore, voltura, subentro e passaggi da distinguere.</span>
-          </a>
-          <a class="route-card" href="/truffe-telefoniche-luce-gas.html">
+            <h3>Capire cosa succede nel passaggio</h3>
+            <p>Offerta, cambio venditore, voltura e subentro.</p>
+            <a class="route-cta" href="/come-cambiare-fornitore-luce-gas.html">Cambio fornitore</a>
+          </article>
+          <article class="route-card">
             <span class="route-label">Chiamate e sicurezza</span>
-            <strong>Verificare prima di fidarti</strong>
-            <span>Telefonate, identità dichiarate e segnali da controllare prima di accettare.</span>
-          </a>
-          <a class="route-card route-card-accent" href="/reclami-luce-gas.html">
+            <h3>Verificare prima di fidarti</h3>
+            <p>Telefonate, identità dichiarate e segnali da controllare.</p>
+            <a class="route-cta" href="/truffe-telefoniche-luce-gas.html">Verifica chiamate</a>
+          </article>
+          <article class="route-card route-card-accent">
             <span class="route-label">Reclami e contestazioni</span>
-            <strong>Ricostruire un caso concreto</strong>
-            <span>Bolletta contestata, contratto non riconosciuto, reclamo già inviato o risposta insoddisfacente.</span>
-          </a>
+            <h3>Ricostruire un caso concreto</h3>
+            <p>Bolletta contestata, contratto non riconosciuto o reclamo già avviato.</p>
+            <a class="route-cta route-cta-primary" href="/reclami-luce-gas.html">Reclami luce e gas</a>
+          </article>
         </div>
       </section>
 
@@ -130,7 +148,8 @@
         </div>
         <div class="content-copy">
           <p>Capire una voce della bolletta, verificare una telefonata e contestare formalmente un addebito sono attività diverse. Tutela energia serve a scegliere il punto di partenza, non a ripetere lo stesso percorso in più pagine.</p>
-          <p>La pagina <a href="/reclami-luce-gas.html">Reclami luce e gas</a> entra nel merito solo quando esiste qualcosa da contestare o una pratica già avviata.</p>
+          <p>La verifica Reclami entra nel merito solo quando esiste qualcosa da contestare o una pratica già avviata.</p>
+          <a class="content-cta" href="/reclami-luce-gas.html">Reclami luce e gas</a>
         </div>
       </section>
 
@@ -175,6 +194,7 @@
     <nav aria-label="Link del sito"><a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><a href="/come-leggere-bolletta-luce-gas.html">Guida bolletta</a><a href="/reclami-luce-gas.html">Reclami</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a></nav>
   </footer>
 
+  <script src="/assets/ol-public-header.js?v=0.10.31" defer></script>
   <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
 </html>

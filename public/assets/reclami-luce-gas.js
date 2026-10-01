@@ -59,7 +59,11 @@
   function applyProblemFromUrl() {
     const params = new URLSearchParams(window.location.search);
     const requested = params.get('problema');
-    if (!requested || !Object.prototype.hasOwnProperty.call(PROBLEMS, requested)) return;
+    if (!requested) return;
+    // Il vecchio deep-link generico “complaint” non deve preselezionare una risposta:
+    // entrare in Reclami e contestazioni non significa aver già inviato un reclamo.
+    if (requested === 'complaint') return;
+    if (!Object.prototype.hasOwnProperty.call(problemMap, requested)) return;
     const input = document.querySelector(`input[name="case-problem"][value="${requested}"]`);
     if (!input) return;
     input.checked = true;
