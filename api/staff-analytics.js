@@ -17,6 +17,70 @@ const CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY =
 const CUSTOMER_DB_EVENTS_TABLE = process.env.CUSTOMER_DB_EVENTS_TABLE || "lead_events";
 const CAMPAIGN_BASELINE_ISO = "2026-09-02T22:00:00.000Z";
 const CAMPAIGN_BASELINE_LABEL = "3 settembre 2026, 00:00";
+const ANALYTICS_TIME_ZONE = "Europe/Rome";
+
+function normalizeAnalyticsMonth(value) {
+  const normalized = String(value || "").trim();
+  return /^\d{4}-(0[1-9]|1[0-2])$/.test(normalized) ? normalized : "";
+}
+
+function timeZoneParts(date, timeZone = ANALYTICS_TIME_ZONE) {
+  const parts = new Intl.DateTimeFormat("en", {
+    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
+    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
+  }).formatToParts(date);
+  const value = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
+  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
+}
+
+function timeZoneOffsetMs(date, timeZone = ANALYTICS_TIME_ZONE) {
+  const parts = timeZoneParts(date, timeZone);
+  const reconstructed = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
+  return reconstructed - Math.floor(date.getTime() / 1000) * 1000;
+}
+
+function zonedMidnightIso(year, month, day, timeZone = ANALYTICS_TIME_ZONE) {
+  const wallClockUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
+  let candidate = new Date(wallClockUtc);
+  let offset = timeZoneOffsetMs(candidate, timeZone);
+  candidate = new Date(wallClockUtc - offset);
+  const adjustedOffset = timeZoneOffsetMs(candidate, timeZone);
+  if (adjustedOffset !== offset) candidate = new Date(wallClockUtc - adjustedOffset);
+  return candidate.toISOString();
+}
+
+function currentAnalyticsMonth() {
+  const parts = timeZoneParts(new Date(), ANALYTICS_TIME_ZONE);
+  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}`;
+}
+
+function analyticsMonthPeriod(value) {
+  const month = normalizeAnalyticsMonth(value);
+  if (!month) return null;
+  const [year, monthNumber] = month.split("-").map(Number);
+  const nextYear = monthNumber === 12 ? year + 1 : year;
+  const nextMonth = monthNumber === 12 ? 1 : monthNumber + 1;
+  const rawFrom = zonedMidnightIso(year, monthNumber, 1);
+  const to = zonedMidnightIso(nextYear, nextMonth, 1);
+  const baselineMs = new Date(CAMPAIGN_BASELINE_ISO).getTime();
+  const rawFromMs = new Date(rawFrom).getTime();
+  const from = Number.isFinite(rawFromMs) && rawFromMs < baselineMs ? CAMPAIGN_BASELINE_ISO : rawFrom;
+  const label = new Intl.DateTimeFormat("it-IT", { timeZone: ANALYTICS_TIME_ZONE, month: "long", year: "numeric" })
+    .format(new Date(Date.UTC(year, monthNumber - 1, 15, 12)));
+  return { month, from, to, label, partial: month === currentAnalyticsMonth(), timezone: ANALYTICS_TIME_ZONE };
+}
+function analyticsRelativeRangeFrom(period, rangeValue) {
+  if (!period) return "";
+  const range = normalizeLandingRange(rangeValue);
+  const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
+  if (!days) return period.from;
+  const periodStart = new Date(period.from).getTime();
+  const periodEnd = new Date(period.to).getTime();
+  const anchor = period.partial ? Date.now() : periodEnd;
+  const candidate = anchor - days * 86400000;
+  return new Date(Math.max(periodStart, candidate)).toISOString();
+}
+
 const LANDING_AUTOMATIC_DATA_ORIGIN = "landing_average_profile";
 const LANDING_PATH_EVENTS = Object.freeze({
   view: "landing_view",
@@ -444,6 +508,25 @@ function switchoSessionsFromEvents(events = []) {
   }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
 
   return rows;
+}
+
+function switchoAnalyticsFromRawRows(rawRows = []) {
+  const events = (Array.isArray(rawRows) ? rawRows : []).map(switchoEventFromRow).filter(Boolean);
+  const rows = switchoSessionsFromEvents(events);
+  const sourceCounts = {};
+  rows.forEach((row) => increment(sourceCounts, row.trafficSource || "direct"));
+  return {
+    ok: true,
+    configured: customerDbConfiguredForLandingAnalytics(),
+    rows,
+    summary: {
+      sessions: rows.length,
+      offerSelections: rows.filter((row) => row.choiceRecorded || row.offerName).length,
+      guidedSessions: rows.filter((row) => !row.offerName).length,
+      redirects: rows.filter((row) => row.redirectRecorded || row.landingOpened).length,
+      sources: sourceEntries(sourceCounts),
+    },
+  };
 }
 
 async function loadSwitchoAnalytics(from = CAMPAIGN_BASELINE_ISO) {
@@ -1455,14 +1538,15 @@ function analyticsExportRangeFrom(value) {
   return String(value || "baseline").toLowerCase() === "all" ? "" : CAMPAIGN_BASELINE_ISO;
 }
 
-async function fetchAnalyticsExportPage(from, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
+async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
   const query = new URLSearchParams({
     select: "id,lead_id,event_type,created_at,payload",
     order: "created_at.asc",
     limit: String(limit),
     offset: String(offset),
   });
-  if (from) query.set("created_at", `gte.${from}`);
+  if (from) query.append("created_at", `gte.${from}`);
+  if (to) query.append("created_at", `lt.${to}`);
   const response = await fetch(
     `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
     { method: "GET", headers: customerDbReadHeaders() },
@@ -1472,15 +1556,15 @@ async function fetchAnalyticsExportPage(from, offset, limit = ANALYTICS_EXPORT_P
   return Array.isArray(rows) ? rows : [];
 }
 
-async function loadAnalyticsExportRows(from) {
+async function loadAnalyticsExportRows(from, to = "") {
   if (!customerDbConfiguredForLandingAnalytics()) return [];
   const rows = [];
   for (let offset = 0; offset < ANALYTICS_EXPORT_MAX_ROWS; offset += ANALYTICS_EXPORT_PAGE_SIZE) {
-    const page = await fetchAnalyticsExportPage(from, offset);
+    const page = await fetchAnalyticsExportPage(from, to, offset);
     rows.push(...page);
     if (page.length < ANALYTICS_EXPORT_PAGE_SIZE) return rows;
   }
-  const overflow = await fetchAnalyticsExportPage(from, ANALYTICS_EXPORT_MAX_ROWS, 1);
+  const overflow = await fetchAnalyticsExportPage(from, to, ANALYTICS_EXPORT_MAX_ROWS, 1);
   if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
   return rows;
 }
@@ -2123,14 +2207,16 @@ export default async function handler(req, res) {
 
   const format = String(url.searchParams.get("format") || "json").toLowerCase();
   const exportScope = String(url.searchParams.get("scope") || "events").toLowerCase();
-  const exportRange = String(url.searchParams.get("range") || "baseline").toLowerCase();
+  const exportRange = String(url.searchParams.get("range") || "month").toLowerCase();
   if (format === "csv") {
     if (!customerDbConfiguredForLandingAnalytics()) {
       return sendAnalyticsCsv(res, "", `offertalogica-analytics-${new Date().toISOString().slice(0, 10)}.csv`);
     }
     try {
-      const rows = await loadAnalyticsExportRows(analyticsExportRangeFrom(exportRange));
+      const exportPeriod = exportRange === "month" ? analyticsMonthPeriod(url.searchParams.get("month") || currentAnalyticsMonth()) : null;
+      const rows = await loadAnalyticsExportRows(exportPeriod?.from || analyticsExportRangeFrom(exportRange), exportPeriod?.to || "");
       const date = new Date().toISOString().slice(0, 10);
+      const exportRangeLabel = exportPeriod?.month || exportRange;
       const sessionScopes = new Set(["sessions", "paths", "pdf", "switcho", "traffic", "offers", "landing"]);
       if (sessionScopes.has(exportScope)) {
         let sessionRows = analyticsJourneyRows(rows);
@@ -2156,7 +2242,7 @@ export default async function handler(req, res) {
           sessions: "funnel-sessioni", paths: "percorsi", pdf: "percorso-pdf", switcho: "percorso-switcho",
           traffic: "provenienza-intento", offers: "offerte", landing: "landing"
         })[exportScope] || "sessioni";
-        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-${filenameScope}-${exportRange}-${date}.csv`);
+        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-${filenameScope}-${exportRangeLabel}-${date}.csv`);
       }
       const eventRows = analyticsEventExportRows(rows);
       const headers = [
@@ -2174,7 +2260,7 @@ export default async function handler(req, res) {
         "engagement_landing_seconds", "engagement_calculator_seconds", "engagement_offers_seconds", "engagement_otp_seconds",
         "engagement_first_action_seconds", "engagement_offers_reached_seconds", "telemetry", "reason", "payload_json"
       ];
-      return sendAnalyticsCsv(res, csvFromObjects(eventRows, headers), `offertalogica-analytics-completo-${exportRange}-${date}.csv`);
+      return sendAnalyticsCsv(res, csvFromObjects(eventRows, headers), `offertalogica-analytics-completo-${exportRangeLabel}-${date}.csv`);
     } catch (error) {
       console.error("staff-analytics-export", error);
       return json(res, 500, { ok: false, error: String(error?.message || error || "analytics_export_error") });
@@ -2201,6 +2287,7 @@ export default async function handler(req, res) {
   const limit = url.searchParams.get("limit") || 2000;
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
   const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase();
+  const period = analyticsMonthPeriod(url.searchParams.get("month"));
 
   if (mode === "overview") {
     let databaseSummary = null;
@@ -2242,6 +2329,100 @@ export default async function handler(req, res) {
       authorizedBy,
       checkedAt: new Date().toISOString(),
     });
+  }
+
+  if (period && mode !== "overview") {
+    try {
+      const [rawResult, monthlyRows] = await Promise.all([
+        listCustomerAnalytics({ limit, from: period.from, to: period.to }),
+        loadAnalyticsExportRows(period.from, period.to),
+      ]);
+      const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
+      const journeys = analyticsJourneyRows(monthlyRows);
+      const exactSummary = analyticsJourneySummary(journeys, monthlyRows);
+      const offerSelectionSummary = offerSelectionSummaryFromRows(monthlyRows);
+      const clickedProviders = offerSelectionSummary?.topProviders?.length ? offerSelectionSummary.topProviders : exactSummary.topProviders || [];
+      const clickedOffers = offerSelectionSummary?.topOffers?.length ? offerSelectionSummary.topOffers : exactSummary.topOffers || [];
+      const offerRoutes = {
+        ok: true,
+        configured: customerDbConfiguredForLandingAnalytics(),
+        from: period.from,
+        to: period.to,
+        summary: summarizeOfferRouteEvents(monthlyRows.map(offerRouteEventFromRow).filter(Boolean)),
+      };
+      const routeSummary = offerRoutes.summary || {};
+      const providerRouteMap = new Map((routeSummary.providerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
+      const offerRouteMap = new Map((routeSummary.offerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
+      const decorate = (rows, routeMap) => (Array.isArray(rows) ? rows : []).map((item) => ({
+        ...item,
+        routeStats: routeMap.get(String(item?.key || "").trim().toLowerCase()) || null,
+      }));
+      const sessionFunnel = { ...(exactSummary.sessionFunnel || {}), cardClicked: Number(offerSelectionSummary.cardClicks || exactSummary.cardClicked || 0) };
+      const sessionFunnelsBySource = { ...(exactSummary.sessionFunnelsBySource || {}) };
+      Object.entries(offerSelectionSummary.cardClicksBySource || {}).forEach(([sourceKey, count]) => {
+        sessionFunnelsBySource[sourceKey] = { ...(sessionFunnelsBySource[sourceKey] || {}), cardClicked: Number(count || 0) };
+      });
+      const linkedLeadIds = new Set(monthlyRows.map((row) => String(row?.lead_id || "").trim()).filter(Boolean));
+      const summary = {
+        ...(result.summary || {}),
+        ...exactSummary,
+        recentEvents: monthlyRows.length,
+        linkedLeads: linkedLeadIds.size,
+        attributedSessions: journeys.length,
+        topProviders: decorate(clickedProviders, providerRouteMap),
+        topOffers: decorate(clickedOffers, offerRouteMap),
+        funnel: exactSummary.activity || exactSummary.funnel || {},
+        sessionFunnel,
+        sessionFunnelsBySource,
+      };
+      const journeySummary = {
+        ...exactSummary,
+        offerSelections: offerSelectionSummary.selections ?? exactSummary.offerAction ?? 0,
+        topProviders: summary.topProviders,
+        topOffers: summary.topOffers,
+        sessionFunnel,
+        sessionFunnelsBySource,
+      };
+      const switcho = switchoAnalyticsFromRawRows(monthlyRows);
+      const landingFrom = analyticsRelativeRangeFrom(period, landingRange);
+      const landingRows = monthlyRows.filter((row) => {
+        const createdAt = new Date(row?.created_at || 0).getTime();
+        return Number.isFinite(createdAt) && createdAt >= new Date(landingFrom).getTime();
+      });
+      const landingPath = {
+        ok: true, configured: customerDbConfiguredForLandingAnalytics(), range: landingRange,
+        from: landingFrom, to: period.to, ...classifyLandingPathRows(landingRows),
+      };
+      const photoJourneySummary = photoJourneySummaryFromRows(monthlyRows);
+      return json(res, result.ok ? 200 : 500, {
+        ...result,
+        ok: result.ok,
+        status: result.status,
+        summary,
+        journeys,
+        journeySummary,
+        journeyWindow: { maxEvents: monthlyRows.length, loadedEvents: monthlyRows.length, recentOnly: false },
+        aggregationMode: "monthly_single_scan",
+        switcho,
+        offerRoutes,
+        photoJourneySummary,
+        landingPath,
+        period,
+        baseline: { from: CAMPAIGN_BASELINE_ISO, label: CAMPAIGN_BASELINE_LABEL, timezone: ANALYTICS_TIME_ZONE },
+        authorizedBy,
+        checkedAt: new Date().toISOString(),
+      });
+    } catch (error) {
+      console.error("staff-analytics-month", error);
+      return json(res, 500, {
+        ok: false, configured: customerDbConfiguredForLandingAnalytics(),
+        error: String(error?.message || error || "analytics_month_error"),
+        period,
+        baseline: { from: CAMPAIGN_BASELINE_ISO, label: CAMPAIGN_BASELINE_LABEL, timezone: ANALYTICS_TIME_ZONE },
+        authorizedBy,
+        checkedAt: new Date().toISOString(),
+      });
+    }
   }
 
   if (mode === "landing" || (Number(limit) === 1 && url.searchParams.has("landingRange"))) {

@@ -12,6 +12,8 @@
   const HUMAN_COST_EUR_PER_HOUR = 30;
   const VERIFIED_COST_PRICING_VERSIONS = new Set(["premium-eur-v0.36.42", "premium-ecb-eur-v0.36.43"]);
   const COST_METRICS_PAGE_SIZE = 1000;
+  const ANALYTICS_MONTH_STORAGE_KEY = "offertalogica-staff-analytics-month";
+  const ANALYTICS_CALENDAR_MONTH_KEY = "offertalogica-staff-analytics-calendar-month";
 
   let client = null;
   let currentSession = null;
@@ -56,6 +58,52 @@
   };
 
   const byId = id => document.getElementById(id);
+
+  function analyticsCurrentMonthKey() {
+    const parts = new Intl.DateTimeFormat("en", { timeZone: "Europe/Rome", year: "numeric", month: "2-digit" }).formatToParts(new Date());
+    const year = parts.find(part => part.type === "year")?.value || "";
+    const month = parts.find(part => part.type === "month")?.value || "";
+    return /^\d{4}$/.test(year) && /^\d{2}$/.test(month) ? `${year}-${month}` : new Date().toISOString().slice(0, 7);
+  }
+
+  function normalizeAnalyticsMonth(value) {
+    const normalized = String(value || "").trim();
+    return /^\d{4}-(0[1-9]|1[0-2])$/.test(normalized) ? normalized : "";
+  }
+
+  function analyticsStoredMonth() {
+    const current = analyticsCurrentMonthKey();
+    try {
+      const calendarMonth = normalizeAnalyticsMonth(localStorage.getItem(ANALYTICS_CALENDAR_MONTH_KEY));
+      const stored = normalizeAnalyticsMonth(localStorage.getItem(ANALYTICS_MONTH_STORAGE_KEY));
+      if (calendarMonth === current && stored && stored <= current) return stored;
+      localStorage.setItem(ANALYTICS_MONTH_STORAGE_KEY, current);
+      localStorage.setItem(ANALYTICS_CALENDAR_MONTH_KEY, current);
+    } catch {}
+    return current;
+  }
+
+  function analyticsSelectedMonth() {
+    return normalizeAnalyticsMonth(byId("analyticsMonth")?.value) || analyticsStoredMonth();
+  }
+
+  function storeAnalyticsMonth(value) {
+    const current = analyticsCurrentMonthKey();
+    const month = normalizeAnalyticsMonth(value);
+    const safe = month && month <= current ? month : current;
+    try {
+      localStorage.setItem(ANALYTICS_MONTH_STORAGE_KEY, safe);
+      localStorage.setItem(ANALYTICS_CALENDAR_MONTH_KEY, current);
+    } catch {}
+    return safe;
+  }
+
+  function analyticsMonthLabel(value) {
+    const normalized = normalizeAnalyticsMonth(value);
+    if (!normalized) return "mese corrente";
+    const [year, month] = normalized.split("-").map(Number);
+    return new Intl.DateTimeFormat("it-IT", { timeZone: "Europe/Rome", month: "long", year: "numeric" }).format(new Date(Date.UTC(year, month - 1, 15, 12)));
+  }
 
   const STAFF_EVENT_LABELS_IT = Object.freeze({
     landing_view: "Landing visualizzata",
@@ -2076,6 +2124,40 @@
     renderAnalyticsPagination(byId("journeyPagination"), rows.length, "journeys", renderJourneyAnalytics);
   }
 
+  function analyticsCellDetails(label, tone, title, lines = []) {
+    const details = node("details", { className: "analytics-cell-details" });
+    const summary = node("summary", { className: tone || "info", text: label || "Dettaglio" });
+    const body = node("div", { className: "analytics-cell-detail-body" });
+    if (title) body.append(node("strong", { text: title }));
+    (Array.isArray(lines) ? lines : [lines]).filter(Boolean).forEach(line => body.append(node("small", { text: String(line) })));
+    details.append(summary, body);
+    return details;
+  }
+
+  function pdfSessionTone(row = {}) {
+    const status = String(row.pdf_esito || "").toLowerCase();
+    const errors = Number(row.pdf_error_count || 0);
+    const unreadable = Number(row.pdf_unrecognized_count || 0);
+    if (errors > 0 || unreadable > 0 || status.includes("interrott") || status.includes("errore") || status.includes("non riconosciuto")) return "danger";
+    if (Number(row.pdf_missing_field_count || 0) > 0 || status.includes("mancant") || status.includes("confermare")) return "warn";
+    if (row.pdf_analisi_completata || status.includes("success") || status.includes("riuscit")) return "ok";
+    return "info";
+  }
+
+  function pdfProgressTone(row = {}) {
+    if (row.pdf_analisi_completata) return "ok";
+    if (row.pdf_analisi_interrotta) return "danger";
+    if (row.pdf_analisi_avviata || row.pdf_file_selezionato) return "warn";
+    return "info";
+  }
+
+  function offerOutcomeTone(row = {}) {
+    if (row.switcho || row.partner || row.azione_offerta) return "ok";
+    if (row.offerte_visualizzate) return "info";
+    if (row.confronto_reale) return "warn";
+    return "warn";
+  }
+
   function renderPdfJourneyAnalytics() {
     const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
     const rows = allRows.filter(row => Boolean(row.pdf_scelto));
@@ -2111,13 +2193,22 @@
       });
       const diagnostics = [readableReason ? `Motivo: ${readableReason}` : "", row.pdf_missing_fields ? `Mancanti: ${row.pdf_missing_fields}` : "", row.pdf_diagnostic_codes ? `Codici: ${row.pdf_diagnostic_codes}` : "", row.pdf_analysis_stages ? `Fase: ${row.pdf_analysis_stages}` : ""].filter(Boolean).join(" · ") || "Nessuna diagnostica registrata";
       const afterPdf = row.switcho ? "Switcho" : row.azione_offerta ? "Azione offerta" : row.offerte_visualizzate ? "Offerte viste" : row.confronto_reale ? "Confronto completato" : row.abbandono_fase || "—";
-      body.append(node("tr", {}, [
+      const analysisTone = pdfSessionTone(row);
+      const pdfTone = pdfProgressTone(row);
+      const offerTone = offerOutcomeTone(row);
+      const analysisMeta = [
+        row.pdf_file_count ? `${row.pdf_file_count} file` : "",
+        row.pdf_success_count !== "" ? `${row.pdf_success_count} riusciti` : "",
+        row.pdf_unrecognized_count !== "" ? `${row.pdf_unrecognized_count} non riconosciuti` : "",
+        row.pdf_error_count !== "" ? `${row.pdf_error_count} errori` : "",
+      ].filter(Boolean).join(" · ");
+      body.append(node("tr", { className: `analytics-session-tone-${analysisTone}` }, [
         node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
         node("td", {}, [node("strong", { text: analyticsSourceLabel(row.source || "direct") }), node("small", { text: row.intento || "Intento non determinabile" })]),
-        node("td", { text: steps }),
-        node("td", { className: "analytics-pdf-status" }, [node("strong", { text: row.pdf_esito || "Esito non disponibile" }), node("small", { text: [row.pdf_file_count ? `${row.pdf_file_count} file` : "", row.pdf_success_count !== "" ? `${row.pdf_success_count} riusciti` : "", row.pdf_unrecognized_count !== "" ? `${row.pdf_unrecognized_count} non riconosciuti` : "", row.pdf_error_count !== "" ? `${row.pdf_error_count} errori` : ""].filter(Boolean).join(" · ") })]),
-        node("td", {}, [node("strong", { text: row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "—" }), node("small", { text: diagnostics })]),
-        node("td", { text: afterPdf }),
+        node("td", {}, [analyticsCellDetails("PDF", pdfTone, "Passaggi PDF", [steps])]),
+        node("td", { className: "analytics-pdf-status" }, [analyticsCellDetails("Analisi", analysisTone, row.pdf_esito || "Esito non disponibile", [analysisMeta])]),
+        node("td", {}, [analyticsCellDetails(row.pdf_missing_field_count ? `${row.pdf_missing_field_count} mancanti` : "Diagnostica", row.pdf_missing_field_count ? "warn" : analysisTone === "danger" ? "danger" : "info", row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "Diagnostica PDF", [diagnostics])]),
+        node("td", {}, [analyticsCellDetails(row.offerte_visualizzate || row.azione_offerta || row.switcho || row.partner ? "Offerte" : "Dopo PDF", offerTone, afterPdf, [row.provider || row.offerta ? [row.provider, row.offerta].filter(Boolean).join(" · ") : ""])]),
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
@@ -2140,13 +2231,19 @@
     const offers = Number(summary.offersReachedSessions || 0);
     const status = byId("photoJourneyStatus");
     if (status) status.textContent = sessions
-      ? `${formatNumber(offers)} sessioni su ${formatNumber(sessions)} con foto hanno raggiunto le offerte. Conteggi per sessione unica dal punto zero.`
-      : "Nessuna sessione foto registrata dal punto zero.";
+      ? `${formatNumber(offers)} sessioni su ${formatNumber(sessions)} con foto hanno raggiunto le offerte. Conteggi per sessione unica nel mese visualizzato.`
+      : "Nessuna sessione foto registrata nel mese visualizzato.";
   }
 
   function switchoRangeStart(range = "30d") {
     const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
-    return days ? Date.now() - days * 86400000 : 0;
+    if (!days) return 0;
+    const month = analyticsSelectedMonth();
+    const [year, monthNumber] = month.split("-").map(Number);
+    const start = new Date(year, monthNumber - 1, 1, 0, 0, 0).getTime();
+    const end = new Date(year, monthNumber, 1, 0, 0, 0).getTime();
+    const anchor = month === analyticsCurrentMonthKey() ? Date.now() : end;
+    return Math.max(start, anchor - days * 86400000);
   }
 
   function filteredSwitchoRows() {
@@ -2190,7 +2287,7 @@
     text(byId("switchoOfferSelections"), formatNumber(offerSelections));
     text(byId("switchoGuided"), formatNumber(guided));
     text(byId("switchoRedirects"), formatNumber(redirects));
-    const rangeLabel = ({ "7d": "ultimi 7 giorni", "30d": "ultimi 30 giorni", all: "dal punto zero" })[String(byId("switchoRange")?.value || "30d")] || "periodo selezionato";
+    const rangeLabel = ({ month: "mese visualizzato", "7d": "ultimi 7 giorni", "30d": "ultimi 30 giorni", all: "tutto il mese" })[String(byId("switchoRange")?.value || "30d")] || "periodo selezionato";
     const source = String(byId("switchoSourceFilter")?.value || "");
     text(byId("switchoFilterInfo"), rows.length
       ? `${formatNumber(rows.length)} sessioni verso Switcho · ${rangeLabel}${source ? ` · ${switchoSourceLabel(source)}` : ""}. Redirect avviato da OffertaLogica; non certifica il completamento sul sito partner.`
@@ -2324,18 +2421,23 @@
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderOfferRoutingRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
     renderOfferRoutingRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
-    renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione dal punto zero");
+    renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione nel mese visualizzato");
     const baseline = cache.analyticsBaseline || {};
-    text(byId("analyticsBaseline"), baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna");
+    const period = cache.analyticsPeriod && typeof cache.analyticsPeriod === "object" ? cache.analyticsPeriod : {};
+    text(byId("analyticsBaseline"), period.month
+      ? `Periodo Funnel e traffico: ${period.label || analyticsMonthLabel(period.month)}${period.partial ? " · mese in corso" : ""}`
+      : (baseline.label ? `Punto zero campagna: ${baseline.label}` : "Punto zero campagna"));
     text(byId("analyticsFunnelNote"), sourceFilter
       ? `Provenienza selezionata: ${analyticsSourceLabel(sourceFilter)}. Le percentuali sono rispetto agli ingressi della stessa provenienza; medio, manuale e PDF sono rami alternativi.`
       : "Tutte le provenienze. Le percentuali sono rispetto agli ingressi; medio, manuale e PDF sono rami alternativi e non vengono più sommati in un unico numero.");
     const journeyScope = byId("analyticsJourneyScope");
     if (journeyScope) {
       const loaded = Number(cache.journeyWindow?.loadedEvents || 0);
-      journeyScope.textContent = cache.analyticsAggregationMode === "database"
-        ? `KPI calcolati sull’intero archivio. La tabella carica solo le sessioni recenti (${formatNumber(loaded)} eventi al massimo) per restare veloce; il CSV esporta il periodo completo.`
-        : `Modalità compatibilità: KPI e tabella usano i dati recenti caricati (${formatNumber(loaded || cache.analytics.length)} eventi). Applica l’SQL di aggregazione per KPI completi senza rallentare la pagina.`;
+      journeyScope.textContent = cache.analyticsAggregationMode === "monthly_single_scan"
+        ? `Vista mensile: KPI e sessioni sono calcolati sul mese selezionato (${formatNumber(loaded)} eventi), con una sola lettura server del periodo per ridurre il carico.`
+        : cache.analyticsAggregationMode === "database"
+          ? `KPI calcolati sull’intero archivio. La tabella carica solo le sessioni recenti (${formatNumber(loaded)} eventi al massimo) per restare veloce; il CSV esporta il periodo completo.`
+          : `Modalità compatibilità: KPI e tabella usano i dati recenti caricati (${formatNumber(loaded || cache.analytics.length)} eventi).`;
     }
     renderLandingTraffic();
     renderJourneyAnalytics();
@@ -2389,7 +2491,8 @@
 
 
   async function exportAnalyticsCsv(scope = "events") {
-    const range = String(byId("analyticsExportRange")?.value || "baseline");
+    const range = String(byId("analyticsExportRange")?.value || "month");
+    const month = analyticsSelectedMonth();
     const labels = {
       events: "analytics completo", sessions: "sessioni", paths: "percorsi", pdf: "percorso PDF",
       switcho: "percorso Switcho", traffic: "provenienza e intento", offers: "offerte", landing: "landing"
@@ -2402,7 +2505,8 @@
     try {
       setMessage("info", `Preparazione CSV ${label}…`);
       if (typeof recordExportAudit === "function") await recordExportAudit(`analytics_${scope}`, { metadata: { range, scope } }).catch(() => {});
-      const blob = await staffFetch(`/api/staff-analytics?format=csv&scope=${encodeURIComponent(scope)}&range=${encodeURIComponent(range)}`, { expectBlob: true });
+      const monthQuery = range === "month" ? `&month=${encodeURIComponent(month)}` : "";
+      const blob = await staffFetch(`/api/staff-analytics?format=csv&scope=${encodeURIComponent(scope)}&range=${encodeURIComponent(range)}${monthQuery}`, { expectBlob: true });
       const url = URL.createObjectURL(blob);
       const date = new Date().toISOString().slice(0, 10);
       const link = node("a", { attrs: { href: url, download: `offertalogica-${filenames[scope] || "analytics"}-${range}-${date}.csv` } });
@@ -2417,7 +2521,8 @@
     const sequence = ++analyticsLoadSequence;
     if (!silent) setMessage("info", "Aggiornamento analytics…");
     const landingRange = String(byId("landingPathRange")?.value || "30d");
-    const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}`);
+    const month = analyticsSelectedMonth();
+    const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}&month=${encodeURIComponent(month)}`);
     if (sequence !== analyticsLoadSequence) return;
     cache.analytics = Array.isArray(payload.events) ? payload.events : [];
     cache.analyticsSummary = payload.summary || {};
@@ -2430,6 +2535,7 @@
     cache.photoJourneySummary = payload.photoJourneySummary && typeof payload.photoJourneySummary === "object" ? payload.photoJourneySummary : {};
     cache.landingPath = payload.landingPath || null;
     cache.analyticsBaseline = payload.baseline || null;
+    cache.analyticsPeriod = payload.period && typeof payload.period === "object" ? payload.period : { month, label: analyticsMonthLabel(month) };
     Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });
     renderAnalytics();
     renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
@@ -4806,6 +4912,13 @@
     document.querySelectorAll("[data-analytics-export]").forEach(button => button.addEventListener("click", () => { void exportAnalyticsCsv(String(button.dataset.analyticsExport || "events")); }));
     byId("analyticsExportAll")?.addEventListener("click", () => { void exportAnalyticsCsv("events"); });
     byId("analyticsExportSessions")?.addEventListener("click", () => { void exportAnalyticsCsv("sessions"); });
+    byId("analyticsMonth")?.addEventListener("change", () => {
+      const selected = storeAnalyticsMonth(byId("analyticsMonth")?.value);
+      if (byId("analyticsMonth")) byId("analyticsMonth").value = selected;
+      closeAnalyticsSession();
+      Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });
+      loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error)));
+    });
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
@@ -4860,6 +4973,10 @@
     client = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, {
       auth: { storageKey: STORAGE_KEY, persistSession: true, autoRefreshToken: true, detectSessionInUrl: false }
     });
+    if (byId("analyticsMonth")) {
+      byId("analyticsMonth").max = analyticsCurrentMonthKey();
+      byId("analyticsMonth").value = analyticsStoredMonth();
+    }
     bindEvents();
     const { data, error } = await client.auth.getSession();
     if (error) {
