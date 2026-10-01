@@ -1,6 +1,6 @@
 {
   "name": "offertalogica-vercel",
-  "version": "0.10.31",
+  "version": "0.10.33",
   "private": true,
   "type": "module",
   "scripts": {
