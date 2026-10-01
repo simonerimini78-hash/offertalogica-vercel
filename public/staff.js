@@ -1338,6 +1338,19 @@
     return null;
   }
 
+  function analyticsRenderedOfferEvent(rows = []) {
+    return [...rows].reverse().find(item => String(item.eventType || "") === "offers_rendered" && (item.offerName || item.provider)) || null;
+  }
+
+  function analyticsRenderedOfferDetails(item = {}) {
+    const saving = Number(item.bestSaving);
+    const annualCost = Number(item.annualCost);
+    return [
+      Number.isFinite(saving) && Math.abs(saving) > 0 ? `miglior risparmio ${formatMoney(saving)}` : "",
+      Number.isFinite(annualCost) && annualCost > 0 ? `costo ${formatMoney(annualCost)}/anno` : "",
+    ].filter(Boolean).join(" · ");
+  }
+
   function analyticsSessionEventDescription(item = {}) {
     const type = String(item.eventType || "");
     const origin = item.dataOrigin ? staffDataOriginLabel(item) : "";
@@ -1356,7 +1369,7 @@
       comparison_path_selected: `Ha scelto ${item.pathChoice === "pdf" ? "il percorso PDF" : item.pathChoice === "manual" ? "l’inserimento manuale" : item.pathChoice === "average" ? "il profilo medio ARERA" : "una modalità di confronto"}`,
       comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
       comparison_completed: Number.isFinite(saving) && Math.abs(saving) > 0 ? `Confronto completato · risparmio stimato ${formatMoney(saving)}` : "Confronto completato",
-      offers_rendered: `${Number.isFinite(offers) && offers > 0 ? `${offers} offerte visualizzate` : "Offerte visualizzate"}${Number.isFinite(saving) && Math.abs(saving) > 0 ? ` · miglior risparmio ${formatMoney(saving)}` : ""}`,
+      offers_rendered: `${Number.isFinite(offers) && offers > 0 ? `${offers} offerte visualizzate` : "Offerte visualizzate"}${providerOffer ? ` · migliore: ${providerOffer}` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? ` · miglior risparmio ${formatMoney(saving)}` : ""}`,
       assistance_prompt_shown: "Suggerimento automatico di assistenza mostrato",
       assistance_prompt_closed: "Suggerimento di assistenza chiuso",
       assistance_guide_opened: "Ha aperto la guida di assistenza",
@@ -1577,7 +1590,8 @@
     if (offers) {
       const count = Number(offers.visibleOffersCount);
       const saving = Number(offers.bestSaving);
-      paragraphs.push({ text: `Il percorso arriva alle offerte${Number.isFinite(count) && count > 0 ? `: ${count} visualizzate` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? `, miglior risparmio indicato ${formatMoney(saving)}` : ""}.`, tone: "info" });
+      const bestOffer = analyticsOfferDisplayName(offers);
+      paragraphs.push({ text: `Il percorso arriva alle offerte${Number.isFinite(count) && count > 0 ? `: ${count} visualizzate` : ""}${bestOffer ? `, migliore mostrata ${bestOffer}` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? `, miglior risparmio indicato ${formatMoney(saving)}` : ""}.`, tone: "info" });
     }
 
     const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
@@ -1645,34 +1659,44 @@
       return;
     }
     target.hidden = false;
-    target.append(node("div", { className: "analytics-pdf-diagnostics-head" }, [
-      node("strong", { text: "Diagnostica PDF collegata alla sessione" }),
-      node("small", { text: "Stato campo per campo nell’analytics; valori originali, evidenze e PDF restano nell’archivio diagnostico privato." }),
-    ]));
-    if (fields.length) {
-      const table = node("table");
-      const thead = node("thead", {}, [node("tr", {}, ["Campo", "Stato", "Motivo", "Provenienza", "Confidenza", "Pagina", "Autofill"].map(label => node("th", { text: label }))) ]);
-      const tbody = node("tbody");
-      fields.forEach(field => tbody.append(node("tr", {}, [
-        node("td", { text: field.field || "—" }),
-        node("td", { text: field.status || "—" }),
-        node("td", {}, [
-          node("span", { text: pdfFieldReasonLabel(field.statusReason) }),
-          ...(field.statusReason ? [node("small", { className: "analytics-session-narrative-code", text: field.statusReason })] : []),
-        ]),
-        node("td", { text: [field.source, field.method].filter(Boolean).join(" · ") || "—" }),
-        node("td", { text: field.confidence || "—" }),
-        node("td", { text: field.page == null ? "—" : String(field.page) }),
-        node("td", { text: field.autofillAllowed === true ? "consentito" : field.autofillReason || "bloccato / da verificare" }),
-      ])));
-      table.append(thead, tbody);
-      target.append(node("div", { className: "table-wrap" }, [table]));
-    }
-    if (analysisIds.length) {
-      const links = node("div", { className: "pdf-archive-links" });
-      analysisIds.forEach((analysisId, index) => links.append(node("a", { className: "button secondary compact", text: `Apri analisi PDF${analysisIds.length > 1 ? ` ${index + 1}` : ""}`, attrs: { href: `/staff-pdf.html?analysisId=${encodeURIComponent(analysisId)}`, target: "_blank", rel: "noopener" } })));
-      target.append(links);
-    }
+    const details = node("details", { className: "analytics-pdf-diagnostics-details" });
+    const summary = node("summary", { className: "analytics-pdf-diagnostics-head" }, [
+      node("span", {}, [
+        node("strong", { text: `Diagnostica PDF collegata alla sessione${fields.length ? ` — ${fields.length} campi` : ""}` }),
+        node("small", { text: "Chiusa per impostazione predefinita. Aprila solo quando serve il dettaglio campo per campo." }),
+      ]),
+    ]);
+    const content = node("div", { className: "analytics-pdf-diagnostics-content" });
+    details.append(summary, content);
+    details.addEventListener("toggle", () => {
+      if (!details.open || details.dataset.loaded === "1") return;
+      details.dataset.loaded = "1";
+      if (fields.length) {
+        const table = node("table");
+        const thead = node("thead", {}, [node("tr", {}, ["Campo", "Stato", "Motivo", "Provenienza", "Confidenza", "Pagina", "Autofill"].map(label => node("th", { text: label }))) ]);
+        const tbody = node("tbody");
+        fields.forEach(field => tbody.append(node("tr", {}, [
+          node("td", { text: field.field || "—" }),
+          node("td", { text: field.status || "—" }),
+          node("td", {}, [
+            node("span", { text: pdfFieldReasonLabel(field.statusReason) }),
+            ...(field.statusReason ? [node("small", { className: "analytics-session-narrative-code", text: field.statusReason })] : []),
+          ]),
+          node("td", { text: [field.source, field.method].filter(Boolean).join(" · ") || "—" }),
+          node("td", { text: field.confidence || "—" }),
+          node("td", { text: field.page == null ? "—" : String(field.page) }),
+          node("td", { text: field.autofillAllowed === true ? "consentito" : field.autofillReason || "bloccato / da verificare" }),
+        ])));
+        table.append(thead, tbody);
+        content.append(node("div", { className: "table-wrap" }, [table]));
+      }
+      if (analysisIds.length) {
+        const links = node("div", { className: "pdf-archive-links" });
+        analysisIds.forEach((analysisId, index) => links.append(node("a", { className: "button secondary compact", text: `Apri analisi PDF${analysisIds.length > 1 ? ` ${index + 1}` : ""}`, attrs: { href: `/staff-pdf.html?analysisId=${encodeURIComponent(analysisId)}`, target: "_blank", rel: "noopener" } })));
+        content.append(links);
+      }
+    });
+    target.append(details);
   }
 
   function analyticsSourceLabel(sourceKey = "") {
@@ -1687,6 +1711,35 @@
     return item?.label || known[key] || key || "Tutte le provenienze";
   }
 
+  function renderAnalyticsSessionTechnicalRows(rows = []) {
+    const technicalList = byId("analyticsSessionTechnicalEvents");
+    if (!technicalList) return;
+    clear(technicalList);
+    rows.forEach(item => {
+      const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
+      const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
+      const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
+      const sequenceLabel = item.sessionEventSeq != null ? ` · seq ${item.sessionEventSeq}` : "";
+      const clientLabel = item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : "";
+      const csvButton = node("button", { className: "button secondary compact", type: "button", text: "CSV evento" });
+      csvButton.addEventListener("click", () => { void downloadAnalyticsMappedCsv([item], `offertalogica-evento-${item.id}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_event"); });
+      const payloadDetails = node("details", { className: "analytics-raw-payload" }, [
+        node("summary", { text: "Payload grezzo completo" }),
+        node("pre", { text: JSON.stringify(item.payload || {}, null, 2) }),
+      ]);
+      technicalList.append(node("div", { className: "analytics-session-event technical" }, [
+        node("time", { text: formatDate(item.createdAt) }),
+        node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}${sequenceLabel}${clientLabel}` })]),
+        node("div", {}, [
+          node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }),
+          node("small", { text: detail }),
+          node("div", { className: "analytics-event-actions" }, [csvButton]),
+          payloadDetails,
+        ])
+      ]));
+    });
+  }
+
   function closeAnalyticsSession() {
     analyticsSessionRows = [];
     const panel = byId("analyticsSessionPanel");
@@ -1696,6 +1749,12 @@
     clear(byId("analyticsSessionFunnel"));
     clear(byId("analyticsSessionEvents"));
     clear(byId("analyticsSessionTechnicalEvents"));
+    const technical = panel?.querySelector("details.analytics-session-technical");
+    if (technical) {
+      technical.ontoggle = null;
+      technical.open = false;
+      delete technical.dataset.loaded;
+    }
     clear(byId("analyticsSessionPdfDiagnostics"));
     if (byId("analyticsSessionPdfDiagnostics")) byId("analyticsSessionPdfDiagnostics").hidden = true;
     text(byId("analyticsSessionTitle"), "Percorso sessione");
@@ -1764,6 +1823,7 @@
     const activeSeconds = analyticsSessionActiveSeconds(rows);
     const firstAction = rows.find(item => SESSION_USER_ACTION_EVENTS.has(String(item.eventType || "")));
     const offersCount = analyticsSessionLatestOffersCount(rows);
+    const renderedOfferEvent = analyticsRenderedOfferEvent(rows);
     const cardClickedEvent = analyticsCardClickedEvent(rows);
     const selectedOfferEvent = analyticsSelectedOfferEvent(rows);
     const outcome = analyticsSessionOutcome(rows);
@@ -1798,6 +1858,15 @@
       node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
       node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
     );
+    if (renderedOfferEvent) {
+      const renderedOfferName = analyticsOfferDisplayName(renderedOfferEvent);
+      const renderedOfferDetails = analyticsRenderedOfferDetails(renderedOfferEvent);
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Migliore offerta mostrata" }),
+        node("strong", { text: renderedOfferName || "Offerta registrata" }),
+        ...(renderedOfferDetails ? [node("small", { text: renderedOfferDetails })] : []),
+      ]));
+    }
     if (cardClickedEvent) {
       const cardClickedName = analyticsOfferDisplayName(cardClickedEvent);
       const cardClickedDetails = analyticsOfferSelectionDetails(cardClickedEvent);
@@ -1873,29 +1942,17 @@
     renderAnalyticsSessionPdfDiagnostics(rows);
     clear(technicalList);
     text(byId("analyticsSessionTechnicalSummary"), `Telemetria completa 1:1 — ${rows.length} eventi`);
-    rows.forEach(item => {
-      const origin = [item.dataOrigin ? staffDataOriginLabel(item) : "", item.page].filter(Boolean).join(" · ") || "—";
-      const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
-      const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
-      const sequenceLabel = item.sessionEventSeq != null ? ` · seq ${item.sessionEventSeq}` : "";
-      const clientLabel = item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : "";
-      const csvButton = node("button", { className: "button secondary compact", type: "button", text: "CSV evento" });
-      csvButton.addEventListener("click", () => { void downloadAnalyticsMappedCsv([item], `offertalogica-evento-${item.id}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_event"); });
-      const payloadDetails = node("details", { className: "analytics-raw-payload" }, [
-        node("summary", { text: "Payload grezzo completo" }),
-        node("pre", { text: JSON.stringify(item.payload || {}, null, 2) }),
-      ]);
-      technicalList.append(node("div", { className: "analytics-session-event technical" }, [
-        node("time", { text: formatDate(item.createdAt) }),
-        node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}${sequenceLabel}${clientLabel}` })]),
-        node("div", {}, [
-          node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }),
-          node("small", { text: detail }),
-          node("div", { className: "analytics-event-actions" }, [csvButton]),
-          payloadDetails,
-        ])
-      ]));
-    });
+    const technical = panel.querySelector("details.analytics-session-technical");
+    if (technical) {
+      technical.open = false;
+      delete technical.dataset.loaded;
+      technical.ontoggle = () => {
+        if (!technical.open || technical.dataset.loaded === "1") return;
+        technical.dataset.loaded = "1";
+        renderAnalyticsSessionTechnicalRows(rows);
+      };
+    }
+
 
     revealAnalyticsSessionPanel(panel);
   }

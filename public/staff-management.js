@@ -1,12 +1,13 @@
 (() => {
   "use strict";
 
-  const RELEASE = "0.36.94";
+  const RELEASE = "0.36.95";
   if (window.OffertaLogicaStaffManagement?.release === RELEASE) return;
 
   const TIME_ZONE = "Europe/Rome";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const MONTH_STORAGE_KEY = "offertalogica-staff-management-month";
+  const MONTH_CALENDAR_KEY = "offertalogica-staff-management-calendar-month";
   const VIEW_STORAGE_KEY = "offertalogica-staff-management-view";
   const VIEW_ID = "staffManagementMonthlyView";
   const TAB_ID = "staffManagementMonthlyTab";
@@ -94,16 +95,26 @@
   }
 
   function storedMonth() {
+    const current = currentMonthKey();
     try {
+      const calendarMonth = normalizeMonthKey(localStorage.getItem(MONTH_CALENDAR_KEY));
       const month = normalizeMonthKey(localStorage.getItem(MONTH_STORAGE_KEY));
-      return month && month <= currentMonthKey() ? month : currentMonthKey();
+      if (calendarMonth === current && month && month <= current) return month;
+      localStorage.setItem(MONTH_STORAGE_KEY, current);
+      localStorage.setItem(MONTH_CALENDAR_KEY, current);
+      return current;
     } catch {
-      return currentMonthKey();
+      return current;
     }
   }
 
   function storeMonth(month) {
-    try { localStorage.setItem(MONTH_STORAGE_KEY, month); } catch {}
+    const current = currentMonthKey();
+    const normalized = normalizeMonthKey(month);
+    try {
+      localStorage.setItem(MONTH_STORAGE_KEY, normalized && normalized <= current ? normalized : current);
+      localStorage.setItem(MONTH_CALENDAR_KEY, current);
+    } catch {}
   }
 
   function storedSubview() {
