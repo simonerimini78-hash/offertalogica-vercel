@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
   <link rel="stylesheet" href="/assets/ol-public-header.css?v=0.10.31">
-  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.37">
+  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.38">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -241,7 +241,7 @@
       <div class="compare-tool-head">
         <span class="section-kicker">Trasparenza fornitori</span>
         <h2 id="compare-tool-title">Confronta assistenza e reclami senza perderti nei numeri</h2>
-        <p>Scegli uno o due fornitori. Luce e gas restano nello stesso riquadro; dettagli tecnici, anno e fonte sono dietro la <strong>ⓘ</strong>.</p>
+        <p>Scegli uno o due fornitori. Ogni scheda contiene nello stesso blocco luce, gas, motivi dei reclami e osservatori; dettagli tecnici, anno e fonte sono dietro la <strong>ⓘ</strong>.</p>
       </div>
 
       <div class="provider-compare-grid" aria-label="Confronto tra fornitori">
@@ -326,38 +326,7 @@
       <div id="provider-live" role="status" aria-live="polite" class="sr-only"></div>
     </section>
 
-    <section class="market-context" aria-labelledby="market-context-title">
-      <div class="market-context-head">
-        <span class="section-kicker">Contesto del mercato · dati ARERA 2024</span>
-        <h2 id="market-context-title">Per quali problemi i clienti fanno reclamo?</h2>
-        <p>Queste percentuali descrivono il mercato italiano, non un singolo fornitore.</p>
-      </div>
-      <div class="market-tabs" role="tablist" aria-label="Scegli il settore">
-        <button type="button" class="market-tab is-active" role="tab" aria-selected="true" aria-controls="market-electricity" id="market-tab-electricity" data-market-tab="electricity">Luce</button>
-        <button type="button" class="market-tab" role="tab" aria-selected="false" aria-controls="market-gas" id="market-tab-gas" data-market-tab="gas">Gas</button>
-      </div>
-
-      <div class="market-panel" id="market-electricity" role="tabpanel" aria-labelledby="market-tab-electricity" data-market-panel="electricity">
-        <div class="market-compact-list">
-          <div class="market-compact-row"><span>Problemi con la bolletta</span><strong>38,84%</strong><button type="button" class="info-button" data-info-title="Problemi con la bolletta" data-info-body="Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano. Categoria tecnica ARERA: Fatturazione." aria-label="Spiega problemi con la bolletta">i</button></div>
-          <div class="market-compact-row"><span>Cambio fornitore o offerta</span><strong>16,41%</strong><button type="button" class="info-button" data-info-title="Problemi con cambio fornitore o offerta" data-info-body="Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate. Categoria tecnica ARERA: Mercato." aria-label="Spiega cambio fornitore o offerta">i</button></div>
-          <div class="market-compact-row"><span>Problemi con il contratto</span><strong>15,57%</strong><button type="button" class="info-button" data-info-title="Problemi con il contratto" data-info-body="Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto. Categoria tecnica ARERA: Contratti." aria-label="Spiega problemi con il contratto">i</button></div>
-          <div class="market-compact-row"><span>Pagamenti e distacchi</span><strong>11,62%</strong><button type="button" class="info-button" data-info-title="Problemi per pagamenti e distacchi" data-info-body="Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti. Categoria tecnica ARERA: Morosità e sospensione." aria-label="Spiega pagamenti e distacchi">i</button></div>
-        </div>
-        <details class="market-more"><summary>Altri motivi</summary><p>Problemi tecnici o lavori <strong>6,59%</strong> · letture e contatore <strong>3,54%</strong> · altri casi <strong>3,48%</strong> · assistenza commerciale <strong>2,96%</strong> · bonus sociale <strong>0,98%</strong>.</p></details>
-      </div>
-
-      <div class="market-panel" id="market-gas" role="tabpanel" aria-labelledby="market-tab-gas" data-market-panel="gas" hidden>
-        <div class="market-compact-list">
-          <div class="market-compact-row"><span>Problemi con la bolletta</span><strong>46,31%</strong><button type="button" class="info-button" data-info-title="Problemi con la bolletta" data-info-body="Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano. Categoria tecnica ARERA: Fatturazione." aria-label="Spiega problemi con la bolletta">i</button></div>
-          <div class="market-compact-row"><span>Problemi con il contratto</span><strong>21,54%</strong><button type="button" class="info-button" data-info-title="Problemi con il contratto" data-info-body="Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto. Categoria tecnica ARERA: Contratti." aria-label="Spiega problemi con il contratto">i</button></div>
-          <div class="market-compact-row"><span>Cambio fornitore o offerta</span><strong>11,99%</strong><button type="button" class="info-button" data-info-title="Problemi con cambio fornitore o offerta" data-info-body="Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate. Categoria tecnica ARERA: Mercato." aria-label="Spiega cambio fornitore o offerta">i</button></div>
-          <div class="market-compact-row"><span>Pagamenti e distacchi</span><strong>8,44%</strong><button type="button" class="info-button" data-info-title="Problemi per pagamenti e distacchi" data-info-body="Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti. Categoria tecnica ARERA: Morosità e sospensione." aria-label="Spiega pagamenti e distacchi">i</button></div>
-        </div>
-        <details class="market-more"><summary>Altri motivi</summary><p>Letture e contatore <strong>5,01%</strong> · problemi tecnici o lavori <strong>2,45%</strong> · altri casi <strong>1,67%</strong> · assistenza commerciale <strong>1,56%</strong> · bonus sociale <strong>1,02%</strong>.</p></details>
-      </div>
-      <p class="market-source">Fonte: ARERA, Relazione annuale 2025 sui dati 2024. <a href="https://www.arera.it/fileadmin/allegati/relaz_ann/25/VOLUME_1_definitivo.pdf" target="_blank" rel="noopener noreferrer">Apri la fonte</a></p>
-    </section>
+    <section class="comparison-summary" id="provider-comparison-summary" aria-live="polite" hidden></section>
 
     <dialog class="info-dialog" id="metric-info-dialog" aria-labelledby="metric-info-title">
       <div class="info-dialog-head"><h2 id="metric-info-title">Dettaglio del dato</h2><button type="button" class="info-dialog-close" id="metric-info-close" aria-label="Chiudi">×</button></div>
@@ -439,7 +408,7 @@
 </footer>
 
 <script src="/assets/provider-quality-data.js?v=0.10.36"></script>
-<script src="/assets/fornitori-trasparenza.js?v=0.10.37" defer></script>
+<script src="/assets/fornitori-trasparenza.js?v=0.10.38" defer></script>
 <script src="/assets/ol-public-header.js?v=0.10.31" defer></script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
