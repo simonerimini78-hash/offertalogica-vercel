@@ -132,18 +132,18 @@
     offers_unlocked: "Offerte sbloccate",
     offers_bill_prompt_dismissed: "Invito bolletta chiuso",
     offers_bill_prompt_clicked: "Invito bolletta selezionato",
-    lead_modal_opened: "Verifica numero aperta",
-    lead_modal_closed: "Verifica numero chiusa",
+    lead_modal_opened: "Verifica codice aperta",
+    lead_modal_closed: "Verifica codice chiusa",
     lead_form_invalid: "Dati contatto non validi",
     lead_created_client: "Contatto registrato",
-    otp_request_started: "Invio SMS richiesto",
-    otp_sent: "SMS inviato",
-    otp_failed: "Invio SMS fallito",
-    otp_failed_preview_fallback: "SMS non inviato: anteprima Staff",
-    otp_verify_missing_code: "Codice SMS mancante",
-    otp_verify_started: "Verifica numero avviata",
-    otp_verified: "Numero verificato",
-    otp_verify_failed: "Verifica numero fallita",
+    otp_request_started: "Invio codice richiesto",
+    otp_sent: "Codice inviato",
+    otp_failed: "Invio codice fallito",
+    otp_failed_preview_fallback: "Codice non inviato: anteprima Staff",
+    otp_verify_missing_code: "Codice mancante",
+    otp_verify_started: "Verifica codice avviata",
+    otp_verified: "Codice verificato",
+    otp_verify_failed: "Verifica codice fallita",
     activation_channel_choice_opened: "Scelta canale attivazione aperta",
     activation_channel_selected: "Canale attivazione selezionato",
     activation_data_copied: "Dati attivazione copiati",
@@ -227,7 +227,7 @@
 
   function staffEngagementStageLabel(event = {}) {
     if (event?.engagementStageLabel) return String(event.engagementStageLabel);
-    return ({ landing: "Landing", calculator: "Calcolatore", offers: "Offerte", otp: "Verifica numero", other: "Altro" })[String(event?.engagementStage || "")] || "";
+    return ({ landing: "Landing", calculator: "Calcolatore", offers: "Offerte", otp: "Verifica codice", other: "Altro" })[String(event?.engagementStage || "")] || "";
   }
 
   function staffEngagementReasonLabel(reason = "") {
@@ -1332,15 +1332,57 @@
     return route?.service === "internet_casa" ? "Internet casa" : route?.service === "casa_smart" ? "Casa smart" : "Servizio";
   }
 
+  function analyticsVerificationChannel(rows = []) {
+    const verificationTypes = new Set([
+      "lead_modal_opened", "lead_modal_closed", "otp_request_started", "otp_sent", "otp_failed",
+      "otp_failed_preview_fallback", "otp_verify_missing_code", "otp_verify_started", "otp_verified", "otp_verify_failed"
+    ]);
+    const values = [];
+    (Array.isArray(rows) ? rows : []).forEach(item => {
+      if (!verificationTypes.has(String(item?.eventType || ""))) return;
+      const payload = item?.payload && typeof item.payload === "object" ? item.payload : {};
+      values.push(
+        item.verificationChannel, item.otpChannel, item.channel,
+        payload.verificationChannel, payload.verification_channel, payload.otpChannel, payload.otp_channel, payload.channel
+      );
+    });
+    for (const value of values) {
+      const key = String(value || "").trim().toLowerCase();
+      if (!key) continue;
+      if (["email", "mail", "email_otp", "otp_email"].includes(key) || key.includes("email")) return "email";
+      if (["sms", "phone", "mobile", "telefono", "cellulare", "sms_otp", "otp_sms"].includes(key) || key.includes("sms") || key.includes("phone")) return "phone";
+    }
+    return "";
+  }
+
+  function analyticsVerificationCopy(rows = []) {
+    const channel = analyticsVerificationChannel(rows);
+    if (channel === "email") return { channel, stage: "Verifica email", opened: "Ha aperto la verifica dell’email", requested: "Ha richiesto l’invio del codice via email", sent: "Codice inviato via email", started: "Verifica email avviata", verified: "Email verificata", failed: "Verifica email non riuscita" };
+    if (channel === "phone") return { channel, stage: "Verifica numero", opened: "Ha aperto la verifica del numero", requested: "Ha richiesto l’invio del codice via SMS", sent: "Codice inviato via SMS", started: "Verifica numero avviata", verified: "Numero verificato", failed: "Verifica numero non riuscita" };
+    return { channel: "", stage: "Verifica codice", opened: "Ha aperto la verifica tramite codice", requested: "Ha richiesto l’invio del codice", sent: "Codice inviato", started: "Verifica codice avviata", verified: "Codice verificato", failed: "Verifica codice non riuscita" };
+  }
+
   function analyticsSessionOutcome(rows = []) {
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
     const hasAny = set => [...set].some(type => types.has(type));
     const hasCommercialActivationChoice = rows.some(analyticsCommercialActivationChoice);
     const hasInternalAlternativeChoice = rows.some(analyticsInternalAlternativeChoice);
-    if (hasAny(SESSION_COMMERCIAL_EVENTS)) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
+    const ordered = (Array.isArray(rows) ? rows : []).slice().sort(compareAnalyticsEventOrder);
+    const latestExternalResult = [...ordered].reverse().find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")) || String(item.eventType || "") === "offer_request_failed");
+    if (latestExternalResult && String(latestExternalResult.eventType || "") === "offer_request_failed") {
+      const provider = String(latestExternalResult.provider || analyticsSelectedOfferEvent(rows)?.provider || "").trim();
+      return {
+        label: has("otp_verified")
+          ? `Verifica completata; apertura funnel${provider ? ` ${provider}` : " fornitore"} non riuscita`
+          : `Apertura funnel${provider ? ` ${provider}` : " fornitore"} non riuscita`,
+        tone: "error"
+      };
+    }
+    if (latestExternalResult && SESSION_COMMERCIAL_EVENTS.has(String(latestExternalResult.eventType || ""))) return { label: "Passaggio verso partner / Switcho avviato", tone: "ok" };
     if (hasCommercialActivationChoice || hasAny(SESSION_OFFER_ACTION_EVENTS)) return { label: "Offerta selezionata, passaggio esterno non completato", tone: "warn" };
     if (hasInternalAlternativeChoice) return { label: "Card non attivabile consultata, mostrate alternative attivabili", tone: "info" };
+    if (has("otp_verified")) return { label: `${analyticsVerificationCopy(rows).stage} completata, passaggio successivo non registrato`, tone: "ok" };
     if (has("offer_card_clicked")) return { label: "Card offerta consultata, nessun percorso commerciale avviato", tone: "info" };
     if (has("offers_rendered")) return { label: "Offerte raggiunte, nessuna card cliccata", tone: "warn" };
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
@@ -1358,9 +1400,10 @@
   }
 
   function analyticsSessionFunnel(rows = []) {
-    const types = analyticsSessionTypes(rows);
+    const ordered = (Array.isArray(rows) ? rows : []).slice().sort(compareAnalyticsEventOrder);
+    const types = analyticsSessionTypes(ordered);
     const has = type => types.has(type);
-    const affiliate = analyticsAffiliateRoute(rows);
+    const affiliate = analyticsAffiliateRoute(ordered);
     if (affiliate) {
       const siteReached = ordered.length > 0;
       const serviceReached = Boolean(affiliate.navigationEvent || affiliate.pageEvent || affiliate.partnerEvent);
@@ -1374,8 +1417,42 @@
         { label: "Partner", state: partnerOpened ? "done" : (selected ? "miss" : "idle"), note: partnerOpened ? "aperto" : "non raggiunto" },
       ];
     }
+
+    const offerJourney = has("offer_card_clicked") || has("offer_click_locked") || has("lead_modal_opened") || has("otp_verified") || has("offer_request_started") || has("offer_request_failed");
+    if (offerJourney) {
+      const landing = has("landing_view");
+      const selfService = has("landing_self_service_click");
+      const assisted = has("landing_assisted_click");
+      const pathEvent = [...ordered].reverse().find(item => String(item.eventType || "") === "comparison_path_selected");
+      const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
+      const offers = has("offers_rendered");
+      const selectedEvent = analyticsCardClickedEvent(ordered) || analyticsSelectedOfferEvent(ordered);
+      const provider = String(selectedEvent?.provider || [...ordered].reverse().find(item => item.provider)?.provider || "").trim();
+      const verificationSeen = has("lead_modal_opened") || has("otp_request_started") || has("otp_sent") || has("otp_verify_started") || has("otp_verified");
+      const verified = has("otp_verified");
+      const verification = analyticsVerificationCopy(ordered);
+      const requestFailed = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed");
+      const commercialEvent = [...ordered].reverse().find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
+      const requestStarted = has("offer_request_started") || Boolean(commercialEvent) || Boolean(requestFailed);
+      const lastExternal = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed" || SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
+      const externalState = lastExternal && String(lastExternal.eventType || "") === "offer_request_failed" ? "error" : commercialEvent ? "done" : requestStarted ? "miss" : "idle";
+      const externalNote = externalState === "error" ? "apertura non riuscita" : externalState === "done" ? "aperto" : requestStarted ? "avvio registrato" : "non raggiunto";
+      const pathLabel = pathEvent?.pathChoice === "manual" ? "Dati manuali" : pathEvent?.pathChoice === "pdf" ? "PDF" : pathEvent?.pathChoice === "average" ? "Profilo medio" : "Dati";
+      const choiceLabel = selfService ? "Autonomia" : assisted ? "Guidato" : "Percorso";
+      return [
+        { label: "Landing", state: landing ? "done" : (comparison ? "skip" : "idle"), note: landing ? "raggiunta" : "non registrata" },
+        { label: choiceLabel, state: (selfService || assisted) ? "done" : (landing ? "miss" : "idle"), note: selfService ? "continua da solo" : assisted ? "percorso guidato" : "scelta non registrata" },
+        { label: pathLabel, state: pathEvent ? "done" : (comparison ? "skip" : "idle"), note: pathEvent ? analyticsPathChoiceLabel(pathEvent.pathChoice).toLowerCase() : comparison ? "modalità non distinta" : "non raggiunti" },
+        { label: "Confronto", state: comparison ? "done" : (pathEvent ? "miss" : "idle"), note: comparison ? "completato / avviato" : "non raggiunto" },
+        { label: "Offerte", state: offers ? "done" : (comparison ? "miss" : "idle"), note: offers ? "visualizzate" : "non raggiunte" },
+        { label: provider || "Offerta", state: selectedEvent ? "done" : (offers ? "miss" : "idle"), note: selectedEvent ? "card selezionata" : "nessuna selezione" },
+        { label: verification.stage, state: verified ? "done" : (verificationSeen ? "miss" : "idle"), note: verified ? "completata" : verificationSeen ? "non completata" : "non richiesta" },
+        { label: `Funnel ${provider || "fornitore"}`, state: externalState, note: externalNote },
+      ];
+    }
+
     const assistedOnly = has("landing_assisted_click") && !has("landing_self_service_click");
-    const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type)) || rows.some(analyticsCommercialActivationChoice);
+    const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type)) || ordered.some(analyticsCommercialActivationChoice);
     const landing = has("landing_view");
     const choice = has("landing_self_service_click") || has("landing_assisted_click");
     const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
@@ -1446,7 +1523,7 @@
     ].filter(Boolean).join(" · ");
   }
 
-  function analyticsSessionEventDescription(item = {}) {
+  function analyticsSessionEventDescription(item = {}, sessionRows = []) {
     const type = String(item.eventType || "");
     const origin = item.dataOrigin ? staffDataOriginLabel(item) : "";
     const offers = Number(item.visibleOffersCount);
@@ -1454,6 +1531,7 @@
     const providerOffer = analyticsOfferDisplayName(item);
     const offerSelectionDetails = analyticsOfferSelectionDetails(item);
     const pdfUploadSource = analyticsPdfUploadSourceLabel(item);
+    const verification = analyticsVerificationCopy(Array.isArray(sessionRows) && sessionRows.length ? sessionRows : [item]);
     const descriptions = {
       landing_view: "Arrivo sul sito",
       landing_self_service_click: "Ha scelto il confronto in autonomia",
@@ -1498,10 +1576,12 @@
       pdf_data_confirmed: "Ha confermato i dati letti dalla bolletta",
       article_view: item.articleTitle ? `Ha visualizzato l’articolo “${item.articleTitle}”${item.articleCategory ? ` · ${item.articleCategory}` : ""}` : `Ha visualizzato l’articolo ${item.articleSlug || ""}`.trim(),
       cookie_consent_choice: item.consentAction === "accept" ? "Ha accettato i cookie dal banner Iubenda" : item.consentAction === "reject" ? "Ha rifiutato i cookie dal banner Iubenda" : "Ha aperto le preferenze cookie Iubenda",
-      lead_modal_opened: "Ha aperto la verifica del numero",
-      otp_request_started: "Ha richiesto l’invio dell’SMS",
-      otp_sent: "SMS inviato",
-      otp_verified: "Numero verificato",
+      lead_modal_opened: verification.opened,
+      otp_request_started: verification.requested,
+      otp_sent: verification.sent,
+      otp_verify_started: verification.started,
+      otp_verified: verification.verified,
+      otp_verify_failed: verification.failed,
       offer_card_clicked: providerOffer ? `Ha cliccato la card ${providerOffer}` : "Ha cliccato una card offerta",
       offer_click_locked: providerOffer ? `Ha selezionato ${providerOffer}` : "Ha selezionato un’offerta",
       offer_consent_opened: providerOffer ? `Ha aperto il consenso per ${providerOffer}` : "Ha aperto il consenso dell’offerta",
@@ -1561,12 +1641,39 @@
     ].map(value => String(value ?? "")).join("|");
   }
 
+  function analyticsReadableGenericActionRedundant(item = {}, rows = []) {
+    if (String(item.eventType || "") !== "site_action_clicked") return false;
+    const seq = analyticsEventSequence(item);
+    if (seq === null) return false;
+    return rows.some(other => {
+      if (other === item || String(other.eventType || "") === "site_action_clicked") return false;
+      if (!SESSION_MAIN_EVENT_TYPES.has(String(other.eventType || ""))) return false;
+      const otherSeq = analyticsEventSequence(other);
+      return otherSeq !== null && Math.abs(otherSeq - seq) <= 2;
+    });
+  }
+
+  function analyticsReadableEventTone(item = {}) {
+    const type = String(item.eventType || "");
+    if (["offer_request_failed", "otp_verify_failed", "bill_photo_analysis_failed"].includes(type)) return "error";
+    if (["pdf_analysis_interrupted", "offer_partner_consent_missing", "otp_failed", "otp_failed_preview_fallback"].includes(type)) return "warn";
+    if ([
+      "landing_view", "landing_self_service_click", "landing_assisted_click", "calculator_view", "comparison_path_selected",
+      "comparison_started", "comparison_completed", "offers_rendered", "pdf_analysis_completed", "pdf_data_confirmed",
+      "offer_card_clicked", "offer_click_locked", "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
+      "offers_unlocked", "offer_partner_consent_confirmed", "offer_request_recorded", "offer_switcho_redirect",
+      "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened"
+    ].includes(type)) return "ok";
+    if (type.startsWith("assistance_prompt_")) return "warn";
+    return "info";
+  }
+
   function analyticsReadableSessionRows(rows = []) {
-    const main = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")));
+    const main = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")) && !analyticsReadableGenericActionRedundant(item, rows));
     const out = [];
     let previousPath = "";
     main.forEach(item => {
-      let description = analyticsSessionEventDescription(item);
+      let description = analyticsSessionEventDescription(item, rows);
       if (String(item.eventType || "") === "comparison_path_selected") {
         const currentPath = analyticsPathChoiceLabel(item.pathChoice);
         const trigger = analyticsPathTriggerLabel(item.trigger);
@@ -1711,6 +1818,20 @@
       paragraphs.push({ text: `Il percorso arriva alle offerte${Number.isFinite(count) && count > 0 ? `: ${count} visualizzate` : ""}${bestOffer ? `, migliore mostrata ${bestOffer}` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? `, miglior risparmio indicato ${formatMoney(saving)}` : ""}.`, tone: "info" });
     }
 
+    const verification = analyticsVerificationCopy(ordered);
+    if (ordered.some(item => String(item.eventType || "") === "otp_verified")) {
+      paragraphs.push({
+        text: `${verification.verified}. ${verification.channel ? `Il canale registrato è ${verification.channel === "email" ? "email" : "SMS / numero"}.` : "Il vecchio evento non registra il canale, quindi il gestionale non lo deduce."}`,
+        tone: "info"
+      });
+    }
+
+    const requestFailed = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed");
+    if (requestFailed) {
+      const failedProvider = String(requestFailed.provider || analyticsSelectedOfferEvent(ordered)?.provider || "").trim();
+      paragraphs.push({ text: `Dopo i passaggi precedenti è registrato il tentativo di apertura del funnel${failedProvider ? ` ${failedProvider}` : " del fornitore"}, ma la richiesta non è riuscita${requestFailed.reason ? ` · ${String(requestFailed.reason).split(" · ")[0]}` : ""}.`, tone: "error" });
+    }
+
     const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
     if (affiliate?.partnerEvent) {
       const serviceLabel = analyticsAffiliateServiceLabel(affiliate);
@@ -1721,8 +1842,8 @@
         paragraphs.push({ text: `Percorso servizio registrato: ${serviceLabel} raggiunto${affiliate.navigationEvent ? " dal sito" : ""}.`, tone: "info" });
       }
       paragraphs.push({ text: `${provider ? `${provider} selezionato` : "Offerta selezionata"}: apertura del partner registrata correttamente.`, tone: "info" });
-    } else if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
-    else if (offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
+    } else if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial, ordered)}.`, tone: "info" });
+    else if (!requestFailed && offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
 
     const gapText = analyticsNarrativeGapText(ordered);
     if (gapText) paragraphs.push({ text: gapText, tone: "warn" });
@@ -2020,6 +2141,16 @@
         ...(selectedOfferDetails ? [node("small", { text: selectedOfferDetails })] : []),
       ]));
     }
+    const verificationCopy = analyticsVerificationCopy(rows);
+    const verificationSeen = rows.some(item => ["lead_modal_opened", "otp_request_started", "otp_sent", "otp_verify_started", "otp_verified", "otp_verify_failed"].includes(String(item.eventType || "")));
+    if (verificationSeen) {
+      const verified = rows.some(item => String(item.eventType || "") === "otp_verified");
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Verifica contatto" }),
+        node("strong", { text: verified ? verificationCopy.verified : `${verificationCopy.stage} non completata` }),
+        node("small", { text: verificationCopy.channel ? `Canale registrato: ${verificationCopy.channel === "email" ? "email" : "SMS / numero"}` : "Canale non registrato nello storico: non viene dedotto." })
+      ]));
+    }
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
     if (latestPdfEvent) {
       const pdfReason = pdfEventDiagnosticReason(latestPdfEvent);
@@ -2043,7 +2174,7 @@
 
     clear(funnel);
     analyticsSessionFunnel(rows).forEach(step => {
-      const symbol = step.state === "done" ? "✓" : step.state === "miss" ? "✕" : step.state === "skip" ? "—" : "·";
+      const symbol = step.state === "done" ? "✓" : step.state === "error" ? "!" : step.state === "miss" ? "✕" : step.state === "skip" ? "—" : "·";
       funnel.append(node("div", { className: `analytics-session-funnel-step ${step.state}` }, [
         node("span", { className: "analytics-session-funnel-symbol", text: symbol }),
         node("strong", { text: step.label }),
@@ -2059,6 +2190,7 @@
       readableRows.forEach(group => {
         const item = group.item;
         const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
+        const readableTone = analyticsReadableEventTone(item);
         const displayTimestamp = item.clientTimestamp || item.createdAt;
         const orderNote = item.sessionEventSeq != null
           ? `Sequenza client #${item.sessionEventSeq}${item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : ""}`
@@ -2066,9 +2198,9 @@
         const repeatNote = group.items.length > 1
           ? `Ripetuto ${group.items.length} volte · seq ${group.items.map(row => row.sessionEventSeq ?? `ID ${row.id}`).join(", ")}`
           : "";
-        list.append(node("div", { className: "analytics-session-event readable" }, [
+        list.append(node("div", { className: `analytics-session-event readable ${readableTone}` }, [
           node("time", { text: formatDate(displayTimestamp) }),
-          node("div", {}, [badge(staffEventLabel(item), isAutomatic ? "warn" : "info"), ...(group.items.length > 1 ? [node("span", { className: "analytics-session-repeat", text: `×${group.items.length}` })] : [])]),
+          node("div", {}, [badge(staffEventLabel(item), readableTone === "error" ? "danger" : readableTone), ...(group.items.length > 1 ? [node("span", { className: "analytics-session-repeat", text: `×${group.items.length}` })] : [])]),
           node("div", {}, [node("strong", { text: group.description }), node("small", { text: [isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "", repeatNote, orderNote].filter(Boolean).join(" · ") })])
         ]));
       });
