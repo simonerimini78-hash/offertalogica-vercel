@@ -53,6 +53,113 @@
     return unit ? `${base} ${escapeHtml(unit)}` : base;
   }
 
+  function roundedOutOf100(value) {
+    const number = Number(value);
+    return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : null;
+  }
+
+  function friendlyCluster(cluster) {
+    const value = String(cluster || "").toLowerCase();
+    const parts = [];
+    if (value.includes("dual")) parts.push("luce e gas");
+    else if (value.includes("luce") || value.includes("elettric")) parts.push("luce");
+    else if (value.includes("gas")) parts.push("gas");
+    if (value.includes("non domest")) parts.push("clienti non domestici");
+    else if (value.includes("domest")) parts.push("clienti domestici");
+    if (value.includes("mercato libero")) parts.push("mercato libero");
+    return parts.length ? parts.join(" · ") : String(cluster || "Perimetro indicato nella fonte");
+  }
+
+  function metricCopy(metric) {
+    const indicator = String(metric.indicator || "");
+    const outOf100 = roundedOutOf100(metric.value);
+    const value = metricValue(metric);
+    const copies = {
+      "Rispetto standard risposta reclami": {
+        title: "Reclami risposti nei tempi previsti",
+        explain: outOf100 === null ? "Indica quanti reclami ricevono risposta entro il termine previsto." : `In pratica: circa ${outOf100} reclami su 100 ricevono risposta entro il termine previsto.`,
+        technical: indicator
+      },
+      "Tempo medio risposta reclami": {
+        title: "Quanto tempo impiega a rispondere ai reclami",
+        explain: `In media, il fornitore risponde in ${value}.`,
+        technical: indicator
+      },
+      "Rispetto standard rettifica fatturazione": {
+        title: "Bollette corrette nei tempi previsti",
+        explain: outOf100 === null ? "Indica quante correzioni della bolletta vengono gestite entro i tempi previsti." : `In pratica: circa ${outOf100} correzioni su 100 vengono gestite entro i tempi previsti.`,
+        technical: indicator
+      },
+      "Tempo medio rettifica fatturazione": {
+        title: "Quanto tempo impiega a correggere una bolletta",
+        explain: `In media, una correzione della bolletta richiede ${value}.`,
+        technical: indicator
+      },
+      "Rispetto standard rettifica doppia fatturazione": {
+        title: "Doppie bollette corrette nei tempi previsti",
+        explain: outOf100 === 0 ? "La fonte indica 0% entro il termine. Senza sapere quanti casi ci sono stati, questo dato va letto con cautela." : (outOf100 === null ? "Indica quante doppie fatturazioni vengono corrette entro il termine previsto." : `Circa ${outOf100} casi su 100 risultano corretti entro il termine previsto.`),
+        technical: indicator,
+        caution: outOf100 === 0
+      },
+      "Tempo medio rettifica doppia fatturazione": {
+        title: "Quanto tempo impiega a correggere una doppia bolletta",
+        explain: `In media, la correzione richiede ${value}.`,
+        technical: indicator
+      },
+      "Risposte informazioni entro 30 giorni": {
+        title: "Richieste di informazioni risposte entro 30 giorni",
+        explain: outOf100 === null ? "Indica quante richieste ricevono risposta entro 30 giorni." : `In pratica: circa ${outOf100} richieste su 100 ricevono risposta entro 30 giorni.`,
+        technical: indicator
+      },
+      "Reclami ricevuti": {
+        title: "Reclami registrati nel documento",
+        explain: `La fonte registra ${value}. Il numero assoluto, da solo, non dice se un fornitore è migliore o peggiore.`,
+        technical: indicator
+      },
+      "Reclami gestiti": {
+        title: "Reclami gestiti nel periodo",
+        explain: `La fonte registra ${value}. Per confrontare fornitori servirebbe anche rapportare il dato ai clienti serviti.`,
+        technical: indicator
+      },
+      "Risposte reclami entro standard": {
+        title: "Reclami risposti nei tempi previsti",
+        explain: `La fonte registra ${value} entro il termine previsto.`,
+        technical: indicator
+      },
+      "Rettifiche fatturazione entro standard": {
+        title: "Correzioni della bolletta concluse nei tempi",
+        explain: `La fonte registra ${value} entro il termine previsto.`,
+        technical: indicator
+      },
+      "Indennizzi reclami": {
+        title: "Indennizzi legati ai reclami",
+        explain: `La fonte riporta ${value} di indennizzi nel perimetro indicato.`,
+        technical: indicator
+      },
+      "Reclami ricevuti da UNC": {
+        title: "Reclami arrivati a UNC",
+        explain: `UNC registra ${value}. Non sono tutti i reclami ricevuti dal fornitore.`,
+        technical: indicator
+      },
+      "Casi risolti": {
+        title: "Casi risolti con UNC",
+        explain: `UNC dichiara ${value} tra i casi lavorati sulla propria piattaforma.`,
+        technical: indicator
+      },
+      "Punteggio Reclama Facile": {
+        title: "Valutazione Reclama Facile",
+        explain: `È un indicatore di Altroconsumo, non un voto di OffertaLogica: ${value}.`,
+        technical: indicator
+      },
+      "Tempo risposta azienda": {
+        title: "Tempo di risposta sulla piattaforma Altroconsumo",
+        explain: `Altroconsumo indica ${value}. Non coincide con il tempo medio TIQV.`,
+        technical: indicator
+      }
+    };
+    return copies[indicator] || { title: indicator, explain: metric.note || "Dato pubblicato nella fonte indicata.", technical: indicator };
+  }
+
   function initials(name) {
     return String(name || "OL").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   }
@@ -88,17 +195,34 @@
     const preferred = preferredMetrics(provider);
     const year = provider.coverage?.official?.year || preferred[0]?.year || "—";
     const cards = [
-      { value: year || "—", label: "Ultimo anno ufficiale", meta: provider.coverage?.official?.status === "DATI DATATI" ? "Dato disponibile ma non recente" : "Anno del dato localizzato" },
-      ...preferred.map((metric) => ({ value: metricValue(metric), label: metric.indicator, meta: `${metric.year} · ${metric.cluster}` })),
-      { value: sourceCount(provider), label: "Famiglie di fonti", meta: "Ufficiali e osservatori tenuti separati" }
+      { value: year || "—", label: "Ultimo anno disponibile", meta: provider.coverage?.official?.status === "DATI DATATI" ? "Dato ufficiale disponibile, ma non recente" : "Anno più recente trovato nella fonte ufficiale" },
+      ...preferred.map((metric) => {
+        const copy = metricCopy(metric);
+        return { value: metricValue(metric), label: copy.title, meta: copy.explain };
+      }),
+      { value: sourceCount(provider), label: "Fonti disponibili", meta: "Dati ufficiali e osservatori sono mostrati separatamente" }
     ];
-    while (cards.length < 4) cards.splice(cards.length - 1, 0, { value: "—", label: "Dato numerico", meta: "Non disponibile in forma confrontabile" });
-    kpis.innerHTML = cards.slice(0, 4).map((card) => `<div class="kpi-card"><span class="kpi-value">${card.value}</span><span class="kpi-label">${escapeHtml(card.label)}</span><span class="kpi-meta">${escapeHtml(card.meta)}</span></div>`).join("");
+    while (cards.length < 4) cards.splice(cards.length - 1, 0, { value: "—", label: "Dato non disponibile", meta: "Non abbiamo un indicatore numerico confrontabile per questa voce" });
+    kpis.innerHTML = cards.slice(0, 4).map((card) => `<div class="kpi-card"><span class="kpi-value">${escapeHtml(card.value)}</span><span class="kpi-label">${escapeHtml(card.label)}</span><span class="kpi-meta">${escapeHtml(card.meta)}</span></div>`).join("");
   }
 
   function renderMetricList(metrics, emptyText) {
     if (!metrics.length) return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
-    return `<div class="metric-list">${metrics.map((metric) => `<article class="metric-item"><div class="metric-main"><span class="metric-name">${escapeHtml(metric.indicator)}</span><span class="metric-number">${metricValue(metric)}</span></div><div class="metric-meta">${escapeHtml(metric.year)} · ${escapeHtml(metric.cluster)}${metric.comparable ? " · dato confrontabile nel corretto perimetro" : " · dato descrittivo"}</div>${metric.note ? `<div class="metric-note">${escapeHtml(metric.note)}</div>` : ""}${metric.sourceUrl ? `<a class="metric-source" href="${escapeHtml(metric.sourceUrl)}" target="_blank" rel="noopener noreferrer">Apri la fonte</a>` : ""}</article>`).join("")}</div>`;
+    return `<div class="metric-list">${metrics.map((metric) => {
+      const copy = metricCopy(metric);
+      const caution = copy.caution ? '<span class="metric-caution">Dato da leggere con cautela</span>' : '';
+      return `<article class="metric-item${copy.caution ? ' is-caution' : ''}">
+        <div class="metric-main">
+          <span class="metric-name">${escapeHtml(copy.title)}</span>
+          <span class="metric-number">${metricValue(metric)}</span>
+        </div>
+        <p class="metric-explain">${escapeHtml(copy.explain)}</p>
+        ${caution}
+        <div class="metric-meta">${escapeHtml(metric.year)} · ${escapeHtml(friendlyCluster(metric.cluster))}</div>
+        <div class="metric-technical">Nome tecnico: ${escapeHtml(copy.technical)}</div>
+        ${metric.sourceUrl ? `<a class="metric-source" href="${escapeHtml(metric.sourceUrl)}" target="_blank" rel="noopener noreferrer">Apri la fonte</a>` : ""}
+      </article>`;
+    }).join("")}</div>`;
   }
 
   function renderSources(provider) {
@@ -122,7 +246,7 @@
     officialSummary.textContent = `${official.length} dati verificati`;
     uncSummary.textContent = unc.length ? `${unc.length} dati normalizzati` : (provider.coverage?.unc?.status === "VERIFICATA" ? "fonte verificata" : "nessun dato normalizzato");
     altSummary.textContent = altro.length ? `${altro.length} dati normalizzati` : (provider.coverage?.altroconsumo?.status === "VERIFICATA" ? "fonte verificata" : "nessun dato normalizzato");
-    officialBody.innerHTML = `<p class="source-note"><strong>Dati regolatori separati dagli osservatori.</strong> I valori assoluti non sono classifiche: per confrontare fornitori servono indicatore, anno e perimetro omogenei.</p>${renderMetricList(official, "Non abbiamo ancora normalizzato un dato numerico ufficiale per questo fornitore. La fonte individuata resta indicata nella sezione Fonti e metodologia.")}`;
+    officialBody.innerHTML = `<p class="source-note"><strong>Come leggere questi numeri:</strong> prima trovi la spiegazione semplice; sotto restano anno, perimetro e nome tecnico del dato. Un numero assoluto non è una classifica.</p>${renderMetricList(official, "Non abbiamo ancora normalizzato un dato numerico ufficiale per questo fornitore. La fonte individuata resta indicata nella sezione Fonti e metodologia.")}`;
     uncBody.innerHTML = `<p class="source-note"><strong>UNC:</strong> questi numeri riguardano i casi transitati dall'Unione Nazionale Consumatori, non tutti i reclami ricevuti dal fornitore.</p>${renderMetricList(unc, provider.coverage?.unc?.status === "VERIFICATA" ? "La fonte UNC è verificata, ma i valori non sono ancora stati normalizzati nel database OL." : "Nessun dato UNC verificato e normalizzato per questo fornitore.")}`;
     altBody.innerHTML = `<p class="source-note"><strong>Altroconsumo:</strong> i dati di Reclama Facile restano distinti dagli indicatori TIQV e non confluiscono in un punteggio OL.</p>${renderMetricList(altro, provider.coverage?.altroconsumo?.status === "VERIFICATA" ? "La fonte Altroconsumo è stata individuata; i valori non ancora normalizzati non vengono ricostruiti da OL." : "Nessun dato Altroconsumo verificato e normalizzato per questo fornitore.")}`;
     renderSources(provider);
@@ -196,7 +320,7 @@
       </div>
       ${rows.map(({ left, right, sector, sameYear }) => `
         <div class="compare-row">
-          <span class="compare-indicator">${escapeHtml(left.indicator)}<small>${escapeHtml(sector)}</small></span>
+          <span class="compare-indicator">${escapeHtml(metricCopy(left).title)}<small>${escapeHtml(sector)}</small></span>
           <span class="compare-value"><strong>${metricValue(left)}</strong><small>${escapeHtml(left.year)}</small></span>
           <span class="compare-value"><strong>${metricValue(right)}</strong><small>${escapeHtml(right.year)}</small></span>
           ${sameYear ? "" : '<span class="compare-year-note">anni diversi</span>'}
@@ -257,6 +381,20 @@
     event.preventDefault();
     select.value = key;
     renderProvider(providers.get(key), true);
+  });
+
+  document.querySelectorAll("[data-market-tab]").forEach((button) => {
+    button.addEventListener("click", () => {
+      const target = button.getAttribute("data-market-tab");
+      document.querySelectorAll("[data-market-tab]").forEach((item) => {
+        const active = item === button;
+        item.classList.toggle("is-active", active);
+        item.setAttribute("aria-selected", active ? "true" : "false");
+      });
+      document.querySelectorAll("[data-market-panel]").forEach((panelItem) => {
+        panelItem.hidden = panelItem.getAttribute("data-market-panel") !== target;
+      });
+    });
   });
 
   const requested = new URLSearchParams(window.location.search).get("fornitore");
