@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.86";
+const VERSION = "0.12.87";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -29,9 +29,10 @@ const EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS = 240000;
 const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
 const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
-const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
-const EDITORIAL_SOCIAL_RUNTIME_VERSION = "0.12.71";
-const EDITORIAL_SOCIAL_CONTENT_VERSION = "social_content_v2";
+const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram", "linkedin"]);
+const EDITORIAL_PLAN_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
+const EDITORIAL_SOCIAL_RUNTIME_VERSIONS = Object.freeze({ facebook: "0.12.87", instagram: "0.12.87", linkedin: "0.12.87" });
+const EDITORIAL_SOCIAL_CONTENT_VERSION = "social_content_v3";
 // Il renderer grafico delle card social e' caricato solo quando serve.
 // Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
 // nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
@@ -2146,7 +2147,7 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
     "Le fonti devono essere URL https realmente consultati durante la ricerca.",
     "Genera esattamente due post statici: article_followup rimanda all'articolo; related rimanda a UNA destinazione OffertaLogica consentita dall'elenco fornito.",
     "Non scegliere canali social: i canali sono decisi separatamente dalla Redazione.",
-    "Non proporre Reel, video, TikTok o LinkedIn come strategia.",
+    "Non proporre Reel, video o TikTok come strategia. LinkedIn è gestito separatamente per il solo lancio dell’articolo e non deve comparire nei due post statici.",
     "Il BRIEF EDITORIALE fornito nell'input è vincolante per il taglio dell'articolo: il tema Search Console non va usato come semplice titolo se non descrive già chiaramente l'intento.",
     "Se il tema cita un marchio, prodotto o offerta, spiega prima che cosa sia e verifica condizioni e informazioni attuali da fonti affidabili; evita recensioni arbitrarie o conclusioni promozionali.",
   ].join(" ");
@@ -2273,6 +2274,7 @@ function validateGeneratedEditorialPackage(generated, { opportunity, categories,
 }
 
 async function upsertGeneratedSocialPlans(user, opportunity, article, posts, platforms) {
+  const planPlatforms = [...new Set((Array.isArray(platforms) ? platforms : []).filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || ""))))];
   const existing = await serviceFetch(
     `editorial_social_plan_items?select=id,post_type,status,source_article_id,opportunity_id&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&source_article_id=eq.${encodeURIComponent(article.id)}&limit=20`,
   );
@@ -2291,7 +2293,7 @@ async function upsertGeneratedSocialPlans(user, opportunity, article, posts, pla
       theme: post.theme || opportunity.topic,
       brief: post.brief || null,
       canonical_text: post.canonical_text,
-      platforms,
+      platforms: planPlatforms,
       scheduled_for: null,
       status: "draft",
       updated_at: now,
@@ -2943,7 +2945,8 @@ async function updateEditorialSocialPlanItem(user, payload = {}) {
     throw new Error("Un post già avviato o pubblicato non può essere modificato da questo pannello");
   }
   const channels = await editorialSocialChannels();
-  const platforms = validateRequestedPlatforms(payload.platforms, channels);
+  const platforms = validateRequestedPlatforms(payload.platforms, channels)
+    .filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
   const status = String(payload.status || current.status || "draft");
   if (!EDITORIAL_PLAN_EDITABLE_STATUSES.has(status)) throw new Error("Stato post non modificabile da questo pannello");
   const canonicalText = cleanEditorialText(payload.canonical_text ?? current.canonical_text, 4000);
@@ -3048,10 +3051,11 @@ function editorialArticleIntroCopySchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["facebook_text", "instagram_text"],
+    required: ["facebook_text", "instagram_text", "linkedin_text"],
     properties: {
       facebook_text: { type: "string" },
       instagram_text: { type: "string" },
+      linkedin_text: { type: "string" },
     },
   };
 }
@@ -3116,7 +3120,9 @@ async function buildEditorialArticleIntroCopy(article) {
         "Non duplicare titolo e sommario: apri con il problema o con il punto utile per il lettore e sintetizza in modo naturale perché vale la pena approfondire.",
         "facebook_text: 220-650 caratteri, 2-4 frasi, tono informativo e concreto, nessun URL perché verrà aggiunto dal sistema.",
         "instagram_text: 220-800 caratteri, 2-5 frasi, nessun URL e nessun 'link in bio'. Chiudi, se utile, con un invito neutro ad approfondire dal profilo OffertaLogica.",
-        "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi o informazioni non presenti nell'articolo.",
+        "linkedin_text: 300-900 caratteri, 3-6 frasi. Tono professionale e sostanziale: problema o tesi dell'articolo → elemento concreto utile → perché conta. Nessun URL perché il post LinkedIn userà l'articolo come contenuto collegato.",
+        "Per LinkedIn non usare hashtag-spam, formule motivazionali, linguaggio da vendita o una copia del testo Facebook.",
+        "Non usare emoji, promesse di risparmio, slogan aggressivi o informazioni non presenti nell'articolo.",
       ].join(" "),
       input,
       reasoning: { effort: "low" },
@@ -3142,8 +3148,9 @@ async function buildEditorialArticleIntroCopy(article) {
   const copy = {
     facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 850),
     instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1000),
+    linkedin_text: cleanEditorialSocialCopy(parsed?.linkedin_text, 1200),
   };
-  if (copy.facebook_text.length < 120 || copy.instagram_text.length < 120) {
+  if (copy.facebook_text.length < 120 || copy.instagram_text.length < 120 || copy.linkedin_text.length < 180) {
     throw new Error("Asset social articolo: copy incompleto");
   }
   return copy;
@@ -3525,7 +3532,7 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
   const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
   const extra = cleanEditorialText(guidance, 600);
   return [
-    "Create one entirely new, original high-resolution vertical editorial photograph from scratch for a static social post by OffertaLogica.it.",
+    "Create one entirely new, original high-resolution square editorial photograph from scratch for a static social post by OffertaLogica.it.",
     "The image must be based only on the supplied editorial context and must not copy, trace, imitate or transform an existing image.",
     `Post type: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Article topic: ${cleanEditorialText(article?.title, 140)}.`,
@@ -3537,7 +3544,7 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     extra ? `Regeneration guidance: ${extra}.` : "",
     "Composition: square 1:1 social-feed image, one clear focal point, strong crop, natural believable lighting, professional Italian/European editorial photography.",
     "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover or as a generic advertising image.",
-    "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, readable documents, prices, charts, fake interfaces or infographic overlays.",
+    "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays. When the subject is a bill, contract or structured document, non-readable rows, boxes, sections, tabs and tiny blurred chart-like shapes are allowed only to make the document type visually recognizable.",
     "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
     "Prefer a believable real-world editorial scene tied to the actual activity, equipment or environment described by the article; one clear subject, natural perspective, no staged advertising pose.",
     "Do not use thermal-camera or infrared effects, heat-map overlays, glowing energy effects, abstract energy beams, oversized utility meters or generic visual metaphors unless the supplied context explicitly requires them.",
@@ -3692,7 +3699,116 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
   };
 }
 
+function editorialFallbackSourceText(value, maxChars = 12000) {
+  return cleanEditorialText(value, maxChars)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+    .replace(/\[([^\]\n]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#*_`~>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function editorialFallbackSentences(value, maxChars = 520, maxSentences = 3) {
+  const clean = cleanEditorialText(value, Math.max(maxChars * 4, 1600))
+    .replace(/[#*_`>-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "";
+  const sentences = clean.match(/[^.!?]+[.!?]?/g) || [clean];
+  const selected = [];
+  for (const sentence of sentences) {
+    const normalized = String(sentence || "").replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    const candidate = [...selected, normalized].join(" ").trim();
+    if (candidate.length > maxChars && selected.length) break;
+    selected.push(normalized);
+    if (selected.length >= maxSentences) break;
+  }
+  let out = selected.join(" ").trim() || clean;
+  if (out.length > maxChars) {
+    const clipped = out.slice(0, maxChars + 1);
+    const boundary = clipped.lastIndexOf(" ");
+    out = clipped.slice(0, boundary >= Math.floor(maxChars * 0.72) ? boundary : maxChars).trim();
+    out = out.replace(/[,:;\-–—]+$/g, "").trim();
+    if (out && !/[.!?]$/.test(out)) out += ".";
+  }
+  return out;
+}
+
+function editorialFallbackCoverText(article, item, target, articleTakeaway, destinationSolution) {
+  const related = String(item?.post_type || "") === "related";
+  const sourceTitle = cleanEditorialText(article?.title, 180) || "Approfondimento OffertaLogica";
+  let coverTitle = sourceTitle;
+  if (coverTitle.length > 95) coverTitle = editorialFallbackSentences(coverTitle, 92, 1).replace(/[.!?]$/g, "");
+  if (coverTitle.length < 35) {
+    const prefix = related && target?.label ? `${cleanEditorialText(target.label, 45)}: ` : "Da sapere: ";
+    coverTitle = cleanEditorialText(`${prefix}${coverTitle}`, 95);
+  }
+  let coverSummary = editorialFallbackSentences(
+    related ? [articleTakeaway, destinationSolution].filter(Boolean).join(" ") : articleTakeaway,
+    188,
+    2,
+  );
+  if (coverSummary.length < 90) {
+    const source = cleanEditorialText(article?.excerpt || article?.content || sourceTitle, 900);
+    coverSummary = editorialFallbackSentences(`${coverSummary} ${source}`.trim(), 188, 2);
+  }
+  if (coverSummary.length < 70) {
+    coverSummary = cleanEditorialText(`${coverSummary} L'articolo spiega il contesto e i controlli utili per interpretare correttamente il tema.`, 188);
+  }
+  return { cover_title: coverTitle, cover_summary: coverSummary };
+}
+
+function buildEditorialGroundedCopyFallback(article, item, target, targetContext, brief = {}) {
+  const related = String(item?.post_type || "") === "related";
+  // Non riutilizzare i campi AI appena bocciati dalla QA: il fallback deve dipendere
+  // soltanto dalle fonti reali per non reintrodurre affermazioni non verificate.
+  const articleSource = editorialFallbackSourceText([article?.content, article?.excerpt, article?.title].filter(Boolean).join(" "));
+  const articleTakeaway = editorialFallbackSentences(articleSource, 520, 3)
+    || cleanEditorialText(article?.title, 180);
+  const solutionSource = editorialFallbackSourceText([
+    targetContext?.content,
+    targetContext?.description,
+    targetContext?.h1,
+    targetContext?.title,
+  ].filter(Boolean).join(" "));
+  const destinationSolution = related
+    ? editorialFallbackSentences(solutionSource, 620, 3)
+    : "";
+  const articleName = cleanEditorialText(article?.title, 180);
+  const destinationName = cleanEditorialText(target?.label || targetContext?.label, 160);
+
+  const followupCore = [
+    articleTakeaway,
+    articleName ? `L'approfondimento «${articleName}» raccoglie il contesto e i controlli descritti nell'articolo.` : "",
+  ].filter(Boolean).join(" ");
+  const relatedCore = [
+    articleTakeaway,
+    destinationName && destinationSolution ? `Nella sezione ${destinationName}, ${destinationSolution}` : destinationSolution,
+  ].filter(Boolean).join(" ");
+  const core = related ? relatedCore : followupCore;
+  const facebookText = cleanEditorialSocialCopy(core, 1000);
+  const instagramText = cleanEditorialSocialCopy(core, 1200);
+  const cover = editorialFallbackCoverText(article, item, target, articleTakeaway, destinationSolution);
+
+  return {
+    ...brief,
+    content_version: EDITORIAL_SOCIAL_CONTENT_VERSION,
+    article_takeaway: articleTakeaway,
+    destination_solution: destinationSolution,
+    facebook_text: facebookText.length >= 180 ? facebookText : cleanEditorialSocialCopy(`${core} Nell'articolo completo trovi il quadro e le verifiche descritte dalla Redazione.`, 1000),
+    instagram_text: instagramText.length >= 180 ? instagramText : cleanEditorialSocialCopy(`${core} L'articolo completo raccoglie il quadro e le verifiche descritte dalla Redazione.`, 1200),
+    ...cover,
+  };
+}
+
 async function schedulerPrepareMissingSocialAsset(user, options = {}) {
+  const targetPlatforms = Array.isArray(options?.targetPlatforms)
+    ? [...new Set(options.targetPlatforms.map((value) => String(value || "")).filter((value) => EDITORIAL_SOCIAL_PLATFORMS.has(value)))]
+    : null;
   const targetPostType = ["article_intro", "article_followup", "related"].includes(String(options?.targetPostType || ""))
     ? String(options.targetPostType)
     : "";
@@ -3731,13 +3847,25 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
     const articleFeaturedImageUrl = String(article.featured_image_url || "").trim();
     const introImageUrl = /^https:\/\//i.test(articleFeaturedImageUrl) ? articleFeaturedImageUrl : articleImageUrl;
     const introFingerprint = editorialArticleIntroAssetFingerprint(article, introImageUrl);
-    const introAlreadyCurrent = Boolean(
-      state.article_intro?.fingerprint === introFingerprint
-      && String(state.article_intro?.status || "") === "ready"
-      && /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
+    const introNeedsMetaCard = targetPlatforms === null
+      ? true
+      : targetPlatforms.some((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(platform));
+    const introCopyCurrent = Boolean(
+      state.article_intro?.copy?.facebook_text
+      && state.article_intro?.copy?.instagram_text
+      && state.article_intro?.copy?.linkedin_text
+    );
+    const introCardCurrent = Boolean(
+      /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
       && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
       && String(state.article_intro?.card?.source || "") === "composed"
       && String(state.article_intro?.card?.renderer || "") === "resvg_wasm"
+    );
+    const introAlreadyCurrent = Boolean(
+      state.article_intro?.fingerprint === introFingerprint
+      && String(state.article_intro?.status || "") === "ready"
+      && introCopyCurrent
+      && (!introNeedsMetaCard || introCardCurrent)
     );
 
     // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
@@ -3762,7 +3890,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
             updated_at: new Date().toISOString(),
           };
 
-      if (!intro.copy?.facebook_text || !intro.copy?.instagram_text) {
+      if (!intro.copy?.facebook_text || !intro.copy?.instagram_text || !intro.copy?.linkedin_text) {
         const copy = await buildEditorialArticleIntroCopy(article);
         intro = { ...intro, copy, status: "copy_ready", updated_at: new Date().toISOString() };
         state.article_intro = intro;
@@ -3779,7 +3907,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
         && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
       );
-      if (!introCardValid) {
+      if (introNeedsMetaCard && !introCardValid) {
         const card = await renderAndUploadEditorialSocialCard({
           article,
           sourceImageUrl: introImageUrl,
@@ -3888,6 +4016,21 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
           copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
           copyRewriteAttempts += 1;
         }
+        let copyFallbackApplied = false;
+        if (copyQa.status !== "passed" && copyRewriteAttempts >= 3) {
+          brief = buildEditorialGroundedCopyFallback(article, item, target, targetContext, brief);
+          copyQa = {
+            ...copyQa,
+            schema_version: 2,
+            status: "passed",
+            evaluated_at: new Date().toISOString(),
+            model: null,
+            reason: "Fallback deterministico: copy ricostruito esclusivamente da articolo e contenuto reale della destinazione dopo tre revisioni AI non concluse.",
+            rewrite_guidance: "",
+            fallback_mode: "deterministic_grounded",
+          };
+          copyFallbackApplied = true;
+        }
         brief = { ...brief, copy_qa: copyQa };
         const copyReady = copyQa.status === "passed";
         asset = {
@@ -3896,6 +4039,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
           brief,
           target_context: targetContext,
           copy_rewrite_attempts: copyRewriteAttempts,
+          copy_fallback_applied: copyFallbackApplied || asset.copy_fallback_applied === true,
           status: copyReady ? "brief_ready" : "human_review_required",
           updated_at: new Date().toISOString(),
         };
@@ -4193,28 +4337,13 @@ async function requestEditorialSocialRegeneration(user, payload = {}) {
     method: "PATCH", prefer: "return=representation", body: { status: "approved", scheduled_for: null, updated_at: new Date().toISOString(), updated_by: user.id },
   });
 
-  // Rigenerazione manuale immediata: non aspetta i heartbeat da 15 minuti.
-  // Ogni passaggio mantiene i controlli esistenti (cover text, immagine, QA, card OL Informa)
-  // e poi prova la pubblicazione nello stesso invocazione, entro il limite Vercel di 5 minuti.
-  const steps = [];
-  for (let index = 0; index < 8; index += 1) {
-    const step = await schedulerPrepareMissingSocialAsset(user);
-    if (!step) break;
-    if (String(step.social_plan_item_id || "") && String(step.social_plan_item_id || "") !== itemId) continue;
-    steps.push(step);
-    if (["social_asset_human_review_required", "social_asset_copy_human_review_required"].includes(String(step.action || ""))) {
-      return { requested: true, immediate: true, published: false, blocked: true, steps, item: updatedRows?.[0] || { ...item, status: "approved" }, article };
-    }
-    if (["social_asset_card_generated", "social_asset_ready"].includes(String(step.action || ""))) break;
-  }
-
-  const publication = await schedulerPublishRequestedSocialRegeneration(user);
+  // La rigenerazione manuale viene accodata e ripresa dallo scheduler a piccoli passi.
+  // Evita timeout lunghi e collisioni tra generazione immagine, QA, card e heartbeat.
   return {
     requested: true,
-    immediate: true,
-    published: String(publication?.action || "") === "social_regeneration_published",
-    steps,
-    publication,
+    immediate: false,
+    published: false,
+    queued: true,
     item: updatedRows?.[0] || { ...item, status: "approved" },
     article,
   };
@@ -4396,6 +4525,15 @@ async function schedulerPublishRequestedSocialRegeneration(user) {
     try {
       const slotKind = String(item.post_type || "") === "related" ? "social_related" : "social_followup";
       const result = await schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms);
+      if (result.retry_pending) {
+        const nextEvidence = {
+          ...evidence,
+          social_regeneration: { ...regeneration, status: "preparing", updated_at: new Date().toISOString(), last_wait_reason: result.retry_reason || "social_retry" },
+        };
+        await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, details: { ...(run?.details || {}), stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry" } });
+        return { action: "social_regeneration_waiting", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, result };
+      }
       const nextEvidence = {
         ...evidence,
         social_regeneration: { ...regeneration, status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
@@ -4669,6 +4807,28 @@ function schedulerArticlePublishHumanReviewRecoverable(slot, runs, schedulerKey)
     String(run?.status || "") === "success"
     && String(run?.details?.stage || "") === "waiting_human_review"
     && run?.details?.publication_performed !== true
+  );
+}
+
+function schedulerSocialRetryRecoverable(slot, runs, schedulerKey) {
+  if (!["article_publish", "social_followup", "social_related"].includes(String(slot?.kind || ""))) return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+  if (matching.some((run) => run?.details?.publication_performed === true)) return false;
+
+  // Recupera soltanto se l'ultimo esito non fallito dello slot è davvero un'attesa
+  // tecnica. Un esito ambiguo, un blocco umano o una pubblicazione confermata non
+  // devono essere riaperti da un vecchio waiting_social_retry, per evitare doppioni.
+  const nonFailed = matching
+    .filter((run) => String(run?.status || "") !== "failed")
+    .sort((left, right) => String(right?.created_at || right?.started_at || "").localeCompare(String(left?.created_at || left?.started_at || "")));
+  const latest = nonFailed[0] || null;
+  return Boolean(
+    latest
+    && String(latest.status || "") === "success"
+    && String(latest?.details?.stage || "") === "waiting_social_retry"
+    && latest?.details?.publication_performed !== true
   );
 }
 
@@ -5001,7 +5161,7 @@ async function schedulerQueuePlanSocial(item, platforms) {
   const now = new Date().toISOString();
   const output = [];
   for (const platform of platforms || []) {
-    if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) continue;
+    if (!EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(platform)) continue;
     const currentRows = await serviceFetch(
       `editorial_social_plan_publications?select=*&social_plan_item_id=eq.${encodeURIComponent(item.id)}&platform=eq.${encodeURIComponent(platform)}&limit=1`,
     );
@@ -5033,7 +5193,9 @@ function schedulerSocialSecret(platform) {
     ? "EDITORIAL_AUTOPILOT_FACEBOOK_SECRET"
     : platform === "instagram"
       ? "EDITORIAL_AUTOPILOT_INSTAGRAM_SECRET"
-      : "";
+      : platform === "linkedin"
+        ? "EDITORIAL_AUTOPILOT_LINKEDIN_SECRET"
+        : "";
   const secret = envName ? env(envName) : "";
   if (!envName || secret.length < 32) {
     throw new Error(`Autopilota: segreto dedicato ${platform || "social"} non configurato`);
@@ -5080,9 +5242,11 @@ async function schedulerEnsureSocialRuntime(user, platforms) {
     throw new Error("Autopilota: nessun canale social abilitato");
   }
   for (const platform of platforms) {
+    const expectedVersion = EDITORIAL_SOCIAL_RUNTIME_VERSIONS[platform];
+    if (!expectedVersion) throw new Error(`Autopilota: runtime social non definito per ${platform}`);
     const payload = await schedulerSocialFunction(user, platform, "validate");
-    if (String(payload?.version || "") !== EDITORIAL_SOCIAL_RUNTIME_VERSION) {
-      throw new Error(`Autopilota: funzione social ${platform} non allineata al runtime richiesto ${EDITORIAL_SOCIAL_RUNTIME_VERSION}`);
+    if (String(payload?.version || "") !== expectedVersion) {
+      throw new Error(`Autopilota: funzione social ${platform} non allineata al runtime richiesto ${expectedVersion}`);
     }
   }
 }
@@ -5096,13 +5260,16 @@ function schedulerSocialResultState(payload) {
   return payload?.published === true ? "success" : "failed";
 }
 
-function schedulerArticleIntroAssetIsOlInforma(context) {
+function schedulerArticleIntroAssetReadyForPlatforms(context, platforms = []) {
   const state = editorialSocialAssetsState(context?.opportunity);
   const intro = state.article_intro || null;
+  if (!intro || String(intro.status || "") !== "ready") return false;
+  const requested = Array.isArray(platforms) ? platforms : [];
+  if (requested.includes("linkedin") && cleanEditorialText(intro.copy?.linkedin_text, 1200).length < 180) return false;
+  const needsMetaCard = requested.some((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
+  if (!needsMetaCard) return true;
   return Boolean(
-    intro
-    && String(intro.status || "") === "ready"
-    && /^https:\/\//i.test(String(intro.card?.url || ""))
+    /^https:\/\//i.test(String(intro.card?.url || ""))
     && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
     && String(intro.card?.source || "") === "composed"
     && String(intro.card?.renderer || "") === "resvg_wasm"
@@ -5179,8 +5346,8 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
     nextContext = { ...nextContext, article: published };
   }
 
-  if (!schedulerArticleIntroAssetIsOlInforma(nextContext)) {
-    throw new Error("Autopilota: card OL Informa dell'articolo non pronta o non valida; pubblicazione social fermata");
+  if (!schedulerArticleIntroAssetReadyForPlatforms(nextContext, platforms)) {
+    throw new Error("Autopilota: asset social iniziale dell'articolo non pronto o non valido; pubblicazione social fermata");
   }
 
   await schedulerQueueArticleSocial(nextContext.article.id, platforms);
@@ -5192,13 +5359,23 @@ async function schedulerPublishArticleIntro(user, context, platforms) {
     results[platform] = payload;
     const state = schedulerSocialResultState(payload);
     if (state === "ambiguous") ambiguous = true;
-    else if (state === "retry") throw new Error(`Autopilota: ${platform} non ancora pronto (${payload?.result || "attesa"})`);
-    else if (state === "failed") throw new Error(`Autopilota: ${platform} non pubblicato (${payload?.error || payload?.result || "errore"})`);
+    else if (state === "retry") {
+      return {
+        blocked: false,
+        retry_pending: true,
+        retry_reason: `${platform}:${payload?.result || "attesa"}`,
+        article: nextContext.article,
+        opportunity: nextContext.opportunity,
+        social: results,
+        publication_performed: false,
+      };
+    } else if (state === "failed") throw new Error(`Autopilota: ${platform} non pubblicato (${payload?.error || payload?.result || "errore"})`);
   }
 
   return {
     blocked: false,
     ambiguous,
+    retry_pending: false,
     article: nextContext.article,
     opportunity: nextContext.opportunity,
     social: results,
@@ -5280,11 +5457,15 @@ async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatform
     throw new Error("Autopilota: card OL Informa non pronta o non valida; pubblicazione social fermata");
   }
 
+  const enabledPlanPlatforms = (enabledPlatforms || []).filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
   const requested = Array.isArray(item.platforms) && item.platforms.length
-    ? item.platforms.filter((platform) => enabledPlatforms.includes(platform))
-    : enabledPlatforms;
+    ? item.platforms.filter((platform) => enabledPlanPlatforms.includes(platform) && EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")))
+    : enabledPlanPlatforms;
   if (!requested.length) {
-    return { blocked: true, reason: "no_enabled_social_channels", item, publication_performed: false };
+    if (slotKind === "social_related") {
+      await schedulerCompleteOpportunityCycle(user, context, item, "final_post_no_enabled_meta_channels");
+    }
+    return { blocked: true, reason: "no_enabled_plan_channels", item, publication_performed: false };
   }
   await schedulerEnsureSocialRuntime(user, requested);
 
@@ -5307,8 +5488,16 @@ async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatform
       results[platform] = payload;
       const state = schedulerSocialResultState(payload);
       if (state === "ambiguous") ambiguous = true;
-      else if (state === "retry") throw new Error(`Autopilota: ${platform} post in attesa (${payload?.result || "attesa"})`);
-      else if (state === "failed") throw new Error(`Autopilota: ${platform} post non pubblicato (${payload?.error || payload?.result || "errore"})`);
+      else if (state === "retry") {
+        return {
+          blocked: false,
+          retry_pending: true,
+          retry_reason: `${platform}:${payload?.result || "attesa"}`,
+          item: publishingItem,
+          social: results,
+          publication_performed: false,
+        };
+      } else if (state === "failed") throw new Error(`Autopilota: ${platform} post non pubblicato (${payload?.error || payload?.result || "errore"})`);
     }
   } catch (error) {
     await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(publishingItem.id)}`, {
@@ -5424,6 +5613,14 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
         });
         return { action: "article_publish_waiting_human_review", ...result };
       }
+      if (result.retry_pending) {
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          details: { ...details, stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry", social: result.social || {} },
+        });
+        return { action: "article_publish_waiting_social_retry", ...result };
+      }
       await automationRunFinish(run, "success", {
         opportunity_id: context.opportunity.id,
         article_id: context.article.id,
@@ -5441,6 +5638,15 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
       const result = await schedulerPublishPlanItem(user, context, slot.kind, enabledPlatforms);
       if (result.blocked && result.reason === "no_enabled_social_channels") {
         throw new Error(`Autopilota: nessun canale social abilitato per lo slot ${slot.kind}`);
+      }
+      if (result.retry_pending) {
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          social_plan_item_id: result.item?.id || null,
+          details: { ...details, stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry", social: result.social || {} },
+        });
+        return { action: `${slot.kind}_waiting_social_retry`, ...result };
       }
       await automationRunFinish(run, "success", {
         opportunity_id: context.opportunity.id,
@@ -5492,7 +5698,8 @@ async function editorialAutopilotTick() {
     if (!attemptState.consumed) return true;
     return schedulerArticlePrepareRecoverable(slot, settings, runs, key)
       || schedulerArticlePublishAuthRecoverable(slot, runs, key)
-      || schedulerArticlePublishHumanReviewRecoverable(slot, runs, key);
+      || schedulerArticlePublishHumanReviewRecoverable(slot, runs, key)
+      || schedulerSocialRetryRecoverable(slot, runs, key);
   })[0] || null;
 
   // Ricerca e preparazione del nuovo articolo non dipendono dagli asset social di cicli precedenti.
@@ -5505,11 +5712,12 @@ async function editorialAutopilotTick() {
   let socialAssetError = null;
   const dueKind = String(due?.kind || "");
   const dueAssetType = ({ article_publish: "article_intro", social_followup: "article_followup", social_related: "related" })[dueKind] || "";
+  const duePlatforms = dueAssetType ? await editorialEnabledSocialPlatforms() : null;
   try {
     // Quando uno slot e' gia' dovuto, prepariamo soltanto l'asset necessario a QUELLO slot.
     // Un'immagine del venerdi o del lunedi non puo' quindi ritardare la pubblicazione del mercoledi.
     const socialAsset = dueAssetType
-      ? await schedulerPrepareMissingSocialAsset(user, { selectedOnly: true, targetPostType: dueAssetType })
+      ? await schedulerPrepareMissingSocialAsset(user, { selectedOnly: true, targetPostType: dueAssetType, targetPlatforms: duePlatforms })
       : await schedulerPrepareMissingSocialAsset(user);
     if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
   } catch (error) {

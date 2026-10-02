@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.85";
+  const VERSION = "0.12.87";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -718,10 +718,13 @@
 
   function platformChoicesMarkup(id, selected = [], attribute = "data-package-platform") {
     const selectedSet = new Set(Array.isArray(selected) ? selected : []);
+    const planOnly = attribute === "data-social-plan-platform";
+    const allowed = planOnly ? new Set(["facebook", "instagram"]) : new Set(["facebook", "instagram", "linkedin"]);
     const channels = (socialChannels.length ? socialChannels : [
       { platform: "facebook", display_name: "Facebook", enabled: false },
       { platform: "instagram", display_name: "Instagram", enabled: false },
-    ]).filter((channel) => ["facebook", "instagram"].includes(String(channel.platform || "")));
+      { platform: "linkedin", display_name: "LinkedIn", enabled: false },
+    ]).filter((channel) => allowed.has(String(channel.platform || "")));
     return channels.map((channel) => {
       const platform = String(channel.platform || "");
       const enabled = Boolean(channel.enabled);
@@ -819,9 +822,9 @@
         ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pacchetto editoriale pronto per il calendario.</small>`
         : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici. La pubblicazione resta governata dalla modalità Autopilota e dal calendario.</small>';
     return `<div class="ol-field" style="margin-top:8px">
-      <label>Canali per i post statici del pacchetto</label>
+      <label>Canali del ciclo editoriale</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
-      <small>Nessun canale è obbligatorio. I canali non collegati restano disabilitati.</small>
+      <small>Facebook e Instagram vengono usati per lancio articolo + due post statici. LinkedIn, se collegato, pubblica solo il lancio dell’articolo.</small>
       <div class="ol-toolbar-group" style="margin-top:8px">
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
@@ -1011,7 +1014,7 @@
     const status = String(run.status || "");
     const stage = String(run?.details?.stage || "");
     if (status === "success") {
-      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
       return { label: "completato", tone: "success" };
     }
     if (status === "failed") return { label: "errore", tone: "failed" };
@@ -1208,7 +1211,7 @@
 
   function schedulerActionLabel(action) {
     return ({
-      idle: "nessuna azione: in attesa dello slot",
+      idle: "nessuna azione eseguibile in questo tick",
       disabled: "scheduler disattivato",
       research_collect_7: "raccolta Search Console 7 giorni",
       research_collect_28: "raccolta Search Console 28 giorni",
@@ -1228,6 +1231,10 @@
       social_asset_article_image_fallback_ready: "fallback sull’immagine articolo e card pronta",
       social_asset_card_generated: "card OL Informa generata",
       social_asset_ready: "asset social pronto",
+      article_publish_waiting_social_retry: "social iniziale in attesa tecnica: riprova automatica",
+      social_followup_waiting_social_retry: "follow-up in attesa tecnica: riprova automatica",
+      social_related_waiting_social_retry: "post OffertaLogica in attesa tecnica: riprova automatica",
+      social_regeneration_waiting: "rigenerazione social in attesa tecnica: riprova automatica",
       article_published: "articolo pubblicato",
       article_published_social_check_required: "articolo pubblicato, social da verificare",
       social_regeneration_published: "rigenerazione social pubblicata",
@@ -1809,15 +1816,15 @@
     if (socialPlanRegenerateButton) {
       const id = socialPlanRegenerateButton.dataset.socialPlanRegenerate || "";
       if (!id || socialPlanRegenerateButton.disabled) return;
-      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il testo social esistente verrà mantenuto: il sistema creerà subito una nuova foto, ricomporrà la card OL Informa e proverà a ripubblicare. Continuare?";
+      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il testo social esistente verrà mantenuto: la rigenerazione verrà accodata e l’Autopilota completerà foto, QA, card e ripubblicazione senza una richiesta lunga nel browser. Continuare?";
       if (!window.confirm(warning)) return;
       socialPlanRegenerateButton.disabled = true;
       const socialMessage = section.querySelector("[data-social-plan-message]");
-      if (socialMessage) socialMessage.textContent = "Rigenerazione in corso: nuova foto, QA, card OL Informa e ripubblicazione nello stesso passaggio…";
+      if (socialMessage) socialMessage.textContent = "Rigenerazione accodata: l’Autopilota completerà automaticamente foto, QA, card e ripubblicazione nei prossimi heartbeat…";
       try {
         await endpoint("regenerate-editorial-social-plan-item", { method: "POST", body: { id } });
         await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
-        if (socialMessage) socialMessage.textContent = "Rigenerazione completata. Aggiorno lo stato del post e della pubblicazione.";
+        if (socialMessage) socialMessage.textContent = "Rigenerazione presa in carico. Non serve lasciare aperta la pagina: lo stato verrà aggiornato dagli heartbeat dell’Autopilota.";
       } catch (error) {
         if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
         socialPlanRegenerateButton.disabled = false;
