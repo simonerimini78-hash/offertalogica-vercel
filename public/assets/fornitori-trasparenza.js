@@ -20,13 +20,23 @@
   let infoCounter = 0;
 
   const ARERA_SOURCE = "https://www.arera.it/fileadmin/allegati/relaz_ann/25/VOLUME_1_definitivo.pdf";
-  const coreConcepts = ["complaint-response", "billing-correction", "double-billing"];
-  const conceptOrder = ["complaint-response", "billing-correction", "double-billing", "information", "complaint-volume", "indemnities"];
+  const fallbackConcepts = ["complaint-response-rate", "billing-correction-rate", "double-billing-rate"];
+  const conceptOrder = [
+    "complaint-response-rate", "complaint-response-time",
+    "billing-correction-rate", "billing-correction-time",
+    "double-billing-rate", "double-billing-time",
+    "information-rate", "information-time",
+    "complaint-volume", "indemnities"
+  ];
   const conceptTitles = {
-    "complaint-response": "Risposta ai reclami",
-    "billing-correction": "Correzione bollette",
-    "double-billing": "Doppia fatturazione",
-    "information": "Richieste di informazioni",
+    "complaint-response-rate": "Reclami entro i tempi",
+    "complaint-response-time": "Tempo medio risposta reclami",
+    "billing-correction-rate": "Correzioni bollette entro i tempi",
+    "billing-correction-time": "Tempo medio correzione bollette",
+    "double-billing-rate": "Doppia fatturazione entro i tempi",
+    "double-billing-time": "Tempo medio doppia fatturazione",
+    "information-rate": "Informazioni entro 30 giorni",
+    "information-time": "Tempo medio risposta informazioni",
     "complaint-volume": "Reclami registrati",
     "indemnities": "Indennizzi"
   };
@@ -119,6 +129,7 @@
       "Rispetto standard rettifica doppia fatturazione": ["Doppia fatturazione", outOf100 === 0 ? "La fonte indica 0% entro il termine. Senza il numero totale dei casi il dato va interpretato con cautela." : (outOf100 === null ? "Quota di doppie fatturazioni corrette entro il termine previsto." : `Circa ${outOf100} casi su 100 risultano corretti entro il termine previsto.`)],
       "Tempo medio rettifica doppia fatturazione": ["Tempo doppia fatturazione", `In media, la correzione di una doppia fatturazione richiede ${value}.`],
       "Risposte informazioni entro 30 giorni": ["Informazioni entro 30 giorni", outOf100 === null ? "Quota di richieste di informazioni risposte entro 30 giorni." : `Circa ${outOf100} richieste su 100 ricevono risposta entro 30 giorni.`],
+      "Tempo medio risposta informazioni": ["Tempo medio informazioni", `In media, il fornitore risponde alle richieste scritte di informazioni in ${value}.`],
       "Reclami ricevuti": ["Reclami registrati", `La fonte registra ${value}. Il numero assoluto da solo non misura la qualità del fornitore.`],
       "Reclami gestiti": ["Reclami gestiti", `La fonte registra ${value}. Per confrontare fornitori servirebbe rapportare il dato ai clienti serviti.`],
       "Risposte reclami entro standard": ["Reclami nei tempi", `La fonte registra ${value} entro il termine previsto.`],
@@ -134,7 +145,7 @@
   }
 
   function officialMetrics(provider) {
-    return provider ? provider.metrics.filter((metric) => metric.source === "Ufficiale TIQV") : [];
+    return provider ? provider.metrics.filter((metric) => metric.source === "Ufficiale TIQV" && metric.display !== false) : [];
   }
 
   function observerMetrics(provider, source) {
@@ -143,10 +154,14 @@
 
   function metricConcept(metric) {
     const indicator = String(metric?.indicator || "");
-    if (["Rispetto standard risposta reclami", "Tempo medio risposta reclami", "Risposte reclami entro standard"].includes(indicator)) return "complaint-response";
-    if (["Rispetto standard rettifica fatturazione", "Tempo medio rettifica fatturazione", "Rettifiche fatturazione entro standard"].includes(indicator)) return "billing-correction";
-    if (["Rispetto standard rettifica doppia fatturazione", "Tempo medio rettifica doppia fatturazione"].includes(indicator)) return "double-billing";
-    if (indicator === "Risposte informazioni entro 30 giorni") return "information";
+    if (["Rispetto standard risposta reclami", "Risposte reclami entro standard"].includes(indicator)) return "complaint-response-rate";
+    if (indicator === "Tempo medio risposta reclami") return "complaint-response-time";
+    if (["Rispetto standard rettifica fatturazione", "Rettifiche fatturazione entro standard"].includes(indicator)) return "billing-correction-rate";
+    if (indicator === "Tempo medio rettifica fatturazione") return "billing-correction-time";
+    if (indicator === "Rispetto standard rettifica doppia fatturazione") return "double-billing-rate";
+    if (indicator === "Tempo medio rettifica doppia fatturazione") return "double-billing-time";
+    if (indicator === "Risposte informazioni entro 30 giorni") return "information-rate";
+    if (indicator === "Tempo medio risposta informazioni") return "information-time";
     if (["Reclami ricevuti", "Reclami gestiti"].includes(indicator)) return "complaint-volume";
     if (indicator === "Indennizzi reclami") return "indemnities";
     return indicator ? `other:${indicator}` : "other";
@@ -171,10 +186,11 @@
   }
 
   function tableConcepts(provider, otherProvider) {
-    const concepts = new Set(coreConcepts);
+    const concepts = new Set();
     [provider, otherProvider].filter(Boolean).forEach((item) => {
       ["luce", "gas", "general"].forEach((sector) => metricsBySector(item, sector).forEach((metric) => concepts.add(metricConcept(metric))));
     });
+    if (!concepts.size) fallbackConcepts.forEach((concept) => concepts.add(concept));
     return [...concepts].filter((concept) => concept !== "other").sort(conceptSort);
   }
 
@@ -336,7 +352,10 @@
     if (!metrics.length) return `<span class="matrix-value is-missing">—</span>`;
     const latestYear = String(metrics[0].year);
     const latest = metrics.filter((metric) => String(metric.year) === latestYear);
-    return latest.map((metric) => `<span class="matrix-value${metricCopy(metric).caution ? " is-caution" : ""}">${metricValue(metric)}</span>`).join(`<span class="matrix-separator">·</span>`);
+    const preferred = latest.find((metric) => String(metric.unit) === "%")
+      || latest.find((metric) => String(metric.unit) === "giorni")
+      || latest[0];
+    return `<span class="matrix-value${metricCopy(preferred).caution ? " is-caution" : ""}">${metricValue(preferred)}</span>`;
   }
 
   function renderManagementTable(provider, otherProvider) {
@@ -392,7 +411,7 @@
       <div class="provider-section-title"><strong>Motivi dei reclami</strong><span>Fornitore vs mercato ARERA 2024</span></div>
       <div class="reason-matrix" role="table" aria-label="Motivi dei reclami: mercato ARERA e ${escapeHtml(provider.name)}">
         <div class="reason-matrix-row reason-sector-header" role="row"><span class="reason-header-spacer"></span><span class="sector-group sector-luce" role="columnheader">Luce</span><span class="sector-group sector-gas" role="columnheader">Gas</span><span class="reason-info-spacer"></span></div>
-        <div class="reason-matrix-row reason-column-header" role="row"><span role="columnheader">Motivo</span><span role="columnheader">ARERA</span><span role="columnheader" aria-label="${escapeHtml(provider.name)} luce">Forn.</span><span role="columnheader">ARERA</span><span role="columnheader" aria-label="${escapeHtml(provider.name)} gas">Forn.</span><span aria-hidden="true"></span></div>
+        <div class="reason-matrix-row reason-column-header" role="row"><span role="columnheader">Motivo</span><span role="columnheader">ARERA</span><span class="reason-provider-head" role="columnheader" aria-label="${escapeHtml(provider.name)} luce">${escapeHtml(provider.name)}</span><span role="columnheader">ARERA</span><span class="reason-provider-head" role="columnheader" aria-label="${escapeHtml(provider.name)} gas">${escapeHtml(provider.name)}</span><span aria-hidden="true"></span></div>
         ${rows}
       </div>
     </section>`;
@@ -441,19 +460,21 @@
     return metricsBySector(provider, sector).find((metric) => metric.indicator === indicator && String(metric.year) === String(year) && metric.comparable && Number.isFinite(Number(metric.value)));
   }
 
+  const serviceSpecs = [
+    { indicator: "Rispetto standard risposta reclami", direction: "higher", weight: 40, label: "Reclami nei tempi", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} rispetta più spesso i tempi dei reclami (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Tempo medio risposta reclami", direction: "lower", weight: 38, label: "Tempo di risposta", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} risponde più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Rispetto standard rettifica fatturazione", direction: "higher", weight: 32, label: "Correzione bollette", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} corregge più spesso le bollette entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Tempo medio rettifica fatturazione", direction: "lower", weight: 30, label: "Correzione bollette", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} corregge le bollette più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Risposte informazioni entro 30 giorni", direction: "higher", weight: 20, label: "Richieste di informazioni", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} risponde entro 30 giorni più spesso (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Rispetto standard rettifica doppia fatturazione", direction: "higher", weight: 10, label: "Doppia fatturazione", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} ha più rettifiche di doppia fatturazione entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+    { indicator: "Tempo medio rettifica doppia fatturazione", direction: "lower", weight: 8, label: "Doppia fatturazione", copy: (winner, a, b, sector, providerA) => `${sector}: ${winner.name} corregge più rapidamente le doppie fatturazioni (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` }
+  ];
+
   function serviceComparisonItems(providerA, providerB) {
-    const specs = [
-      { indicator: "Rispetto standard risposta reclami", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} rispetta più spesso i tempi dei reclami (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio risposta reclami", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} risponde più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Rispetto standard rettifica fatturazione", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge più spesso le bollette entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio rettifica fatturazione", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge le bollette più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Rispetto standard rettifica doppia fatturazione", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} ha più rettifiche di doppia fatturazione entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio rettifica doppia fatturazione", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge più rapidamente le doppie fatturazioni (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` }
-    ];
     const items = [];
     ["luce", "gas", "general"].forEach((sectorKey) => {
       const sectorLabel = sectorKey === "luce" ? "Luce" : sectorKey === "gas" ? "Gas" : "Luce e gas";
-      specs.forEach((spec) => {
+      serviceSpecs.forEach((spec) => {
         const yearsA = metricsBySector(providerA, sectorKey).filter((m) => m.indicator === spec.indicator && m.comparable).map((m) => String(m.year));
         const yearsB = new Set(metricsBySector(providerB, sectorKey).filter((m) => m.indicator === spec.indicator && m.comparable).map((m) => String(m.year)));
         const commonYears = yearsA.filter((year) => yearsB.has(year)).sort((a, b) => b.localeCompare(a, "it", { numeric: true }));
@@ -467,7 +488,63 @@
         if (av === bv) return;
         const aWins = spec.direction === "higher" ? av > bv : av < bv;
         const winner = aWins ? providerA : providerB;
-        items.push({ priority: Math.abs(av - bv), text: spec.copy(winner, a, b, sectorLabel) });
+        items.push({ priority: spec.weight + Math.min(9, Math.abs(av - bv)), indicator: spec.indicator, exact: true, text: spec.copy(winner, a, b, sectorLabel, providerA) });
+      });
+    });
+    return items.sort((a, b) => b.priority - a.priority);
+  }
+
+  function comparableOfficial(provider, indicator) {
+    return officialMetrics(provider)
+      .filter((metric) => metric.indicator === indicator && metric.comparable && Number.isFinite(Number(metric.value)) && ["%", "giorni"].includes(String(metric.unit)))
+      .sort((a, b) => {
+        const year = Number(b.year || 0) - Number(a.year || 0);
+        if (year) return year;
+        const aDomestic = /domest/i.test(String(a.cluster || "")) && !/non domest/i.test(String(a.cluster || ""));
+        const bDomestic = /domest/i.test(String(b.cluster || "")) && !/non domest/i.test(String(b.cluster || ""));
+        return Number(bDomestic) - Number(aDomestic);
+      });
+  }
+
+  function bestReferencePair(providerA, providerB, spec) {
+    const aList = comparableOfficial(providerA, spec.indicator);
+    const bList = comparableOfficial(providerB, spec.indicator);
+    let best = null;
+    aList.forEach((a) => bList.forEach((b) => {
+      if (String(a.unit) !== String(b.unit)) return;
+      const aSector = bucket(a.cluster);
+      const bSector = bucket(b.cluster);
+      const sameSector = aSector === bSector;
+      const sameYear = String(a.year) === String(b.year);
+      if (sameSector && sameYear) return;
+      const aDomestic = /domest/i.test(String(a.cluster || "")) && !/non domest/i.test(String(a.cluster || ""));
+      const bDomestic = /domest/i.test(String(b.cluster || "")) && !/non domest/i.test(String(b.cluster || ""));
+      const score = (sameSector ? 20 : 0) + (sameYear ? 12 : 0) + (aDomestic && bDomestic ? 6 : 0) + Math.min(Number(a.year || 0), Number(b.year || 0)) / 1000;
+      if (!best || score > best.score) best = { a, b, score };
+    }));
+    return best;
+  }
+
+  function serviceReferenceItems(providerA, providerB, exactItems) {
+    const exactIndicators = new Set(exactItems.map((item) => item.indicator));
+    const items = [];
+    serviceSpecs.forEach((spec) => {
+      if (exactIndicators.has(spec.indicator)) return;
+      const pair = bestReferencePair(providerA, providerB, spec);
+      if (!pair) return;
+      const { a, b } = pair;
+      const aSector = bucket(a.cluster) === "luce" ? "luce" : bucket(a.cluster) === "gas" ? "gas" : "luce+gas";
+      const bSector = bucket(b.cluster) === "luce" ? "luce" : bucket(b.cluster) === "gas" ? "gas" : "luce+gas";
+      const av = Number(a.value);
+      const bv = Number(b.value);
+      const caveats = [];
+      if (String(a.year) !== String(b.year)) caveats.push("anni diversi");
+      if (aSector !== bSector) caveats.push("perimetro diverso");
+      items.push({
+        priority: spec.weight - 15,
+        indicator: spec.indicator,
+        exact: false,
+        text: `${spec.label}: ${providerA.name} ${metricValue(a)} (${aSector} ${a.year}) · ${providerB.name} ${metricValue(b)} (${bSector} ${b.year}). ${caveats.length ? `Confronto indicativo: ${caveats.join(" e ")}.` : ""}`.trim()
       });
     });
     return items.sort((a, b) => b.priority - a.priority);
@@ -518,10 +595,13 @@
       if (comparisonSummary) comparisonSummary.hidden = true;
       return;
     }
-    const items = [...reasonComparisonItems(providerA, providerB), ...serviceComparisonItems(providerA, providerB)];
+    const reasonItems = reasonComparisonItems(providerA, providerB);
+    const exactService = serviceComparisonItems(providerA, providerB);
+    const referenceService = serviceReferenceItems(providerA, providerB, exactService);
+    const items = [...reasonItems, ...exactService, ...referenceService];
     comparisonSummary.hidden = false;
     if (!items.length) {
-      comparisonSummaryBody.innerHTML = `<p class="comparison-lead">Dati insufficienti per un confronto diretto tra questi due fornitori.</p>`;
+      comparisonSummaryBody.innerHTML = `<p class="comparison-lead">I dati disponibili misurano aspetti diversi: nessun confronto numerico diretto.</p>`;
       return;
     }
     comparisonSummaryBody.innerHTML = `<ul>${items.slice(0, 3).map((item) => `<li>${escapeHtml(item.text)}</li>`).join("")}</ul>`;

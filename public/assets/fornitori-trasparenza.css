@@ -46,7 +46,7 @@ a{color:inherit}.skip-link{position:absolute;left:-999px;top:10px;z-index:1000;b
 }
 @media(prefers-reduced-motion:reduce){html{scroll-behavior:auto}}
 
-/* v0.10.40 — matrice unica: voci una volta sola, colonne Luce/Gas */
+/* v0.10.41 — matrice unica: voci una volta sola, colonne Luce/Gas */
 .provider-card:not(.is-active) .provider-card-body{display:none}
 .provider-card:not(.is-active){box-shadow:none}
 .provider-card:not(.is-active) .provider-select-wrap{border-bottom:0}
@@ -114,4 +114,19 @@ a{color:inherit}.skip-link{position:absolute;left:-999px;top:10px;z-index:1000;b
   .reason-matrix-row{grid-template-columns:minmax(104px,1.4fr) repeat(4,minmax(39px,.54fr)) 20px;gap:2px;padding:4px 3px;min-height:37px}
   .reason-matrix-label{font-size:.6rem}.reason-matrix-cell{font-size:.6rem}.reason-column-header{font-size:.48rem}.sector-group{font-size:.55rem}
   .info-button{width:20px;height:20px;min-width:20px}
+}
+
+/* v0.10.41: nome reale del fornitore nel benchmark ARERA */
+.reason-provider-head{
+  white-space:normal;
+  overflow-wrap:anywhere;
+  word-break:normal;
+  line-height:1.05;
+  text-align:center;
+  font-weight:800;
+}
+.reason-column-header{min-height:42px;align-items:center}
+@media (max-width:640px){
+  .reason-provider-head{font-size:.46rem;line-height:1.02}
+  .reason-column-header{min-height:44px}
 }
