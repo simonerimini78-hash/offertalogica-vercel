@@ -415,22 +415,22 @@
     @media(max-width:700px){body.simulator-has-result .history-status{font-size:11px!important;padding:9px 10px!important;margin-top:9px!important}}
     /* v0.10.24 — ritorno alle card e attivazione vincolata alla card simulata */
 
-    /* v0.10.43 — CTE nella testata offerta, righe delle due bollette nuovamente allineate */
-    .bill-head-action-slot{min-height:30px;margin-top:7px;display:flex;align-items:center}
-    .bill-paper.real .bill-head-action-slot{visibility:hidden}
-    .offer-document-button{
-      width:auto!important;height:28px!important;min-height:28px!important;margin:0!important;padding:4px 10px!important;
-      border:1px dashed #93c5fd!important;background:#eff6ff!important;color:#1d4ed8!important;border-radius:999px!important;
-      box-shadow:none!important;font:inherit!important;font-size:10.5px!important;font-weight:850!important;line-height:1!important;white-space:nowrap
-    }
+    /* v0.10.29 — CTE / scheda sintetica nel blocco della nuova offerta */
+    .bill-paper.simulated .bill-tools{height:auto!important;min-height:0!important;padding:10px 14px 12px!important}
+    .offer-document-row{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:6px;min-width:0}
+    .offer-document-button{width:100%!important;min-height:42px!important;border:1px dashed #93c5fd!important;background:#eff6ff!important;color:#1d4ed8!important;border-radius:11px!important;font-weight:850!important}
     .offer-document-button:hover,.offer-document-button:focus-visible{background:#dbeafe!important;border-color:#60a5fa!important}
-    .offer-document-button.is-loading{opacity:.72;cursor:progress}
-    .offer-document-button.is-ready{border-style:solid!important;border-color:#86efac!important;background:#f0fdf4!important;color:#166534!important}
-    .offer-document-button.is-error{border-style:solid!important;border-color:#fecaca!important;background:#fef2f2!important;color:#991b1b!important}
-    .offer-document-status{position:absolute!important;width:1px!important;height:1px!important;padding:0!important;margin:-1px!important;overflow:hidden!important;clip:rect(0,0,0,0)!important;clip-path:inset(50%)!important;white-space:nowrap!important;border:0!important}
+    .offer-document-status{display:none;padding:7px 9px;border:1px solid #dbe5ef;border-radius:9px;background:#f8fafc;color:#475569;font-size:11px;line-height:1.35;text-align:center}
+    .offer-document-status.is-visible{display:block}
+    .offer-document-status.is-loading{border-color:#bfdbfe;background:#eff6ff;color:#1e40af}
+    .offer-document-status.is-ready{border-color:#86efac;background:#f0fdf4;color:#166534}
+    .offer-document-status.is-error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
     @media(max-width:700px){
-      .bill-head-action-slot{min-height:26px;margin-top:5px}
-      .offer-document-button{height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9.8px!important}
+      .bill-paper.simulated .bill-tools{height:auto!important;min-height:0!important;padding:8px 10px 10px!important}
+      .bill-paper.simulated .offer-picker-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:auto auto!important}
+      .offer-document-row{grid-column:1/-1!important}
+      .offer-document-button{min-height:40px!important;font-size:11.5px!important;padding:7px 9px!important}
+      .offer-document-status{font-size:10.5px;padding:6px 8px}
     }
   </style>
 </head>
@@ -479,7 +479,7 @@
               <div class="bill-brand-row"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><span class="doc-label">Bolletta reale</span></div>
               <div class="bill-title-row"><h2 id="real-bill-title">La tua bolletta</h2><div class="upload-status" id="upload-status" role="status" aria-live="polite"></div></div>
               <p class="bill-subtitle">Dati letti dal PDF o dalla fotografia.</p>
-              <div class="bill-head-action-slot" aria-hidden="true"></div>
+              <span class="customer-badge" id="real-customer-badge">Utenza —</span>
             </header>
             <div class="bill-tools" aria-label="Inserisci la bolletta da confrontare">
               <button class="tool-button primary-blue" id="choose-pdf-button" type="button"><span class="tool-icon" aria-hidden="true">▤</span>Carica bolletta</button>
@@ -498,17 +498,18 @@
               <div class="bill-brand-row"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><span class="doc-label" id="virtual-doc-label">Bolletta simulata</span></div>
               <h2 id="virtual-bill-title">La stessa bolletta</h2>
               <p class="bill-subtitle" id="virtual-bill-subtitle">Stesso periodo e stessi consumi, con una nuova offerta.</p>
-              <div class="bill-head-action-slot">
-                <button class="tool-button offer-document-button" id="choose-offer-pdf-button" type="button" title="Carica CTE o scheda sintetica"><span class="tool-icon" aria-hidden="true">▤</span><span class="offer-document-label">CTE / scheda sintetica</span></button>
-                <input class="hidden-input" id="offer-pdf-input" type="file" accept="application/pdf,.pdf">
-                <div class="offer-document-status" id="offer-document-status" role="status" aria-live="polite"></div>
-              </div>
+              <span class="customer-badge" id="virtual-customer-badge">Utenza —</span>
             </header>
             <div class="bill-tools">
               <section class="offer-picker" id="offer-picker" aria-label="Scegli l'offerta da simulare">
                 <div class="offer-picker-grid">
                   <div class="field"><label for="provider-select">Fornitore</label><select id="provider-select" disabled title="Seleziona fornitore"><option value="">Fornitore</option></select></div>
                   <div class="field"><label for="offer-select">Offerta</label><select id="offer-select" disabled title="Seleziona offerta"><option value="">Offerta</option></select></div>
+                  <div class="offer-document-row">
+                    <button class="tool-button offer-document-button" id="choose-offer-pdf-button" type="button"><span class="tool-icon" aria-hidden="true">▤</span>Carica CTE / scheda sintetica</button>
+                    <input class="hidden-input" id="offer-pdf-input" type="file" accept="application/pdf,.pdf">
+                    <div class="offer-document-status" id="offer-document-status" role="status" aria-live="polite"></div>
+                  </div>
                 </div>
                 <p class="offer-selection-note" id="offer-selection-note" hidden>Dalle card l'offerta viene mantenuta automaticamente.</p>
               </section>
@@ -599,10 +600,7 @@
     const node=$("upload-status");if(!node)return;const full=String(message||"");let visible=full;if(mode==="loading")visible="Lettura in corso…";else if(mode==="ready"&&state.docs.length)visible=state.docs.length===1?"Bolletta letta":`${state.docs.length} bollette lette`;node.textContent=visible;node.title=full&&full!==visible?full:"";node.className="upload-status"+(visible?" is-visible":"")+(mode?` is-${mode}`:"");
   }
   function setOfferDocumentStatus(message,mode=""){
-    const node=$("offer-document-status"),button=$("choose-offer-pdf-button"),label=button?.querySelector(".offer-document-label"),text=String(message||"");
-    if(node){node.textContent=text;node.className="offer-document-status"+(mode?` is-${mode}`:"");}
-    if(!button)return;button.classList.remove("is-loading","is-ready","is-error");if(mode)button.classList.add(`is-${mode}`);button.disabled=mode==="loading";button.title=text||"Carica CTE o scheda sintetica";
-    if(label)label.textContent=mode==="loading"?"Lettura CTE…":mode==="ready"?"CTE caricata":mode==="error"?"Riprova CTE / scheda":"CTE / scheda sintetica";
+    const node=$("offer-document-status");if(!node)return;const text=String(message||"");node.textContent=text;node.className="offer-document-status"+(text?" is-visible":"")+(mode?` is-${mode}`:"");
   }
   function compactBill(input){
     if(!input||typeof input!=="object")return null;
@@ -989,7 +987,7 @@
   }
   function selectedVirtualIdentity(payload=null){const providerSelect=$("provider-select"),offerSelect=$("offer-select");return {provider:payload?.offer?.provider||state.selected?.provider||(providerSelect?.value?providerSelect.selectedOptions?.[0]?.textContent:"")||"—",offer:payload?.offer?.name||state.selected?.name||(offerSelect?.value?offerSelect.selectedOptions?.[0]?.textContent:"")||"—"};}
   function renderBillPanels(payload=null){
-    const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);
+    const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);$("real-customer-badge").textContent=facts.customer;$("virtual-customer-badge").textContent=facts.customer;
     $("real-bill-lines").innerHTML=billRowsHtml({facts,side:"real",payload,provider:facts.providers||"—",offer:currentOfferLabel()||"—"});
     $("virtual-bill-lines").innerHTML=billRowsHtml({facts,side:"virtual",payload,provider:virtual.provider,offer:virtual.offer});
     document.querySelector(".bill-paper.simulated")?.classList.toggle("is-more-expensive",moreExpensive);
@@ -1045,6 +1043,7 @@
   init().catch((error)=>setUploadStatus(error?.message||"Impossibile inizializzare il simulatore","error"));
 })();
 </script>
+<script src="/assets/ol-journey-tracking.js?v=0.10.43" defer></script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
 </html>

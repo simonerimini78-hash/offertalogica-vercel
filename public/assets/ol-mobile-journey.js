@@ -2,6 +2,14 @@
 (function () {
   'use strict';
 
+  if (!document.querySelector('script[data-ol-journey-tracking]')) {
+    var journeyScript = document.createElement('script');
+    journeyScript.src = '/assets/ol-journey-tracking.js?v=0.10.43';
+    journeyScript.defer = true;
+    journeyScript.setAttribute('data-ol-journey-tracking', '1');
+    document.head.appendChild(journeyScript);
+  }
+
   var BREAKPOINT = 700;
   var MENU_ID = 'ol-mobile-site-menu';
   var GENERIC_CTA_TEXTS = new Set([

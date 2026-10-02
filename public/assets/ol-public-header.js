@@ -1,5 +1,12 @@
 (() => {
   'use strict';
+  if (!document.querySelector('script[data-ol-journey-tracking]')) {
+    const journeyScript = document.createElement('script');
+    journeyScript.src = '/assets/ol-journey-tracking.js?v=0.10.43';
+    journeyScript.defer = true;
+    journeyScript.setAttribute('data-ol-journey-tracking', '1');
+    document.head.appendChild(journeyScript);
+  }
   const toggle = document.getElementById('ol-menu-toggle');
   const backdrop = document.getElementById('ol-menu-backdrop');
   const close = document.getElementById('ol-menu-close');

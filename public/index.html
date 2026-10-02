@@ -7189,6 +7189,12 @@ const ANALYTICS_USER_ACTION_EVENTS = new Set([
   "landing_assisted_click",
   "landing_free_app_click",
   "landing_premium_app_click",
+  "navigation_menu_opened",
+  "navigation_link_clicked",
+  "home_discovery_opened",
+  "home_discovery_clicked",
+  "site_action_clicked",
+  "cookie_consent_choice",
   "customer_segment_selected",
   "comparison_path_selected",
   "pdf_picker_opened",
@@ -7222,6 +7228,10 @@ const ANALYTICS_USER_ACTION_EVENTS = new Set([
   "assistance_prompt_closed",
   "assistance_switcho_redirect",
 ]);
+let ANALYTICS_ACTIVE_CLICK_TOKEN = 0;
+let ANALYTICS_CLICK_TOKEN_COUNTER = 0;
+const ANALYTICS_SEMANTIC_CLICK_TOKENS = new Set();
+
 const ANALYTICS_ENGAGEMENT_STATE = {
   initialized: false,
   startedAt: 0,
@@ -7283,8 +7293,9 @@ function analyticsEngagementPrepareEvent(eventType) {
   const state = ANALYTICS_ENGAGEMENT_STATE;
   if (!state.initialized || eventType === "session_engagement") return { snapshot: analyticsEngagementSnapshot(), nextStage: "" };
   analyticsEngagementTick();
-  if (ANALYTICS_USER_ACTION_EVENTS.has(eventType) && state.firstActionActiveMs == null) {
-    state.firstActionActiveMs = state.activeMs;
+  if (ANALYTICS_USER_ACTION_EVENTS.has(eventType)) {
+    if (ANALYTICS_ACTIVE_CLICK_TOKEN) ANALYTICS_SEMANTIC_CLICK_TOKENS.add(ANALYTICS_ACTIVE_CLICK_TOKEN);
+    if (state.firstActionActiveMs == null) state.firstActionActiveMs = state.activeMs;
   }
   if (eventType === "offers_rendered" && state.offersReachedActiveMs == null) {
     state.offersReachedActiveMs = state.activeMs;
@@ -7470,6 +7481,54 @@ function tracciaSceltaCookieIubenda(event) {
   trackEvent("cookie_consent_choice", { consentAction, consentSource, dataOrigin: "" });
 }
 
+function analyticsHomeActionPlacement(element) {
+  if (!element?.closest) return "home";
+  if (element.closest(".social-mobile-entry")) return "landing";
+  if (element.closest(".ol-landing-discovery")) return "landing_discovery";
+  if (element.closest("header")) return "header";
+  if (element.closest("footer")) return "footer";
+  if (element.closest("#results-area")) return "offerte";
+  if (element.closest("#business-panel")) return "business";
+  if (element.closest("nav")) return "navigazione";
+  const section = element.closest("section, article, main, aside");
+  return String(section?.id || section?.getAttribute?.("aria-label") || "home").trim().slice(0, 100) || "home";
+}
+
+function analyticsHomeActionItem(element) {
+  return String(
+    element?.dataset?.discoveryLink ||
+    element?.dataset?.olNav ||
+    element?.getAttribute?.("aria-label") ||
+    element?.id ||
+    element?.textContent ||
+    "azione"
+  ).replace(/\s+/g, " ").trim().slice(0, 160);
+}
+
+function tracciaAzioneHomeNonCoperta(event) {
+  const target = event?.target?.closest?.('a[href], button, summary, [role="button"]');
+  if (!target || target.disabled || target.getAttribute("aria-disabled") === "true") return;
+  const token = ++ANALYTICS_CLICK_TOKEN_COUNTER;
+  ANALYTICS_ACTIVE_CLICK_TOKEN = token;
+  queueMicrotask(() => {
+    const coveredBySemanticEvent = ANALYTICS_SEMANTIC_CLICK_TOKENS.has(token);
+    ANALYTICS_SEMANTIC_CLICK_TOKENS.delete(token);
+    if (!coveredBySemanticEvent) {
+      const isLink = target.matches?.("a[href]");
+      trackEvent("site_action_clicked", {
+        dataOrigin: "",
+        source: "home_action",
+        item: analyticsHomeActionItem(target),
+        destination: isLink ? String(target.getAttribute("href") || "").slice(0, 260) : "",
+        placement: analyticsHomeActionPlacement(target),
+        actionKind: isLink ? "link" : target.tagName === "SUMMARY" ? "summary" : target.tagName === "BUTTON" ? "button" : "action",
+      });
+    }
+    if (ANALYTICS_ACTIVE_CLICK_TOKEN === token) ANALYTICS_ACTIVE_CLICK_TOKEN = 0;
+  });
+}
+
+document.addEventListener("click", tracciaAzioneHomeNonCoperta, true);
 document.addEventListener("click", tracciaSceltaCookieIubenda, true);
 
 
