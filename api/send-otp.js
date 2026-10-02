@@ -49,6 +49,7 @@ export default async function handler(req, res) {
 
     const leadSource = String(lead.consents?.proof?.source || "").trim().toLowerCase();
     const useEmailOtp = leadSource === "offer_selection";
+    const verificationChannel = useEmailOtp ? "email" : "sms";
     const otpIdentifier = String(useEmailOtp ? lead.email : lead.phone || "").trim().toLowerCase();
     if (!otpIdentifier) {
       return json(res, 400, { ok: false, error: useEmailOtp ? "Email non disponibile" : "Telefono non disponibile" });
@@ -80,6 +81,7 @@ export default async function handler(req, res) {
       attempts: 0,
       expiresAt: otpExpiresAt(),
       createdAt: new Date().toISOString(),
+      channel: verificationChannel,
     };
 
     // Registriamo prima la richiesta per rendere effettivo il cooldown anche
@@ -123,6 +125,7 @@ export default async function handler(req, res) {
       ok: true,
       sent: sent.sent,
       provider: sent.provider,
+      channel: verificationChannel,
       ...(process.env.NODE_ENV !== "production" && sent.demoCode ? { demoCode: sent.demoCode } : {}),
     });
   } catch (error) {

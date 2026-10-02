@@ -30,7 +30,8 @@ export default async function handler(req, res) {
     // non chiediamo al provider OTP di approvare nuovamente lo stesso codice.
     // Questo è importante soprattutto con Twilio Verify, dove una verifica già
     // approvata può non essere riutilizzabile in un secondo VerificationCheck.
-    const otpIdentifier = otp.provider === "resend-email"
+    const verificationChannel = otp.channel === "email" || otp.provider === "resend-email" ? "email" : "sms";
+    const otpIdentifier = verificationChannel === "email"
       ? String(lead.email || "").trim().toLowerCase()
       : String(lead.phone || "").trim();
     let valid = lead.status === "verified" && Boolean(lead.verifiedAt);
@@ -49,6 +50,7 @@ export default async function handler(req, res) {
       ...lead,
       status: "verified",
       verifiedAt: lead.verifiedAt || new Date().toISOString(),
+      verificationChannel,
     };
     const notificationEvent = updatedLead.calculation?.requestType === "photovoltaic_consulting"
       ? "photovoltaic_consulting_request"
@@ -92,7 +94,7 @@ export default async function handler(req, res) {
 
     await del(`otp:${normalizedLeadId}`);
     setLeadSessionCookie(res, normalizedLeadId);
-    json(res, 200, { ok: true, status: "verified" });
+    json(res, 200, { ok: true, status: "verified", channel: verificationChannel });
   } catch (error) {
     const message = String(error?.message || "verify_otp_error");
     console.error("verify_otp_failed", {

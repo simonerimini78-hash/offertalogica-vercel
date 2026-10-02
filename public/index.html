@@ -13712,6 +13712,10 @@ function linkStaffSenzaTracking(link) {
   }
 }
 
+function leadVerificationChannel(source = LEAD_STATE.leadSource) {
+  return String(source || "").trim().toLowerCase() === "offer_selection" ? "email" : "sms";
+}
+
 window.apriLeadModal = function apriLeadModal(source = "manual") {
   const modal = document.getElementById("lead-modal-backdrop");
   const title = document.getElementById("lead-modal-title");
@@ -13815,7 +13819,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   modal.style.display = "flex";
   document.body.classList.add("lead-modal-visible");
   a11yApriDialog(modal, isOfferSelection ? "#lead-email" : "#lead-nome");
-  trackEvent("lead_modal_opened", { leadSource: source });
+  trackEvent("lead_modal_opened", { leadSource: source, verificationChannel: leadVerificationChannel(source) });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi “Invia il codice di verifica” e usa il codice 000000. Nessun dato viene salvato."
     : "");
@@ -13826,7 +13830,7 @@ function chiudiLeadModal() {
   if (modal) modal.style.display = "none";
   a11yChiudiDialog(modal);
   document.body.classList.remove("lead-modal-visible");
-  trackEvent("lead_modal_closed", { leadSource: LEAD_STATE.leadSource });
+  trackEvent("lead_modal_closed", { leadSource: LEAD_STATE.leadSource, verificationChannel: leadVerificationChannel() });
 }
 
 function leggiLeadForm() {
@@ -13900,6 +13904,7 @@ function completaLeadVerificato() {
   trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
   if (LEAD_STATE.leadSource === "offer_selection" && selectedOfferId && LEAD_STATE.selectedOffer?.link) {
     trackEvent("offer_verified_direct_redirect", {
+      verificationChannel: leadVerificationChannel(),
       offerId: LEAD_STATE.selectedOffer.id || "",
       offerName: LEAD_STATE.selectedOffer.name || "",
       provider: LEAD_STATE.selectedOffer.provider || "",
@@ -13943,9 +13948,11 @@ async function inviaOtp() {
   LEAD_STATE.partnerConsent = Boolean(consents.partners);
   const consentProof = creaProvaConsenso(consents);
   leadStatus("Creo il lead e invio il codice...");
+  const verificationChannel = leadVerificationChannel();
   trackEvent("otp_request_started", {
     leadSource: LEAD_STATE.leadSource,
     source: LEAD_STATE.leadSource,
+    verificationChannel,
   });
   try {
     const leadResponse = await fetch("/api/lead", {
@@ -14001,8 +14008,12 @@ async function inviaOtp() {
     mostraCampoOtp(true, true);
     if (sendBtn) sendBtn.style.display = "none";
     if (verifyBtn) verifyBtn.style.display = "inline-block";
+    const sentVerificationChannel = ["email", "sms"].includes(String(otpPayload.channel || "").toLowerCase())
+      ? String(otpPayload.channel).toLowerCase()
+      : verificationChannel;
     trackEvent("otp_sent", {
       leadSource: LEAD_STATE.leadSource,
+      verificationChannel: sentVerificationChannel,
       demoMode: Boolean(otpPayload.demoCode),
     });
     const telefonoDestinazione = document.getElementById("lead-telefono")?.value || "";
@@ -14022,6 +14033,7 @@ async function inviaOtp() {
       if (verifyBtn) verifyBtn.style.display = "none";
       trackEvent("otp_failed", {
         leadSource: LEAD_STATE.leadSource,
+        verificationChannel,
         reason: "service_unavailable",
       });
       leadStatus("Servizio OTP non disponibile in questo momento. Riprova tra poco.", true);
@@ -14034,6 +14046,7 @@ async function inviaOtp() {
     if (verifyBtn) verifyBtn.style.display = "inline-block";
     trackEvent("otp_failed_preview_fallback", {
       leadSource: LEAD_STATE.leadSource,
+      verificationChannel,
       reason: "local_preview_fallback",
     });
     leadStatus(`Anteprima locale senza API: usa il codice ${LEAD_STATE.otpPreviewCode}.`);
@@ -14041,9 +14054,10 @@ async function inviaOtp() {
 }
 
 async function verificaOtp() {
+  const verificationChannel = leadVerificationChannel();
   const otp = document.getElementById("lead-otp")?.value.trim();
   if (!otp || !LEAD_STATE.leadId) {
-    trackEvent("otp_verify_missing_code", { leadSource: LEAD_STATE.leadSource });
+    trackEvent("otp_verify_missing_code", { leadSource: LEAD_STATE.leadSource, verificationChannel });
     leadStatus("Inserisci il codice ricevuto.", true);
     return;
   }
@@ -14065,7 +14079,7 @@ async function verificaOtp() {
     return;
   }
   try {
-    trackEvent("otp_verify_started", { leadSource: LEAD_STATE.leadSource });
+    trackEvent("otp_verify_started", { leadSource: LEAD_STATE.leadSource, verificationChannel });
     const response = await fetch("/api/verify-otp", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -14073,8 +14087,11 @@ async function verificaOtp() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    leadStatus(LEAD_STATE.leadSource === "offer_selection" ? "Email verificata. Puoi continuare con l’offerta scelta." : "Numero verificato. Le offerte sono ora disponibili.");
-    trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
+    const verifiedChannel = ["email", "sms"].includes(String(payload.channel || "").toLowerCase())
+      ? String(payload.channel).toLowerCase()
+      : verificationChannel;
+    leadStatus(verifiedChannel === "email" ? "Email verificata. Puoi continuare con l’offerta scelta." : "Numero verificato. Le offerte sono ora disponibili.");
+    trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource, verificationChannel: verifiedChannel });
     if (typeof gtag === "function") {
       gtag("event", "conversion", {
         send_to: "AW-18424345732/BeGYCI-o4ewcEITptNFE",
@@ -14086,6 +14103,7 @@ async function verificaOtp() {
   } catch (error) {
     trackEvent("otp_verify_failed", {
       leadSource: LEAD_STATE.leadSource,
+      verificationChannel,
       reason: "invalid_or_expired_code",
     });
     leadStatus(error.message, true);
