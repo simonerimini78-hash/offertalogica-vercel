@@ -13898,6 +13898,17 @@ function completaLeadVerificato() {
   const selectedOfferId = String(LEAD_STATE.selectedOffer?.id || "");
   LEAD_STATE.verified = true;
   trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
+  if (LEAD_STATE.leadSource === "offer_selection" && selectedOfferId && LEAD_STATE.selectedOffer?.link) {
+    trackEvent("offer_verified_direct_redirect", {
+      offerId: LEAD_STATE.selectedOffer.id || "",
+      offerName: LEAD_STATE.selectedOffer.name || "",
+      provider: LEAD_STATE.selectedOffer.provider || "",
+      destinationType: LEAD_STATE.selectedOffer.destinationType || "",
+      destinationStatus: LEAD_STATE.selectedOffer.destinationStatus || "",
+    });
+    window.setTimeout(() => registraRichiestaOfferta({ skipActivationHelper: true }), 0);
+    return;
+  }
   if (LEAD_STATE.customerType === "business") {
     const result = document.getElementById("business-result");
     const copy = document.getElementById("business-copy");
@@ -14907,7 +14918,8 @@ function nascondiEsitiFincheNonConfronti() {
   if (sezioneOfferte) sezioneOfferte.style.display = "none";
 }
 
-async function registraRichiestaOfferta() {
+async function registraRichiestaOfferta(options = {}) {
+  const { skipActivationHelper = false } = options;
   const offer = LEAD_STATE.selectedOffer;
   if (!offer?.link) {
     trackEvent("offer_request_missing_link", {
@@ -14939,7 +14951,7 @@ async function registraRichiestaOfferta() {
     const safeLink = linkStaffSenzaTracking(offer.link);
     if (offertaConRedirectAttivo(offer) && safeLink && safeLink !== "#") {
       offerConsentStatus("Apro la pagina dell'offerta scelta.");
-      if (apriAssistentePrimaDelRedirect(safeLink, offer, "staff_redirect")) return;
+      if (!skipActivationHelper && apriAssistentePrimaDelRedirect(safeLink, offer, "staff_redirect")) return;
       window.location.href = safeLink;
     } else {
       offerConsentStatus("Richiesta registrata. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.");
@@ -14982,7 +14994,7 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
-      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
+      if (!skipActivationHelper && apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }
