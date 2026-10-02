@@ -20,6 +20,7 @@
   let infoCounter = 0;
 
   const ARERA_SOURCE = "https://www.arera.it/fileadmin/allegati/relaz_ann/25/VOLUME_1_definitivo.pdf";
+  const coreConcepts = ["complaint-response", "billing-correction", "double-billing"];
   const conceptOrder = ["complaint-response", "billing-correction", "double-billing", "information", "complaint-volume", "indemnities"];
   const conceptTitles = {
     "complaint-response": "Risposta ai reclami",
@@ -68,7 +69,7 @@
 
   function metricValue(metric) {
     if (!metric) return "—";
-    const base = formatNumber(metric.value);
+    const base = formatNumber(Number(metric.value));
     const unit = String(metric.unit || "").trim();
     if (unit === "%") return `${base}%`;
     if (unit === "euro") return `€ ${base}`;
@@ -125,8 +126,8 @@
       "Indennizzi reclami": ["Indennizzi reclami", `La fonte riporta ${value} di indennizzi nel perimetro indicato.`],
       "Reclami ricevuti da UNC": ["Reclami arrivati a UNC", `UNC registra ${value}. Non sono tutti i reclami ricevuti dal fornitore.`],
       "Casi risolti": ["Casi risolti con UNC", `UNC dichiara ${value} tra i casi lavorati sulla propria piattaforma.`],
-      "Punteggio Reclama Facile": ["Valutazione Reclama Facile", `È un indicatore di Altroconsumo, non un voto OffertaLogica: ${value}.`],
-      "Tempo risposta azienda": ["Risposta su Altroconsumo", `Altroconsumo indica ${value}. Non coincide con il tempo medio regolatorio TIQV.`]
+      "Punteggio risoluzione problemi": ["Indicatore Altroconsumo", `Indicatore pubblicato da Altroconsumo sulla propria piattaforma.`],
+      "Tempo medio risposta": ["Tempo medio risposta", `Tempo medio indicato dalla fonte: ${value}.`]
     };
     const copy = copies[indicator] || [indicator || "Dato", metric?.note || "Dato pubblicato nella fonte indicata."];
     return { title: copy[0], explain: copy[1], caution: indicator === "Rispetto standard rettifica doppia fatturazione" && Number(metric?.value) === 0 };
@@ -162,14 +163,6 @@
     return officialMetrics(provider).filter((metric) => bucket(metric.cluster) === sector);
   }
 
-  function pairConcepts(providerA, providerB, sector) {
-    const concepts = new Set();
-    [providerA, providerB].filter(Boolean).forEach((provider) => {
-      metricsBySector(provider, sector).forEach((metric) => concepts.add(metricConcept(metric)));
-    });
-    return [...concepts].sort(conceptSort);
-  }
-
   function pickMetrics(provider, sector, concept) {
     if (!provider) return [];
     return metricsBySector(provider, sector)
@@ -177,10 +170,23 @@
       .sort((a, b) => String(b.year).localeCompare(String(a.year), "it", { numeric: true }));
   }
 
-  function conceptTitle(concept, referenceMetrics = []) {
+  function tableConcepts(provider, otherProvider) {
+    const concepts = new Set(coreConcepts);
+    [provider, otherProvider].filter(Boolean).forEach((item) => {
+      ["luce", "gas", "general"].forEach((sector) => metricsBySector(item, sector).forEach((metric) => concepts.add(metricConcept(metric))));
+    });
+    return [...concepts].filter((concept) => concept !== "other").sort(conceptSort);
+  }
+
+  function conceptTitle(concept, providersToCheck = []) {
     if (conceptTitles[concept]) return conceptTitles[concept];
-    const first = referenceMetrics[0];
-    return first ? metricCopy(first).title : concept.replace(/^other:/, "");
+    for (const provider of providersToCheck) {
+      for (const sector of ["luce", "gas", "general"]) {
+        const first = pickMetrics(provider, sector, concept)[0];
+        if (first) return metricCopy(first).title;
+      }
+    }
+    return concept.replace(/^other:/, "");
   }
 
   function initials(name) {
@@ -190,6 +196,10 @@
   function registerMetricInfo(metrics, provider, title) {
     const list = Array.isArray(metrics) ? metrics : [metrics];
     const id = `metric-${++infoCounter}`;
+    if (!list.length) {
+      infoPayloads.set(id, { title, html: `<p>Dato non disponibile nel dataset verificato per ${escapeHtml(provider.name)}.</p>` });
+      return id;
+    }
     const rows = list.map((metric) => {
       const copy = metricCopy(metric);
       return `<p><strong>${escapeHtml(copy.title)}:</strong> ${metricValue(metric)}<br>${escapeHtml(copy.explain)}</p>
@@ -250,35 +260,32 @@
     }) || null;
   }
 
-  function hasProviderReasonData(provider, sector) {
-    return providerReasonEntries(provider).some((entry) => complaintReasonSector(entry) === sector && String(entry?.unit || "%").trim() === "%" && Number.isFinite(Number(entry?.value)));
+  function reasonForSector(sector, referenceReason) {
+    const key = complaintReasonKey(referenceReason.technical || referenceReason.label);
+    return marketReasons[sector].find((reason) => complaintReasonKey(reason.technical || reason.label) === key) || null;
   }
 
-  function registerMarketInfo(reason, sector, provider, providerEntry) {
-    const id = `market-${++infoCounter}`;
-    const sectorLabel = sector === "luce" ? "luce" : "gas";
-    const specific = providerEntry
-      ? `<span><strong>${escapeHtml(provider.name)}:</strong> ${formatNumber(Number(providerEntry.value))}% dei suoi reclami · anno ${escapeHtml(providerEntry.year || "non indicato")}</span>`
-      : `<span><strong>${escapeHtml(provider.name)}:</strong> dettaglio specifico non disponibile nel dataset verificato</span>`;
-    let comparison = "";
-    if (providerEntry && String(providerEntry.year) === "2024") {
-      const diff = Number(providerEntry.value) - Number(reason.value);
-      const abs = Math.abs(diff);
-      const position = abs < 0.005 ? "in linea con" : diff < 0 ? "inferiore a" : "superiore a";
-      comparison = `<span><strong>Lettura:</strong> la quota di questo motivo tra i reclami del fornitore è ${position} quella del mercato${abs >= 0.005 ? ` di ${formatNumber(abs)} punti percentuali` : ""}.</span>`;
-    } else if (providerEntry) {
-      comparison = `<span><strong>Lettura:</strong> il dato del fornitore e il benchmark ARERA si riferiscono ad anni diversi, quindi non li trattiamo come confronto diretto.</span>`;
-    }
+  function registerReasonInfo(referenceReason, provider) {
+    const luceReason = reasonForSector("luce", referenceReason);
+    const gasReason = reasonForSector("gas", referenceReason);
+    const providerLuce = luceReason ? providerReason(provider, luceReason, "luce") : null;
+    const providerGas = gasReason ? providerReason(provider, gasReason, "gas") : null;
+    const id = `reason-${++infoCounter}`;
+    const providerRows = [
+      providerLuce ? `<span><strong>${escapeHtml(provider.name)} luce:</strong> ${formatNumber(Number(providerLuce.value))}% · ${escapeHtml(providerLuce.year || "anno n.d.")}</span>` : `<span><strong>${escapeHtml(provider.name)} luce:</strong> dato specifico non disponibile</span>`,
+      providerGas ? `<span><strong>${escapeHtml(provider.name)} gas:</strong> ${formatNumber(Number(providerGas.value))}% · ${escapeHtml(providerGas.year || "anno n.d.")}</span>` : `<span><strong>${escapeHtml(provider.name)} gas:</strong> dato specifico non disponibile</span>`
+    ].join("");
     infoPayloads.set(id, {
-      title: reason.label,
-      html: `<p>${escapeHtml(reason.explain)}</p>
+      title: referenceReason.label,
+      html: `<p>${escapeHtml(referenceReason.explain)}</p>
         <div class="info-dialog-meta">
-          ${specific}
-          <span><strong>Mercato ARERA:</strong> ${formatNumber(reason.value)}% dei reclami · 2024 · settore ${sectorLabel}</span>
-          ${comparison}
-          <span><strong>Categoria tecnica ARERA:</strong> ${escapeHtml(reason.technical)}</span>
+          <span><strong>Mercato ARERA 2024 luce:</strong> ${luceReason ? `${formatNumber(luceReason.value)}%` : "n.d."}</span>
+          <span><strong>Mercato ARERA 2024 gas:</strong> ${gasReason ? `${formatNumber(gasReason.value)}%` : "n.d."}</span>
+          ${providerRows}
+          <span><strong>Categoria tecnica ARERA:</strong> ${escapeHtml(referenceReason.technical)}</span>
           <span><strong>Come leggerlo:</strong> è la quota di questo motivo sul totale dei reclami, non la percentuale di clienti o fatture con un problema.</span>
-          ${providerEntry?.sourceUrl ? `<a href="${escapeHtml(providerEntry.sourceUrl)}" target="_blank" rel="noopener noreferrer">Apri la fonte del fornitore</a>` : ""}
+          ${providerLuce?.sourceUrl ? `<a href="${escapeHtml(providerLuce.sourceUrl)}" target="_blank" rel="noopener noreferrer">Fonte fornitore luce</a>` : ""}
+          ${providerGas?.sourceUrl ? `<a href="${escapeHtml(providerGas.sourceUrl)}" target="_blank" rel="noopener noreferrer">Fonte fornitore gas</a>` : ""}
           <a href="${ARERA_SOURCE}" target="_blank" rel="noopener noreferrer">Apri la fonte ARERA</a>
         </div>`
     });
@@ -325,55 +332,70 @@
     return metrics.map((metric) => `${metricCopy(metric).title}: ${metricValue(metric)}`).join(" · ");
   }
 
-  function renderOfficialRows(provider, otherProvider, sector) {
-    const concepts = pairConcepts(provider, otherProvider, sector);
-    if (!concepts.length) {
-      return `<div class="metric-row is-missing"><span class="metric-row-label">Dati ufficiali</span><span class="metric-row-value"><strong>—</strong><small>non disponibili</small></span><span aria-hidden="true"></span></div>`;
-    }
-    return concepts.map((concept) => {
-      const own = pickMetrics(provider, sector, concept);
-      const reference = own.length ? own : pickMetrics(otherProvider, sector, concept);
-      const title = conceptTitle(concept, reference);
-      if (!own.length) {
-        return `<div class="metric-row is-missing"><span class="metric-row-label">${escapeHtml(title)}</span><span class="metric-row-value"><strong>—</strong><small>non disponibile</small></span><span aria-hidden="true"></span></div>`;
-      }
-      const infoId = registerMetricInfo(own, provider, title);
-      const values = own.map((metric) => metricValue(metric)).join(" · ");
-      const years = [...new Set(own.map((metric) => String(metric.year)))];
-      const caution = own.some((metric) => metricCopy(metric).caution);
-      return `<div class="metric-row${caution ? " is-caution" : ""}"><span class="metric-row-label">${escapeHtml(title)}</span><span class="metric-row-value"><strong>${values}</strong><small>${escapeHtml(years.join("/"))}</small></span><button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(title)}">i</button></div>`;
-    }).join("");
+  function cellContent(metrics) {
+    if (!metrics.length) return `<span class="matrix-value is-missing">—</span>`;
+    const latestYear = String(metrics[0].year);
+    const latest = metrics.filter((metric) => String(metric.year) === latestYear);
+    return latest.map((metric) => `<span class="matrix-value${metricCopy(metric).caution ? " is-caution" : ""}">${metricValue(metric)}</span>`).join(`<span class="matrix-separator">·</span>`);
   }
 
-  function renderMarketReasons(provider, sector) {
-    const comparisonMode = hasProviderReasonData(provider, sector);
-    return marketReasons[sector].map((reason) => {
-      const specific = providerReason(provider, reason, sector);
-      const infoId = registerMarketInfo(reason, sector, provider, specific);
-      if (!comparisonMode) {
-        return `<div class="reason-row"><span>${escapeHtml(reason.label)}</span><span class="reason-row-value benchmark-only"><strong>${formatNumber(reason.value)}%</strong><small>mercato ARERA</small></span><button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(reason.label)}">i</button></div>`;
+  function renderManagementTable(provider, otherProvider) {
+    const concepts = tableConcepts(provider, otherProvider);
+    const rows = concepts.map((concept) => {
+      const title = conceptTitle(concept, [provider, otherProvider].filter(Boolean));
+      const luce = pickMetrics(provider, "luce", concept);
+      const gas = pickMetrics(provider, "gas", concept);
+      const general = pickMetrics(provider, "general", concept);
+      const all = [...luce, ...gas, ...general];
+      const infoId = registerMetricInfo(all, provider, title);
+      if (!luce.length && !gas.length && general.length) {
+        return `<div class="matrix-row matrix-data-row" role="row">
+          <span class="matrix-label" role="rowheader">${escapeHtml(title)}</span>
+          <span class="matrix-combined" role="cell">${cellContent(general)} <small>Luce + Gas</small></span>
+          <button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(title)}">i</button>
+        </div>`;
       }
-      const mainValue = specific ? `${formatNumber(Number(specific.value))}%` : "n.d.";
-      const year = specific?.year ? ` · ${escapeHtml(specific.year)}` : "";
-      return `<div class="reason-row"><span>${escapeHtml(reason.label)}</span><span class="reason-row-value${specific ? "" : " is-missing"}"><strong>${mainValue}</strong><small>fornitore${year}</small><em>ARERA ${formatNumber(reason.value)}%</em></span><button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(reason.label)}">i</button></div>`;
+      return `<div class="matrix-row matrix-data-row" role="row">
+        <span class="matrix-label" role="rowheader">${escapeHtml(title)}</span>
+        <span class="matrix-cell" role="cell">${cellContent(luce)}</span>
+        <span class="matrix-cell" role="cell">${cellContent(gas)}</span>
+        <button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(title)}">i</button>
+      </div>`;
     }).join("");
-  }
 
-  function renderSector(provider, otherProvider, sector, label) {
-    const hasReasons = hasProviderReasonData(provider, sector);
-    return `<section class="sector-box">
-      <div class="sector-head"><strong>${escapeHtml(label)}</strong></div>
-      <div class="data-subhead">Gestione reclami</div>
-      <div class="metric-rows">${renderOfficialRows(provider, otherProvider, sector)}</div>
-      <div class="data-subhead data-subhead-reasons"><span>Motivi dei reclami</span><small>${hasReasons ? "fornitore vs mercato ARERA 2024" : "mercato ARERA 2024 · dato fornitore n.d."}</small></div>
-      <div class="reason-rows">${renderMarketReasons(provider, sector)}</div>
+    return `<section class="provider-data-section" aria-label="Gestione reclami">
+      <div class="provider-section-title"><strong>Gestione reclami</strong><span>Dati ufficiali del fornitore</span></div>
+      <div class="metric-matrix" role="table" aria-label="Dati luce e gas di ${escapeHtml(provider.name)}">
+        <div class="matrix-row matrix-header" role="row"><span role="columnheader">Voce</span><span role="columnheader">Luce</span><span role="columnheader">Gas</span><span aria-hidden="true"></span></div>
+        ${rows}
+      </div>
     </section>`;
   }
 
-  function renderGeneral(provider, otherProvider) {
-    const concepts = pairConcepts(provider, otherProvider, "general");
-    if (!concepts.length) return "";
-    return `<section class="general-data"><div class="data-subhead"><span>Dati complessivi luce e gas</span><small>quando la fonte non separa i settori</small></div><div class="metric-rows">${renderOfficialRows(provider, otherProvider, "general")}</div></section>`;
+  function renderReasonTable(provider) {
+    const rows = marketReasons.luce.map((referenceReason) => {
+      const gasReason = reasonForSector("gas", referenceReason);
+      const providerLuce = providerReason(provider, referenceReason, "luce");
+      const providerGas = gasReason ? providerReason(provider, gasReason, "gas") : null;
+      const infoId = registerReasonInfo(referenceReason, provider);
+      return `<div class="reason-matrix-row" role="row">
+        <span class="reason-matrix-label" role="rowheader">${escapeHtml(referenceReason.label)}</span>
+        <span class="reason-matrix-cell benchmark" role="cell">${formatNumber(referenceReason.value)}%</span>
+        <span class="reason-matrix-cell provider-value${providerLuce ? "" : " is-missing"}" role="cell">${providerLuce ? `${formatNumber(Number(providerLuce.value))}%` : "—"}</span>
+        <span class="reason-matrix-cell benchmark" role="cell">${gasReason ? `${formatNumber(gasReason.value)}%` : "—"}</span>
+        <span class="reason-matrix-cell provider-value${providerGas ? "" : " is-missing"}" role="cell">${providerGas ? `${formatNumber(Number(providerGas.value))}%` : "—"}</span>
+        <button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(referenceReason.label)}">i</button>
+      </div>`;
+    }).join("");
+
+    return `<section class="provider-data-section reason-section" aria-label="Motivi dei reclami">
+      <div class="provider-section-title"><strong>Motivi dei reclami</strong><span>Fornitore vs mercato ARERA 2024</span></div>
+      <div class="reason-matrix" role="table" aria-label="Motivi dei reclami: mercato ARERA e ${escapeHtml(provider.name)}">
+        <div class="reason-matrix-row reason-sector-header" role="row"><span class="reason-header-spacer"></span><span class="sector-group sector-luce" role="columnheader">Luce</span><span class="sector-group sector-gas" role="columnheader">Gas</span><span class="reason-info-spacer"></span></div>
+        <div class="reason-matrix-row reason-column-header" role="row"><span role="columnheader">Motivo</span><span role="columnheader">ARERA</span><span role="columnheader" aria-label="${escapeHtml(provider.name)} luce">Forn.</span><span role="columnheader">ARERA</span><span role="columnheader" aria-label="${escapeHtml(provider.name)} gas">Forn.</span><span aria-hidden="true"></span></div>
+        ${rows}
+      </div>
+    </section>`;
   }
 
   function renderObservers(provider) {
@@ -384,12 +406,18 @@
   }
 
   function renderCard(provider, otherProvider, body) {
+    const card = body?.closest(".provider-card");
     if (!provider) {
-      const isSecond = body === bodyB;
-      body.innerHTML = `<div class="provider-empty"><strong>${isSecond ? "Aggiungi un confronto" : "Scegli un fornitore"}</strong><span>${isSecond ? "Scegli un secondo fornitore per leggere gli stessi dati nello stesso ordine." : "Vedrai qui luce, gas, gestione dei reclami e motivi confrontati con il riferimento ARERA quando esiste un dato specifico del fornitore."}</span></div>`;
+      if (body) {
+        body.innerHTML = "";
+        body.hidden = true;
+      }
+      card?.classList.remove("is-active");
       return;
     }
 
+    body.hidden = false;
+    card?.classList.add("is-active");
     const officialYear = provider.coverage?.official?.year || "anno non disponibile";
     const status = provider.coverage?.official?.status || "NON VERIFICATA";
     const logo = provider.logo ? `<img src="${escapeHtml(provider.logo)}" alt="Logo ${escapeHtml(provider.name)}">` : `<span class="initials" aria-hidden="true">${escapeHtml(initials(provider.name))}</span>`;
@@ -399,11 +427,8 @@
         <div class="provider-logo">${logo}</div>
         <div class="provider-card-title"><h3>${escapeHtml(provider.name)}</h3><p>Dati ufficiali ${escapeHtml(officialYear)} · ${escapeHtml(status.toLowerCase().replaceAll("_", " "))}</p></div>
       </div>
-      <div class="provider-sectors provider-sectors-dual">
-        ${renderSector(provider, otherProvider, "luce", "Luce")}
-        ${renderSector(provider, otherProvider, "gas", "Gas")}
-      </div>
-      ${renderGeneral(provider, otherProvider)}
+      ${renderManagementTable(provider, otherProvider)}
+      ${renderReasonTable(provider)}
       <div class="observers-head"><strong>UNC / Altroconsumo</strong><span>Osservatori separati dai dati ufficiali</span></div>
       <div class="provider-observers">${renderObservers(provider)}</div>
       <div class="provider-actions">
@@ -416,14 +441,14 @@
     return metricsBySector(provider, sector).find((metric) => metric.indicator === indicator && String(metric.year) === String(year) && metric.comparable && Number.isFinite(Number(metric.value)));
   }
 
-  function comparisonItems(providerA, providerB) {
+  function serviceComparisonItems(providerA, providerB) {
     const specs = [
-      { indicator: "Rispetto standard risposta reclami", label: "Risposta ai reclami", direction: "higher", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} rispetta più spesso i tempi di risposta (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio risposta reclami", label: "Tempo medio di risposta", direction: "lower", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} risponde mediamente più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Rispetto standard rettifica fatturazione", label: "Correzione bollette", direction: "higher", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} conclude più spesso le correzioni della bolletta entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio rettifica fatturazione", label: "Tempo correzione bollette", direction: "lower", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} corregge mediamente le bollette più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Rispetto standard rettifica doppia fatturazione", label: "Doppia fatturazione", direction: "higher", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} mostra una quota maggiore di rettifiche di doppia fatturazione entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
-      { indicator: "Tempo medio rettifica doppia fatturazione", label: "Tempo doppia fatturazione", direction: "lower", copy: (winner, loser, a, b, sector) => `${sector}: ${winner.name} corregge mediamente più rapidamente i casi di doppia fatturazione (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` }
+      { indicator: "Rispetto standard risposta reclami", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} rispetta più spesso i tempi dei reclami (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+      { indicator: "Tempo medio risposta reclami", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} risponde più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+      { indicator: "Rispetto standard rettifica fatturazione", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge più spesso le bollette entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+      { indicator: "Tempo medio rettifica fatturazione", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge le bollette più rapidamente (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+      { indicator: "Rispetto standard rettifica doppia fatturazione", direction: "higher", copy: (winner, a, b, sector) => `${sector}: ${winner.name} ha più rettifiche di doppia fatturazione entro i tempi (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` },
+      { indicator: "Tempo medio rettifica doppia fatturazione", direction: "lower", copy: (winner, a, b, sector) => `${sector}: ${winner.name} corregge più rapidamente le doppie fatturazioni (${metricValue(winner === providerA ? a : b)} vs ${metricValue(winner === providerA ? b : a)}).` }
     ];
     const items = [];
     ["luce", "gas", "general"].forEach((sectorKey) => {
@@ -439,41 +464,53 @@
         if (!a || !b || String(a.unit) !== String(b.unit)) return;
         const av = Number(a.value);
         const bv = Number(b.value);
-        if (av === bv) {
-          items.push({ text: `${sectorLabel}: ${spec.label} uguale nei dati confrontabili (${metricValue(a)}, ${year}).`, year, tie: true });
-          return;
-        }
+        if (av === bv) return;
         const aWins = spec.direction === "higher" ? av > bv : av < bv;
         const winner = aWins ? providerA : providerB;
-        const loser = aWins ? providerB : providerA;
-        items.push({ text: spec.copy(winner, loser, a, b, sectorLabel), year, winner: winner.key });
+        items.push({ priority: Math.abs(av - bv), text: spec.copy(winner, a, b, sectorLabel) });
       });
     });
-    return items;
+    return items.sort((a, b) => b.priority - a.priority);
   }
 
   function reasonComparisonItems(providerA, providerB) {
-    const items = [];
+    const direct = [];
+    const benchmark = [];
     ["luce", "gas"].forEach((sector) => {
       const sectorLabel = sector === "luce" ? "Luce" : "Gas";
       marketReasons[sector].forEach((reason) => {
         const a = providerReason(providerA, reason, sector);
         const b = providerReason(providerB, reason, sector);
-        if (!a || !b || String(a.year) !== String(b.year)) return;
-        const av = Number(a.value);
-        const bv = Number(b.value);
-        if (!Number.isFinite(av) || !Number.isFinite(bv) || Math.abs(av - bv) < 0.005) return;
-        const lower = av < bv ? providerA : providerB;
-        const higher = av < bv ? providerB : providerA;
-        const lowValue = av < bv ? av : bv;
-        const highValue = av < bv ? bv : av;
-        items.push({
-          priority: Math.abs(av - bv),
-          text: `${sectorLabel} · ${reason.label}: questo motivo pesa meno tra i reclami di ${lower.name} (${formatNumber(lowValue)}%) rispetto a ${higher.name} (${formatNumber(highValue)}%); mercato ARERA 2024 ${formatNumber(reason.value)}%.`
+        const market = Number(reason.value);
+        if (a && b && String(a.year) === String(b.year)) {
+          const av = Number(a.value);
+          const bv = Number(b.value);
+          if (Number.isFinite(av) && Number.isFinite(bv) && Math.abs(av - bv) >= 0.005) {
+            const lower = av < bv ? providerA : providerB;
+            const low = av < bv ? av : bv;
+            const high = av < bv ? bv : av;
+            direct.push({
+              priority: Math.abs(av - bv),
+              text: `${reason.label} ${sectorLabel.toLowerCase()}: pesa meno nei reclami di ${lower.name} (${formatNumber(low)}% vs ${formatNumber(high)}%; mercato ARERA ${formatNumber(market)}%).`
+            });
+            return;
+          }
+        }
+        [
+          { provider: providerA, entry: a },
+          { provider: providerB, entry: b }
+        ].forEach(({ provider, entry }) => {
+          if (!entry || String(entry.year) !== "2024") return;
+          const value = Number(entry.value);
+          if (!Number.isFinite(value) || Math.abs(value - market) < 0.5) return;
+          benchmark.push({
+            priority: Math.abs(value - market),
+            text: `${reason.label} ${sectorLabel.toLowerCase()}: per ${provider.name} pesa ${value < market ? "meno" : "più"} del riferimento ARERA (${formatNumber(value)}% vs ${formatNumber(market)}%).`
+          });
         });
       });
     });
-    return items.sort((a, b) => b.priority - a.priority);
+    return [...direct.sort((a, b) => b.priority - a.priority), ...benchmark.sort((a, b) => b.priority - a.priority)];
   }
 
   function renderComparisonSummary(providerA, providerB) {
@@ -481,15 +518,13 @@
       if (comparisonSummary) comparisonSummary.hidden = true;
       return;
     }
-    const reasonItems = reasonComparisonItems(providerA, providerB);
-    const serviceItems = comparisonItems(providerA, providerB);
-    const items = [...reasonItems.map((item) => ({ text: item.text })), ...serviceItems];
+    const items = [...reasonComparisonItems(providerA, providerB), ...serviceComparisonItems(providerA, providerB)];
     comparisonSummary.hidden = false;
     if (!items.length) {
-      comparisonSummaryBody.innerHTML = `<p class="comparison-lead">Non ci sono ancora dati specifici abbastanza omogenei per confrontare direttamente questi due fornitori.</p><p class="comparison-note">Il riferimento ARERA sui motivi dei reclami resta visibile nelle schede, ma non viene attribuito al singolo fornitore.</p>`;
+      comparisonSummaryBody.innerHTML = `<p class="comparison-lead">Dati insufficienti per un confronto diretto tra questi due fornitori.</p>`;
       return;
     }
-    comparisonSummaryBody.innerHTML = `<ul>${items.slice(0, 4).map((item) => `<li>${escapeHtml(item.text)}</li>`).join("")}</ul><p class="comparison-note">Prima usiamo eventuali motivi di reclamo specifici e omogenei; poi i dati sulla gestione. Le percentuali dei motivi descrivono la composizione dei reclami, non la quota di clienti o fatture con problemi.</p>`;
+    comparisonSummaryBody.innerHTML = `<ul>${items.slice(0, 3).map((item) => `<li>${escapeHtml(item.text)}</li>`).join("")}</ul>`;
   }
 
   function renderBoth() {
@@ -500,12 +535,6 @@
     renderCard(providerA, providerB, bodyA);
     renderCard(providerB, providerA, bodyB);
     renderComparisonSummary(providerA, providerB);
-
-    const url = new URL(window.location.href);
-    if (providerA) url.searchParams.set("fornitore", providerA.key); else url.searchParams.delete("fornitore");
-    if (providerB) url.searchParams.set("confronta", providerB.key); else url.searchParams.delete("confronta");
-    const query = url.searchParams.toString();
-    history.replaceState(null, "", `${url.pathname}${query ? `?${query}` : ""}#scheda-fornitore`);
     const names = [providerA?.name, providerB?.name].filter(Boolean);
     live.textContent = names.length ? `Dati caricati: ${names.join(" e ")}.` : "Scegli un fornitore.";
   }
@@ -547,6 +576,7 @@
     if (selectA.value && selectA.value === selectB.value) selectB.value = "";
     renderBoth();
   });
+
   selectB?.addEventListener("change", () => {
     if (selectB.value && selectB.value === selectA.value) {
       live.textContent = "Scegli un fornitore diverso per il confronto.";
@@ -555,10 +585,12 @@
     renderBoth();
   });
 
-  const params = new URLSearchParams(window.location.search);
-  const requestedA = params.get("fornitore");
-  const requestedB = params.get("confronta");
-  if (requestedA && providers.has(requestedA)) selectA.value = requestedA;
-  if (requestedB && providers.has(requestedB) && requestedB !== requestedA) selectB.value = requestedB;
-  if (selectA.value || selectB.value) renderBoth();
+  // La pagina parte sempre pulita: nessun fornitore viene preselezionato dall'URL.
+  selectA.value = "";
+  selectB.value = "";
+  const cleanUrl = new URL(window.location.href);
+  cleanUrl.searchParams.delete("fornitore");
+  cleanUrl.searchParams.delete("confronta");
+  if (cleanUrl.href !== window.location.href) history.replaceState(null, "", `${cleanUrl.pathname}${cleanUrl.search}${cleanUrl.hash}`);
+  renderBoth();
 })();

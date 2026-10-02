@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
   <link rel="stylesheet" href="/assets/ol-public-header.css?v=0.10.31">
-  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.39">
+  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.40">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -241,7 +241,7 @@
       <div class="compare-tool-head">
         <span class="section-kicker">Trasparenza fornitori</span>
         <h2 id="compare-tool-title">Confronta assistenza e reclami senza perderti nei numeri</h2>
-        <p>Scegli uno o due fornitori. Ogni scheda raccoglie nello stesso blocco luce, gas, gestione e motivi dei reclami. Quando esiste un dato specifico del fornitore, lo affianchiamo al riferimento ARERA; dettagli, anno e fonte restano dietro la <strong>ⓘ</strong>.</p>
+        <p>Scegli uno o due fornitori. Le voci compaiono una sola volta: Luce e Gas sono colonne affiancate. Nei motivi dei reclami, il dato del fornitore viene mostrato accanto alla media di mercato ARERA. Dettagli, anno e fonte restano dietro la <strong>ⓘ</strong>.</p>
       </div>
 
       <div class="provider-compare-grid" aria-label="Confronto tra fornitori">
@@ -279,9 +279,7 @@
             <option value="vivi">Vivi Energia</option>
             </select>
           </div>
-          <div class="provider-card-body" id="provider-card-body-a">
-            <div class="provider-empty"><strong>Scegli un fornitore</strong><span>Vedrai qui tutti i dati disponibili su luce, gas e reclami.</span></div>
-          </div>
+          <div class="provider-card-body" id="provider-card-body-a" hidden></div>
         </article>
 
         <article class="provider-card" id="provider-card-b" aria-label="Fornitore da confrontare">
@@ -318,9 +316,7 @@
             <option value="vivi">Vivi Energia</option>
             </select>
           </div>
-          <div class="provider-card-body" id="provider-card-body-b">
-            <div class="provider-empty"><strong>Aggiungi un confronto</strong><span>Scegli un secondo fornitore per leggere gli stessi dati nello stesso ordine.</span></div>
-          </div>
+          <div class="provider-card-body" id="provider-card-body-b" hidden></div>
         </article>
       </div>
       <section class="comparison-summary" id="comparison-summary" aria-labelledby="comparison-summary-title" hidden>
@@ -410,8 +406,8 @@
   <nav aria-label="Link del sito"><a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><a href="/tutela-energia.html">Tutela energia</a><a href="/reclami-luce-gas.html">Reclami</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a></nav>
 </footer>
 
-<script src="/assets/provider-quality-data.js?v=0.10.39"></script>
-<script src="/assets/fornitori-trasparenza.js?v=0.10.39" defer></script>
+<script src="/assets/provider-quality-data.js?v=0.10.40"></script>
+<script src="/assets/fornitori-trasparenza.js?v=0.10.40" defer></script>
 <script src="/assets/ol-public-header.js?v=0.10.31" defer></script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
