@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.81";
+const VERSION = "0.12.82";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -3327,10 +3327,12 @@ function editorialSocialCopyQaSchema() {
 
 async function evaluateEditorialSocialCopy(article, item, target, targetContext, brief) {
   const related = String(item?.post_type || "") === "related";
+  const articleContent = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const text = [
     `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Titolo articolo: ${cleanEditorialText(article?.title, 160)}.`,
     `Sommario articolo: ${cleanEditorialText(article?.excerpt, 360)}.`,
+    articleContent ? `Contenuto articolo disponibile al revisore: ${articleContent}.` : "",
     target ? `Destinazione prevista: ${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}.` : "Nessuna destinazione diversa dall'articolo.",
     targetContext?.title ? `Titolo pagina destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
     targetContext?.h1 ? `H1 pagina destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
@@ -3724,14 +3726,16 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         }
         let brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
         let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        let copyRewriteAttempts = 0;
         if (copyQa.status !== "passed") {
           const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi con un angolo più concreto, naturale e specifico.";
           brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance);
           copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+          copyRewriteAttempts = 1;
         }
         brief = { ...brief, copy_qa: copyQa };
         const copyReady = copyQa.status === "passed";
-        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, status: copyReady ? "brief_ready" : "human_review_required", updated_at: new Date().toISOString() };
+        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, copy_rewrite_attempts: copyRewriteAttempts, status: copyReady ? "brief_ready" : "human_review_required", updated_at: new Date().toISOString() };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
         return {
@@ -3744,7 +3748,47 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         };
       }
 
-      if (asset.brief?.copy_qa && String(asset.brief.copy_qa.status || "") !== "passed") continue;
+      if (asset.brief?.copy_qa && String(asset.brief.copy_qa.status || "") !== "passed") {
+        // Un copy gia' bocciato non deve restare bloccato per sempre.
+        // Le versioni precedenti facevano un solo rewrite immediato e poi lasciavano
+        // l'asset in human_review_required a ogni heartbeat successivo.
+        // Prima rivalutiamo il copy con il contenuto completo dell'articolo; se serve,
+        // applichiamo ancora la rewrite_guidance, con un limite complessivo di 3 rewrite.
+        const targetContext = asset.target_context || await editorialSocialTargetContext(target);
+        let brief = { ...asset.brief };
+        let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        let copyRewriteAttempts = Number.isFinite(Number(asset.copy_rewrite_attempts))
+          ? Math.max(0, Number(asset.copy_rewrite_attempts))
+          : 1;
+        if (copyQa.status !== "passed" && copyRewriteAttempts < 3) {
+          const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi eliminando ogni affermazione non esplicitamente supportata dall'articolo.";
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance);
+          copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+          copyRewriteAttempts += 1;
+        }
+        brief = { ...brief, copy_qa: copyQa };
+        const copyReady = copyQa.status === "passed";
+        asset = {
+          ...asset,
+          schema_version: 2,
+          brief,
+          target_context: targetContext,
+          copy_rewrite_attempts: copyRewriteAttempts,
+          status: copyReady ? "brief_ready" : "human_review_required",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return {
+          action: copyReady ? "social_asset_copy_recovered" : "social_asset_copy_human_review_required",
+          opportunity_id: opportunity.id,
+          article_id: article.id,
+          social_plan_item_id: item.id,
+          post_type: item.post_type,
+          copy_qa: copyQa,
+          copy_rewrite_attempts: copyRewriteAttempts,
+        };
+      }
 
       if (!editorialSocialBriefHasCover(asset.brief)) {
         const targetContext = asset.target_context || await editorialSocialTargetContext(target);
