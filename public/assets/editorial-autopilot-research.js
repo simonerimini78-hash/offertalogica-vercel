@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.84";
+  const VERSION = "0.12.85";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1148,7 +1148,7 @@
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        ${row.post_type === "related" && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
+        ${["article_followup", "related"].includes(String(row.post_type || "")) && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
       </div>
     </details>`;
   }
