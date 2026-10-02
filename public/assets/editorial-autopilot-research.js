@@ -1,11 +1,15 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.57";
+  const VERSION = "0.12.87";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
+  const ANALYSIS_PAGE_SIZE = 10;
   let statusLoaded = false;
   let lastAnalysisPayload = null;
+  let analysisPage = 1;
+  let analysisSearchTerm = "";
+  let analysisScoreFilter = "all";
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
   let plannerDecision = null;
@@ -13,6 +17,7 @@
   let socialPlanItems = [];
   let socialChannels = [];
   let automationRuns = [];
+  let automationRunsExpanded = false;
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -58,135 +63,172 @@
   function cardMarkup() {
     return `
       <div class="ol-autopilot-card-heading">
-        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → nuovo articolo → social → controllo. L’Editoriale usa i dati del sito come contesto ma non modifica mai le pagine esistenti.</p></div>
+        <div><h3>Stato del ciclo editoriale</h3><p>La vista principale mostra solo ciò che serve per capire dove si trova il ciclo. Ricerca e strumenti di dettaglio restano disponibili nelle sezioni chiuse sotto.</p></div>
       </div>
 
       <div class="ol-autopilot-workflow">
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Idee e priorità</h4><p>Inserisci un tema manuale oppure verifica quale opportunità sceglierebbe oggi il planner.</p></div></div>
-          <div class="ol-autopilot-pair">
-            <div class="ol-autopilot-pane" data-manual-idea-editor>
-              <h5>Idea editoriale manuale</h5>
-              <div class="ol-autopilot-fields">
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-topic">Argomento</label>
-                  <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
-                </div>
-                <div class="ol-field">
-                  <label>Destinazione</label>
-                  <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
-                  <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-priority">Priorità</label>
-                  <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
-                    <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
-                    <option value="high">Alta · precede Search Console</option>
-                    <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
-                  </select>
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
-                  <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
-                </div>
-                <div class="ol-field">
-                  <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
-                  <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
-                </div>
-
-                <div class="ol-field ol-autopilot-field-wide">
-                  <label for="autopilot-manual-idea-notes">Note editoriali</label>
-                  <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
-                </div>
-              </div>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
-                <div class="ol-toolbar-group">
-                  <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
-                  <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
-                </div>
-              </div>
-            </div>
-
-            <div class="ol-autopilot-pane">
-              <h5>Anteprima priorità Autopilota</h5>
-              <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
-              </div>
-              <div class="ol-autopilot-archive-list" data-planner-result></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Dati Search Console</h4><p>Acquisizione e analisi restano strumenti di controllo. Lo scheduler usa gli stessi dati quando è configurato.</p></div></div>
+        <section class="ol-autopilot-stage ol-autopilot-stage-priority">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Controllo del ciclo</h4><p>Stato sintetico, post preparati e ultimi eventi dello scheduler.</p></div></div>
+          <div class="ol-cycle-overview" data-cycle-overview><strong>Caricamento stato ciclo…</strong></div>
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
-              <h5>Acquisizione</h5>
-              <div class="ol-autopilot-fields ol-autopilot-fields-compact">
-                <div class="ol-field">
-                  <label for="autopilot-search-console-period">Periodo stabile</label>
-                  <select id="autopilot-search-console-period" data-search-console-days>
-                    <option value="7">Ultimi 7 giorni</option>
-                    <option value="28" selected>Ultimi 28 giorni</option>
-                    <option value="90">Ultimi 90 giorni</option>
-                  </select>
-                  <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
-                </div>
-                <div class="ol-field">
-                  <label>Stato collegamento</label>
-                  <div class="ol-autopilot-archive-item" data-search-console-status>
-                    <strong>Verifica configurazione…</strong>
-                    <small>Controllo credenziali server e storico disponibile.</small>
-                  </div>
-                </div>
-              </div>
-              <div class="ol-field">
-                <label>Storico 7 / 28 / 90 giorni</label>
-                <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
-              </div>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
-              </div>
-            </div>
-
-            <div class="ol-autopilot-pane">
-              <h5>Analisi segnali</h5>
-              <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
-              <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
-                <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
-              </div>
-              <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
-            </div>
-          </div>
-        </section>
-
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Tutte le opportunità restano visibili in forma compatta. Se non intervieni decide l’Autopilota; puoi scegliere tu un tema diverso finché l’articolo non è stato avviato.</p></div></div>
-          <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
-          <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
-        </section>
-
-        <section class="ol-autopilot-stage">
-          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Controllo del ciclo</h4><p>Post preparati e registro tecnico restano affiancati per capire subito cosa è pronto e cosa ha fatto lo scheduler.</p></div></div>
-          <div class="ol-autopilot-pair">
-            <div class="ol-autopilot-pane">
-              <h5>Piano post statici</h5>
-              <p class="ol-muted">I due post collegati restano elementi separati del piano. In Automatico completo vengono distribuiti negli slot successivi sui canali abilitati; nelle altre modalità restano sotto controllo umano.</p>
+              <h5>Articoli monitorati</h5>
               <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
-              <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
             </div>
             <div class="ol-autopilot-pane">
               <h5>Ultimi cicli Autopilota</h5>
-              <p class="ol-muted">Registro tecnico dell’intero ciclo: ricerca, preparazione, pubblicazione articolo e social previsti dal calendario.</p>
-              <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+              <p class="ol-muted">Vista compatta. Apri una riga solo se vuoi leggere il dettaglio tecnico.</p>
+              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
+              <div class="ol-autopilot-toolbar ol-cycle-history-toolbar" data-automation-run-toolbar hidden>
+                <button class="ol-button ol-button-secondary ol-button-small" type="button" data-automation-run-toggle>Mostra storico</button>
+              </div>
             </div>
           </div>
         </section>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible">
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Idee e priorità</h4><p>Apri solo per inserire un tema manuale o verificare la scelta del planner.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <div class="ol-autopilot-pair">
+              <div class="ol-autopilot-pane" data-manual-idea-editor>
+                <h5>Idea editoriale manuale</h5>
+                <div class="ol-autopilot-fields">
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-topic">Argomento</label>
+                    <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
+                  </div>
+                  <div class="ol-field">
+                    <label>Destinazione</label>
+                    <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
+                    <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-priority">Priorità</label>
+                    <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
+                      <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
+                      <option value="high">Alta · precede Search Console</option>
+                      <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
+                    </select>
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
+                    <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
+                    <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
+                  </div>
+                  <div class="ol-field ol-autopilot-field-wide">
+                    <label for="autopilot-manual-idea-notes">Note editoriali</label>
+                    <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
+                  </div>
+                </div>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
+                    <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
+                  </div>
+                </div>
+              </div>
+
+              <div class="ol-autopilot-pane">
+                <h5>Anteprima priorità Autopilota</h5>
+                <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
+                </div>
+                <div class="ol-autopilot-archive-list" data-planner-result></div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible">
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Dati Search Console</h4><p>Acquisizione, graduatoria dei segnali e strumenti di controllo.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <div class="ol-autopilot-pair">
+              <div class="ol-autopilot-pane">
+                <h5>Acquisizione</h5>
+                <div class="ol-autopilot-fields ol-autopilot-fields-compact">
+                  <div class="ol-field">
+                    <label for="autopilot-search-console-period">Periodo stabile</label>
+                    <select id="autopilot-search-console-period" data-search-console-days>
+                      <option value="7">Ultimi 7 giorni</option>
+                      <option value="28" selected>Ultimi 28 giorni</option>
+                      <option value="90">Ultimi 90 giorni</option>
+                    </select>
+                    <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
+                  </div>
+                  <div class="ol-field">
+                    <label>Stato collegamento</label>
+                    <div class="ol-autopilot-archive-item" data-search-console-status>
+                      <strong>Verifica configurazione…</strong>
+                      <small>Controllo credenziali server e storico disponibile.</small>
+                    </div>
+                  </div>
+                </div>
+                <div class="ol-field">
+                  <label>Storico 7 / 28 / 90 giorni</label>
+                  <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
+                </div>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
+                </div>
+              </div>
+
+              <div class="ol-autopilot-pane">
+                <h5>Analisi segnali</h5>
+                <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
+                  <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
+                </div>
+                <div class="ol-autopilot-fields ol-autopilot-fields-compact" data-signal-controls hidden>
+                  <div class="ol-field ol-field-compact">
+                    <label for="autopilot-signal-search">Cerca nella graduatoria</label>
+                    <input id="autopilot-signal-search" data-signal-search type="search" placeholder="Argomento, query o pagina">
+                  </div>
+                  <div class="ol-field ol-field-compact">
+                    <label for="autopilot-signal-score-filter">Punteggio</label>
+                    <select id="autopilot-signal-score-filter" data-signal-score-filter>
+                      <option value="all">Tutti i segnali</option>
+                      <option value="40plus">40–100</option>
+                      <option value="30to39">30–39</option>
+                      <option value="under30">Sotto 30</option>
+                    </select>
+                  </div>
+                </div>
+                <div class="ol-autopilot-toolbar" data-signal-pagination-top hidden>
+                  <p class="ol-autopilot-save-state" data-signal-page-summary></p>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                  </div>
+                </div>
+                <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+                <div class="ol-autopilot-toolbar" data-signal-pagination-bottom hidden>
+                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
+                  <div class="ol-toolbar-group">
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-jump-opportunities>Vai alle opportunità ↓</button>
+                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </details>
+
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-opportunity-stage>
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Opportunità e preparazione contenuti</h4><p>Graduatoria delle opportunità e strumenti di generazione. Chiusa di default.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <div class="ol-autopilot-stage-body">
+            <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
+            <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
+          </div>
+        </details>
       </div>`;
   }
 
@@ -203,6 +245,17 @@
     host.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
+    section.querySelector("[data-signal-search]")?.addEventListener("input", (event) => {
+      analysisSearchTerm = String(event.currentTarget?.value || "").trim().toLocaleLowerCase("it");
+      analysisPage = 1;
+      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    });
+    section.querySelector("[data-signal-score-filter]")?.addEventListener("change", (event) => {
+      analysisScoreFilter = String(event.currentTarget?.value || "all");
+      analysisPage = 1;
+      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    });
+    section.addEventListener("click", handleAnalysisNavigation);
     section.addEventListener("click", handleOpportunityAction);
     statusLoaded = false;
     loadStatus(section);
@@ -665,10 +718,13 @@
 
   function platformChoicesMarkup(id, selected = [], attribute = "data-package-platform") {
     const selectedSet = new Set(Array.isArray(selected) ? selected : []);
+    const planOnly = attribute === "data-social-plan-platform";
+    const allowed = planOnly ? new Set(["facebook", "instagram"]) : new Set(["facebook", "instagram", "linkedin"]);
     const channels = (socialChannels.length ? socialChannels : [
       { platform: "facebook", display_name: "Facebook", enabled: false },
       { platform: "instagram", display_name: "Instagram", enabled: false },
-    ]).filter((channel) => ["facebook", "instagram"].includes(String(channel.platform || "")));
+      { platform: "linkedin", display_name: "LinkedIn", enabled: false },
+    ]).filter((channel) => allowed.has(String(channel.platform || "")));
     return channels.map((channel) => {
       const platform = String(channel.platform || "");
       const enabled = Boolean(channel.enabled);
@@ -766,9 +822,9 @@
         ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pacchetto editoriale pronto per il calendario.</small>`
         : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici. La pubblicazione resta governata dalla modalità Autopilota e dal calendario.</small>';
     return `<div class="ol-field" style="margin-top:8px">
-      <label>Canali per i post statici del pacchetto</label>
+      <label>Canali del ciclo editoriale</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
-      <small>Nessun canale è obbligatorio. I canali non collegati restano disabilitati.</small>
+      <small>Facebook e Instagram vengono usati per lancio articolo + due post statici. LinkedIn, se collegato, pubblica solo il lancio dell’articolo.</small>
       <div class="ol-toolbar-group" style="margin-top:8px">
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
@@ -781,35 +837,464 @@
     return ({ draft: "Bozza", approved: "Approvato", cancelled: "Annullato", scheduled: "Programmato", publishing: "Pubblicazione", published: "Pubblicato", failed: "Errore" })[status] || status || "—";
   }
 
-  function renderSocialPlan(section) {
-    const list = section?.querySelector("[data-social-plan-list]");
-    const message = section?.querySelector("[data-social-plan-message]");
-    if (!list || !message) return;
-    if (!socialPlanItems.length) {
-      list.innerHTML = '<p class="ol-muted">Nessun post statico preparato.</p>';
-      message.textContent = "Il piano verrà popolato insieme alle bozze articolo generate dall’Autopilota.";
-      return;
+  function automationRunOpportunityId(run) {
+    const details = run?.details || {};
+    return String(run?.opportunity_id || details.selected_opportunity_id || details.opportunity_id || "").trim();
+  }
+
+  function automationRunArticleId(run) {
+    return String(run?.article_id || run?.details?.article_id || "").trim();
+  }
+
+  function currentEditorialCycle() {
+    // Se esiste già un articolo realmente in lavorazione, quello è il ciclo corrente.
+    // La sola "ricerca più recente" può restare indietro di alcuni giorni rispetto
+    // alla bozza effettivamente avviata (es. ricerca venerdì, bozza martedì).
+    const activeRecord = articleHistoryRecords().find((record) => articleCompletionState(record).tone !== "success") || null;
+    if (activeRecord?.opportunityId && activeRecord?.articleId) {
+      const anchor = automationRuns.find((run) => {
+        return String(run?.run_type || "") === "research"
+          && automationRunOpportunityId(run) === activeRecord.opportunityId;
+      }) || activeRecord.runs?.[activeRecord.runs.length - 1] || null;
+      return {
+        opportunityId: activeRecord.opportunityId,
+        articleId: activeRecord.articleId,
+        article: activeRecord.article || null,
+        record: activeRecord,
+        anchor,
+      };
     }
-    list.innerHTML = socialPlanItems.map((row) => {
-      const id = String(row.id || "");
-      const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
-      const destination = row.destination_target
-        ? `${row.destination_target.label} · ${row.destination_target.url_path}`
-        : row.post_type === "article_followup" ? "Articolo collegato" : "—";
-      const statusOptions = [
-        ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
-      ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
-      return `<div class="ol-autopilot-archive-item" data-social-plan-item="${esc(id)}">
-        <strong>${esc(row.theme || row.post_type || "Post statico")} · ${esc(socialPlanStatusLabel(row.status))}</strong>
-        <small>${esc(row.post_type || "")} · destinazione: ${esc(destination)}</small>
-        ${row?.source_article_image?.featured_image_url ? `<small>Immagine articolo approvata disponibile per il futuro riuso nel post statico.</small>` : `<small>Immagine articolo non ancora approvata.</small>`}
+
+    // Fallback: prima che esista una bozza/articolo, il ciclo nasce dalla ricerca
+    // più recente che ha selezionato un'opportunità.
+    const anchor = automationRuns.find((run) => {
+      return String(run?.run_type || "") === "research" && Boolean(automationRunOpportunityId(run));
+    }) || null;
+    if (!anchor) return null;
+    const opportunityId = automationRunOpportunityId(anchor);
+    const articleRun = automationRuns.find((run) => automationRunOpportunityId(run) === opportunityId && automationRunArticleId(run)) || null;
+    return {
+      opportunityId,
+      articleId: automationRunArticleId(articleRun),
+      article: null,
+      record: null,
+      anchor,
+    };
+  }
+
+  function cycleRunState(runType, cycle) {
+    if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending", at: "" };
+    if (runType === "article_publish" && String(cycle?.record?.article?.status || "") === "published") {
+      return { label: "completato", tone: "success", at: cycle.record.article.published_at || cycle.record.article.updated_at || "" };
+    }
+    const run = automationRuns.find((row) => {
+      if (String(row?.run_type || "") !== runType) return false;
+      if (automationRunOpportunityId(row) !== cycle.opportunityId) return false;
+      if (cycle.articleId && runType !== "research") {
+        const rowArticleId = automationRunArticleId(row);
+        if (rowArticleId && rowArticleId !== cycle.articleId) return false;
+      }
+      return true;
+    }) || null;
+    if (!run) {
+      if (runType === "research" && cycle.opportunityId) {
+        const at = cycle.anchor?.finished_at || cycle.anchor?.started_at || cycle.anchor?.created_at || "";
+        return { label: "completato", tone: "success", at };
+      }
+      if (cycle.record) {
+        const fallback = articleStepState(cycle.record, runType);
+        if (fallback?.tone && fallback.tone !== "pending") return { ...fallback, at: "" };
+        if (runType === "article_prepare" && cycle.articleId) return { label: "completato", tone: "success", at: "" };
+      }
+      return { label: "da eseguire", tone: "pending", at: "" };
+    }
+    const at = run.finished_at || run.started_at || run.created_at || "";
+    const status = String(run.status || "");
+    if (status === "success") {
+      const stage = String(run?.details?.stage || "");
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending", at };
+      return { label: "completato", tone: "success", at };
+    }
+    if (status === "failed") return { label: "errore", tone: "failed", at };
+    if (status === "running") return { label: "in corso", tone: "running", at };
+    return { label: status || "da eseguire", tone: "pending", at };
+  }
+
+  function compactAutomationRuns(runs) {
+    const rows = Array.isArray(runs) ? runs : [];
+    const shouldHide = new Set();
+    const timeOf = (run) => {
+      const value = run?.started_at || run?.created_at || "";
+      const ms = Date.parse(value);
+      return Number.isFinite(ms) ? ms : null;
+    };
+
+    for (const run of rows) {
+      if (String(run?.run_type || "") !== "article_prepare") continue;
+      if (String(run?.details?.stage || "") !== "background_started") continue;
+      const opportunityId = automationRunOpportunityId(run);
+      const articleId = automationRunArticleId(run);
+      if (!opportunityId || !articleId) continue;
+      const startedAt = timeOf(run);
+      const continuation = rows.find((candidate) => {
+        if (candidate === run) return false;
+        if (String(candidate?.run_type || "") !== "article_prepare") return false;
+        if (String(candidate?.details?.stage || "") === "background_started") return false;
+        if (automationRunOpportunityId(candidate) !== opportunityId) return false;
+        if (automationRunArticleId(candidate) !== articleId) return false;
+        const candidateAt = timeOf(candidate);
+        if (startedAt === null || candidateAt === null) return true;
+        return candidateAt >= startedAt && candidateAt - startedAt <= 30 * 60 * 1000;
+      });
+      if (continuation) shouldHide.add(String(run.id || ""));
+    }
+
+    return rows.filter((run) => !shouldHide.has(String(run?.id || "")));
+  }
+
+  function articlePublicUrl(article) {
+    const slug = String(article?.slug || "").trim();
+    return slug ? `/articoli/${encodeURIComponent(slug)}.html` : "";
+  }
+
+  function articleHistoryRecords() {
+    const map = new Map();
+    const ensure = (key, patch = {}) => {
+      if (!key) return null;
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          articleId: "",
+          opportunityId: "",
+          article: null,
+          planItems: [],
+          runs: [],
+        });
+      }
+      const current = map.get(key);
+      const next = { ...current, ...patch };
+      if (patch.article) next.article = { ...(current.article || {}), ...patch.article };
+      map.set(key, next);
+      return next;
+    };
+
+    for (const row of socialPlanItems) {
+      const article = row?.source_article && typeof row.source_article === "object" ? row.source_article : null;
+      const articleId = String(row?.source_article_id || article?.id || "").trim();
+      const opportunityId = String(row?.opportunity_id || "").trim();
+      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
+      const record = ensure(key, { articleId, opportunityId, article });
+      if (record) record.planItems.push(row);
+    }
+
+    for (const run of automationRuns) {
+      const articleId = automationRunArticleId(run);
+      const opportunityId = automationRunOpportunityId(run);
+      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
+      const record = ensure(key, { articleId, opportunityId });
+      if (record) record.runs.push(run);
+    }
+
+    return [...map.values()].filter((record) => Boolean(record.articleId)).map((record) => {
+      const latestAt = [
+        ...(record.runs || []).map((run) => run?.started_at || run?.created_at || ""),
+        ...(record.planItems || []).map((row) => row?.updated_at || row?.created_at || ""),
+        record.article?.published_at || "",
+      ].filter(Boolean).sort().reverse()[0] || "";
+      return { ...record, latestAt };
+    }).sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
+  }
+
+  function articleRelatedPlanItem(record, postType) {
+    return (record?.planItems || []).find((row) => String(row?.post_type || "") === postType) || null;
+  }
+
+  function runStateLabelFromRun(run) {
+    if (!run) return null;
+    const status = String(run.status || "");
+    const stage = String(run?.details?.stage || "");
+    if (status === "success") {
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
+      return { label: "completato", tone: "success" };
+    }
+    if (status === "failed") return { label: "errore", tone: "failed" };
+    if (status === "running") return { label: "in corso", tone: "running" };
+    return { label: status || "da eseguire", tone: "pending" };
+  }
+
+  function articlePlanState(item) {
+    if (!item) return { label: "da eseguire", tone: "pending" };
+    const status = String(item.status || "draft");
+    if (status === "published") return { label: "completato", tone: "success" };
+    if (status === "failed") return { label: "errore", tone: "failed" };
+    if (["publishing", "scheduled"].includes(status)) return { label: "in corso", tone: "running" };
+    if (status === "cancelled") return { label: "annullato", tone: "pending" };
+    return { label: "da eseguire", tone: "pending" };
+  }
+
+  function articleStepState(record, runType) {
+    const run = (record?.runs || []).find((row) => String(row?.run_type || "") === runType) || null;
+    if (run) return runStateLabelFromRun(run);
+    if (runType === "article_publish" && String(record?.article?.status || "") === "published") return { label: "completato", tone: "success" };
+    if (runType === "article_prepare" && record?.articleId) return { label: "completato", tone: "success" };
+    if (runType === "social_followup") return articlePlanState(articleRelatedPlanItem(record, "article_followup"));
+    if (runType === "social_related") return articlePlanState(articleRelatedPlanItem(record, "related"));
+    return { label: "da eseguire", tone: "pending" };
+  }
+
+  function articleCompletionState(record) {
+    const steps = ["article_prepare", "article_publish", "social_followup", "social_related"].map((type) => articleStepState(record, type));
+    if (steps.some((step) => step.tone === "failed")) return { label: "Attenzione", tone: "failed" };
+    if (steps.every((step) => step.tone === "success")) return { label: "Completo", tone: "success" };
+    return { label: "In corso", tone: "pending" };
+  }
+
+  function articleOpportunity(record) {
+    const id = String(record?.opportunityId || "");
+    return opportunityRows.find((row) => String(row?.id || "") === id) || null;
+  }
+
+  function articleResearchMarkup(record) {
+    const opportunity = articleOpportunity(record);
+    if (!opportunity) return '<div class="ol-article-history-section"><strong>Ricerca selezionata</strong><small>Dati della selezione non disponibili nello storico caricato.</small></div>';
+    const queries = opportunityQueryExamples(opportunity);
+    const brief = opportunity?.editorial_brief && typeof opportunity.editorial_brief === "object" ? opportunity.editorial_brief : null;
+    return `<div class="ol-article-history-section">
+      <strong>Ricerca selezionata per questo articolo</strong>
+      <div class="ol-article-selected-topic"><b>${esc(opportunity.topic || "Tema non disponibile")}</b>${manualIdeaMeta(opportunity) ? '<span>Idea manuale</span>' : `<span>${Number(opportunity.score || 0)}/100</span>`}</div>
+      ${opportunity.rationale ? `<small><b>Perché è stata selezionata:</b> ${esc(opportunity.rationale)}</small>` : ""}
+      ${queries.length ? `<small><b>Query collegate:</b> ${esc(queries.join(" · "))}</small>` : ""}
+      ${brief?.search_intent ? `<small><b>Intento:</b> ${esc(brief.search_intent)}</small>` : ""}
+      ${brief?.article_angle ? `<small><b>Brief editoriale:</b> ${esc(brief.article_angle)}</small>` : ""}
+    </div>`;
+  }
+
+  function articleDraftMarkup(record) {
+    const article = record?.article || {};
+    if (!record?.articleId) return "";
+    const content = String(article.content || "").trim();
+    const sources = String(article.sources || "").trim();
+    return `<div class="ol-article-history-section">
+      <strong>Bozza / articolo</strong>
+      ${article.title ? `<small><b>Titolo:</b> ${esc(article.title)}</small>` : ""}
+      ${article.excerpt ? `<small><b>Sommario:</b> ${esc(article.excerpt)}</small>` : ""}
+      ${content ? `<details class="ol-article-text-details"><summary>Apri testo completo</summary><pre>${esc(content)}</pre></details>` : '<small>Testo della bozza non disponibile.</small>'}
+      ${sources ? `<details class="ol-article-text-details"><summary>Apri fonti</summary><pre>${esc(sources)}</pre></details>` : ""}
+    </div>`;
+  }
+
+  function articleTimelineMarkup(record) {
+    const steps = [
+      ["article_prepare", "Bozza articolo"],
+      ["article_publish", "Articolo pubblicato"],
+      ["social_followup", "Post di venerdì"],
+      ["social_related", "Post OffertaLogica"],
+    ].map(([type, title]) => ({ title, ...articleStepState(record, type) }));
+    return `<div class="ol-cycle-steps ol-cycle-steps-article">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
+  }
+
+  function planItemEditorMarkup(row) {
+    const id = String(row.id || "");
+    const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
+    const destination = row.destination_target
+      ? `${row.destination_target.label} · ${row.destination_target.url_path}`
+      : row.post_type === "article_followup" ? "Articolo collegato" : "—";
+    const statusOptions = [
+      ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
+    ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
+
+    const socialAsset = row.social_asset && typeof row.social_asset === "object" ? row.social_asset : null;
+    const articleTakeaway = String(socialAsset?.brief?.article_takeaway || "").trim();
+    const destinationSolution = String(socialAsset?.brief?.destination_solution || "").trim();
+    const copyQaReason = String(socialAsset?.brief?.copy_qa?.reason || "").trim();
+    const socialImageUrl = /^https:\/\//i.test(String(socialAsset?.image?.url || "")) ? String(socialAsset.image.url) : "";
+    const socialCardUrl = /^https:\/\//i.test(String(socialAsset?.card?.url || "")) ? String(socialAsset.card.url) : "";
+    const articleImageUrl = /^https:\/\//i.test(String(row.source_article?.featured_image_url || "")) ? String(row.source_article.featured_image_url) : "";
+    const imageQa = socialAsset?.image?.qa && typeof socialAsset.image.qa === "object" ? socialAsset.image.qa : null;
+    const imageQaStatus = String(imageQa?.status || "");
+    const imageState = imageQaStatus === "passed"
+      ? "Approvata"
+      : imageQaStatus === "failed"
+        ? "QA fallita"
+        : imageQaStatus === "human_review_required"
+          ? "Revisione richiesta"
+          : socialImageUrl ? "Da verificare" : "Non ancora generata";
+    const imageReason = String(imageQa?.reason || "").trim();
+    const imageSource = String(socialAsset?.image?.source || "");
+    const imageAttempt = Number(socialAsset?.image?.attempt || 0);
+    const canReview = !["publishing", "published"].includes(String(row.status || ""));
+    const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
+    const imageMarkup = (socialImageUrl || articleImageUrl) ? `
+      <div class="ol-autopilot-archive-item" style="margin-top:10px">
+        <strong>Immagine del post ${esc(row.post_type === "related" ? "OffertaLogica" : "follow-up")}</strong>
+        <small>Stato: ${esc(imageState)}${imageAttempt ? ` · tentativo ${imageAttempt}` : ""}${imageSource ? ` · sorgente ${esc(imageSource)}` : ""}</small>
+        ${imageReason ? `<small>${esc(imageReason)}</small>` : ""}
+        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: puoi usare direttamente quella dell’articolo.</small>'}
+        ${canReview ? `<div class="ol-toolbar-group" style="margin-top:8px">
+          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Approva questa immagine</button>` : ""}
+          ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
+        </div>` : ""}
+        ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details style="margin-top:8px"><summary>Confronta con immagine articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
+        ${socialCardUrl ? `<details style="margin-top:8px"><summary>Apri card OL Informa composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OL Informa" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
+      </div>` : "";
+
+    return `<details class="ol-cycle-row ol-cycle-row-nested" data-social-plan-item="${esc(id)}">
+      <summary class="ol-cycle-row-summary">
+        <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(destination)}</small></span>
+        <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
+      </summary>
+      <div class="ol-cycle-row-body">
+        <small>${esc(row.theme || "")}</small>
+        ${articleTakeaway ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Sintesi editoriale usata dal post</strong><small>${esc(articleTakeaway)}</small>${copyQaReason ? `<small><b>QA copy:</b> ${esc(copyQaReason)}</small>` : ""}</div>` : ""}
+        ${destinationSolution ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Funzione OffertaLogica usata nel post</strong><small>${esc(destinationSolution)}</small></div>` : ""}
+        ${imageMarkup}
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        <small>La pubblicazione non parte dal pulsante di questo pannello: in Automatico completo viene eseguita dallo scheduler nello slot previsto.</small>
-      </div>`;
+        ${["article_followup", "related"].includes(String(row.post_type || "")) && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
+      </div>
+    </details>`;
+  }
+
+  function pendingCarryoverRecord() {
+    const cycle = currentEditorialCycle();
+    return articleHistoryRecords().find((record) => {
+      if (!record?.articleId) return false;
+      if (cycle?.opportunityId && record.opportunityId === cycle.opportunityId) return false;
+      const relatedState = articleStepState(record, "social_related");
+      const publishState = articleStepState(record, "article_publish");
+      return publishState.tone === "success" && relatedState.tone !== "success";
+    }) || null;
+  }
+
+  function renderArticleHistory(section) {
+    const list = section?.querySelector("[data-social-plan-list]");
+    const message = section?.querySelector("[data-social-plan-message]");
+    if (!list || !message) return;
+    const records = articleHistoryRecords();
+    if (!records.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun articolo ancora monitorato.</p>';
+      message.textContent = "Lo storico si popolerà quando il primo articolo avrà una bozza o un post collegato.";
+      renderCycleOverview(section);
+      return;
+    }
+    list.innerHTML = records.map((record) => {
+      const article = record.article || {};
+      const summary = articleCompletionState(record);
+      const publicUrl = articlePublicUrl(article);
+      const detailLines = [];
+      const articlePublishRun = (record.runs || []).find((run) => String(run?.run_type || "") === "article_publish") || null;
+      if (articlePublishRun?.started_at) detailLines.push(`Pubblicazione ${dateIt(articlePublishRun.started_at)}`);
+      else if (article?.published_at) detailLines.push(`Pubblicazione ${dateIt(article.published_at)}`);
+      const followup = articleRelatedPlanItem(record, "article_followup");
+      const related = articleRelatedPlanItem(record, "related");
+      const carryover = articleStepState(record, "social_related").tone !== "success" && articleStepState(record, "article_publish").tone === "success";
+      return `<details class="ol-cycle-row ol-article-history-row" data-article-history="${esc(record.key)}">
+        <summary class="ol-cycle-row-summary">
+          <span><strong>${esc(article.title || followup?.theme || related?.theme || "Articolo del ciclo")}</strong><small>${esc(detailLines.join(" · ") || (record.opportunityId ? `Opportunità ${record.opportunityId}` : "Cronologia articolo"))}</small></span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(summary.tone)}">${esc(summary.label)}</span>
+        </summary>
+        <div class="ol-cycle-row-body">
+          ${articleTimelineMarkup(record)}
+          ${carryover ? `<div class="ol-cycle-carryover-note"><strong>Da chiudere:</strong> il Post OffertaLogica di questo articolo non risulta ancora completato.</div>` : ""}
+          ${articleResearchMarkup(record)}
+          ${articleDraftMarkup(record)}
+          ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
+          ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
+          ${compactAutomationRuns(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${compactAutomationRuns(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
+        </div>
+      </details>`;
     }).join("");
-    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. In Automatico completo i canali abilitati vengono gestiti dal calendario; negli altri modi restano sotto controllo umano.`;
+    message.textContent = `${numberIt(records.length)} articoli monitorati. Clicca una riga per vedere lo stato completo del ciclo di quell’articolo.`;
+    renderCycleOverview(section);
+  }
+
+  function schedulerActionLabel(action) {
+    return ({
+      idle: "nessuna azione eseguibile in questo tick",
+      disabled: "scheduler disattivato",
+      research_collect_7: "raccolta Search Console 7 giorni",
+      research_collect_28: "raccolta Search Console 28 giorni",
+      research_collect_90: "raccolta Search Console 90 giorni",
+      research_plan: "ricerca e scelta opportunità completate",
+      article_generation_started: "generazione bozza avviata",
+      article_generation_check: "controllo generazione bozza",
+      image_candidate_generated: "immagine articolo generata",
+      image_qa_passed: "QA immagine articolo superata",
+      article_intro_social_copy_generated: "testo social dell’articolo preparato",
+      article_intro_social_card_generated: "card social dell’articolo generata",
+      article_intro_social_ready: "asset social dell’articolo pronto",
+      social_asset_brief_generated: "brief del post social preparato",
+      social_asset_cover_text_generated: "testo della card preparato",
+      social_asset_image_generated: "immagine social generata",
+      social_asset_image_qa_passed: "QA immagine social superata",
+      social_asset_article_image_fallback_ready: "fallback sull’immagine articolo e card pronta",
+      social_asset_card_generated: "card OL Informa generata",
+      social_asset_ready: "asset social pronto",
+      article_publish_waiting_social_retry: "social iniziale in attesa tecnica: riprova automatica",
+      social_followup_waiting_social_retry: "follow-up in attesa tecnica: riprova automatica",
+      social_related_waiting_social_retry: "post OffertaLogica in attesa tecnica: riprova automatica",
+      social_regeneration_waiting: "rigenerazione social in attesa tecnica: riprova automatica",
+      article_published: "articolo pubblicato",
+      article_published_social_check_required: "articolo pubblicato, social da verificare",
+      social_regeneration_published: "rigenerazione social pubblicata",
+      waiting_social_assets: "in attesa degli asset social",
+      background_social_error: "errore social in background",
+      failed: "tick terminato con errore",
+    })[String(action || "")] || String(action || "nessuna azione registrata").replaceAll("_", " ");
+  }
+
+  function schedulerHeartbeatMarkup(cycle, steps) {
+    const opportunity = opportunityRows.find((row) => String(row?.id || "") === String(cycle?.opportunityId || "")) || null;
+    const heartbeat = opportunity?.evidence?.scheduler_heartbeat && typeof opportunity.evidence.scheduler_heartbeat === "object"
+      ? opportunity.evidence.scheduler_heartbeat
+      : null;
+    const currentStep = steps.find((step) => step.tone !== "success") || null;
+    const phase = currentStep ? currentStep.title : "Ciclo completo";
+    if (!heartbeat?.at) {
+      return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota</strong><small>Fase corrente: ${esc(phase)}. Il prossimo heartbeat registrerà qui l’orario effettivo e l’azione eseguita.</small></div>`;
+    }
+
+    const lastMs = Date.parse(heartbeat.at);
+    const nextMs = Number.isFinite(lastMs) ? lastMs + (15 * 60 * 1000) : NaN;
+    const now = Date.now();
+    const delayed = Number.isFinite(nextMs) && now > nextMs + (5 * 60 * 1000);
+    const state = heartbeat.ok === false ? "errore" : delayed ? "ritardo da verificare" : "attivo";
+    const nextText = Number.isFinite(nextMs) ? dateIt(new Date(nextMs).toISOString()) : "—";
+    const action = schedulerActionLabel(heartbeat.action);
+    const slot = heartbeat.slot_label ? ` · slot ${heartbeat.slot_label}` : "";
+    const errorText = heartbeat.error ? ` · errore: ${heartbeat.error}` : "";
+    return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota · ${esc(state)}</strong><small>Ultimo tick effettivo: ${esc(dateIt(heartbeat.at))} · prossimo previsto: ${esc(nextText)}</small><small>Fase corrente: ${esc(phase)} · ultimo esito: ${esc(action)}${esc(slot)}${esc(errorText)}</small></div>`;
+  }
+
+  function renderCycleOverview(section) {
+    const box = section?.querySelector("[data-cycle-overview]");
+    if (!box) return;
+    const cycle = currentEditorialCycle();
+    if (!cycle) {
+      box.innerHTML = '<strong>Ciclo articolo attuale</strong><p class="ol-muted">Nessun ciclo con opportunità selezionata è ancora registrato.</p>';
+      return;
+    }
+    const steps = [
+      ["research", "Ricerca"],
+      ["article_prepare", "Bozza articolo"],
+      ["article_publish", "Pubblicazione"],
+      ["social_followup", "Follow-up"],
+      ["social_related", "Post OffertaLogica"],
+    ].map(([type, title]) => ({ title, ...cycleRunState(type, cycle) }));
+    const startedAt = cycle.anchor?.started_at || cycle.anchor?.created_at || "";
+    const currentTitle = String(cycle.article?.title || "").trim();
+    const cycleNote = currentTitle
+      ? `Articolo corrente: ${currentTitle}${startedAt ? ` · ricerca del ${dateIt(startedAt)}` : ""}.`
+      : startedAt ? `Ricerca del ${dateIt(startedAt)}. La barra mostra esclusivamente l’avanzamento del nuovo articolo selezionato da questa ricerca.` : "";
+    const carryover = pendingCarryoverRecord();
+    const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
+    const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
+    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${cycleNote ? `<small class="ol-cycle-overview-note">${esc(cycleNote)}</small>` : ""}${schedulerHeartbeatMarkup(cycle, steps)}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
+  }
+
+  function renderSocialPlan(section) {
+    renderArticleHistory(section);
   }
 
   async function loadSocialPlan(section) {
@@ -825,14 +1310,28 @@
     }
   }
 
+  function automationRunTypeLabel(type) {
+    return ({ research: "Ricerca", article_prepare: "Bozza articolo", article_publish: "Pubblicazione articolo", social_followup: "Follow-up", social_related: "Post OffertaLogica" })[type] || type || "Ciclo";
+  }
+
+  function automationRunStatusLabel(status) {
+    return ({ success: "Completato", failed: "Errore", running: "In corso" })[status] || status || "—";
+  }
+
   function renderAutomationRuns(section) {
     const list = section?.querySelector("[data-automation-run-list]");
+    const toolbar = section?.querySelector("[data-automation-run-toolbar]");
+    const toggle = section?.querySelector("[data-automation-run-toggle]");
     if (!list) return;
     if (!automationRuns.length) {
       list.innerHTML = '<p class="ol-muted">Nessun ciclo registrato.</p>';
+      if (toolbar) toolbar.hidden = true;
+      renderCycleOverview(section);
       return;
     }
-    list.innerHTML = automationRuns.slice(0, 12).map((run) => {
+    const displayRuns = compactAutomationRuns(automationRuns);
+    const visibleRuns = automationRunsExpanded ? displayRuns : displayRuns.slice(0, 5);
+    list.innerHTML = visibleRuns.map((run) => {
       const details = run?.details || {};
       const diagnostic = [];
       if (details.stage) diagnostic.push(`fase ${details.stage}`);
@@ -842,14 +1341,23 @@
       if (details.selection_fallback_below_threshold) diagnostic.push("fallback sotto soglia");
       if (run.opportunity_id) diagnostic.push(`opportunità ${run.opportunity_id}`);
       if (run.article_id) diagnostic.push(`articolo ${run.article_id}`);
-      return `<div class="ol-autopilot-archive-item">
-        <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
-        <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
-        ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
-        ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
-        ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
-      </div>`;
+      const status = String(run.status || "unknown");
+      return `<details class="ol-cycle-row">
+        <summary class="ol-cycle-row-summary">
+          <span><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><small>${esc(dateIt(run.started_at || run.created_at))}</small></span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(status)}">${esc(automationRunStatusLabel(status))}</span>
+        </summary>
+        <div class="ol-cycle-row-body">
+          ${run.finished_at ? `<small>Fine ${esc(dateIt(run.finished_at))}</small>` : ""}
+          ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
+          ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
+          ${run.last_error ? `<small class="ol-cycle-error">Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
+        </div>
+      </details>`;
     }).join("");
+    if (toolbar) toolbar.hidden = displayRuns.length <= 5;
+    if (toggle) toggle.textContent = automationRunsExpanded ? "Mostra solo gli ultimi 5" : `Mostra storico (${displayRuns.length})`;
+    renderCycleOverview(section);
   }
 
   async function loadAutomationRuns(section) {
@@ -961,7 +1469,7 @@
     const targetArticleId = String(row.target_article_id || "");
     if (targetArticleId && (row.status !== "selected" || type !== "new_article")) {
       return `<div class="ol-toolbar-group" style="margin-top:8px">
-        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
+        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
       </div>`;
     }
     if (row.status !== "selected") return "";
@@ -969,7 +1477,7 @@
     const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
-      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
+      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -1048,6 +1556,7 @@
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
+    if (socialPlanItems.length) renderSocialPlan(section);
   }
 
   async function loadOpportunities(section, quiet = false) {
@@ -1074,6 +1583,8 @@
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
+    const socialImageReviewButton = event.target.closest("[data-social-image-review]");
+    const socialPlanRegenerateButton = event.target.closest("[data-social-plan-regenerate]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const toggleButton = event.target.closest("[data-opportunity-toggle]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
@@ -1274,6 +1785,49 @@
         const errorText = `Generazione non completata: ${error.message}`;
         if (message) message.textContent = errorText;
         await loadAutomationRuns(section).catch(() => {});
+      }
+      return;
+    }
+
+    if (socialImageReviewButton) {
+      const id = socialImageReviewButton.dataset.socialImageReview || "";
+      const decision = socialImageReviewButton.dataset.socialImageDecision || "";
+      if (!id || !["approve", "use_article_image"].includes(decision) || socialImageReviewButton.disabled) return;
+      const confirmText = decision === "approve"
+        ? "Approvare manualmente questa immagine social? La card OL Informa verrà composta subito usando questa immagine."
+        : "Usare l’immagine già approvata dell’articolo per questo post? La card OL Informa verrà composta subito su quella base.";
+      if (!window.confirm(confirmText)) return;
+      socialImageReviewButton.disabled = true;
+      const socialMessage = section.querySelector("[data-social-plan-message]");
+      if (socialMessage) socialMessage.textContent = decision === "approve"
+        ? "Approvazione manuale dell’immagine social e composizione card…"
+        : "Imposto l’immagine dell’articolo come fallback e compongo la card…";
+      try {
+        await endpoint("review-editorial-social-image", { method: "POST", body: { id, decision } });
+        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
+        if (socialMessage) socialMessage.textContent = "Immagine social validata e card OL Informa pronta.";
+      } catch (error) {
+        if (socialMessage) socialMessage.textContent = `Immagine social non aggiornata: ${error.message}`;
+        socialImageReviewButton.disabled = false;
+      }
+      return;
+    }
+
+    if (socialPlanRegenerateButton) {
+      const id = socialPlanRegenerateButton.dataset.socialPlanRegenerate || "";
+      if (!id || socialPlanRegenerateButton.disabled) return;
+      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il testo social esistente verrà mantenuto: la rigenerazione verrà accodata e l’Autopilota completerà foto, QA, card e ripubblicazione senza una richiesta lunga nel browser. Continuare?";
+      if (!window.confirm(warning)) return;
+      socialPlanRegenerateButton.disabled = true;
+      const socialMessage = section.querySelector("[data-social-plan-message]");
+      if (socialMessage) socialMessage.textContent = "Rigenerazione accodata: l’Autopilota completerà automaticamente foto, QA, card e ripubblicazione nei prossimi heartbeat…";
+      try {
+        await endpoint("regenerate-editorial-social-plan-item", { method: "POST", body: { id } });
+        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
+        if (socialMessage) socialMessage.textContent = "Rigenerazione presa in carico. Non serve lasciare aperta la pagina: lo stato verrà aggiornato dagli heartbeat dell’Autopilota.";
+      } catch (error) {
+        if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
+        socialPlanRegenerateButton.disabled = false;
       }
       return;
     }
@@ -1584,6 +2138,78 @@
     }
   }
 
+  function analysisSignalMatches(signal) {
+    const score = Number(signal?.score || 0);
+    if (analysisScoreFilter === "40plus" && score < 40) return false;
+    if (analysisScoreFilter === "30to39" && (score < 30 || score >= 40)) return false;
+    if (analysisScoreFilter === "under30" && score >= 30) return false;
+    if (!analysisSearchTerm) return true;
+
+    const haystack = [
+      signal?.topic,
+      signal?.editorial_brief?.article_angle,
+      ...(Array.isArray(signal?.query_examples) ? signal.query_examples : []),
+      ...(Array.isArray(signal?.page_urls) ? signal.page_urls : []),
+    ].filter(Boolean).join(" ").toLocaleLowerCase("it");
+    return haystack.includes(analysisSearchTerm);
+  }
+
+  function updateAnalysisPagination(section, filteredCount, totalCount) {
+    const pageCount = Math.max(1, Math.ceil(filteredCount / ANALYSIS_PAGE_SIZE));
+    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
+
+    const summary = section.querySelector("[data-signal-page-summary]");
+    if (summary) {
+      const filterNote = filteredCount === totalCount
+        ? `${numberIt(totalCount)} segnali`
+        : `${numberIt(filteredCount)} di ${numberIt(totalCount)} segnali`;
+      summary.textContent = `${filterNote} · ${ANALYSIS_PAGE_SIZE} per pagina · pagina ${analysisPage} di ${pageCount}`;
+    }
+
+    section.querySelectorAll('[data-signal-page="prev"]').forEach((button) => {
+      button.disabled = analysisPage <= 1 || filteredCount === 0;
+    });
+    section.querySelectorAll('[data-signal-page="next"]').forEach((button) => {
+      button.disabled = analysisPage >= pageCount || filteredCount === 0;
+    });
+
+    const hasSignals = totalCount > 0;
+    const controls = section.querySelector("[data-signal-controls]");
+    const top = section.querySelector("[data-signal-pagination-top]");
+    const bottom = section.querySelector("[data-signal-pagination-bottom]");
+    if (controls) controls.hidden = !hasSignals;
+    if (top) top.hidden = !hasSignals;
+    if (bottom) bottom.hidden = !hasSignals;
+
+    return pageCount;
+  }
+
+  function handleAnalysisNavigation(event) {
+    const section = event.currentTarget;
+    const pageButton = event.target.closest("[data-signal-page]");
+    const jumpButton = event.target.closest("[data-jump-opportunities]");
+    const historyToggle = event.target.closest("[data-automation-run-toggle]");
+
+    if (historyToggle) {
+      automationRunsExpanded = !automationRunsExpanded;
+      renderAutomationRuns(section);
+      return;
+    }
+    if (jumpButton) {
+      const target = section.querySelector("[data-opportunity-stage]");
+      if (target?.tagName === "DETAILS") target.open = true;
+      target?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (!pageButton || pageButton.disabled || !lastAnalysisPayload) return;
+
+    const direction = pageButton.dataset.signalPage;
+    if (direction === "prev") analysisPage -= 1;
+    if (direction === "next") analysisPage += 1;
+    renderAnalysis(section, lastAnalysisPayload);
+    section.querySelector("[data-signal-pagination-top]")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
   function renderAnalysis(section, payload) {
     lastAnalysisPayload = payload || null;
     const list = section.querySelector("[data-search-console-analysis-results]");
@@ -1593,6 +2219,7 @@
     if (!payload?.ready) {
       const missing = (payload?.missing || []).join(", ");
       list.innerHTML = "";
+      updateAnalysisPagination(section, 0, 0);
       message.textContent = `Storico incompleto. Mancano: ${missing || "snapshot richiesti"}.`;
       return;
     }
@@ -1600,40 +2227,57 @@
     const signals = Array.isArray(payload.signals) ? payload.signals : [];
     if (!signals.length) {
       list.innerHTML = '<p class="ol-muted">Nessun segnale utile trovato nello storico disponibile.</p>';
+      updateAnalysisPagination(section, 0, 0);
       message.textContent = "Analisi completata senza segnali utili.";
       return;
     }
 
-    list.innerHTML = signals.map((signal, index) => {
-      const momentum = Number.isFinite(Number(signal.momentum_ratio))
-        ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
-        : "ritmo recente non calcolabile";
-      const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
-      const brief = signal?.editorial_brief?.article_angle || "";
-      const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
-      const rank = Number(signal.rank || (index + 1));
-      return `<div class="ol-autopilot-archive-item">
-        <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
-        ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
-        <details style="margin-top:6px">
-          <summary>Dettagli Search Console</summary>
-          <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
-          <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
-          ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
-          ${contextPagesMarkup(signal.page_urls)}
-        </details>
-        <div class="ol-toolbar-group" style="margin-top:8px">
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
-        </div>
-      </div>`;
-    }).join("");
+    const filteredSignals = signals.filter(analysisSignalMatches);
+    const pageCount = updateAnalysisPagination(section, filteredSignals.length, signals.length);
+    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
+
+    if (!filteredSignals.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun segnale corrisponde ai filtri attuali.</p>';
+    } else {
+      const startIndex = (analysisPage - 1) * ANALYSIS_PAGE_SIZE;
+      const visibleSignals = filteredSignals.slice(startIndex, startIndex + ANALYSIS_PAGE_SIZE);
+      list.innerHTML = visibleSignals.map((signal, index) => {
+        const momentum = Number.isFinite(Number(signal.momentum_ratio))
+          ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
+          : "ritmo recente non calcolabile";
+        const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
+        const brief = signal?.editorial_brief?.article_angle || "";
+        const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
+        const fallbackRank = signals.indexOf(signal) + 1;
+        const rank = Number(signal.rank || fallbackRank || (startIndex + index + 1));
+        return `<div class="ol-autopilot-archive-item">
+          <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
+          ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
+          <details style="margin-top:6px">
+            <summary>Mostra dettagli Search Console</summary>
+            <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
+            <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+            ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
+            ${contextPagesMarkup(signal.page_urls)}
+          </details>
+          <div class="ol-toolbar-group" style="margin-top:8px">
+            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
+          </div>
+        </div>`;
+      }).join("");
+    }
 
     const total = Number(payload.signals_total || signals.length);
-    const shown = signals.length;
-    const truncationNote = payload.signals_truncated ? ` Sono mostrati i primi ${shown} di ${total}.` : ` Sono mostrati tutti i ${shown} segnali trovati.`;
+    const available = signals.length;
+    const backendNote = payload.signals_truncated
+      ? ` Il backend ha restituito i primi ${numberIt(available)} di ${numberIt(total)} cluster trovati.`
+      : ` ${numberIt(available)} segnali disponibili nella graduatoria.`;
+    const filterNote = filteredSignals.length !== signals.length
+      ? ` Il filtro corrente ne mostra ${numberIt(filteredSignals.length)}.`
+      : "";
     message.textContent = payload.truncated
-      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${truncationNote}`
-      : `Graduatoria Search Console aggiornata.${truncationNote}`;
+      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${backendNote}${filterNote}`
+      : `Graduatoria Search Console aggiornata.${backendNote}${filterNote}`;
   }
 
   async function loadAnalysis(section, quiet = false) {
@@ -1690,6 +2334,15 @@
   function boot() {
     const observer = new MutationObserver(() => { ensureCard(); enforceArticleOnlySettings(); });
     observer.observe(document.documentElement, { childList: true, subtree: true });
+    window.addEventListener("offertalogica:editorial-article-updated", () => {
+      const section = document.querySelector("[data-search-console-card]");
+      if (!section) return;
+      Promise.all([
+        loadSocialPlan(section),
+        loadAutomationRuns(section),
+        loadOpportunities(section, true),
+      ]).catch(() => {});
+    });
     ensureCard();
     enforceArticleOnlySettings();
   }
