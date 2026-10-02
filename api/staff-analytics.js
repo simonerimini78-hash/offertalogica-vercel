@@ -1775,7 +1775,24 @@ function analyticsSessionExportRows(rawRows = []) {
     const hasRealComparison = ordered.some((event) => event.eventType === "comparison_completed" && String(event.dataOrigin || "").toLowerCase() !== LANDING_AUTOMATIC_DATA_ORIGIN);
     const hasSelf = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
-    const landingPath = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : "";
+    const affiliatePartnerEvent = [...ordered].reverse().find((event) => event.eventType === "partner_funnel_opened" && (
+      String(event.payload?.source || "") === "affiliate_direct"
+      || /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
+      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
+    ));
+    const affiliatePageEvent = [...ordered].reverse().find((event) => event.eventType === "site_page_view" && (
+      /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
+      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
+    ));
+    const affiliateNavigationEvent = [...ordered].reverse().find((event) => ["home_discovery_clicked", "navigation_link_clicked", "site_action_clicked"].includes(event.eventType) && (
+      /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.destination || ""))
+      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.destination || ""))
+    ));
+    const affiliatePathValue = String(affiliatePageEvent?.payload?.page || affiliatePartnerEvent?.payload?.page || affiliateNavigationEvent?.payload?.destination || "");
+    const affiliateService = /\/internet-casa\.html(?:$|[?#])/i.test(affiliatePathValue)
+      ? "internet casa / mobile"
+      : /\/casa-smart\.html(?:$|[?#])/i.test(affiliatePathValue) ? "casa smart" : "";
+    const landingPath = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : affiliateService;
     const pathSignals = comparisonPathSignals(ordered);
     const comparisonPath = comparisonPathLabel(pathSignals.latest);
     const comparisonPathSequence = pathSignals.sequence.map((item) => comparisonPathLabel(item.path)).filter(Boolean).join(" → ");
@@ -1830,7 +1847,7 @@ function analyticsSessionExportRows(rawRows = []) {
 
     const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
       .some((type) => eventTypes.has(type));
-    const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || switcho;
+    const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || eventTypes.has("partner_funnel_opened") || switcho;
     const switchoEvent = [...ordered].reverse().find((event) => ["switcho_landing_opened", "offer_switcho_redirect", "assistance_switcho_redirect", "business_switcho_requested"].includes(event.eventType));
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
@@ -1864,7 +1881,9 @@ function analyticsSessionExportRows(rawRows = []) {
     let intent = intentTerm;
     let intentBasis = intentTerm ? "termine/keyword disponibile" : "inferito dal comportamento";
     if (!intent) {
-      if (hasAssisted && !hasSelf) intent = "Preferisce assistenza guidata";
+      if (affiliateService === "internet casa / mobile") { intent = "Vuole valutare Internet casa / mobile"; intentBasis = "inferito dal percorso servizio registrato"; }
+      else if (affiliateService === "casa smart") { intent = "Vuole valutare servizi casa smart"; intentBasis = "inferito dal percorso servizio registrato"; }
+      else if (hasAssisted && !hasSelf) intent = "Preferisce assistenza guidata";
       else if (comparisonPath === "foto bolletta") intent = "Vuole personalizzare il confronto con una foto";
       else if (comparisonPath === "pdf") intent = "Vuole verificare la propria bolletta";
       else if (comparisonPath === "manuale") intent = "Vuole confrontare usando i propri consumi";

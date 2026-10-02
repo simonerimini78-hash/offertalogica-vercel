@@ -112,6 +112,12 @@
     landing_assisted_click: "Percorso guidato con Switcho",
     landing_free_app_click: "App gratuita selezionata",
     landing_premium_app_click: "App Premium selezionata",
+    home_discovery_viewed: "Area Scopri visualizzata",
+    home_discovery_opened: "Sezione Scopri aperta",
+    home_discovery_clicked: "Link Scopri selezionato",
+    navigation_link_clicked: "Link navigazione selezionato",
+    site_page_view: "Pagina del percorso aperta",
+    site_action_clicked: "Azione del percorso selezionata",
     customer_segment_selected: "Tipo cliente selezionato",
     business_calculation_incomplete: "Calcolo business incompleto",
     business_calculation_completed: "Calcolo business completato",
@@ -210,7 +216,7 @@
   function staffEventLabel(value, fallback = "") {
     const event = value && typeof value === "object" ? value : null;
     const key = String(event ? event.eventType || "" : value || "").trim();
-    return String(event?.eventLabel || STAFF_EVENT_LABELS_IT[key] || fallback || key || "—");
+    return String(STAFF_EVENT_LABELS_IT[key] || event?.eventLabel || fallback || key || "—");
   }
 
   function staffDataOriginLabel(value, fallback = "") {
@@ -1226,6 +1232,7 @@
 
   const SESSION_USER_ACTION_EVENTS = new Set([
     "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
+    "home_discovery_opened", "home_discovery_clicked", "navigation_link_clicked", "site_action_clicked",
     "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
@@ -1247,6 +1254,7 @@
 
   const SESSION_MAIN_EVENT_TYPES = new Set([
     "landing_view", "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
+    "home_discovery_viewed", "home_discovery_opened", "home_discovery_clicked", "navigation_link_clicked", "site_page_view", "site_action_clicked",
     "calculator_view", "comparison_path_selected", "comparison_started", "comparison_completed", "offers_rendered",
     "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
@@ -1301,6 +1309,29 @@
     return String(item.route || "").trim() === "internal_activatable_view" || String(item.channel || "").trim() === "internal";
   }
 
+  function analyticsAffiliateRoute(rows = []) {
+    const ordered = Array.isArray(rows) ? rows : [];
+    const isInternetPath = value => /\/internet-casa\.html(?:$|[?#])/i.test(String(value || ""));
+    const isCasaSmartPath = value => /\/casa-smart\.html(?:$|[?#])/i.test(String(value || ""));
+    const navigationEvent = [...ordered].reverse().find(item => {
+      const type = String(item.eventType || "");
+      if (!["home_discovery_clicked", "navigation_link_clicked", "site_action_clicked"].includes(type)) return false;
+      return isInternetPath(item.destination) || isCasaSmartPath(item.destination);
+    }) || null;
+    const pageEvent = [...ordered].reverse().find(item => String(item.eventType || "") === "site_page_view" && (isInternetPath(item.page) || isCasaSmartPath(item.page))) || null;
+    const partnerEvent = [...ordered].reverse().find(item => String(item.eventType || "") === "partner_funnel_opened" && (
+      String(item.source || "") === "affiliate_direct" || isInternetPath(item.page) || isCasaSmartPath(item.page)
+    )) || null;
+    const pathValue = navigationEvent?.destination || pageEvent?.page || partnerEvent?.page || "";
+    const service = isInternetPath(pathValue) ? "internet_casa" : isCasaSmartPath(pathValue) ? "casa_smart" : "";
+    if (!service) return null;
+    return { service, navigationEvent, pageEvent, partnerEvent };
+  }
+
+  function analyticsAffiliateServiceLabel(route = {}) {
+    return route?.service === "internet_casa" ? "Internet casa" : route?.service === "casa_smart" ? "Casa smart" : "Servizio";
+  }
+
   function analyticsSessionOutcome(rows = []) {
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
@@ -1329,6 +1360,20 @@
   function analyticsSessionFunnel(rows = []) {
     const types = analyticsSessionTypes(rows);
     const has = type => types.has(type);
+    const affiliate = analyticsAffiliateRoute(rows);
+    if (affiliate) {
+      const siteReached = ordered.length > 0;
+      const serviceReached = Boolean(affiliate.navigationEvent || affiliate.pageEvent || affiliate.partnerEvent);
+      const provider = String(affiliate.partnerEvent?.provider || "").trim();
+      const selected = Boolean(affiliate.partnerEvent && (provider || affiliate.partnerEvent?.offerName));
+      const partnerOpened = Boolean(affiliate.partnerEvent);
+      return [
+        { label: "Sito", state: siteReached ? "done" : "skip", note: affiliate.navigationEvent ? "percorso dal sito registrato" : "sessione registrata" },
+        { label: analyticsAffiliateServiceLabel(affiliate), state: serviceReached ? "done" : "idle", note: affiliate.pageEvent || affiliate.navigationEvent ? "pagina raggiunta" : partnerOpened ? "raggiunta (dedotta dal click partner)" : "non registrata" },
+        { label: provider || "Offerta", state: selected ? "done" : (serviceReached ? "miss" : "idle"), note: selected ? "selezionata" : "nessuna selezione" },
+        { label: "Partner", state: partnerOpened ? "done" : (selected ? "miss" : "idle"), note: partnerOpened ? "aperto" : "non raggiunto" },
+      ];
+    }
     const assistedOnly = has("landing_assisted_click") && !has("landing_self_service_click");
     const commercial = [...SESSION_COMMERCIAL_EVENTS].some(type => types.has(type)) || rows.some(analyticsCommercialActivationChoice);
     const landing = has("landing_view");
@@ -1347,6 +1392,8 @@
   function analyticsOfferDisplayName(item = {}) {
     const provider = String(item.provider || "").trim();
     const offerName = String(item.offerName || "").trim();
+    const normalized = value => String(value || "").toLowerCase().replace(/[_-]+/g, " ").replace(/[^a-z0-9à-ÿ]+/gi, " ").trim();
+    if (provider && offerName && normalized(provider) === normalized(offerName)) return provider;
     if (offerName && provider && offerName.toLowerCase().startsWith(provider.toLowerCase())) return offerName;
     return [provider, offerName].filter(Boolean).join(" · ");
   }
@@ -1413,6 +1460,12 @@
       landing_assisted_click: "Ha scelto il percorso guidato con Switcho",
       landing_free_app_click: "Ha scelto l’app gratuita",
       landing_premium_app_click: "Ha scelto l’app Premium",
+      home_discovery_viewed: `Ha visualizzato l’area Scopri${item.placement ? ` · ${item.placement}` : ""}`,
+      home_discovery_opened: `Ha aperto la sezione ${item.section || "Scopri"}`,
+      home_discovery_clicked: `Ha selezionato ${item.item || "un collegamento"}${item.destination ? ` → ${item.destination}` : ""}`,
+      navigation_link_clicked: `Ha usato la navigazione${item.item ? ` · ${item.item}` : ""}${item.destination ? ` → ${item.destination}` : ""}`,
+      site_page_view: item.service === "internet_casa" ? "Ha aperto la pagina Internet casa" : item.service === "casa_smart" ? "Ha aperto la pagina Casa smart" : `Ha aperto ${item.page || "una pagina del sito"}`,
+      site_action_clicked: `Ha selezionato ${item.item || "un’azione"}${item.destination ? ` → ${item.destination}` : ""}`,
       calculator_view: "Ha aperto il calcolatore",
       comparison_path_selected: `Ha scelto ${item.pathChoice === "pdf" ? "il percorso PDF" : item.pathChoice === "manual" ? "l’inserimento manuale" : item.pathChoice === "average" ? "il profilo medio ARERA" : "una modalità di confronto"}`,
       comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
@@ -1465,7 +1518,9 @@
       offer_redirect: providerOffer
         ? `Passaggio verso il partner per ${providerOffer}${offerSelectionDetails ? ` · ${offerSelectionDetails}` : ""}`
         : "Passaggio verso il partner avviato",
-      partner_funnel_opened: "Percorso partner aperto",
+      partner_funnel_opened: providerOffer
+        ? `Ha selezionato ${providerOffer} e aperto il partner`
+        : "Percorso partner aperto",
       assistance_switcho_redirect: "Passaggio da assistenza verso Switcho avviato",
       business_switcho_requested: "Passaggio business verso Switcho avviato",
     };
@@ -1502,7 +1557,7 @@
     return [
       item.eventType, item.pathChoice, item.dataOrigin, item.analysisStatus, item.diagnosticCode,
       item.offerId, item.articleSlug, item.consentAction, item.visibleOffersCount, item.bestSaving,
-      item.destinationType, item.reason, item.trigger, item.pdfUploadSource, item.pdfUploadOfferId,
+      item.destinationType, item.destination, item.item, item.section, item.service, item.actionKind, item.page, item.reason, item.trigger, item.pdfUploadSource, item.pdfUploadOfferId,
     ].map(value => String(value ?? "")).join("|");
   }
 
@@ -1534,16 +1589,29 @@
   }
 
   function analyticsNarrativeGapText(rows = []) {
-    const seq = [...new Set(rows.map(analyticsEventSequence).filter(value => value !== null))].sort((a, b) => a - b);
-    if (seq.length < 2) return "";
+    const sequenced = rows
+      .map(item => ({ seq: analyticsEventSequence(item), time: analyticsEventTime(item.clientTimestamp || item.createdAt) }))
+      .filter(entry => entry.seq !== null)
+      .sort((a, b) => a.seq - b.seq);
+    if (sequenced.length < 2) return "";
+    const unsequenced = rows
+      .filter(item => analyticsEventSequence(item) === null)
+      .map(item => analyticsEventTime(item.clientTimestamp || item.createdAt))
+      .filter(value => value !== null);
     const missing = [];
-    for (let i = 1; i < seq.length; i += 1) {
-      for (let value = seq[i - 1] + 1; value < seq[i] && missing.length < 30; value += 1) missing.push(value);
+    for (let i = 1; i < sequenced.length; i += 1) {
+      const previous = sequenced[i - 1];
+      const current = sequenced[i];
+      if (current.seq <= previous.seq + 1) continue;
+      const bridgedByLegacyEvent = previous.time !== null && current.time !== null
+        && unsequenced.some(time => time >= previous.time && time <= current.time);
+      if (bridgedByLegacyEvent) continue;
+      for (let value = previous.seq + 1; value < current.seq && missing.length < 30; value += 1) missing.push(value);
       if (missing.length >= 30) break;
     }
     if (!missing.length) return "";
     const shown = missing.slice(0, 12).map(value => `#${value}`).join(", ");
-    return `Nel tracciato disponibile mancano ${shown}${missing.length > 12 ? " e altre sequenze" : ""}. Questo segnala un buco di telemetria: non permette di dedurre quali azioni, se presenti, non siano state registrate.`;
+    return `Nel tracciato disponibile non risultano le sequenze numerate ${shown}${missing.length > 12 ? " e altre" : ""}. Non è possibile dedurre quali azioni, se presenti, non siano state registrate.`;
   }
 
   function analyticsNarrativePdfQuality(rows = []) {
@@ -1570,6 +1638,7 @@
     const source = analyticsSourceLabel(first.trafficSource || "");
     const attribution = ordered.find(item => item.trafficCampaign || item.trafficTerm || item.trafficReferrer) || first;
     const paragraphs = [];
+    const affiliate = analyticsAffiliateRoute(ordered);
     let intro = `La sessione entra da ${source || "provenienza non determinata"}`;
     if (attribution.trafficTerm) intro += ` con keyword “${attribution.trafficTerm}”`;
     else if (attribution.trafficReferrer) intro += ` con referrer ${attribution.trafficReferrer}`;
@@ -1643,7 +1712,16 @@
     }
 
     const commercial = ordered.find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
-    if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
+    if (affiliate?.partnerEvent) {
+      const serviceLabel = analyticsAffiliateServiceLabel(affiliate);
+      const provider = String(affiliate.partnerEvent.provider || "").trim();
+      if (!affiliate.navigationEvent && !affiliate.pageEvent) {
+        paragraphs.push({ text: `Il click di ingresso verso ${serviceLabel} non era registrato nel tracking storico; il passaggio partner proviene però dalla pagina ${affiliate.partnerEvent.page || serviceLabel}, quindi quella pagina risulta certamente raggiunta.`, tone: "info" });
+      } else {
+        paragraphs.push({ text: `Percorso servizio registrato: ${serviceLabel} raggiunto${affiliate.navigationEvent ? " dal sito" : ""}.`, tone: "info" });
+      }
+      paragraphs.push({ text: `${provider ? `${provider} selezionato` : "Offerta selezionata"}: apertura del partner registrata correttamente.`, tone: "info" });
+    } else if (commercial) paragraphs.push({ text: `È registrato un passaggio commerciale/partner: ${analyticsSessionEventDescription(commercial)}.`, tone: "info" });
     else if (offers) paragraphs.push({ text: "Non risulta un passaggio finale verso partner/Switcho dopo le offerte nel tracciato disponibile.", tone: "warn" });
 
     const gapText = analyticsNarrativeGapText(ordered);
@@ -1875,6 +1953,7 @@
     const cardClickedEvent = analyticsCardClickedEvent(rows);
     const selectedOfferEvent = analyticsSelectedOfferEvent(rows);
     const outcome = analyticsSessionOutcome(rows);
+    const affiliateRoute = analyticsAffiliateRoute(rows);
 
     text(byId("analyticsSessionTitle"), `Percorso sessione ${shortId}`);
     text(byId("analyticsSessionMeta"), [
@@ -1903,9 +1982,17 @@
     }
     sessionFacts.push(
       node("div", {}, [node("span", { text: "Tempo attivo" }), node("strong", { text: activeSeconds > 0 ? formatDurationSeconds(activeSeconds) : "—" })]),
-      node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })]),
-      node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })])
+      node("div", {}, [node("span", { text: "Prima azione" }), node("strong", { text: firstAction ? staffEventLabel(firstAction) : "Nessuna" })])
     );
+    if (affiliateRoute) {
+      sessionFacts.push(node("div", {}, [
+        node("span", { text: "Percorso servizio" }),
+        node("strong", { text: analyticsAffiliateServiceLabel(affiliateRoute) }),
+        node("small", { text: affiliateRoute.navigationEvent || affiliateRoute.pageEvent ? "Passaggio registrato" : "Pagina dedotta dal click partner storico" })
+      ]));
+    } else {
+      sessionFacts.push(node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} visualizzate` : "Non raggiunte" })]));
+    }
     if (renderedOfferEvent) {
       const renderedOfferName = analyticsOfferDisplayName(renderedOfferEvent);
       const renderedOfferDetails = analyticsRenderedOfferDetails(renderedOfferEvent);
