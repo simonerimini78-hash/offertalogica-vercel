@@ -414,6 +414,24 @@
     .bill-lines li.bill-breakdown-row.is-real-only{background:#fffaf5}
     @media(max-width:700px){body.simulator-has-result .history-status{font-size:11px!important;padding:9px 10px!important;margin-top:9px!important}}
     /* v0.10.24 — ritorno alle card e attivazione vincolata alla card simulata */
+
+    /* v0.10.29 — CTE / scheda sintetica nel blocco della nuova offerta */
+    .bill-paper.simulated .bill-tools{height:auto!important;min-height:0!important;padding:10px 14px 12px!important}
+    .offer-document-row{grid-column:1/-1;display:grid;grid-template-columns:1fr;gap:6px;min-width:0}
+    .offer-document-button{width:100%!important;min-height:42px!important;border:1px dashed #93c5fd!important;background:#eff6ff!important;color:#1d4ed8!important;border-radius:11px!important;font-weight:850!important}
+    .offer-document-button:hover,.offer-document-button:focus-visible{background:#dbeafe!important;border-color:#60a5fa!important}
+    .offer-document-status{display:none;padding:7px 9px;border:1px solid #dbe5ef;border-radius:9px;background:#f8fafc;color:#475569;font-size:11px;line-height:1.35;text-align:center}
+    .offer-document-status.is-visible{display:block}
+    .offer-document-status.is-loading{border-color:#bfdbfe;background:#eff6ff;color:#1e40af}
+    .offer-document-status.is-ready{border-color:#86efac;background:#f0fdf4;color:#166534}
+    .offer-document-status.is-error{border-color:#fecaca;background:#fef2f2;color:#991b1b}
+    @media(max-width:700px){
+      .bill-paper.simulated .bill-tools{height:auto!important;min-height:0!important;padding:8px 10px 10px!important}
+      .bill-paper.simulated .offer-picker-grid{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;grid-template-rows:auto auto!important}
+      .offer-document-row{grid-column:1/-1!important}
+      .offer-document-button{min-height:40px!important;font-size:11.5px!important;padding:7px 9px!important}
+      .offer-document-status{font-size:10.5px;padding:6px 8px}
+    }
   </style>
 </head>
 <body>
@@ -487,6 +505,11 @@
                 <div class="offer-picker-grid">
                   <div class="field"><label for="provider-select">Fornitore</label><select id="provider-select" disabled title="Seleziona fornitore"><option value="">Fornitore</option></select></div>
                   <div class="field"><label for="offer-select">Offerta</label><select id="offer-select" disabled title="Seleziona offerta"><option value="">Offerta</option></select></div>
+                  <div class="offer-document-row">
+                    <button class="tool-button offer-document-button" id="choose-offer-pdf-button" type="button"><span class="tool-icon" aria-hidden="true">▤</span>Carica CTE / scheda sintetica</button>
+                    <input class="hidden-input" id="offer-pdf-input" type="file" accept="application/pdf,.pdf">
+                    <div class="offer-document-status" id="offer-document-status" role="status" aria-live="polite"></div>
+                  </div>
                 </div>
                 <p class="offer-selection-note" id="offer-selection-note" hidden>Dalle card l'offerta viene mantenuta automaticamente.</p>
               </section>
@@ -520,7 +543,7 @@
         <div class="content-layout">
       <aside class="toc" aria-label="Indice pagina"><strong>In questa pagina</strong><a href="#come-funziona">Come funziona</a><a href="#privati-business">Privati e aziende</a><a href="#dati-usati">Quali dati usa</a><a href="#cosa-confronta">Cosa confronta</a><a href="#limiti">Limiti della simulazione</a><a href="#faq">Domande frequenti</a></aside>
       <div class="content">
-        <section class="panel" id="come-funziona"><h2>Come funziona la simulazione storica della bolletta</h2><p>Il simulatore usa come riferimento la bolletta che carichi o fotografi. OffertaLogica mantiene nel confronto tutte le voci economiche e le condizioni che il lettore riconosce esplicitamente nel documento: importi di bolletta, componenti del prezzo, quota fissa, tipologia e struttura del prezzo, indice, spread, formula e date delle condizioni quando presenti. Dopo l'analisi puoi applicare una delle offerte compatibili alla stessa base di consumo.</p><ol><li>Carichi il PDF oppure fotografi la bolletta.</li><li>OffertaLogica legge i dati utili presenti nel documento.</li><li>Confronti le offerte con il normale motore OffertaLogica.</li><li>Scegli <strong>Simula questa bolletta</strong> sull'offerta che vuoi verificare.</li><li>Visualizzi affiancate la bolletta letta e la bolletta virtuale, con la differenza sul periodo reale.</li></ol></section>
+        <section class="panel" id="come-funziona"><h2>Come funziona la simulazione storica della bolletta</h2><p>Il simulatore usa come riferimento la bolletta che carichi o fotografi. OffertaLogica mantiene nel confronto tutte le voci economiche e le condizioni che il lettore riconosce esplicitamente nel documento: importi di bolletta, componenti del prezzo, quota fissa, tipologia e struttura del prezzo, indice, spread, formula e date delle condizioni quando presenti. Dopo l'analisi puoi applicare una delle offerte compatibili alla stessa base di consumo.</p><ol><li>Carichi il PDF oppure fotografi la bolletta.</li><li>OffertaLogica legge i dati utili presenti nel documento.</li><li>Scegli un'offerta dal catalogo oppure carichi la <strong>CTE / scheda sintetica</strong> della proposta nel blocco della nuova offerta.</li><li>Avvii la simulazione dell'offerta che vuoi verificare.</li><li>Visualizzi affiancate la bolletta letta e la bolletta virtuale, con la differenza sul periodo reale.</li></ol></section>
         <section class="panel" id="privati-business"><h2>Simulazione per bollette domestiche e business</h2><p>Lo stesso strumento può essere usato per utenze domestiche e aziendali. Nel percorso business vengono considerate le offerte business compatibili disponibili nel catalogo utilizzato da OffertaLogica. La simulazione viene mostrata solo quando dalla bolletta sono disponibili i dati necessari per applicare la nuova componente economica senza inventare valori mancanti.</p></section>
         <section class="panel" id="dati-usati"><h2>Quali dati della bolletta vengono usati</h2><p>La simulazione usa il <strong>consumo riferito al periodo fatturato</strong>, le date del periodo, il totale della bolletta e i dati economici leggibili della fornitura. Per la luce il consumo è espresso in kWh; per il gas in Smc. La quota fissa annuale dell'offerta viene riproporzionata sui giorni effettivamente fatturati.</p></section>
         <section class="panel" id="cosa-confronta"><h2>Cosa confronta davvero la bolletta virtuale</h2><p>L'obiettivo è rispondere a una domanda concreta: <strong>se l'offerta selezionata era disponibile in quel periodo, quanto sarebbe cambiato il totale della stessa bolletta?</strong> Prima del calcolo OffertaLogica controlla, quando il codice offerta è presente nell'archivio storico, la sua validità rispetto alle date della bolletta.</p><p>Se l'offerta non era disponibile, oppure se la verifica storica non è sufficiente, il simulatore lo dichiara e distingue il confronto con le <strong>condizioni attuali</strong> da una simulazione storica. Per evitare di inventare righe che il documento non espone in modo affidabile, viene ricalcolata solo la componente economica determinabile e il resto della bolletta reale resta come riferimento.</p></section>
@@ -575,6 +598,9 @@
 
   function setUploadStatus(message,mode=""){
     const node=$("upload-status");if(!node)return;const full=String(message||"");let visible=full;if(mode==="loading")visible="Lettura in corso…";else if(mode==="ready"&&state.docs.length)visible=state.docs.length===1?"Bolletta letta":`${state.docs.length} bollette lette`;node.textContent=visible;node.title=full&&full!==visible?full:"";node.className="upload-status"+(visible?" is-visible":"")+(mode?` is-${mode}`:"");
+  }
+  function setOfferDocumentStatus(message,mode=""){
+    const node=$("offer-document-status");if(!node)return;const text=String(message||"");node.textContent=text;node.className="offer-document-status"+(text?" is-visible":"")+(mode?` is-${mode}`:"");
   }
   function compactBill(input){
     if(!input||typeof input!=="object")return null;
@@ -647,6 +673,42 @@
   }
   async function captureCamera(){const video=$("camera-video");if(!video||!video.videoWidth)return;const canvas=document.createElement("canvas");canvas.width=video.videoWidth;canvas.height=video.videoHeight;canvas.getContext("2d").drawImage(video,0,0);const blob=await new Promise((resolve)=>canvas.toBlob(resolve,"image/jpeg",.9));stopCamera();if(blob){const file=new File([blob],`bolletta-${Date.now()}.jpg`,{type:"image/jpeg"});await acceptDocuments([file],"photo");}}
 
+  function offerSheetNumber(value){const parsed=numericValue(value);return Number.isFinite(parsed)?parsed:null;}
+  function offerSheetLightPrice(data){
+    const direct=offerSheetNumber(data?.prezzo_luce_eur_kwh);if(direct>0)return direct;
+    const f0=offerSheetNumber(data?.prezzo_luce_f0_eur_kwh);return f0>0?f0:null;
+  }
+  function normalizedOfferPriceType(value){const text=String(value||"").toLowerCase();if(/variab|indicizz/.test(text))return "variabile";if(/ibrid|mist/.test(text))return "misto";return "fisso";}
+  function offerSheetDiscounts(data,commodity,conditionsStart="",conditionsEnd=""){
+    const rows=Array.isArray(data?.[`componenti_prezzo_${commodity}`])?data[`componenti_prezzo_${commodity}`]:[],unitCodeFor=(row)=>{const unit=String(row?.unit||"").toLowerCase().replace(/\s+/g,"");if(commodity==="luce"&&/(?:€|eur)\/kwh/.test(unit))return "03";if(commodity==="gas"&&/(?:€|eur)\/smc/.test(unit))return "04";if(unit==="%"||/percent/.test(unit))return "06";if(/^(?:€|eur)$/.test(unit)){if(row?.period==="year")return "01";if(row?.period==="month")return "02";return "05";}return "";};
+    return rows.map((row)=>{const label=String(row?.label||"").trim(),value=offerSheetNumber(row?.value),unitCode=unitCodeFor(row);if(!(value<0)||!unitCode||!/(sconto|bonus|promoz|riduz|cashback|premio|abbuono|accredito)/i.test(label))return null;const conditional=/(domiciliazion|addebito|sdd|rid\b|carta|digitale|newsletter|app\b|fotovolta|caldaia|assicurazion|fibra|internet|isee|dipendent|socio|convenzion|nuov[io] client|solo se|a condizione)/i.test(label);return {name:label||"Sconto",description:label,conditional,prices:[{value:Math.abs(value),unitCode,unit:String(row?.unit||""),validFrom:String(conditionsStart||""),validTo:String(conditionsEnd||"")}],conditions:[]};}).filter(Boolean);
+  }
+  function compactOfferSheetComponents(data,commodity){
+    const rows=Array.isArray(data?.[`componenti_prezzo_${commodity}`])?data[`componenti_prezzo_${commodity}`]:[];return rows.map((row)=>({label:String(row?.label||""),value:offerSheetNumber(row?.value),value_text:String(row?.value_text||""),unit:String(row?.unit||""),period:String(row?.period||"none"),band:String(row?.band||"none")})).filter((row)=>row.label&&(Number.isFinite(row.value)||row.value_text));
+  }
+  function offerFromOfferSheet(data,fileName=""){
+    if(!data||data.kind!=="scheda_offerta")return null;const components={};
+    for(const commodity of ["luce","gas"]){
+      const price=commodity==="luce"?offerSheetLightPrice(data):offerSheetNumber(data.prezzo_gas_eur_smc),fixed=offerSheetNumber(data[`quota_fissa_vendita_${commodity}_eur_anno`]);
+      if(!(price>0)||!Number.isFinite(fixed)||fixed<0)continue;
+      const start=String(data[`decorrenza_condizioni_economiche_${commodity}`]||""),end=String(data[`scadenza_condizioni_economiche_${commodity}`]||"");
+      components[commodity]={price,annualFixedFee:fixed,type:normalizedOfferPriceType(data[`tipo_prezzo_${commodity}`]),code:String(data[`codice_offerta_${commodity}`]||""),indexName:String(data[`indice_riferimento_${commodity}`]||""),priceStructure:String(data[`struttura_prezzo_${commodity}`]||""),spread:offerSheetNumber(data[`spread_${commodity}_${commodity==="luce"?"eur_kwh":"eur_smc"}`]),multiplier:offerSheetNumber(data[`moltiplicatore_indice_${commodity}`]),formula:String(data[`formula_prezzo_${commodity}`]||""),periodicity:String(data[`periodicita_aggiornamento_indice_${commodity}`]||""),conditionsStart:start,conditionsEnd:end,priceComponents:compactOfferSheetComponents(data,commodity),discounts:offerSheetDiscounts(data,commodity,start,end)};
+    }
+    const commodities=Object.keys(components);if(!commodities.length)return null;
+    const supply=commodities.length===2?"dual":commodities[0],providers=[data.fornitore_luce,data.fornitore_gas,data.fornitore].map((value)=>String(value||"").trim()).filter(Boolean),names=[data.nome_offerta_luce,data.nome_offerta_gas,data.nome_offerta].map((value)=>String(value||"").trim()).filter(Boolean),codes=commodities.map((commodity)=>components[commodity].code).filter(Boolean);
+    const provider=[...new Set(providers)][0]||"Offerta da documento",name=[...new Set(names)][0]||String(fileName||"CTE / scheda sintetica").replace(/\.pdf$/i,"")||"CTE / scheda sintetica",types=[...new Set(commodities.map((commodity)=>components[commodity].type))],type=types.length===1?types[0]:"misto";
+    return {version:1,id:`document-${codes.join("-")||normalizeProvider(provider)+"-"+normalizedOfferName(name)}`,name,provider,providerKey:normalizeProvider(provider),type,supply,customerType:String(data.customer_type||""),codes,source:"document",documentLabel:String(fileName||"CTE / scheda sintetica"),discounts:[],activationOffer:null,components};
+  }
+  async function acceptOfferDocument(file){
+    if(!file)return;setOfferDocumentStatus("Lettura CTE / scheda sintetica in corso…","loading");
+    try{
+      const payload=await analyzePdf(file),data=payload?.normalized;if(data?.kind!=="scheda_offerta")throw new Error("Il PDF non è stato riconosciuto come CTE o scheda sintetica. Carica qui il documento della nuova offerta, non la bolletta originale.");
+      const offer=offerFromOfferSheet(data,file.name);if(!offer)throw new Error("Nel documento non risultano prezzo e quota fissa sufficienti per simulare l'offerta senza inventare valori.");
+      if(!offerCompatible(offer))throw new Error("La CTE / scheda sintetica non è compatibile con la fornitura della bolletta caricata.");
+      clearSimulationResult();state.selected=offer;storeJson(OFFER_KEY,offer);await refreshOfferOptions();renderSimulationPreview();updateSimulationActionLabel();setOfferDocumentStatus(`Proposta letta: ${offer.provider} — ${offer.name}. Ora puoi simulare la bolletta.`,"ready");
+    }catch(error){setOfferDocumentStatus(error?.message||"Lettura CTE / scheda sintetica non disponibile","error");}
+  }
+
   function compactOfferDiscounts(rows){
     if(!Array.isArray(rows))return[];
     return rows.map((discount)=>{
@@ -682,7 +744,7 @@
   function normalizedOfferName(value){return String(value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"");}
   function offerCodes(offer){return new Set([...(Array.isArray(offer?.codes)?offer.codes:[]),...Object.values(offer?.components||{}).map((item)=>item?.code)].map((item)=>String(item||"").trim()).filter(Boolean));}
   function sameOfferSelection(a,b){if(!a||!b)return false;if(offerKey(a)===offerKey(b))return true;const ac=offerCodes(a),bc=offerCodes(b);if([...ac].some((code)=>bc.has(code)))return true;return providerKeyForOffer(a)===providerKeyForOffer(b)&&String(a.supply||"")===String(b.supply||"")&&String(a.customerType||"")===String(b.customerType||"")&&normalizedOfferName(a.name)===normalizedOfferName(b.name);}
-  function resolvePreselectedOffer(pre){if(!pre||!offerCompatible(pre))return null;const normalizedPre=normalizeOfferSelectionDiscounts(pre),match=state.offers.find((offer)=>sameOfferSelection(offer,normalizedPre));if(match)return {...match,source:normalizedPre.source||match.source||"",activationOffer:normalizedPre.activationOffer||match.activationOffer||null};return normalizedPre;}
+  function resolvePreselectedOffer(pre){if(!pre||!offerCompatible(pre))return null;const normalizedPre=normalizeOfferSelectionDiscounts(pre);if(normalizedPre.source==="document")return normalizedPre;const match=state.offers.find((offer)=>sameOfferSelection(offer,normalizedPre));if(match)return {...match,source:normalizedPre.source||match.source||"",activationOffer:normalizedPre.activationOffer||match.activationOffer||null};return normalizedPre;}
   function renderProviderSelect(){
     const select=$("provider-select");if(!select)return;const selectedOfferKey=state.selected?providerKeyForOffer(state.selected):"";const current=select.value||selectedOfferKey;select.innerHTML="";
     const brands=state.catalog?.brands?.providers||{},seen=new Map();
@@ -718,6 +780,20 @@
 
   function parseHistoryDate(value,endOfDay=false){const text=String(value||"");const iso=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(iso)return Date.parse(`${iso[1]}-${iso[2]}-${iso[3]}T${endOfDay?"23:59:59":"00:00:00"}Z`);const arera=text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:_(\d{2}):(\d{2}):(\d{2}))?/);if(!arera)return NaN;return Date.UTC(Number(arera[3]),Number(arera[2])-1,Number(arera[1]),Number(arera[4]||0),Number(arera[5]||0),Number(arera[6]||0));}
   function historicalCheck(offer){
+    if(offer?.source==="document"){
+      const details={},modes=[];
+      for(const [commodity,component] of Object.entries(offer.components||{})){
+        const docs=state.docs.filter((doc)=>doc.commodity===commodity||doc.commodity==="dual"||periodConsumption(doc,commodity)>0),from=parseHistoryDate(component?.conditionsStart),to=parseHistoryDate(component?.conditionsEnd,true);let mode="full";
+        if(!docs.length||!Number.isFinite(from)||!Number.isFinite(to)){mode="unknown";}else for(const doc of docs){const start=parseHistoryDate(doc.billing_period_start),end=parseHistoryDate(doc.billing_period_end,true);if(!Number.isFinite(start)||!Number.isFinite(end)){mode="unknown";break;}if(from<=start&&to>=end)continue;if(from<=end&&to>=start)mode="partial";else {mode="unavailable";break;}}
+        details[commodity]={mode,from:component?.conditionsStart||"",to:component?.conditionsEnd||""};modes.push(mode);
+      }
+      if(modes.includes("unavailable"))return {mode:"document_unavailable",components:details,message:"La CTE / scheda caricata riporta condizioni economiche fuori dal periodo fatturato. Il risultato è una comparazione, non una simulazione storica."};
+      if(modes.includes("partial"))return {mode:"document_partial",components:details,message:"Le condizioni della CTE / scheda coprono solo una parte del periodo fatturato. Il risultato è una comparazione."};
+      if(modes.includes("unknown"))return {mode:"document_unknown",components:details,message:"La CTE / scheda non contiene date sufficienti per verificare che le condizioni fossero valide per l'intero periodo della bolletta. Il risultato è una comparazione."};
+      const variable=Object.values(offer.components||{}).some((component)=>String(component?.type||"").toLowerCase()!=="fisso");
+      if(variable)return {mode:"document_variable",components:details,message:"La CTE / scheda copre il periodo, ma l'offerta è indicizzata o mista. Senza i valori storici necessari il risultato resta una comparazione."};
+      return {mode:"document_historical_fixed",components:details,message:"La CTE / scheda caricata riporta condizioni a prezzo fisso valide per l'intero periodo fatturato. Il risultato è una simulazione storica sulla stessa bolletta."};
+    }
     const history=state.catalog?.history;if(!history?.offers?.length)return {mode:"unknown",message:"La disponibilità storica dell'offerta non è verificabile: il risultato viene trattato come comparazione con le condizioni disponibili oggi.",components:{}};
     const byCode=new Map(history.offers.map((row)=>[String(row.offerCode||""),row]));const details={};let modes=[];
     for(const commodity of Object.keys(offer.components||{})){
@@ -739,7 +815,7 @@
     const matches=(item.record.versions||[]).filter((version)=>{const from=parseHistoryDate(version.validFrom),to=parseHistoryDate(version.validTo,true);return Number.isFinite(from)&&Number.isFinite(to)&&from<=start&&to>=end;});matches.sort((a,b)=>String(b.catalogDate||"").localeCompare(String(a.catalogDate||"")));return matches[0]||item?.version||null;
   }
   function offerForHistoricalSimulation(offer,history,doc=null){if(history?.mode!=="historical_fixed")return offer;const copy=JSON.parse(JSON.stringify(offer));Object.entries(history.components||{}).forEach(([commodity,item])=>{const version=historicalVersionForDoc(item,doc);if(!version||!copy.components?.[commodity])return;const price=Number(version.price),fixed=Number(version.annualFixedFee);if(price>0)copy.components[commodity].price=price;if(Number.isFinite(fixed)&&fixed>=0)copy.components[commodity].annualFixedFee=fixed;copy.components[commodity].historical=true;});return copy;}
-  function resultKindForHistory(history){return history?.mode==="historical_fixed"?"simulation":"comparison";}
+  function resultKindForHistory(history){return ["historical_fixed","document_historical_fixed"].includes(history?.mode)?"simulation":"comparison";}
   function renderHistory(history){
     const node=$("history-status");if(!node)return;const kind=resultKindForHistory(history);node.hidden=false;node.className=`history-status ${kind==="simulation"?"is-simulation":"is-comparison"}`;node.innerHTML=`<strong>${kind==="simulation"?"Simulazione storica":"Comparazione"}.</strong> ${escapeHtml(history?.message||"")}`;
   }
@@ -845,7 +921,15 @@
       addConditionRow(map,{commodity,label:`Tipo prezzo${suffix}`,value:String(part?.tipoPrezzo||component?.type||payload?.offer?.type||state.selected?.type||""),priority:10});
       const appliedPrice=numericValue(part?.prezzoNuovo??component?.price);if(appliedPrice>0)addConditionRow(map,{commodity,label:`Prezzo ${payload?"applicato":"selezionato"}${suffix}`,value:`${number(appliedPrice,6)} ${unit}`,priority:15});
       const annualFixed=numericValue(part?.quotaFissaAnnuaNuova??component?.annualFixedFee);if(Number.isFinite(annualFixed))addConditionRow(map,{commodity,label:`Quota fissa vendita${suffix}`,value:`${number(annualFixed,2)} €/anno`,priority:20});
+      if(component?.priceStructure)addConditionRow(map,{commodity,label:`Struttura prezzo${suffix}`,value:String(component.priceStructure),priority:12});
       if(component?.indexName)addConditionRow(map,{commodity,label:`Indice di riferimento${suffix}`,value:String(component.indexName),priority:25});
+      if(Number.isFinite(Number(component?.spread)))addConditionRow(map,{commodity,label:`Spread${suffix}`,value:`${number(component.spread,6)} ${unit}`,priority:27});
+      if(Number.isFinite(Number(component?.multiplier)))addConditionRow(map,{commodity,label:`Moltiplicatore indice${suffix}`,value:number(component.multiplier,6),priority:28});
+      if(component?.periodicity)addConditionRow(map,{commodity,label:`Aggiornamento indice${suffix}`,value:String(component.periodicity),priority:30});
+      if(component?.formula)addConditionRow(map,{commodity,label:`Formula prezzo${suffix}`,value:String(component.formula),priority:32});
+      if(component?.conditionsStart)addConditionRow(map,{commodity,label:`Decorrenza condizioni${suffix}`,value:date(component.conditionsStart),priority:35});
+      if(component?.conditionsEnd)addConditionRow(map,{commodity,label:`Scadenza condizioni${suffix}`,value:date(component.conditionsEnd),priority:36});
+      for(const row of component?.priceComponents||[])addConditionRow(map,{commodity,label:`${String(row.label||"Voce prezzo").trim()}${suffix}`,value:conditionValueFromComponent(row),priority:40});
     }
     return [...map.values()].sort((a,b)=>a.priority-b.priority||a.label.localeCompare(b.label,"it"));
   }
@@ -931,6 +1015,8 @@
 
   $("choose-pdf-button")?.addEventListener("click",()=>{$("bill-pdf-input").value="";$("bill-pdf-input").click();});
   $("bill-pdf-input")?.addEventListener("change",(event)=>acceptDocuments(event.target.files,"pdf"));
+  $("choose-offer-pdf-button")?.addEventListener("click",()=>{$("offer-pdf-input").value="";$("offer-pdf-input").click();});
+  $("offer-pdf-input")?.addEventListener("change",(event)=>{const file=event.target.files?.[0];if(file)acceptOfferDocument(file);});
   $("open-camera-button")?.addEventListener("click",openCamera);$("camera-close")?.addEventListener("click",stopCamera);$("camera-capture")?.addEventListener("click",captureCamera);$("camera-fallback")?.addEventListener("click",()=>{stopCamera();$("bill-photo-input").value="";$("bill-photo-input").click();});
   $("bill-photo-input")?.addEventListener("change",(event)=>{const file=event.target.files?.[0];if(file)acceptDocuments([file],"photo");});
   $("camera-modal")?.addEventListener("click",(event)=>{if(event.target===$("camera-modal"))stopCamera();});document.addEventListener("keydown",(event)=>{if(event.key==="Escape"&&!$("camera-modal")?.hidden)stopCamera();});
@@ -944,13 +1030,13 @@
   function syncMobileDisclosures(){if(window.matchMedia("(max-width:700px)").matches){document.querySelectorAll(".info-disclosure").forEach((node)=>node.removeAttribute("open"));$("seo-details")?.removeAttribute("open");}else{document.querySelectorAll(".info-disclosure").forEach((node)=>node.setAttribute("open",""));$("seo-details")?.setAttribute("open","");}}
   syncMobileDisclosures();
 
-  $("provider-select")?.addEventListener("change",()=>{clearSimulationResult();const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);}renderOfferSelect();updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
-  $("offer-select")?.addEventListener("change",()=>{clearSimulationResult();const select=$("offer-select"),index=Number(select?.value);state.selected=select?.value!==""&&Number.isInteger(index)?state.filtered[index]||null:null;storeJson(OFFER_KEY,state.selected);$("simulate-selected-offer").disabled=!state.docs.length||select?.value==="";updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
+  $("provider-select")?.addEventListener("change",()=>{clearSimulationResult();const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);setOfferDocumentStatus("");}renderOfferSelect();updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
+  $("offer-select")?.addEventListener("change",()=>{clearSimulationResult();const select=$("offer-select"),index=Number(select?.value);state.selected=select?.value!==""&&Number.isInteger(index)?state.filtered[index]||null:null;storeJson(OFFER_KEY,state.selected);if(state.selected?.source==="document")setOfferDocumentStatus(`CTE / scheda caricata: ${state.selected.provider} — ${state.selected.name}.`,"ready");else setOfferDocumentStatus("");$("simulate-selected-offer").disabled=!state.docs.length||select?.value==="";updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
   $("simulate-selected-offer")?.addEventListener("click",simulateSelected);
   $("back-to-offers")?.addEventListener("click",returnToOffers);$("activate-selected-offer")?.addEventListener("click",activateSelectedOffer);$("reset-simulator")?.addEventListener("click",resetSimulator);$("reset-simulator-bottom")?.addEventListener("click",resetSimulator);
 
   async function init(){
-    const storedDocs=safeJson(DOCS_KEY);if(Array.isArray(storedDocs))state.docs=storedDocs.map(compactBill).filter(Boolean);const storedOffer=safeJson(OFFER_KEY);if(storedOffer)state.selected=storedOffer;if(state.docs.length)document.body.classList.add("simulator-has-docs");const payload=safeJson(PAYLOAD_KEY);
+    const storedDocs=safeJson(DOCS_KEY);if(Array.isArray(storedDocs))state.docs=storedDocs.map(compactBill).filter(Boolean);const storedOffer=safeJson(OFFER_KEY);if(storedOffer)state.selected=storedOffer;if(state.selected?.source==="document")setOfferDocumentStatus(`CTE / scheda caricata: ${state.selected.provider} — ${state.selected.name}.`,"ready");if(state.docs.length)document.body.classList.add("simulator-has-docs");const payload=safeJson(PAYLOAD_KEY);
     if(state.docs.length){renderDocsPreview();setUploadStatus(state.docs.length===1?"Bolletta letta":"Bollette lette","ready");await refreshOfferOptions();renderSimulationPreview();if(payload?.summary&&payload?.bills?.length&&state.selected){await loadCatalog();const history=historicalCheck(state.selected);state.history=history;renderHistory(history);const rebuilt=buildPayload(state.selected,history);if(rebuilt){storeJson(PAYLOAD_KEY,rebuilt);renderPayload(rebuilt);}}}
     else {setUploadStatus("");await refreshOfferOptions();if(state.selected){$("offer-selection-note").innerHTML=`Hai già scelto <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Carica o fotografa la bolletta: l'offerta resterà selezionata.`;}}
   }
