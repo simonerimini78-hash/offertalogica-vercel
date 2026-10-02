@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.85";
+const VERSION = "0.12.86";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -35,7 +35,7 @@ const EDITORIAL_SOCIAL_CONTENT_VERSION = "social_content_v2";
 // Il renderer grafico delle card social e' caricato solo quando serve.
 // Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
 // nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
-const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_informa_card_v3";
+const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_informa_card_v2";
 let editorialSocialCardRendererPromise = null;
 
 async function editorialSocialCardRenderer() {
