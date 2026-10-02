@@ -1,40 +1,32 @@
 (() => {
   "use strict";
+
   const dataset = window.OL_PROVIDER_QUALITY_DATA;
   if (!dataset || !Array.isArray(dataset.providers)) return;
 
   const providers = new Map(dataset.providers.map((item) => [item.key, item]));
-  const form = document.getElementById("provider-picker-form");
-  const select = document.getElementById("provider-select");
-  const panel = document.getElementById("provider-panel");
+  const selectA = document.getElementById("provider-select-a");
+  const selectB = document.getElementById("provider-select-b");
+  const bodyA = document.getElementById("provider-card-body-a");
+  const bodyB = document.getElementById("provider-card-body-b");
   const live = document.getElementById("provider-live");
-  const compareSelect = document.getElementById("compare-select");
-  const compareResult = document.getElementById("compare-result");
+  const dialog = document.getElementById("metric-info-dialog");
+  const dialogTitle = document.getElementById("metric-info-title");
+  const dialogBody = document.getElementById("metric-info-body");
+  const dialogClose = document.getElementById("metric-info-close");
+  const infoPayloads = new Map();
+  let infoCounter = 0;
 
-  const nameEl = document.getElementById("provider-name");
-  const metaEl = document.getElementById("provider-meta");
-  const logoEl = document.getElementById("provider-logo");
-  const partnerLink = document.getElementById("provider-partner-link");
-  const reclamiLink = document.getElementById("provider-reclami-link");
-  const offersLink = document.getElementById("provider-offers-link");
-  const kpis = document.getElementById("provider-kpis");
-  const officialBody = document.getElementById("official-body");
-  const uncBody = document.getElementById("unc-body");
-  const altBody = document.getElementById("altroconsumo-body");
-  const sourcesBody = document.getElementById("sources-body");
-  const officialSummary = document.getElementById("official-summary");
-  const uncSummary = document.getElementById("unc-summary");
-  const altSummary = document.getElementById("altroconsumo-summary");
+  const conceptOrder = ["complaint-response", "billing-correction", "double-billing", "information", "complaint-volume", "indemnities"];
+  const conceptTitles = {
+    "complaint-response": "Risposta ai reclami",
+    "billing-correction": "Correzione bollette",
+    "double-billing": "Doppia fatturazione",
+    "information": "Richieste di informazioni",
+    "complaint-volume": "Reclami registrati",
+    "indemnities": "Indennizzi"
+  };
 
-  const metricPriority = [
-    "Tempo medio risposta reclami",
-    "Rispetto standard risposta reclami",
-    "Tempo medio rettifica fatturazione",
-    "Rispetto standard rettifica fatturazione",
-    "Tempo medio rettifica doppia fatturazione",
-    "Rispetto standard rettifica doppia fatturazione",
-    "Risposte informazioni entro 30 giorni"
-  ];
 
   function escapeHtml(value) {
     return String(value ?? "").replace(/[&<>'"]/g, (char) => ({"&":"&amp;","<":"&lt;",">":"&gt;","'":"&#39;",'"':"&quot;"}[char]));
@@ -46,11 +38,38 @@
   }
 
   function metricValue(metric) {
+    if (!metric) return "—";
     const base = formatNumber(metric.value);
     const unit = String(metric.unit || "").trim();
     if (unit === "%") return `${base}%`;
     if (unit === "euro") return `€ ${base}`;
+    if (unit === "giorni o meno") return `≤ ${base} gg`;
+    if (unit === "giorni") return `${base} gg`;
     return unit ? `${base} ${escapeHtml(unit)}` : base;
+  }
+
+  function friendlyCluster(cluster) {
+    const value = String(cluster || "").toLowerCase();
+    const parts = [];
+    const hasLuce = value.includes("luce") || value.includes("elettric");
+    const hasGas = value.includes("gas");
+    if (value.includes("dual") || (hasLuce && hasGas)) parts.push("luce e gas");
+    else if (hasLuce) parts.push("luce");
+    else if (hasGas) parts.push("gas");
+    if (value.includes("non domest")) parts.push("clienti non domestici");
+    else if (value.includes("domest")) parts.push("clienti domestici");
+    if (value.includes("mercato libero")) parts.push("mercato libero");
+    return parts.length ? parts.join(" · ") : String(cluster || "Perimetro indicato nella fonte");
+  }
+
+  function bucket(cluster) {
+    const value = String(cluster || "").toLowerCase();
+    const hasLuce = value.includes("luce") || value.includes("elettric");
+    const hasGas = value.includes("gas");
+    if (value.includes("dual") || (hasLuce && hasGas) || value.includes("aggregato") || value.includes("vendita energia")) return "general";
+    if (hasLuce) return "luce";
+    if (hasGas) return "gas";
+    return "general";
   }
 
   function roundedOutOf100(value) {
@@ -58,329 +77,270 @@
     return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : null;
   }
 
-  function friendlyCluster(cluster) {
-    const value = String(cluster || "").toLowerCase();
-    const parts = [];
-    if (value.includes("dual")) parts.push("luce e gas");
-    else if (value.includes("luce") || value.includes("elettric")) parts.push("luce");
-    else if (value.includes("gas")) parts.push("gas");
-    if (value.includes("non domest")) parts.push("clienti non domestici");
-    else if (value.includes("domest")) parts.push("clienti domestici");
-    if (value.includes("mercato libero")) parts.push("mercato libero");
-    return parts.length ? parts.join(" · ") : String(cluster || "Perimetro indicato nella fonte");
+  function metricCopy(metric) {
+    const indicator = String(metric?.indicator || "");
+    const value = metricValue(metric);
+    const outOf100 = roundedOutOf100(metric?.value);
+    const copies = {
+      "Rispetto standard risposta reclami": ["Reclami nei tempi", outOf100 === null ? "Quota di reclami che ricevono risposta entro il termine previsto." : `Circa ${outOf100} reclami su 100 ricevono risposta entro il termine previsto.`],
+      "Tempo medio risposta reclami": ["Tempo medio di risposta", `In media, il fornitore risponde ai reclami in ${value}.`],
+      "Rispetto standard rettifica fatturazione": ["Bollette corrette nei tempi", outOf100 === null ? "Quota di correzioni della bolletta concluse entro i tempi previsti." : `Circa ${outOf100} correzioni su 100 vengono concluse entro i tempi previsti.`],
+      "Tempo medio rettifica fatturazione": ["Tempo medio correzione bolletta", `In media, una correzione della bolletta richiede ${value}.`],
+      "Rispetto standard rettifica doppia fatturazione": ["Doppie bollette corrette nei tempi", outOf100 === 0 ? "La fonte indica 0% entro il termine. Senza il numero totale dei casi il dato va interpretato con cautela." : (outOf100 === null ? "Quota di doppie fatturazioni corrette entro il termine previsto." : `Circa ${outOf100} casi su 100 risultano corretti entro il termine previsto.`)],
+      "Tempo medio rettifica doppia fatturazione": ["Tempo medio doppia bolletta", `In media, la correzione di una doppia fatturazione richiede ${value}.`],
+      "Risposte informazioni entro 30 giorni": ["Informazioni entro 30 giorni", outOf100 === null ? "Quota di richieste di informazioni risposte entro 30 giorni." : `Circa ${outOf100} richieste su 100 ricevono risposta entro 30 giorni.`],
+      "Reclami ricevuti": ["Reclami registrati", `La fonte registra ${value}. Il numero assoluto da solo non misura la qualità del fornitore.`],
+      "Reclami gestiti": ["Reclami gestiti", `La fonte registra ${value}. Per confrontare fornitori servirebbe rapportare il dato ai clienti serviti.`],
+      "Risposte reclami entro standard": ["Reclami risposti nei tempi", `La fonte registra ${value} entro il termine previsto.`],
+      "Rettifiche fatturazione entro standard": ["Correzioni concluse nei tempi", `La fonte registra ${value} correzioni concluse entro il termine previsto.`],
+      "Indennizzi reclami": ["Indennizzi legati ai reclami", `La fonte riporta ${value} di indennizzi nel perimetro indicato.`],
+      "Reclami ricevuti da UNC": ["Reclami arrivati a UNC", `UNC registra ${value}. Non sono tutti i reclami ricevuti dal fornitore.`],
+      "Casi risolti": ["Casi risolti con UNC", `UNC dichiara ${value} tra i casi lavorati sulla propria piattaforma.`],
+      "Punteggio Reclama Facile": ["Valutazione Reclama Facile", `È un indicatore di Altroconsumo, non un voto OffertaLogica: ${value}.`],
+      "Tempo risposta azienda": ["Risposta su Altroconsumo", `Altroconsumo indica ${value}. Non coincide con il tempo medio regolatorio TIQV.`]
+    };
+    const copy = copies[indicator] || [indicator || "Dato", metric?.note || "Dato pubblicato nella fonte indicata."];
+    return { title: copy[0], explain: copy[1], caution: indicator === "Rispetto standard rettifica doppia fatturazione" && Number(metric?.value) === 0 };
   }
 
-  function metricCopy(metric) {
-    const indicator = String(metric.indicator || "");
-    const outOf100 = roundedOutOf100(metric.value);
-    const value = metricValue(metric);
-    const copies = {
-      "Rispetto standard risposta reclami": {
-        title: "Reclami risposti nei tempi previsti",
-        explain: outOf100 === null ? "Indica quanti reclami ricevono risposta entro il termine previsto." : `In pratica: circa ${outOf100} reclami su 100 ricevono risposta entro il termine previsto.`,
-        technical: indicator
-      },
-      "Tempo medio risposta reclami": {
-        title: "Quanto tempo impiega a rispondere ai reclami",
-        explain: `In media, il fornitore risponde in ${value}.`,
-        technical: indicator
-      },
-      "Rispetto standard rettifica fatturazione": {
-        title: "Bollette corrette nei tempi previsti",
-        explain: outOf100 === null ? "Indica quante correzioni della bolletta vengono gestite entro i tempi previsti." : `In pratica: circa ${outOf100} correzioni su 100 vengono gestite entro i tempi previsti.`,
-        technical: indicator
-      },
-      "Tempo medio rettifica fatturazione": {
-        title: "Quanto tempo impiega a correggere una bolletta",
-        explain: `In media, una correzione della bolletta richiede ${value}.`,
-        technical: indicator
-      },
-      "Rispetto standard rettifica doppia fatturazione": {
-        title: "Doppie bollette corrette nei tempi previsti",
-        explain: outOf100 === 0 ? "La fonte indica 0% entro il termine. Senza sapere quanti casi ci sono stati, questo dato va letto con cautela." : (outOf100 === null ? "Indica quante doppie fatturazioni vengono corrette entro il termine previsto." : `Circa ${outOf100} casi su 100 risultano corretti entro il termine previsto.`),
-        technical: indicator,
-        caution: outOf100 === 0
-      },
-      "Tempo medio rettifica doppia fatturazione": {
-        title: "Quanto tempo impiega a correggere una doppia bolletta",
-        explain: `In media, la correzione richiede ${value}.`,
-        technical: indicator
-      },
-      "Risposte informazioni entro 30 giorni": {
-        title: "Richieste di informazioni risposte entro 30 giorni",
-        explain: outOf100 === null ? "Indica quante richieste ricevono risposta entro 30 giorni." : `In pratica: circa ${outOf100} richieste su 100 ricevono risposta entro 30 giorni.`,
-        technical: indicator
-      },
-      "Reclami ricevuti": {
-        title: "Reclami registrati nel documento",
-        explain: `La fonte registra ${value}. Il numero assoluto, da solo, non dice se un fornitore è migliore o peggiore.`,
-        technical: indicator
-      },
-      "Reclami gestiti": {
-        title: "Reclami gestiti nel periodo",
-        explain: `La fonte registra ${value}. Per confrontare fornitori servirebbe anche rapportare il dato ai clienti serviti.`,
-        technical: indicator
-      },
-      "Risposte reclami entro standard": {
-        title: "Reclami risposti nei tempi previsti",
-        explain: `La fonte registra ${value} entro il termine previsto.`,
-        technical: indicator
-      },
-      "Rettifiche fatturazione entro standard": {
-        title: "Correzioni della bolletta concluse nei tempi",
-        explain: `La fonte registra ${value} entro il termine previsto.`,
-        technical: indicator
-      },
-      "Indennizzi reclami": {
-        title: "Indennizzi legati ai reclami",
-        explain: `La fonte riporta ${value} di indennizzi nel perimetro indicato.`,
-        technical: indicator
-      },
-      "Reclami ricevuti da UNC": {
-        title: "Reclami arrivati a UNC",
-        explain: `UNC registra ${value}. Non sono tutti i reclami ricevuti dal fornitore.`,
-        technical: indicator
-      },
-      "Casi risolti": {
-        title: "Casi risolti con UNC",
-        explain: `UNC dichiara ${value} tra i casi lavorati sulla propria piattaforma.`,
-        technical: indicator
-      },
-      "Punteggio Reclama Facile": {
-        title: "Valutazione Reclama Facile",
-        explain: `È un indicatore di Altroconsumo, non un voto di OffertaLogica: ${value}.`,
-        technical: indicator
-      },
-      "Tempo risposta azienda": {
-        title: "Tempo di risposta sulla piattaforma Altroconsumo",
-        explain: `Altroconsumo indica ${value}. Non coincide con il tempo medio TIQV.`,
-        technical: indicator
-      }
-    };
-    return copies[indicator] || { title: indicator, explain: metric.note || "Dato pubblicato nella fonte indicata.", technical: indicator };
+  function officialMetrics(provider) {
+    return provider ? provider.metrics.filter((metric) => metric.source === "Ufficiale TIQV") : [];
   }
+
+  function observerMetrics(provider, source) {
+    return provider ? provider.metrics.filter((metric) => metric.source === source) : [];
+  }
+
+  function metricConcept(metric) {
+    const indicator = String(metric?.indicator || "");
+    if (["Rispetto standard risposta reclami", "Tempo medio risposta reclami", "Risposte reclami entro standard"].includes(indicator)) return "complaint-response";
+    if (["Rispetto standard rettifica fatturazione", "Tempo medio rettifica fatturazione", "Rettifiche fatturazione entro standard"].includes(indicator)) return "billing-correction";
+    if (["Rispetto standard rettifica doppia fatturazione", "Tempo medio rettifica doppia fatturazione"].includes(indicator)) return "double-billing";
+    if (indicator === "Risposte informazioni entro 30 giorni") return "information";
+    if (["Reclami ricevuti", "Reclami gestiti"].includes(indicator)) return "complaint-volume";
+    if (indicator === "Indennizzi reclami") return "indemnities";
+    return indicator ? `other:${indicator}` : "other";
+  }
+
+  function conceptSort(a, b) {
+    const ia = conceptOrder.indexOf(a);
+    const ib = conceptOrder.indexOf(b);
+    if (ia !== ib) return (ia < 0 ? 999 : ia) - (ib < 0 ? 999 : ib);
+    return a.localeCompare(b, "it");
+  }
+
+  function metricsBySector(provider, sector) {
+    return officialMetrics(provider).filter((metric) => bucket(metric.cluster) === sector);
+  }
+
+  function pairConcepts(providerA, providerB, sector) {
+    const concepts = new Set();
+    [providerA, providerB].filter(Boolean).forEach((provider) => {
+      metricsBySector(provider, sector).forEach((metric) => concepts.add(metricConcept(metric)));
+    });
+    return [...concepts].sort(conceptSort);
+  }
+
+  function pickMetrics(provider, sector, concept) {
+    if (!provider) return [];
+    return metricsBySector(provider, sector)
+      .filter((metric) => metricConcept(metric) === concept)
+      .sort((a, b) => String(b.year).localeCompare(String(a.year), "it", { numeric: true }));
+  }
+
+  function conceptTitle(concept, referenceMetrics = []) {
+    if (conceptTitles[concept]) return conceptTitles[concept];
+    const first = referenceMetrics[0];
+    return first ? metricCopy(first).title : concept.replace(/^other:/, "");
+  }
+
 
   function initials(name) {
     return String(name || "OL").split(/\s+/).filter(Boolean).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
   }
 
-  function sourceCount(provider) {
-    const families = new Set(provider.metrics.map((metric) => metric.source));
-    if (provider.coverage?.unc?.status === "VERIFICATA") families.add("UNC");
-    if (provider.coverage?.altroconsumo?.status === "VERIFICATA") families.add("Altroconsumo");
-    if (provider.coverage?.official?.url) families.add("Ufficiale TIQV");
-    return families.size;
-  }
-
-  function officialMetrics(provider) {
-    return provider.metrics.filter((metric) => metric.source === "Ufficiale TIQV");
-  }
-
-  function observatoryMetrics(provider, source) {
-    return provider.metrics.filter((metric) => metric.source === source);
-  }
-
-  function preferredMetrics(provider) {
-    const official = officialMetrics(provider).filter((metric) => metric.comparable);
-    const ordered = [];
-    metricPriority.forEach((indicator) => {
-      const matches = official.filter((metric) => metric.indicator === indicator);
-      if (matches.length) ordered.push(matches[0]);
-    });
-    official.forEach((metric) => { if (!ordered.includes(metric)) ordered.push(metric); });
-    return ordered.slice(0, 2);
-  }
-
-  function renderKpis(provider) {
-    const preferred = preferredMetrics(provider);
-    const year = provider.coverage?.official?.year || preferred[0]?.year || "—";
-    const cards = [
-      { value: year || "—", label: "Ultimo anno disponibile", meta: provider.coverage?.official?.status === "DATI DATATI" ? "Dato ufficiale disponibile, ma non recente" : "Anno più recente trovato nella fonte ufficiale" },
-      ...preferred.map((metric) => {
-        const copy = metricCopy(metric);
-        return { value: metricValue(metric), label: copy.title, meta: copy.explain };
-      }),
-      { value: sourceCount(provider), label: "Fonti disponibili", meta: "Dati ufficiali e osservatori sono mostrati separatamente" }
-    ];
-    while (cards.length < 4) cards.splice(cards.length - 1, 0, { value: "—", label: "Dato non disponibile", meta: "Non abbiamo un indicatore numerico confrontabile per questa voce" });
-    kpis.innerHTML = cards.slice(0, 4).map((card) => `<div class="kpi-card"><span class="kpi-value">${escapeHtml(card.value)}</span><span class="kpi-label">${escapeHtml(card.label)}</span><span class="kpi-meta">${escapeHtml(card.meta)}</span></div>`).join("");
-  }
-
-  function renderMetricList(metrics, emptyText) {
-    if (!metrics.length) return `<div class="empty-state">${escapeHtml(emptyText)}</div>`;
-    return `<div class="metric-list">${metrics.map((metric) => {
+  function registerMetricInfo(metrics, provider, title) {
+    const list = Array.isArray(metrics) ? metrics : [metrics];
+    const id = `metric-${++infoCounter}`;
+    const rows = list.map((metric) => {
       const copy = metricCopy(metric);
-      const caution = copy.caution ? '<span class="metric-caution">Dato da leggere con cautela</span>' : '';
-      return `<article class="metric-item${copy.caution ? ' is-caution' : ''}">
-        <div class="metric-main">
-          <span class="metric-name">${escapeHtml(copy.title)}</span>
-          <span class="metric-number">${metricValue(metric)}</span>
-        </div>
-        <p class="metric-explain">${escapeHtml(copy.explain)}</p>
-        ${caution}
-        <div class="metric-meta">${escapeHtml(metric.year)} · ${escapeHtml(friendlyCluster(metric.cluster))}</div>
-        <div class="metric-technical">Nome tecnico: ${escapeHtml(copy.technical)}</div>
-        ${metric.sourceUrl ? `<a class="metric-source" href="${escapeHtml(metric.sourceUrl)}" target="_blank" rel="noopener noreferrer">Apri la fonte</a>` : ""}
-      </article>`;
-    }).join("")}</div>`;
+      return `<p><strong>${escapeHtml(copy.title)}:</strong> ${metricValue(metric)}<br>${escapeHtml(copy.explain)}</p>
+        <div class="info-dialog-meta">
+          <span><strong>Anno:</strong> ${escapeHtml(metric.year)}</span>
+          <span><strong>Perimetro:</strong> ${escapeHtml(friendlyCluster(metric.cluster))}</span>
+          <span><strong>Nome tecnico:</strong> ${escapeHtml(metric.indicator)}</span>
+          <span><strong>Confrontabile:</strong> ${metric.comparable ? "sì, con lo stesso tipo di dato" : "no, va letto da solo"}</span>
+          ${metric.note ? `<span><strong>Nota:</strong> ${escapeHtml(metric.note)}</span>` : ""}
+          ${metric.sourceUrl ? `<a href="${escapeHtml(metric.sourceUrl)}" target="_blank" rel="noopener noreferrer">Apri la fonte originale</a>` : ""}
+        </div>`;
+    }).join("");
+    infoPayloads.set(id, { title: title || metricCopy(list[0]).title, html: rows });
+    return id;
   }
 
-  function renderSources(provider) {
-    const entries = [
-      ["Fonte ufficiale / TIQV", provider.coverage?.official],
-      ["Unione Nazionale Consumatori", provider.coverage?.unc],
-      ["Altroconsumo", provider.coverage?.altroconsumo]
-    ];
-    sourcesBody.innerHTML = `<div class="source-list">${entries.map(([label, source]) => {
-      const status = source?.status || "NON VERIFICATA";
-      const year = source?.year ? ` · ${source.year}` : "";
-      const link = source?.url ? `<a href="${escapeHtml(source.url)}" target="_blank" rel="noopener noreferrer">Apri fonte</a>` : "";
-      return `<div class="source-card"><strong>${escapeHtml(label)}</strong><span>${escapeHtml(status)}${escapeHtml(year)}</span>${link}</div>`;
-    }).join("")}</div><p class="source-note" style="margin-top:10px"><strong>Regola OL:</strong> l'assenza di un dato non viene interpretata come qualità bassa. Anno, perimetro e provenienza restano sempre visibili.</p>`;
-  }
 
-  function renderGroups(provider) {
-    const official = officialMetrics(provider);
-    const unc = observatoryMetrics(provider, "UNC");
-    const altro = observatoryMetrics(provider, "Altroconsumo");
-    officialSummary.textContent = `${official.length} dati verificati`;
-    uncSummary.textContent = unc.length ? `${unc.length} dati normalizzati` : (provider.coverage?.unc?.status === "VERIFICATA" ? "fonte verificata" : "nessun dato normalizzato");
-    altSummary.textContent = altro.length ? `${altro.length} dati normalizzati` : (provider.coverage?.altroconsumo?.status === "VERIFICATA" ? "fonte verificata" : "nessun dato normalizzato");
-    officialBody.innerHTML = `<p class="source-note"><strong>Come leggere questi numeri:</strong> prima trovi la spiegazione semplice; sotto restano anno, perimetro e nome tecnico del dato. Un numero assoluto non è una classifica.</p>${renderMetricList(official, "Non abbiamo ancora normalizzato un dato numerico ufficiale per questo fornitore. La fonte individuata resta indicata nella sezione Fonti e metodologia.")}`;
-    uncBody.innerHTML = `<p class="source-note"><strong>UNC:</strong> questi numeri riguardano i casi transitati dall'Unione Nazionale Consumatori, non tutti i reclami ricevuti dal fornitore.</p>${renderMetricList(unc, provider.coverage?.unc?.status === "VERIFICATA" ? "La fonte UNC è verificata, ma i valori non sono ancora stati normalizzati nel database OL." : "Nessun dato UNC verificato e normalizzato per questo fornitore.")}`;
-    altBody.innerHTML = `<p class="source-note"><strong>Altroconsumo:</strong> i dati di Reclama Facile restano distinti dagli indicatori TIQV e non confluiscono in un punteggio OL.</p>${renderMetricList(altro, provider.coverage?.altroconsumo?.status === "VERIFICATA" ? "La fonte Altroconsumo è stata individuata; i valori non ancora normalizzati non vengono ricostruiti da OL." : "Nessun dato Altroconsumo verificato e normalizzato per questo fornitore.")}`;
-    renderSources(provider);
-  }
-
-  function bucket(cluster) {
-    const value = String(cluster || "").toLowerCase();
-    if (value.includes("dual")) return "dual";
-    if (value.includes("luce") || value.includes("elettric")) return "luce";
-    if (value.includes("gas")) return "gas";
-    return "altro";
-  }
-
-  function comparableMetricPairs(a, b) {
-    const left = officialMetrics(a).filter((metric) => metric.comparable);
-    const right = officialMetrics(b).filter((metric) => metric.comparable);
-    const pairs = [];
-    const seen = new Set();
-
-    left.forEach((leftMetric) => {
-      const sector = bucket(leftMetric.cluster);
-      if (sector === "altro") return;
-      const candidates = right.filter((rightMetric) => (
-        rightMetric.indicator === leftMetric.indicator &&
-        String(rightMetric.unit) === String(leftMetric.unit) &&
-        bucket(rightMetric.cluster) === sector
-      ));
-      if (!candidates.length) return;
-
-      candidates.sort((first, second) => {
-        const firstSameYear = String(first.year) === String(leftMetric.year) ? 1 : 0;
-        const secondSameYear = String(second.year) === String(leftMetric.year) ? 1 : 0;
-        if (firstSameYear !== secondSameYear) return secondSameYear - firstSameYear;
-        return String(second.year).localeCompare(String(first.year), "it", { numeric: true });
-      });
-
-      const rightMetric = candidates[0];
-      const key = `${leftMetric.indicator}|${leftMetric.unit}|${sector}`;
-      if (seen.has(key)) return;
-      seen.add(key);
-      pairs.push({
-        left: leftMetric,
-        right: rightMetric,
-        sector,
-        sameYear: String(leftMetric.year) === String(rightMetric.year)
-      });
-    });
-
-    return pairs.slice(0, 6);
-  }
-
-  function renderCompare(primary) {
-    const other = providers.get(compareSelect.value);
-    if (!other || other.key === primary.key) {
-      compareResult.innerHTML = `<div class="empty-state">Scegli un secondo fornitore. Confronteremo solo lo stesso indicatore, nella stessa unità e nello stesso settore.</div>`;
-      return;
-    }
-
-    const rows = comparableMetricPairs(primary, other);
-    if (!rows.length) {
-      compareResult.innerHTML = `<div class="empty-state">Nessun indicatore con stesso nome, unità e settore è disponibile per entrambi i fornitori.</div>`;
-      return;
-    }
-
-    const hasDifferentYears = rows.some((row) => !row.sameYear);
-    compareResult.innerHTML = `
-      <div class="compare-head" aria-hidden="true">
-        <span>Indicatore</span>
-        <strong>${escapeHtml(primary.name)}</strong>
-        <strong>${escapeHtml(other.name)}</strong>
-      </div>
-      ${rows.map(({ left, right, sector, sameYear }) => `
-        <div class="compare-row">
-          <span class="compare-indicator">${escapeHtml(metricCopy(left).title)}<small>${escapeHtml(sector)}</small></span>
-          <span class="compare-value"><strong>${metricValue(left)}</strong><small>${escapeHtml(left.year)}</small></span>
-          <span class="compare-value"><strong>${metricValue(right)}</strong><small>${escapeHtml(right.year)}</small></span>
-          ${sameYear ? "" : '<span class="compare-year-note">anni diversi</span>'}
-        </div>`).join("")}
-      <div class="compare-note">${hasDifferentYears ? "Gli anni diversi sono indicati sotto i valori. " : ""}Il confronto usa solo metriche omogenee per indicatore, unità e settore e non produce un voto.</div>`;
-  }
-
-  function updateCompareOptions(primary) {
-    const current = compareSelect.value;
-    compareSelect.innerHTML = `<option value="">Scegli un altro fornitore</option>` + dataset.providers.filter((item) => item.key !== primary.key).map((item) => `<option value="${escapeHtml(item.key)}">${escapeHtml(item.name)}</option>`).join("");
-    if (current && current !== primary.key && providers.has(current)) compareSelect.value = current;
-    renderCompare(primary);
-  }
-
-  function renderProvider(provider, focusPanel = false) {
-    nameEl.textContent = provider.name;
-    const year = provider.coverage?.official?.year || "anno non disponibile";
-    metaEl.textContent = `Dati verificati · riferimento ufficiale: ${year}`;
-    logoEl.innerHTML = provider.logo ? `<img src="${escapeHtml(provider.logo)}" alt="Logo ${escapeHtml(provider.name)}">` : `<span class="initials" aria-hidden="true">${escapeHtml(initials(provider.name))}</span>`;
-    if (provider.partnerPage) {
-      partnerLink.hidden = false;
-      partnerLink.href = provider.partnerPage;
-      partnerLink.textContent = "Apri la pagina dedicata OL";
+  function registerObserverInfo(provider, source) {
+    const metrics = observerMetrics(provider, source);
+    const coverageKey = source === "UNC" ? "unc" : "altroconsumo";
+    const coverage = provider.coverage?.[coverageKey];
+    const id = `observer-${++infoCounter}`;
+    let html = "";
+    if (metrics.length) {
+      html = metrics.map((metric) => {
+        const copy = metricCopy(metric);
+        return `<p><strong>${escapeHtml(copy.title)}:</strong> ${metricValue(metric)}<br>${escapeHtml(copy.explain)}</p>`;
+      }).join("");
     } else {
-      partnerLink.hidden = true;
-      partnerLink.removeAttribute("href");
+      html = `<p>${coverage?.status === "VERIFICATA" ? "La fonte è stata verificata, ma i valori non sono ancora normalizzati nel database OL." : "Non abbiamo un dato normalizzato e verificato per questo osservatorio."}</p>`;
     }
-    reclamiLink.href = `/reclami-luce-gas.html?fornitore=${encodeURIComponent(provider.key)}#verifica-caso`;
-    offersLink.href = `/?landing=0&from=fornitori-trasparenza&provider=${encodeURIComponent(provider.key)}`;
-    renderKpis(provider);
-    renderGroups(provider);
-    updateCompareOptions(provider);
-    panel.hidden = false;
-    const url = new URL(window.location.href);
-    url.searchParams.set("fornitore", provider.key);
-    history.replaceState(null, "", `${url.pathname}?${url.searchParams.toString()}#scheda-fornitore`);
-    live.textContent = `Scheda ${provider.name} caricata.`;
-    if (focusPanel) panel.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    if (coverage?.url) html += `<div class="info-dialog-meta"><a href="${escapeHtml(coverage.url)}" target="_blank" rel="noopener noreferrer">Apri la fonte ${escapeHtml(source)}</a></div>`;
+    infoPayloads.set(id, { title: `${source} · ${provider.name}`, html });
+    return id;
   }
 
-  form?.addEventListener("submit", (event) => {
-    event.preventDefault();
-    const provider = providers.get(select.value);
-    if (!provider) { live.textContent = "Seleziona un fornitore dall'elenco."; select.focus(); return; }
-    renderProvider(provider, true);
-  });
+  function observerSummary(provider, source) {
+    const metrics = observerMetrics(provider, source);
+    const coverageKey = source === "UNC" ? "unc" : "altroconsumo";
+    const coverage = provider.coverage?.[coverageKey];
+    if (!metrics.length) return coverage?.status === "VERIFICATA" ? "Fonte verificata · dettagli disponibili" : "Nessun dato normalizzato";
+    if (source === "UNC") {
+      const complaints = metrics.find((m) => m.indicator === "Reclami ricevuti da UNC");
+      const resolved = metrics.find((m) => m.indicator === "Casi risolti");
+      const bits = [];
+      if (complaints) bits.push(`${formatNumber(complaints.value)} reclami ${complaints.year}`);
+      if (resolved) {
+        const match = String(resolved.unit || "").match(/su\s*(\d+)/i);
+        const pct = match ? Math.round((Number(resolved.value) / Number(match[1])) * 100) : null;
+        bits.push(pct ? `${pct}% casi risolti` : `${metricValue(resolved)} risolti`);
+      }
+      return bits.join(" · ") || `${metrics.length} dati`;
+    }
+    return metrics.map((metric) => `${metricCopy(metric).title}: ${metricValue(metric)}`).join(" · ");
+  }
 
-  compareSelect?.addEventListener("change", () => {
-    const primary = providers.get(select.value);
-    if (primary) renderCompare(primary);
-  });
+  function renderSector(provider, otherProvider, sector, label) {
+    const concepts = pairConcepts(provider, otherProvider, sector);
+    if (!concepts.length) return "";
+    const rows = concepts.map((concept) => {
+      const reference = pickMetrics(provider, sector, concept).length ? pickMetrics(provider, sector, concept) : pickMetrics(otherProvider, sector, concept);
+      const title = conceptTitle(concept, reference);
+      const metrics = pickMetrics(provider, sector, concept);
+      if (!metrics.length) {
+        return `<div class="metric-row is-missing"><span class="metric-row-label">${escapeHtml(title)}</span><span class="metric-row-value"><strong>—</strong><small>non disponibile</small></span><span aria-hidden="true"></span></div>`;
+      }
+      const infoId = registerMetricInfo(metrics, provider, title);
+      const values = metrics.map((metric) => metricValue(metric)).join(" · ");
+      const years = [...new Set(metrics.map((metric) => String(metric.year)))];
+      const allComparable = metrics.every((metric) => metric.comparable);
+      const caution = metrics.some((metric) => metricCopy(metric).caution);
+      const meta = `${years.join("/")}${allComparable ? "" : " · non confrontabile"}`;
+      return `<div class="metric-row${caution ? " is-caution" : ""}"><span class="metric-row-label">${escapeHtml(title)}</span><span class="metric-row-value"><strong>${values}</strong><small>${escapeHtml(meta)}</small></span><button type="button" class="info-button" data-metric-info="${infoId}" aria-label="Spiega ${escapeHtml(title)}">i</button></div>`;
+    }).join("");
+    return `<section class="sector-box"><div class="sector-head"><strong>${escapeHtml(label)}</strong><span>${concepts.length} ${concepts.length === 1 ? "voce" : "voci"}</span></div><div class="metric-rows">${rows}</div></section>`;
+  }
+
+
+  function renderObservers(provider) {
+    return ["UNC", "Altroconsumo"].map((source) => {
+      const id = registerObserverInfo(provider, source);
+      return `<div class="observer-row"><strong>${escapeHtml(source)}</strong><span>${escapeHtml(observerSummary(provider, source))}</span><button type="button" class="info-button" data-metric-info="${id}" aria-label="Dettagli ${escapeHtml(source)} per ${escapeHtml(provider.name)}">i</button></div>`;
+    }).join("");
+  }
+
+  function renderCard(provider, otherProvider, body) {
+    if (!provider) {
+      const isSecond = body === bodyB;
+      body.innerHTML = `<div class="provider-empty"><strong>${isSecond ? "Aggiungi un confronto" : "Scegli un fornitore"}</strong><span>${isSecond ? "Scegli un secondo fornitore per leggere gli stessi dati nello stesso ordine." : "Vedrai qui tutti i dati disponibili su luce, gas e reclami."}</span></div>`;
+      return;
+    }
+
+    const officialYear = provider.coverage?.official?.year || "anno non disponibile";
+    const status = provider.coverage?.official?.status || "NON VERIFICATA";
+    const logo = provider.logo ? `<img src="${escapeHtml(provider.logo)}" alt="Logo ${escapeHtml(provider.name)}">` : `<span class="initials" aria-hidden="true">${escapeHtml(initials(provider.name))}</span>`;
+    const sectors = [
+      renderSector(provider, otherProvider, "luce", "Luce"),
+      renderSector(provider, otherProvider, "gas", "Gas"),
+      renderSector(provider, otherProvider, "general", "Luce e gas / generale")
+    ].filter(Boolean).join("");
+
+    body.innerHTML = `
+      <div class="provider-card-head">
+        <div class="provider-logo">${logo}</div>
+        <div class="provider-card-title"><h3>${escapeHtml(provider.name)}</h3><p>Dati ufficiali ${escapeHtml(officialYear)} · ${escapeHtml(status.toLowerCase().replaceAll("_", " "))}</p></div>
+      </div>
+      <div class="provider-sectors">${sectors || `<section class="sector-box"><div class="sector-head"><strong>Dati ufficiali</strong></div><div class="metric-row is-missing"><span class="metric-row-label">Nessun dato numerico ufficiale normalizzato</span><span class="metric-row-value"><strong>—</strong></span><span></span></div></section>`}</div>
+      <div class="provider-observers">${renderObservers(provider)}</div>
+      <div class="provider-actions">
+        <a class="btn btn-primary" href="/reclami-luce-gas.html?fornitore=${encodeURIComponent(provider.key)}#verifica-caso">Verifica un problema</a>
+        <a class="btn btn-secondary" href="/?landing=0&from=fornitori-trasparenza&provider=${encodeURIComponent(provider.key)}">Vedi offerte</a>
+      </div>`;
+  }
+
+  function renderBoth() {
+    infoPayloads.clear();
+    infoCounter = 0;
+    const providerA = providers.get(selectA.value) || null;
+    const providerB = providers.get(selectB.value) || null;
+    renderCard(providerA, providerB, bodyA);
+    renderCard(providerB, providerA, bodyB);
+
+    const url = new URL(window.location.href);
+    if (providerA) url.searchParams.set("fornitore", providerA.key); else url.searchParams.delete("fornitore");
+    if (providerB) url.searchParams.set("confronta", providerB.key); else url.searchParams.delete("confronta");
+    const query = url.searchParams.toString();
+    history.replaceState(null, "", `${url.pathname}${query ? `?${query}` : ""}#scheda-fornitore`);
+    const names = [providerA?.name, providerB?.name].filter(Boolean);
+    live.textContent = names.length ? `Dati caricati: ${names.join(" e ")}.` : "Scegli un fornitore.";
+  }
+
+  function openInfo(title, html) {
+    dialogTitle.textContent = title || "Dettaglio del dato";
+    dialogBody.innerHTML = html || "";
+    if (typeof dialog.showModal === "function") dialog.showModal();
+    else dialog.setAttribute("open", "");
+  }
 
   document.addEventListener("click", (event) => {
+    const metricButton = event.target.closest("[data-metric-info]");
+    if (metricButton) {
+      const payload = infoPayloads.get(metricButton.getAttribute("data-metric-info"));
+      if (payload) openInfo(payload.title, payload.html);
+      return;
+    }
+    const staticButton = event.target.closest("[data-info-title]");
+    if (staticButton) {
+      openInfo(staticButton.getAttribute("data-info-title"), `<p>${escapeHtml(staticButton.getAttribute("data-info-body") || "")}</p><div class="info-dialog-meta"><span><strong>Fonte:</strong> ARERA · dati 2024</span></div>`);
+      return;
+    }
     const link = event.target.closest("[data-provider-link]");
-    if (!link) return;
-    const key = link.getAttribute("data-provider-link");
-    if (!providers.has(key)) return;
-    event.preventDefault();
-    select.value = key;
-    renderProvider(providers.get(key), true);
+    if (link) {
+      const key = link.getAttribute("data-provider-link");
+      if (!providers.has(key)) return;
+      event.preventDefault();
+      selectA.value = key;
+      if (selectB.value === key) selectB.value = "";
+      renderBoth();
+      document.getElementById("scheda-fornitore")?.scrollIntoView({ behavior: window.matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth", block: "start" });
+    }
+  });
+
+  dialogClose?.addEventListener("click", () => { if (typeof dialog.close === "function") dialog.close(); else dialog.removeAttribute("open"); });
+  dialog?.addEventListener("click", (event) => {
+    const rect = dialog.getBoundingClientRect();
+    const outside = event.clientX < rect.left || event.clientX > rect.right || event.clientY < rect.top || event.clientY > rect.bottom;
+    if (outside) { if (typeof dialog.close === "function") dialog.close(); else dialog.removeAttribute("open"); }
+  });
+
+  selectA?.addEventListener("change", () => {
+    if (selectA.value && selectA.value === selectB.value) selectB.value = "";
+    renderBoth();
+  });
+  selectB?.addEventListener("change", () => {
+    if (selectB.value && selectB.value === selectA.value) {
+      live.textContent = "Scegli un fornitore diverso per il confronto.";
+      selectB.value = "";
+    }
+    renderBoth();
   });
 
   document.querySelectorAll("[data-market-tab]").forEach((button) => {
@@ -391,15 +351,16 @@
         item.classList.toggle("is-active", active);
         item.setAttribute("aria-selected", active ? "true" : "false");
       });
-      document.querySelectorAll("[data-market-panel]").forEach((panelItem) => {
-        panelItem.hidden = panelItem.getAttribute("data-market-panel") !== target;
+      document.querySelectorAll("[data-market-panel]").forEach((panel) => {
+        panel.hidden = panel.getAttribute("data-market-panel") !== target;
       });
     });
   });
 
-  const requested = new URLSearchParams(window.location.search).get("fornitore");
-  if (requested && providers.has(requested)) {
-    select.value = requested;
-    renderProvider(providers.get(requested), false);
-  }
+  const params = new URLSearchParams(window.location.search);
+  const requestedA = params.get("fornitore");
+  const requestedB = params.get("confronta");
+  if (requestedA && providers.has(requestedA)) selectA.value = requestedA;
+  if (requestedB && providers.has(requestedB) && requestedB !== requestedA) selectB.value = requestedB;
+  if (selectA.value || selectB.value) renderBoth();
 })();

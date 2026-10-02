@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
   <link rel="stylesheet" href="/assets/ol-public-header.css?v=0.10.31">
-  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.36">
+  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.37">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -237,189 +237,132 @@
   </section>
 
   <div class="shell">
-    <section class="tool-panel" aria-labelledby="tool-title">
-      <div class="tool-heading">
-        <span class="section-kicker">Archivio trasparenza fornitori</span>
-        <h2 id="tool-title">Cerca il tuo fornitore</h2>
-        <p>Seleziona uno dei 26 operatori già trattati da OffertaLogica.</p>
+    <section class="compare-tool" id="scheda-fornitore" aria-labelledby="compare-tool-title">
+      <div class="compare-tool-head">
+        <span class="section-kicker">Trasparenza fornitori</span>
+        <h2 id="compare-tool-title">Confronta assistenza e reclami senza perderti nei numeri</h2>
+        <p>Scegli uno o due fornitori. Luce e gas restano nello stesso riquadro; dettagli tecnici, anno e fonte sono dietro la <strong>ⓘ</strong>.</p>
       </div>
-      <form class="provider-picker" id="provider-picker-form">
-        <label for="provider-select">Fornitore luce o gas</label>
-        <div class="provider-picker-row">
-          <select id="provider-select" name="fornitore" required>
+
+      <div class="provider-compare-grid" aria-label="Confronto tra fornitori">
+        <article class="provider-card" id="provider-card-a" aria-label="Primo fornitore">
+          <div class="provider-select-wrap">
+            <label for="provider-select-a">Primo fornitore</label>
+            <select id="provider-select-a" class="provider-select">
+
             <option value="">Scegli il fornitore</option>
-              <option value="a2a">A2A Energia</option>
-              <option value="accendi">Accendi Luce e Gas</option>
-              <option value="acea">Acea Energia</option>
-              <option value="alperia">Alperia</option>
-              <option value="argos">Argos</option>
-              <option value="axpo">Axpo Energia</option>
-              <option value="dolomiti">Dolomiti Energia</option>
-              <option value="eco">E.CO Energia Corrente</option>
-              <option value="edison">Edison</option>
-              <option value="elit">Elit Energia</option>
-              <option value="enel">Enel Energia</option>
-              <option value="engie">Engie</option>
-              <option value="eni">Eni Plenitude</option>
-              <option value="eon">E.ON</option>
-              <option value="greenius">Greenius</option>
-              <option value="hera">Hera Comm</option>
-              <option value="illum">Illumia</option>
-              <option value="iren">Iren Luce e Gas</option>
-              <option value="magis">Magis Energia</option>
-              <option value="nen">neN</option>
-              <option value="octopus">Octopus Energy</option>
-              <option value="optima">Optima Italia</option>
-              <option value="poste">Poste Energia</option>
-              <option value="pulsee">Pulsee Luce e Gas</option>
-              <option value="sorgenia">Sorgenia</option>
-              <option value="vivi">Vivi Energia</option>
-          </select>
-          <button class="btn btn-primary" type="submit">Mostra i dati</button>
-        </div>
-      </form>
-      <div class="tool-facts" aria-label="Caratteristiche del servizio">
-        <div class="tool-fact">26 fornitori OL</div>
-        <div class="tool-fact">Fonti tenute separate</div>
-        <div class="tool-fact">Dati spiegati in modo semplice</div>
+            <option value="a2a">A2A Energia</option>
+            <option value="accendi">Accendi Luce e Gas</option>
+            <option value="acea">Acea Energia</option>
+            <option value="alperia">Alperia</option>
+            <option value="argos">Argos</option>
+            <option value="axpo">Axpo Energia</option>
+            <option value="dolomiti">Dolomiti Energia</option>
+            <option value="eco">E.CO Energia Corrente</option>
+            <option value="edison">Edison</option>
+            <option value="elit">Elit Energia</option>
+            <option value="enel">Enel Energia</option>
+            <option value="engie">Engie</option>
+            <option value="eni">Eni Plenitude</option>
+            <option value="eon">E.ON</option>
+            <option value="greenius">Greenius</option>
+            <option value="hera">Hera Comm</option>
+            <option value="illum">Illumia</option>
+            <option value="iren">Iren Luce e Gas</option>
+            <option value="magis">Magis Energia</option>
+            <option value="nen">neN</option>
+            <option value="octopus">Octopus Energy</option>
+            <option value="optima">Optima Italia</option>
+            <option value="poste">Poste Energia</option>
+            <option value="pulsee">Pulsee Luce e Gas</option>
+            <option value="sorgenia">Sorgenia</option>
+            <option value="vivi">Vivi Energia</option>
+            </select>
+          </div>
+          <div class="provider-card-body" id="provider-card-body-a">
+            <div class="provider-empty"><strong>Scegli un fornitore</strong><span>Vedrai qui tutti i dati disponibili su luce, gas e reclami.</span></div>
+          </div>
+        </article>
+
+        <article class="provider-card" id="provider-card-b" aria-label="Fornitore da confrontare">
+          <div class="provider-select-wrap">
+            <label for="provider-select-b">Fornitore da confrontare</label>
+            <select id="provider-select-b" class="provider-select">
+
+            <option value="">Scegli il fornitore</option>
+            <option value="a2a">A2A Energia</option>
+            <option value="accendi">Accendi Luce e Gas</option>
+            <option value="acea">Acea Energia</option>
+            <option value="alperia">Alperia</option>
+            <option value="argos">Argos</option>
+            <option value="axpo">Axpo Energia</option>
+            <option value="dolomiti">Dolomiti Energia</option>
+            <option value="eco">E.CO Energia Corrente</option>
+            <option value="edison">Edison</option>
+            <option value="elit">Elit Energia</option>
+            <option value="enel">Enel Energia</option>
+            <option value="engie">Engie</option>
+            <option value="eni">Eni Plenitude</option>
+            <option value="eon">E.ON</option>
+            <option value="greenius">Greenius</option>
+            <option value="hera">Hera Comm</option>
+            <option value="illum">Illumia</option>
+            <option value="iren">Iren Luce e Gas</option>
+            <option value="magis">Magis Energia</option>
+            <option value="nen">neN</option>
+            <option value="octopus">Octopus Energy</option>
+            <option value="optima">Optima Italia</option>
+            <option value="poste">Poste Energia</option>
+            <option value="pulsee">Pulsee Luce e Gas</option>
+            <option value="sorgenia">Sorgenia</option>
+            <option value="vivi">Vivi Energia</option>
+            </select>
+          </div>
+          <div class="provider-card-body" id="provider-card-body-b">
+            <div class="provider-empty"><strong>Aggiungi un confronto</strong><span>Scegli un secondo fornitore per leggere gli stessi dati nello stesso ordine.</span></div>
+          </div>
+        </article>
       </div>
       <div id="provider-live" role="status" aria-live="polite" class="sr-only"></div>
     </section>
 
-    <section class="provider-panel" id="provider-panel" hidden aria-labelledby="provider-name">
-      <div class="provider-identity" id="scheda-fornitore">
-        <div class="provider-logo" id="provider-logo"></div>
-        <div class="provider-title">
-          <h2 id="provider-name">Fornitore</h2>
-          <p id="provider-meta">Dati verificati</p>
-          <div class="provider-title-links">
-            <a id="provider-partner-link" hidden>Apri la pagina dedicata OL</a>
-          </div>
-        </div>
+    <section class="market-context" aria-labelledby="market-context-title">
+      <div class="market-context-head">
+        <span class="section-kicker">Contesto del mercato · dati ARERA 2024</span>
+        <h2 id="market-context-title">Per quali problemi i clienti fanno reclamo?</h2>
+        <p>Queste percentuali descrivono il mercato italiano, non un singolo fornitore.</p>
+      </div>
+      <div class="market-tabs" role="tablist" aria-label="Scegli il settore">
+        <button type="button" class="market-tab is-active" role="tab" aria-selected="true" aria-controls="market-electricity" id="market-tab-electricity" data-market-tab="electricity">Luce</button>
+        <button type="button" class="market-tab" role="tab" aria-selected="false" aria-controls="market-gas" id="market-tab-gas" data-market-tab="gas">Gas</button>
       </div>
 
-      <div class="kpi-grid" id="provider-kpis" aria-label="Sintesi dati fornitore"></div>
-
-      <section class="market-context" aria-labelledby="market-context-title">
-        <div class="market-context-head">
-          <span class="section-kicker">Contesto del mercato · non del singolo fornitore</span>
-          <h3 id="market-context-title">Per quali problemi i clienti fanno reclamo?</h3>
-          <p>ARERA raccoglie i motivi dei reclami inviati ai venditori. Qui li traduciamo in parole semplici. Dati 2024.</p>
+      <div class="market-panel" id="market-electricity" role="tabpanel" aria-labelledby="market-tab-electricity" data-market-panel="electricity">
+        <div class="market-compact-list">
+          <div class="market-compact-row"><span>Problemi con la bolletta</span><strong>38,84%</strong><button type="button" class="info-button" data-info-title="Problemi con la bolletta" data-info-body="Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano. Categoria tecnica ARERA: Fatturazione." aria-label="Spiega problemi con la bolletta">i</button></div>
+          <div class="market-compact-row"><span>Cambio fornitore o offerta</span><strong>16,41%</strong><button type="button" class="info-button" data-info-title="Problemi con cambio fornitore o offerta" data-info-body="Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate. Categoria tecnica ARERA: Mercato." aria-label="Spiega cambio fornitore o offerta">i</button></div>
+          <div class="market-compact-row"><span>Problemi con il contratto</span><strong>15,57%</strong><button type="button" class="info-button" data-info-title="Problemi con il contratto" data-info-body="Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto. Categoria tecnica ARERA: Contratti." aria-label="Spiega problemi con il contratto">i</button></div>
+          <div class="market-compact-row"><span>Pagamenti e distacchi</span><strong>11,62%</strong><button type="button" class="info-button" data-info-title="Problemi per pagamenti e distacchi" data-info-body="Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti. Categoria tecnica ARERA: Morosità e sospensione." aria-label="Spiega pagamenti e distacchi">i</button></div>
         </div>
-        <div class="market-tabs" role="tablist" aria-label="Scegli il settore">
-          <button type="button" class="market-tab is-active" role="tab" aria-selected="true" aria-controls="market-electricity" id="market-tab-electricity" data-market-tab="electricity">Luce</button>
-          <button type="button" class="market-tab" role="tab" aria-selected="false" aria-controls="market-gas" id="market-tab-gas" data-market-tab="gas">Gas</button>
-        </div>
-
-        <div class="market-panel" id="market-electricity" role="tabpanel" aria-labelledby="market-tab-electricity" data-market-panel="electricity">
-          <div class="market-list">
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con la bolletta</strong><span>38,84%</span></div>
-              <p>Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano.</p>
-              <small>Categoria ARERA: Fatturazione</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:38.84%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con cambio fornitore o offerta</strong><span>16,41%</span></div>
-              <p>Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate.</p>
-              <small>Categoria ARERA: Mercato</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:16.41%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con il contratto</strong><span>15,57%</span></div>
-              <p>Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto.</p>
-              <small>Categoria ARERA: Contratti</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:15.57%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi per pagamenti e distacchi</strong><span>11,62%</span></div>
-              <p>Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti.</p>
-              <small>Categoria ARERA: Morosità e sospensione</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:11.62%"></span></div>
-            </article>
-          </div>
-          <details class="market-more">
-            <summary>Vedi gli altri motivi</summary>
-            <p>Problemi tecnici o lavori <strong>6,59%</strong> · letture e contatore <strong>3,54%</strong> · altri casi <strong>3,48%</strong> · assistenza commerciale <strong>2,96%</strong> · bonus sociale <strong>0,98%</strong> · casi non di competenza del venditore <strong>0,01%</strong>.</p>
-          </details>
-        </div>
-
-        <div class="market-panel" id="market-gas" role="tabpanel" aria-labelledby="market-tab-gas" data-market-panel="gas" hidden>
-          <div class="market-list">
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con la bolletta</strong><span>46,31%</span></div>
-              <p>Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano.</p>
-              <small>Categoria ARERA: Fatturazione</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:46.31%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con il contratto</strong><span>21,54%</span></div>
-              <p>Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto.</p>
-              <small>Categoria ARERA: Contratti</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:21.54%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi con cambio fornitore o offerta</strong><span>11,99%</span></div>
-              <p>Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate.</p>
-              <small>Categoria ARERA: Mercato</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:11.99%"></span></div>
-            </article>
-            <article class="market-row">
-              <div class="market-row-head"><strong>Problemi per pagamenti e distacchi</strong><span>8,44%</span></div>
-              <p>Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti.</p>
-              <small>Categoria ARERA: Morosità e sospensione</small>
-              <div class="market-bar" aria-hidden="true"><span style="width:8.44%"></span></div>
-            </article>
-          </div>
-          <details class="market-more">
-            <summary>Vedi gli altri motivi</summary>
-            <p>Letture e contatore <strong>5,01%</strong> · problemi tecnici o lavori <strong>2,45%</strong> · altri casi <strong>1,67%</strong> · assistenza commerciale <strong>1,56%</strong> · bonus sociale <strong>1,02%</strong> · casi non di competenza del venditore <strong>0,01%</strong>.</p>
-          </details>
-        </div>
-        <p class="market-source">Fonte: ARERA, Relazione annuale 2025 sui dati 2024. Le percentuali descrivono il mercato italiano, non il singolo fornitore. <a href="https://www.arera.it/fileadmin/allegati/relaz_ann/25/VOLUME_1_definitivo.pdf" target="_blank" rel="noopener noreferrer">Apri la fonte ARERA</a></p>
-      </section>
-
-      <div class="provider-workspace">
-        <div class="data-stack">
-          <details class="data-group" open>
-            <summary><span>Dati ufficiali sul servizio<small id="official-summary">ARERA/TIQV spiegati in parole semplici</small></span></summary>
-            <div class="group-body" id="official-body"></div>
-          </details>
-          <details class="data-group">
-            <summary><span>Unione Nazionale Consumatori<small id="unc-summary">Osservatorio separato</small></span></summary>
-            <div class="group-body" id="unc-body"></div>
-          </details>
-          <details class="data-group">
-            <summary><span>Altroconsumo<small id="altroconsumo-summary">Osservatorio separato</small></span></summary>
-            <div class="group-body" id="altroconsumo-body"></div>
-          </details>
-          <details class="data-group">
-            <summary><span>Fonti e metodologia<small>Anno, perimetro e provenienza</small></span></summary>
-            <div class="group-body" id="sources-body"></div>
-          </details>
-        </div>
-
-        <aside class="side-stack" aria-label="Azioni sul fornitore">
-          <section class="side-card compare-card">
-            <h3>Confronta i dati</h3>
-            <p>OL mostra solo indicatori omogenei per anno, unità e perimetro. Se i dati non sono confrontabili, lo dice.</p>
-            <label for="compare-select" class="section-kicker" style="margin-bottom:6px">Secondo fornitore</label>
-            <select id="compare-select" class="compare-select"><option value="">Scegli un altro fornitore</option></select>
-            <div id="compare-result" class="compare-result"></div>
-          </section>
-          <section class="side-card action-card">
-            <h3>Hai un problema con questo fornitore?</h3>
-            <p>Ricostruisci il caso prima di decidere come procedere.</p>
-            <a class="btn btn-primary" id="provider-reclami-link" href="/reclami-luce-gas.html">Verifica il tuo caso</a>
-          </section>
-          <section class="side-card action-card">
-            <h3>Vuoi guardare anche il prezzo?</h3>
-            <p>I dati di qualità non sostituiscono il confronto economico sul tuo profilo.</p>
-            <a class="btn btn-secondary" id="provider-offers-link" href="/">Confronta le offerte</a>
-          </section>
-        </aside>
+        <details class="market-more"><summary>Altri motivi</summary><p>Problemi tecnici o lavori <strong>6,59%</strong> · letture e contatore <strong>3,54%</strong> · altri casi <strong>3,48%</strong> · assistenza commerciale <strong>2,96%</strong> · bonus sociale <strong>0,98%</strong>.</p></details>
       </div>
+
+      <div class="market-panel" id="market-gas" role="tabpanel" aria-labelledby="market-tab-gas" data-market-panel="gas" hidden>
+        <div class="market-compact-list">
+          <div class="market-compact-row"><span>Problemi con la bolletta</span><strong>46,31%</strong><button type="button" class="info-button" data-info-title="Problemi con la bolletta" data-info-body="Importi, consumi, conguagli, pagamenti, rimborsi o voci che non tornano. Categoria tecnica ARERA: Fatturazione." aria-label="Spiega problemi con la bolletta">i</button></div>
+          <div class="market-compact-row"><span>Problemi con il contratto</span><strong>21,54%</strong><button type="button" class="info-button" data-info-title="Problemi con il contratto" data-info-body="Recesso, voltura, subentro, intestazione, perfezionamento o costi del contratto. Categoria tecnica ARERA: Contratti." aria-label="Spiega problemi con il contratto">i</button></div>
+          <div class="market-compact-row"><span>Cambio fornitore o offerta</span><strong>11,99%</strong><button type="button" class="info-button" data-info-title="Problemi con cambio fornitore o offerta" data-info-body="Cambio non andato a buon fine, tempi dello switch o condizioni economiche applicate. Categoria tecnica ARERA: Mercato." aria-label="Spiega cambio fornitore o offerta">i</button></div>
+          <div class="market-compact-row"><span>Pagamenti e distacchi</span><strong>8,44%</strong><button type="button" class="info-button" data-info-title="Problemi per pagamenti e distacchi" data-info-body="Morosità, solleciti, sospensione della fornitura o contestazioni sui pagamenti. Categoria tecnica ARERA: Morosità e sospensione." aria-label="Spiega pagamenti e distacchi">i</button></div>
+        </div>
+        <details class="market-more"><summary>Altri motivi</summary><p>Letture e contatore <strong>5,01%</strong> · problemi tecnici o lavori <strong>2,45%</strong> · altri casi <strong>1,67%</strong> · assistenza commerciale <strong>1,56%</strong> · bonus sociale <strong>1,02%</strong>.</p></details>
+      </div>
+      <p class="market-source">Fonte: ARERA, Relazione annuale 2025 sui dati 2024. <a href="https://www.arera.it/fileadmin/allegati/relaz_ann/25/VOLUME_1_definitivo.pdf" target="_blank" rel="noopener noreferrer">Apri la fonte</a></p>
     </section>
+
+    <dialog class="info-dialog" id="metric-info-dialog" aria-labelledby="metric-info-title">
+      <div class="info-dialog-head"><h2 id="metric-info-title">Dettaglio del dato</h2><button type="button" class="info-dialog-close" id="metric-info-close" aria-label="Chiudi">×</button></div>
+      <div class="info-dialog-body" id="metric-info-body"></div>
+    </dialog>
 
     <section class="directory" aria-labelledby="directory-title">
       <span class="section-kicker">Copertura OL</span>
@@ -496,7 +439,7 @@
 </footer>
 
 <script src="/assets/provider-quality-data.js?v=0.10.36"></script>
-<script src="/assets/fornitori-trasparenza.js?v=0.10.36" defer></script>
+<script src="/assets/fornitori-trasparenza.js?v=0.10.37" defer></script>
 <script src="/assets/ol-public-header.js?v=0.10.31" defer></script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
