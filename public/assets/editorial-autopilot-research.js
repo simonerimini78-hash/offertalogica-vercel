@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.83";
+  const VERSION = "0.12.84";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1101,6 +1101,9 @@
     ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
 
     const socialAsset = row.social_asset && typeof row.social_asset === "object" ? row.social_asset : null;
+    const articleTakeaway = String(socialAsset?.brief?.article_takeaway || "").trim();
+    const destinationSolution = String(socialAsset?.brief?.destination_solution || "").trim();
+    const copyQaReason = String(socialAsset?.brief?.copy_qa?.reason || "").trim();
     const socialImageUrl = /^https:\/\//i.test(String(socialAsset?.image?.url || "")) ? String(socialAsset.image.url) : "";
     const socialCardUrl = /^https:\/\//i.test(String(socialAsset?.card?.url || "")) ? String(socialAsset.card.url) : "";
     const articleImageUrl = /^https:\/\//i.test(String(row.source_article?.featured_image_url || "")) ? String(row.source_article.featured_image_url) : "";
@@ -1139,6 +1142,8 @@
       </summary>
       <div class="ol-cycle-row-body">
         <small>${esc(row.theme || "")}</small>
+        ${articleTakeaway ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Sintesi editoriale usata dal post</strong><small>${esc(articleTakeaway)}</small>${copyQaReason ? `<small><b>QA copy:</b> ${esc(copyQaReason)}</small>` : ""}</div>` : ""}
+        ${destinationSolution ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Funzione OffertaLogica usata nel post</strong><small>${esc(destinationSolution)}</small></div>` : ""}
         ${imageMarkup}
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
