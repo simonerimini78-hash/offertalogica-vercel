@@ -19,7 +19,7 @@
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/ol-app-access.css">
   <link rel="stylesheet" href="/assets/ol-public-header.css?v=0.10.31">
-  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.38">
+  <link rel="stylesheet" href="/assets/fornitori-trasparenza.css?v=0.10.39">
   <script type="application/ld+json">
   {
     "@context": "https://schema.org",
@@ -241,7 +241,7 @@
       <div class="compare-tool-head">
         <span class="section-kicker">Trasparenza fornitori</span>
         <h2 id="compare-tool-title">Confronta assistenza e reclami senza perderti nei numeri</h2>
-        <p>Scegli uno o due fornitori. Ogni scheda contiene nello stesso blocco luce, gas, motivi dei reclami e osservatori; dettagli tecnici, anno e fonte sono dietro la <strong>ⓘ</strong>.</p>
+        <p>Scegli uno o due fornitori. Ogni scheda raccoglie nello stesso blocco luce, gas, gestione e motivi dei reclami. Quando esiste un dato specifico del fornitore, lo affianchiamo al riferimento ARERA; dettagli, anno e fonte restano dietro la <strong>ⓘ</strong>.</p>
       </div>
 
       <div class="provider-compare-grid" aria-label="Confronto tra fornitori">
@@ -323,10 +323,13 @@
           </div>
         </article>
       </div>
+      <section class="comparison-summary" id="comparison-summary" aria-labelledby="comparison-summary-title" hidden>
+        <span class="section-kicker">Lettura del confronto</span>
+        <h3 id="comparison-summary-title">Cosa emerge dai dati confrontabili</h3>
+        <div id="comparison-summary-body"></div>
+      </section>
       <div id="provider-live" role="status" aria-live="polite" class="sr-only"></div>
     </section>
-
-    <section class="comparison-summary" id="provider-comparison-summary" aria-live="polite" hidden></section>
 
     <dialog class="info-dialog" id="metric-info-dialog" aria-labelledby="metric-info-title">
       <div class="info-dialog-head"><h2 id="metric-info-title">Dettaglio del dato</h2><button type="button" class="info-dialog-close" id="metric-info-close" aria-label="Chiudi">×</button></div>
@@ -407,8 +410,8 @@
   <nav aria-label="Link del sito"><a href="/">Calcolatore</a><a href="/offerte-luce-gas-aggiornate.html">Offerte aggiornate</a><a href="/tutela-energia.html">Tutela energia</a><a href="/reclami-luce-gas.html">Reclami</a><a href="/termini-condizioni.html">Termini</a><a href="https://www.iubenda.com/privacy-policy/36565194" class="iubenda-white iubenda-noiframe iubenda-embed">Privacy</a></nav>
 </footer>
 
-<script src="/assets/provider-quality-data.js?v=0.10.36"></script>
-<script src="/assets/fornitori-trasparenza.js?v=0.10.38" defer></script>
+<script src="/assets/provider-quality-data.js?v=0.10.39"></script>
+<script src="/assets/fornitori-trasparenza.js?v=0.10.39" defer></script>
 <script src="/assets/ol-public-header.js?v=0.10.31" defer></script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
 </body>
