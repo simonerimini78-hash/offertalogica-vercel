@@ -1,5 +1,5 @@
 import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
-import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpSms } from "../lib/otp.js";
+import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpEmail, sendOtpSms } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
 
@@ -19,7 +19,7 @@ function secondsSince(value) {
   return Math.max(0, Math.floor((Date.now() - timestamp) / 1000));
 }
 
-const ALLOWED_OTP_PROVIDERS = new Set(["aruba-sms", "twilio-verify", "twilio", "demo"]);
+const ALLOWED_OTP_PROVIDERS = new Set(["aruba-sms", "twilio-verify", "twilio", "resend-email", "demo"]);
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
@@ -47,12 +47,16 @@ export default async function handler(req, res) {
     const lead = await getJson(`lead:${normalizedLeadId}`);
     if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
 
-    const phoneIdentifier = String(lead.phone || "").trim();
-    if (!phoneIdentifier) return json(res, 400, { ok: false, error: "Telefono non disponibile" });
+    const leadSource = String(lead.consents?.proof?.source || "").trim().toLowerCase();
+    const useEmailOtp = leadSource === "offer_selection";
+    const otpIdentifier = String(useEmailOtp ? lead.email : lead.phone || "").trim().toLowerCase();
+    if (!otpIdentifier) {
+      return json(res, 400, { ok: false, error: useEmailOtp ? "Email non disponibile" : "Telefono non disponibile" });
+    }
     if (!(await enforceRateLimit(req, res, {
-      label: "send-otp-phone",
-      identifier: phoneIdentifier,
-      ...rateLimitConfig("SEND_OTP_PHONE", 5, 3600),
+      label: useEmailOtp ? "send-otp-email" : "send-otp-phone",
+      identifier: otpIdentifier,
+      ...rateLimitConfig(useEmailOtp ? "SEND_OTP_EMAIL" : "SEND_OTP_PHONE", 5, 3600),
     }))) return;
 
     otpKey = `otp:${normalizedLeadId}`;
@@ -72,7 +76,7 @@ export default async function handler(req, res) {
     const code = createOtp();
     const otp = {
       leadId: normalizedLeadId,
-      hash: hashOtp(lead.phone, code),
+      hash: hashOtp(otpIdentifier, code),
       attempts: 0,
       expiresAt: otpExpiresAt(),
       createdAt: new Date().toISOString(),
@@ -84,7 +88,7 @@ export default async function handler(req, res) {
 
     let sent;
     try {
-      sent = await sendOtpSms(lead.phone, code);
+      sent = useEmailOtp ? await sendOtpEmail(lead.email, code) : await sendOtpSms(lead.phone, code);
 
       const provider = String(sent?.provider || "").trim();
       if (!ALLOWED_OTP_PROVIDERS.has(provider)) {

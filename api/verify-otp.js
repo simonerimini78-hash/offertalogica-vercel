@@ -30,12 +30,15 @@ export default async function handler(req, res) {
     // non chiediamo al provider OTP di approvare nuovamente lo stesso codice.
     // Questo è importante soprattutto con Twilio Verify, dove una verifica già
     // approvata può non essere riutilizzabile in un secondo VerificationCheck.
+    const otpIdentifier = otp.provider === "resend-email"
+      ? String(lead.email || "").trim().toLowerCase()
+      : String(lead.phone || "").trim();
     let valid = lead.status === "verified" && Boolean(lead.verifiedAt);
     if (!valid && otp.provider === "twilio-verify") {
       const twilioResult = await checkTwilioVerify(lead.phone, normalizedCode);
       valid = twilioResult.approved;
     } else if (!valid) {
-      valid = otpHashMatches(lead.phone, normalizedCode, otp.hash);
+      valid = otpHashMatches(otpIdentifier, normalizedCode, otp.hash);
     }
     if (!valid) {
       await setJson(`otp:${normalizedLeadId}`, { ...otp, attempts: otp.attempts + 1 }, 300);
@@ -83,7 +86,7 @@ export default async function handler(req, res) {
     if (notificationEvent === "photovoltaic_consulting_request" && notificationFailed) {
       return json(res, 503, {
         ok: false,
-        error: "Numero verificato, ma l'invio della richiesta non e' riuscito. Premi di nuovo Verifica tra poco.",
+        error: "Recapito verificato, ma l'invio della richiesta non e' riuscito. Premi di nuovo Verifica tra poco.",
       });
     }
 

@@ -359,7 +359,6 @@ export default async function handler(req, res) {
 
     if (!/^[A-Za-z0-9_-]{8,100}$/.test(leadId)) return json(res, 400, { ok: false, error: "Lead non valido" });
     if (!requireLeadSession(req, res, leadId)) return;
-    if (!accepted) return json(res, 400, { ok: false, error: "Consenso commerciale non confermato" });
 
     const offerCatalog = await loadOfferCatalog();
     const resolvedOffer = resolveCanonicalOffer(submittedOffer, offerCatalog, switchoConfig);
@@ -371,6 +370,10 @@ export default async function handler(req, res) {
     const validation = validateSelectedOffer(selectedOffer, switchoConfig);
     if (!validation.ok) return json(res, 400, { ok: false, error: validation.error });
     const redirectUrl = validation.redirectUrl || "";
+    const requiresPartnerConsent = !redirectUrl;
+    if (requiresPartnerConsent && !accepted) {
+      return json(res, 400, { ok: false, error: "Consenso commerciale non confermato" });
+    }
 
     const lead = await getJson(`lead:${leadId}`);
     if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
@@ -416,14 +419,24 @@ export default async function handler(req, res) {
       consents: {
         ...lead.consents,
         marketing: Boolean(lead.consents?.marketing),
-        partners: true,
-        offerConsent: {
-          accepted: true,
-          acceptedAt,
-          offer: selectedOffer,
-          tracking,
-          version: lead.consents?.privacyVersion || "privacy-lead-v1",
-        },
+        partners: requiresPartnerConsent ? true : Boolean(lead.consents?.partners),
+        ...(requiresPartnerConsent ? {
+          offerConsent: {
+            accepted: true,
+            acceptedAt,
+            offer: selectedOffer,
+            tracking,
+            version: lead.consents?.privacyVersion || "privacy-lead-v1",
+          },
+        } : {
+          offerSelection: {
+            selected: true,
+            selectedAt: acceptedAt,
+            offer: selectedOffer,
+            tracking,
+            version: lead.consents?.privacyVersion || "privacy-lead-v1",
+          },
+        }),
       },
     };
 
@@ -447,7 +460,7 @@ export default async function handler(req, res) {
     }
 
     await setJson(`lead:${leadId}`, updatedLead, Number(process.env.LEAD_RETENTION_DAYS || 30) * 24 * 3600);
-    const customerDb = await persistLeadSnapshot(updatedLead, "offer_partner_consent");
+    const customerDb = await persistLeadSnapshot(updatedLead, requiresPartnerConsent ? "offer_partner_consent" : "offer_affiliate_redirect");
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_offer_partner_consent_failed", customerDb.error);
     }

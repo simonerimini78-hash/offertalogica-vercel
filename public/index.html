@@ -13087,7 +13087,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       : "Abbiamo trovato le offerte più adatte al tuo profilo";
   }
   if (teaserCopy) {
-    teaserCopy.innerText = "Il confronto è consultabile senza registrazione. OffertaLogica non effettua chiamate telefoniche; telefono ed email vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner.";
+    teaserCopy.innerText = "Il confronto è consultabile senza registrazione. Se scegli di proseguire con un’offerta, verifichiamo la tua email; il cellulare resta facoltativo.";
   }
   aggiornaPromptBollettaDopoOfferte();
   ottimizzaRisultatiMobile();
@@ -13719,6 +13719,10 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   const partnerCopy = document.getElementById("lead-partner-copy");
   const serviceCopy = document.getElementById("lead-service-copy");
   const partnerLabel = document.getElementById("lead-partner-label");
+  const marketingLabel = document.getElementById("lead-marketing-label");
+  const nameField = document.getElementById("lead-nome-field");
+  const phoneField = document.getElementById("lead-telefono-field");
+  const phoneLabel = document.getElementById("lead-telefono-label");
   const privacySummary = document.getElementById("lead-privacy-summary");
   const otpInput = document.getElementById("lead-otp");
   const sendBtn = document.getElementById("lead-send-otp");
@@ -13756,7 +13760,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Verifica il numero"
         : isOfferSelection
-          ? "Verifica il numero"
+          ? "Verifica la tua email"
           : "Verifica il numero";
   }
   if (copy) {
@@ -13767,7 +13771,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
-          ? `Stai scegliendo di proseguire con ${selectedOfferName}. Solo ora OffertaLogica ti chiede telefono ed email: il cellulare serve alla verifica OTP. OffertaLogica non effettua chiamate telefoniche e i dati non vengono trasmessi al partner senza autorizzazione.`
+          ? `Stai scegliendo di proseguire con ${selectedOfferName}. Inserisci la tua email: ti invieremo un codice per verificarla. Il cellulare è facoltativo. OffertaLogica non trasmette questi dati al fornitore: dopo la verifica proseguirai sul portale collegato all'offerta.`
           : "Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.";
   }
   if (serviceCopy) {
@@ -13776,21 +13780,27 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? `<strong>Richiedo l'analisi preliminare e il ricontatto necessario alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per preparare l'analisi preliminare e gestire la tua richiesta.</span>`
         : isOfferSelection
-          ? `<strong>Richiedo di verificare il numero e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica non autorizza da sola la trasmissione dei dati al fornitore o al partner.</span>`
+          ? `<strong>Richiedo di verificare la mia email e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">OffertaLogica registra la verifica e la scelta dell'offerta; i dati inseriti qui non vengono trasmessi al fornitore.</span>`
           : `<strong>Richiedo la comparazione personalizzata e l'assistenza necessaria alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
-  if (partnerLabel) partnerLabel.style.display = isAssistance ? "none" : "flex";
+  if (partnerLabel) partnerLabel.style.display = (isAssistance || isOfferSelection) ? "none" : "flex";
+  if (marketingLabel) marketingLabel.style.display = isOfferSelection ? "flex" : "none";
+  if (nameField) nameField.style.display = isOfferSelection ? "none" : "grid";
+  if (phoneField) phoneField.style.display = "grid";
+  if (phoneLabel) phoneLabel.innerText = isOfferSelection ? "Cellulare (facoltativo)" : "Cellulare";
   const serviceCheckbox = document.getElementById("lead-consenso-servizio");
   const partnerCheckbox = document.getElementById("lead-consenso-partner");
+  const marketingCheckbox = document.getElementById("lead-consenso-marketing");
   if (serviceCheckbox) serviceCheckbox.checked = false;
   if (partnerCheckbox) partnerCheckbox.checked = false;
+  if (marketingCheckbox) marketingCheckbox.checked = false;
   if (privacySummary) {
     privacySummary.innerText = isAssistance
       ? "La verifica conferma il numero per sicurezza. OffertaLogica non effettua chiamate telefoniche: l'assistenza richiesta viene fornita via email e non autorizza l'invio dei dati a un fornitore."
       : isBusiness
         ? "L'SMS serve solo a confermare il numero e proseguire con la richiesta aziendale. L'invio dei dati a consulenti o partner resta separato e facoltativo."
         : isOfferSelection
-          ? "L'SMS conferma il numero e sblocca la prosecuzione sull'offerta scelta. La trasmissione dei dati al fornitore o al partner resta separata e richiede la relativa autorizzazione."
+          ? "Il codice conferma che l'email è reale. OffertaLogica registra la scelta per il proprio tracciamento; l'attivazione prosegue poi sul portale esterno tramite il link collegato all'offerta."
           : "L'SMS serve solo a confermare il numero. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
@@ -13804,7 +13814,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   modal.style.display = "flex";
   document.body.classList.add("lead-modal-visible");
-  a11yApriDialog(modal, "#lead-nome");
+  a11yApriDialog(modal, isOfferSelection ? "#lead-email" : "#lead-nome");
   trackEvent("lead_modal_opened", { leadSource: source });
   leadStatus(staffModeAttiva()
     ? "Modalita staff attiva: premi “Invia il codice di verifica” e usa il codice 000000. Nessun dato viene salvato."
@@ -13825,7 +13835,7 @@ function leggiLeadForm() {
   const email = document.getElementById("lead-email")?.value.trim();
   const consents = {
     service: Boolean(document.getElementById("lead-consenso-servizio")?.checked),
-    marketing: false,
+    marketing: Boolean(document.getElementById("lead-consenso-marketing")?.checked),
     partners: LEAD_STATE.leadSource === "assistance_callback"
       ? false
       : Boolean(document.getElementById("lead-consenso-partner")?.checked),
@@ -13835,8 +13845,9 @@ function leggiLeadForm() {
 
 function leadValido() {
   const { nome, telefono, email, consents } = leggiLeadForm();
-  if (!nome || !telefono || !email) {
-    leadStatus("Compila nome, telefono ed email.", true);
+  const isOfferSelection = LEAD_STATE.leadSource === "offer_selection";
+  if (isOfferSelection ? !email : (!nome || !telefono || !email)) {
+    leadStatus(isOfferSelection ? "Inserisci la tua email." : "Compila nome, telefono ed email.", true);
     return false;
   }
   if (!consents.service) {
@@ -13849,8 +13860,8 @@ function leadValido() {
     leadStatus("Inserisci una email valida.", true);
     return false;
   }
-  if (telefono.replace(/\D/g, "").length < 8) {
-    leadStatus("Inserisci un numero di cellulare valido.", true);
+  if ((!isOfferSelection || telefono) && telefono.replace(/\D/g, "").length < 8) {
+    leadStatus("Inserisci un numero di cellulare valido oppure lascialo vuoto.", true);
     return false;
   }
   return true;
@@ -13984,9 +13995,12 @@ async function inviaOtp() {
       demoMode: Boolean(otpPayload.demoCode),
     });
     const telefonoDestinazione = document.getElementById("lead-telefono")?.value || "";
+    const emailDestinazione = document.getElementById("lead-email")?.value || "";
     leadStatus(otpPayload.demoCode
       ? `Codice di prova: ${otpPayload.demoCode}.`
-      : `Codice inviato al ${telefonoMascherato(telefonoDestinazione)}.`);
+      : LEAD_STATE.leadSource === "offer_selection"
+        ? `Codice inviato a ${emailDestinazione}.`
+        : `Codice inviato al ${telefonoMascherato(telefonoDestinazione)}.`);
   } catch (error) {
     const otpInput = document.getElementById("lead-otp");
     const sendBtn = document.getElementById("lead-send-otp");
@@ -14048,7 +14062,7 @@ async function verificaOtp() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    leadStatus("Numero verificato. Le offerte sono ora disponibili.");
+    leadStatus(LEAD_STATE.leadSource === "offer_selection" ? "Email verificata. Puoi continuare con l’offerta scelta." : "Numero verificato. Le offerte sono ora disponibili.");
     trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
     if (typeof gtag === "function") {
       gtag("event", "conversion", {
@@ -14444,6 +14458,11 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       destinationStatus: LEAD_STATE.selectedOffer.destinationStatus,
     });
     apriLeadModal("offer_selection");
+    return;
+  }
+
+  if (offertaConRedirectAttivo(LEAD_STATE.selectedOffer)) {
+    registraRichiestaOfferta();
     return;
   }
 
@@ -14939,7 +14958,7 @@ async function registraRichiestaOfferta() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         leadId: LEAD_STATE.leadId,
-        accepted: true,
+        accepted: !offertaConRedirectAttivo(offer) ? true : false,
         offer,
         tracking: {
           source: "offer_click",
@@ -20080,7 +20099,7 @@ if (document.readyState === "loading") {
 <div class="fornitori-consigliati-section">
 <div class="lead-teaser" id="lead-teaser">
     <strong id="lead-teaser-title">Abbiamo trovato offerte più convenienti.</strong>
-    <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. OffertaLogica non effettua chiamate telefoniche; telefono ed email vengono richiesti solo se scegli di proseguire tramite noi con un’offerta partner.</p>
+    <p id="lead-teaser-copy">Il confronto è consultabile senza registrazione. Se scegli di proseguire con un’offerta, verifichiamo la tua email; il cellulare resta facoltativo.</p>
     <button type="button" onclick="document.getElementById('offerte-ranking-group')?.scrollIntoView({ behavior: 'smooth', block: 'start' })">Vai alle offerte</button>
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden aria-hidden="true">
@@ -20506,12 +20525,12 @@ if (document.readyState === "loading") {
 
 <div class="lead-modal-backdrop" id="lead-modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="lead-modal-title">
     <div class="lead-modal">
-        <h3 id="lead-modal-title">Verifica il numero</h3>
-        <p id="lead-modal-copy">Hai scelto di proseguire con un’offerta partner tramite OffertaLogica. Inserisci i dati e ricevi un codice SMS per verificare il numero. OffertaLogica non effettua chiamate telefoniche; l’eventuale invio al partner richiede la tua autorizzazione.</p>
+        <h3 id="lead-modal-title">Verifica la tua email</h3>
+        <p id="lead-modal-copy">Hai scelto di proseguire con un’offerta. Verifica la tua email per continuare sul portale collegato all’offerta scelta.</p>
         <div class="lead-form-grid">
-            <label class="lead-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
-            <label class="lead-field" for="lead-telefono"><span>Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
+            <label class="lead-field" id="lead-nome-field" for="lead-nome"><span>Nome e cognome</span><input id="lead-nome" type="text" autocomplete="name" placeholder="Mario Rossi"></label>
             <label class="lead-field" for="lead-email"><span>Email</span><input id="lead-email" type="email" autocomplete="email" inputmode="email" placeholder="nome@email.it"></label>
+            <label class="lead-field" id="lead-telefono-field" for="lead-telefono"><span id="lead-telefono-label">Cellulare</span><input id="lead-telefono" type="tel" autocomplete="tel" inputmode="tel" placeholder="333 1234567"></label>
             <label class="lead-consent required">
                 <input id="lead-consenso-servizio" type="checkbox">
                 <span class="lead-consent-copy" id="lead-service-copy"><strong>Richiedo la comparazione personalizzata e l'assistenza necessaria alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span></span>
@@ -20520,8 +20539,12 @@ if (document.readyState === "loading") {
                 <input id="lead-consenso-partner" type="checkbox">
                 <span id="lead-partner-copy" class="lead-consent-copy"><strong>Facoltativo</strong> - autorizzo OffertaLogica a trasmettere i miei dati al fornitore o partner dell'offerta che sceglierò, per essere ricontattato esclusivamente in merito a quella proposta.</span>
             </label>
+            <label class="lead-consent" id="lead-marketing-label" style="display:none;">
+                <input id="lead-consenso-marketing" type="checkbox">
+                <span class="lead-consent-copy"><strong>Facoltativo</strong> - desidero ricevere via email aggiornamenti, guide e novità di OffertaLogica. Posso revocare il consenso in qualsiasi momento.</span>
+            </label>
             <div class="lead-privacy-note" id="lead-privacy-summary">Il confronto resta consultabile senza registrazione. L'SMS serve a confermare il numero solo nei percorsi successivi che richiedono una verifica; l'invio dei dati a fornitori o partner resta separato e soggetto alle autorizzazioni previste.</div>
-            <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice ricevuto via SMS</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
+            <label class="lead-field" id="lead-otp-field" for="lead-otp" style="display:none;"><span>Codice di verifica</span><input id="lead-otp" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000"></label>
         </div>
         <div class="lead-actions">
             <button type="button" class="lead-primary" id="lead-send-otp">Invia il codice di verifica</button>
