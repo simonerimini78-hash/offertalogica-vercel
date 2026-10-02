@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.82";
+const VERSION = "0.12.83";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -62,7 +62,7 @@ const EDITORIAL_IMAGE_BUCKET = "editorial-images";
 const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
 const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
 const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
-const EDITORIAL_SOCIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
+const EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS = 2;
 const EDITORIAL_SOCIAL_IMAGE_SIZE = "1024x1024";
 const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
 const EDITORIAL_PAGE_UPDATE_ACTIONS = new Set([
@@ -2820,6 +2820,9 @@ async function editorialSocialPlanPayload() {
   const articleIds = [...new Set((items || [])
     .map((row) => String(row.source_article_id || "").trim())
     .filter(validUuid))];
+  const opportunityIds = [...new Set((items || [])
+    .map((row) => String(row.opportunity_id || "").trim())
+    .filter(validUuid))];
 
   const targets = [];
   for (let index = 0; index < targetIds.length; index += 12) {
@@ -2856,19 +2859,66 @@ async function editorialSocialPlanPayload() {
     }
   }
 
+  const opportunities = [];
+  for (let index = 0; index < opportunityIds.length; index += 8) {
+    const chunk = opportunityIds.slice(index, index + 8);
+    try {
+      const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})`);
+      opportunities.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      warnings.push(`social_assets: ${String(error?.message || error)}`);
+      console.warn("editorial_social_plan_assets_unavailable", error);
+      break;
+    }
+  }
+
+  const compactSocialAsset = (asset) => {
+    if (!asset || typeof asset !== "object") return null;
+    const qa = asset.image?.qa && typeof asset.image.qa === "object" ? asset.image.qa : null;
+    return {
+      status: String(asset.status || ""),
+      updated_at: asset.updated_at || null,
+      image: asset.image?.url ? {
+        source: asset.image.source || null,
+        url: asset.image.url,
+        alt_text: asset.image.alt_text || null,
+        attempt: Number(asset.image.attempt || 0) || null,
+        qa: qa ? {
+          status: qa.status || null,
+          reason: qa.reason || null,
+          regeneration_guidance: qa.regeneration_guidance || null,
+          approval_mode: qa.approval_mode || null,
+          evaluated_at: qa.evaluated_at || null,
+        } : null,
+      } : null,
+      card: asset.card?.url ? {
+        url: asset.card.url,
+        source: asset.card.source || null,
+        renderer: asset.card.renderer || null,
+        template_version: asset.card.template_version || null,
+      } : null,
+    };
+  };
+
   const targetMap = new Map((targets || []).map((row) => [row.id, row]));
   const articleMap = new Map((articles || []).map((row) => [row.id, row]));
+  const opportunityMap = new Map((opportunities || []).map((row) => [row.id, row]));
   return {
     ok: true,
     version: VERSION,
     warnings,
     channels,
-    items: (items || []).map((row) => ({
-      ...row,
-      destination_target: targetMap.get(row.destination_target_id) || null,
-      source_article: articleMap.get(row.source_article_id) || null,
-      source_article_image: articleMap.get(row.source_article_id) || null,
-    })),
+    items: (items || []).map((row) => {
+      const opportunity = opportunityMap.get(row.opportunity_id) || null;
+      const socialAsset = opportunity?.evidence?.social_assets?.items?.[row.id] || null;
+      return {
+        ...row,
+        destination_target: targetMap.get(row.destination_target_id) || null,
+        source_article: articleMap.get(row.source_article_id) || null,
+        source_article_image: articleMap.get(row.source_article_id) || null,
+        social_asset: compactSocialAsset(socialAsset),
+      };
+    }),
   };
 }
 
@@ -3858,7 +3908,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
 
       if (qaStatus === "failed") {
         const attempt = Math.max(1, Number(asset.image?.attempt) || 1);
-        if (attempt <= EDITORIAL_SOCIAL_IMAGE_QA_MAX_REGENERATIONS) {
+        if (attempt < EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS) {
           const guidance = cleanEditorialText(asset.image?.qa?.regeneration_guidance, 600)
             || "Rendi il visuale più specifico rispetto al tema del post e chiaramente diverso dalla hero dell'articolo.";
           const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance);
@@ -3894,17 +3944,69 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
           await saveEditorialSocialAssetsState(user, opportunity, state);
           return { action: "social_asset_regenerated_after_qa", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, attempt: attempt + 1 };
         }
+
+        const now = new Date().toISOString();
+        const history = [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "qa_failed_fallback_to_article_image", archived_at: now }].slice(-4);
         asset = {
           ...asset,
           schema_version: 2,
-          image: { ...asset.image, qa: { ...asset.image.qa, status: "human_review_required", exhausted_at: new Date().toISOString() } },
+          history,
+          image: {
+            source: "article_image_fallback",
+            provider: "offertalogica",
+            generation_mode: "reuse_article_image",
+            source_policy: "approved_article_image_fallback",
+            url: articleImageUrl,
+            object_path: heroAsset?.object_path || null,
+            mime_type: heroAsset?.mime_type || null,
+            size: heroAsset?.size || null,
+            quality: heroAsset?.quality || null,
+            model: null,
+            prompt: null,
+            alt_text: cleanEditorialText(article.featured_image_alt, 180) || defaultArticleImageAlt(article),
+            attempt,
+            qa: {
+              schema_version: 1,
+              status: "passed",
+              evaluated_at: now,
+              model: null,
+              relevant_to_article: true,
+              relevant_to_destination: true,
+              distinct_from_article_image: false,
+              clear: true,
+              misleading: false,
+              social_quality: true,
+              reason: "Fallback automatico: riuso dell'immagine già approvata e pubblicata con l'articolo dopo due QA social fallite.",
+              regeneration_guidance: "",
+              approval_mode: "article_image_fallback",
+            },
+            fallback: {
+              reason: "social_image_qa_exhausted",
+              failed_attempts: attempt,
+              applied_at: now,
+            },
+            created_at: now,
+          },
           card: null,
-          status: "human_review_required",
-          updated_at: new Date().toISOString(),
+          status: "card_pending",
+          updated_at: now,
         };
         state.items[item.id] = asset;
         await saveEditorialSocialAssetsState(user, opportunity, state);
-        return { action: "social_asset_human_review_required", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+
+        const card = await renderAndUploadEditorialSocialCard({
+          article,
+          sourceImageUrl: articleImageUrl,
+          postType: item.post_type,
+          title: asset.brief.cover_title,
+          summary: asset.brief.cover_summary,
+          label: editorialSocialCoverLabel(item.post_type),
+          storageSegment: `${item.id}-card`,
+        });
+        asset = { ...asset, card, status: "ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_article_image_fallback_ready", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, failed_attempts: attempt };
       }
 
       if (qaStatus !== "passed") continue;
@@ -4043,6 +4145,150 @@ async function requestEditorialSocialRegeneration(user, payload = {}) {
     publication,
     item: updatedRows?.[0] || { ...item, status: "approved" },
     article,
+  };
+}
+
+
+async function reviewEditorialSocialImage(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  const decision = String(payload.decision || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  if (!["approve", "use_article_image"].includes(decision)) throw new Error("Decisione immagine social non valida");
+
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item?.id || !validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) {
+    throw new Error("Post social non collegato correttamente");
+  }
+  if (["publishing", "published"].includes(String(item.status || ""))) {
+    throw new Error("L'immagine di un post già avviato o pubblicato non può essere sostituita da questo pannello");
+  }
+
+  const [opportunityRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,title,status,featured_image_url,featured_image_alt&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = opportunityRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunità collegata non trovati");
+
+  const state = editorialSocialAssetsState(opportunity);
+  let asset = state.items?.[itemId] || null;
+  if (!asset) throw new Error("Asset social non ancora disponibile");
+  if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card social non ancora pronto");
+
+  const now = new Date().toISOString();
+  const cardHistory = asset.card?.url
+    ? [...(Array.isArray(asset.card_history) ? asset.card_history : []), { ...asset.card, outcome: "manual_image_review", archived_at: now }].slice(-3)
+    : (Array.isArray(asset.card_history) ? asset.card_history : []);
+
+  if (decision === "approve") {
+    if (!/^https:\/\//i.test(String(asset.image?.url || ""))) throw new Error("Immagine social corrente non disponibile");
+    asset = {
+      ...asset,
+      schema_version: 2,
+      image: {
+        ...asset.image,
+        qa: {
+          ...(asset.image?.qa && typeof asset.image.qa === "object" ? asset.image.qa : {}),
+          schema_version: 1,
+          status: "passed",
+          evaluated_at: now,
+          reason: "Immagine approvata manualmente dalla Redazione.",
+          regeneration_guidance: "",
+          approval_mode: "manual_editorial",
+          approved_at: now,
+          approved_by: user.id,
+        },
+      },
+      card: null,
+      card_history: cardHistory,
+      status: "card_pending",
+      updated_at: now,
+    };
+  } else {
+    const articleImage = articleImageState(opportunity);
+    const heroAsset = articleImage.current?.url
+      ? articleImage.current
+      : (String(articleImage.candidate?.qa?.status || "") === "passed" ? articleImage.candidate : null);
+    const articleImageUrl = String(heroAsset?.url || article.featured_image_url || "").trim();
+    if (!/^https:\/\//i.test(articleImageUrl)) throw new Error("Immagine approvata dell'articolo non disponibile");
+    const history = asset.image?.url
+      ? [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "manual_fallback_to_article_image", archived_at: now }].slice(-4)
+      : (Array.isArray(asset.history) ? asset.history : []);
+    asset = {
+      ...asset,
+      schema_version: 2,
+      history,
+      image: {
+        source: "article_image_fallback",
+        provider: "offertalogica",
+        generation_mode: "reuse_article_image",
+        source_policy: "approved_article_image_fallback",
+        url: articleImageUrl,
+        object_path: heroAsset?.object_path || null,
+        mime_type: heroAsset?.mime_type || null,
+        size: heroAsset?.size || null,
+        quality: heroAsset?.quality || null,
+        model: null,
+        prompt: null,
+        alt_text: cleanEditorialText(article.featured_image_alt, 180) || defaultArticleImageAlt(article),
+        attempt: Math.max(1, Number(asset.image?.attempt) || 1),
+        qa: {
+          schema_version: 1,
+          status: "passed",
+          evaluated_at: now,
+          model: null,
+          relevant_to_article: true,
+          relevant_to_destination: true,
+          distinct_from_article_image: false,
+          clear: true,
+          misleading: false,
+          social_quality: true,
+          reason: "Immagine dell'articolo selezionata manualmente dalla Redazione come fallback social.",
+          regeneration_guidance: "",
+          approval_mode: "manual_article_image_fallback",
+          approved_at: now,
+          approved_by: user.id,
+        },
+        fallback: {
+          reason: "manual_editorial_choice",
+          applied_at: now,
+        },
+        created_at: now,
+      },
+      card: null,
+      card_history: cardHistory,
+      status: "card_pending",
+      updated_at: now,
+    };
+  }
+
+  state.items[itemId] = asset;
+  await saveEditorialSocialAssetsState(user, opportunity, state);
+
+  const card = await renderAndUploadEditorialSocialCard({
+    article,
+    sourceImageUrl: asset.image.url,
+    postType: item.post_type,
+    title: asset.brief.cover_title,
+    summary: asset.brief.cover_summary,
+    label: editorialSocialCoverLabel(item.post_type),
+    storageSegment: `${item.id}-card`,
+  });
+  asset = { ...asset, card, status: "ready", updated_at: new Date().toISOString() };
+  state.items[itemId] = asset;
+  await saveEditorialSocialAssetsState(user, opportunity, state);
+
+  return {
+    reviewed: true,
+    decision,
+    opportunity_id: opportunity.id,
+    article_id: article.id,
+    social_plan_item_id: itemId,
+    status: asset.status,
+    image: asset.image,
+    card: asset.card,
   };
 }
 
@@ -6403,6 +6649,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "regenerate-editorial-social-plan-item") {
       const result = await requestEditorialSocialRegeneration(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-social-image") {
+      const result = await reviewEditorialSocialImage(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

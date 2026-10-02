@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.81";
+  const VERSION = "0.12.83";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1099,6 +1099,39 @@
     const statusOptions = [
       ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
     ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
+
+    const socialAsset = row.social_asset && typeof row.social_asset === "object" ? row.social_asset : null;
+    const socialImageUrl = /^https:\/\//i.test(String(socialAsset?.image?.url || "")) ? String(socialAsset.image.url) : "";
+    const socialCardUrl = /^https:\/\//i.test(String(socialAsset?.card?.url || "")) ? String(socialAsset.card.url) : "";
+    const articleImageUrl = /^https:\/\//i.test(String(row.source_article?.featured_image_url || "")) ? String(row.source_article.featured_image_url) : "";
+    const imageQa = socialAsset?.image?.qa && typeof socialAsset.image.qa === "object" ? socialAsset.image.qa : null;
+    const imageQaStatus = String(imageQa?.status || "");
+    const imageState = imageQaStatus === "passed"
+      ? "Approvata"
+      : imageQaStatus === "failed"
+        ? "QA fallita"
+        : imageQaStatus === "human_review_required"
+          ? "Revisione richiesta"
+          : socialImageUrl ? "Da verificare" : "Non ancora generata";
+    const imageReason = String(imageQa?.reason || "").trim();
+    const imageSource = String(socialAsset?.image?.source || "");
+    const imageAttempt = Number(socialAsset?.image?.attempt || 0);
+    const canReview = !["publishing", "published"].includes(String(row.status || ""));
+    const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
+    const imageMarkup = (socialImageUrl || articleImageUrl) ? `
+      <div class="ol-autopilot-archive-item" style="margin-top:10px">
+        <strong>Immagine del post ${esc(row.post_type === "related" ? "OffertaLogica" : "follow-up")}</strong>
+        <small>Stato: ${esc(imageState)}${imageAttempt ? ` · tentativo ${imageAttempt}` : ""}${imageSource ? ` · sorgente ${esc(imageSource)}` : ""}</small>
+        ${imageReason ? `<small>${esc(imageReason)}</small>` : ""}
+        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: puoi usare direttamente quella dell’articolo.</small>'}
+        ${canReview ? `<div class="ol-toolbar-group" style="margin-top:8px">
+          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Approva questa immagine</button>` : ""}
+          ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
+        </div>` : ""}
+        ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details style="margin-top:8px"><summary>Confronta con immagine articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
+        ${socialCardUrl ? `<details style="margin-top:8px"><summary>Apri card OL Informa composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OL Informa" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
+      </div>` : "";
+
     return `<details class="ol-cycle-row ol-cycle-row-nested" data-social-plan-item="${esc(id)}">
       <summary class="ol-cycle-row-summary">
         <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(destination)}</small></span>
@@ -1106,6 +1139,7 @@
       </summary>
       <div class="ol-cycle-row-body">
         <small>${esc(row.theme || "")}</small>
+        ${imageMarkup}
         <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
         <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
         ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
@@ -1186,6 +1220,7 @@
       social_asset_cover_text_generated: "testo della card preparato",
       social_asset_image_generated: "immagine social generata",
       social_asset_image_qa_passed: "QA immagine social superata",
+      social_asset_article_image_fallback_ready: "fallback sull’immagine articolo e card pronta",
       social_asset_card_generated: "card OL Informa generata",
       social_asset_ready: "asset social pronto",
       article_published: "articolo pubblicato",
@@ -1536,6 +1571,7 @@
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
+    const socialImageReviewButton = event.target.closest("[data-social-image-review]");
     const socialPlanRegenerateButton = event.target.closest("[data-social-plan-regenerate]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const toggleButton = event.target.closest("[data-opportunity-toggle]");
@@ -1737,6 +1773,30 @@
         const errorText = `Generazione non completata: ${error.message}`;
         if (message) message.textContent = errorText;
         await loadAutomationRuns(section).catch(() => {});
+      }
+      return;
+    }
+
+    if (socialImageReviewButton) {
+      const id = socialImageReviewButton.dataset.socialImageReview || "";
+      const decision = socialImageReviewButton.dataset.socialImageDecision || "";
+      if (!id || !["approve", "use_article_image"].includes(decision) || socialImageReviewButton.disabled) return;
+      const confirmText = decision === "approve"
+        ? "Approvare manualmente questa immagine social? La card OL Informa verrà composta subito usando questa immagine."
+        : "Usare l’immagine già approvata dell’articolo per questo post? La card OL Informa verrà composta subito su quella base.";
+      if (!window.confirm(confirmText)) return;
+      socialImageReviewButton.disabled = true;
+      const socialMessage = section.querySelector("[data-social-plan-message]");
+      if (socialMessage) socialMessage.textContent = decision === "approve"
+        ? "Approvazione manuale dell’immagine social e composizione card…"
+        : "Imposto l’immagine dell’articolo come fallback e compongo la card…";
+      try {
+        await endpoint("review-editorial-social-image", { method: "POST", body: { id, decision } });
+        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
+        if (socialMessage) socialMessage.textContent = "Immagine social validata e card OL Informa pronta.";
+      } catch (error) {
+        if (socialMessage) socialMessage.textContent = `Immagine social non aggiornata: ${error.message}`;
+        socialImageReviewButton.disabled = false;
       }
       return;
     }
