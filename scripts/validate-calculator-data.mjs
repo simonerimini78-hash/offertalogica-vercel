@@ -25,7 +25,14 @@ function assertSame(pathA, pathB) {
 
 function validateInlineScripts(htmlPath) {
   const html = read(htmlPath);
-  const scripts = [...html.matchAll(/<script(?:(?!src=)[^>]*)>([\s\S]*?)<\/script>/gi)].map((match) => match[1]);
+  const scripts = [...html.matchAll(/<script([^>]*)>([\s\S]*?)<\/script>/gi)]
+    .filter((match) => !/\bsrc\s*=/i.test(match[1]))
+    .filter((match) => {
+      const typeMatch = match[1].match(/\btype\s*=\s*["']([^"']+)["']/i);
+      const type = String(typeMatch?.[1] || "").trim().toLowerCase();
+      return !type || type === "text/javascript" || type === "application/javascript";
+    })
+    .map((match) => match[2]);
   scripts.forEach((script, index) => {
     try {
       new Function(script);
