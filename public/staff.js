@@ -155,6 +155,7 @@
     offer_partner_consent_confirmed: "Consenso partner confermato",
     offer_request_missing_link: "Link offerta mancante",
     offer_request_started: "Richiesta offerta avviata",
+    offer_verified_direct_redirect: "Apertura diretta offerta avviata",
     offer_request_recorded: "Richiesta offerta registrata",
     offer_request_failed: "Richiesta offerta fallita",
     offer_redirect: "Redirect partner",
@@ -213,9 +214,51 @@
     final: "Chiusura sessione",
   });
 
+  function staffVerificationChannel(event = {}) {
+    const payload = event?.payload && typeof event.payload === "object" ? event.payload : {};
+    const key = String(
+      event?.verificationChannel || event?.verification_channel ||
+      payload.verificationChannel || payload.verification_channel || ""
+    ).trim().toLowerCase();
+    if (key === "email") return "email";
+    if (["sms", "phone", "mobile", "telefono", "cellulare"].includes(key)) return "sms";
+    return "";
+  }
+
   function staffEventLabel(value, fallback = "") {
     const event = value && typeof value === "object" ? value : null;
     const key = String(event ? event.eventType || "" : value || "").trim();
+    const verificationChannel = event ? staffVerificationChannel(event) : "";
+    if (verificationChannel === "email") {
+      const labels = {
+        lead_modal_opened: "Verifica email aperta",
+        lead_modal_closed: "Verifica email chiusa",
+        otp_request_started: "Invio codice email richiesto",
+        otp_sent: "Codice email inviato",
+        otp_failed: "Invio codice email fallito",
+        otp_failed_preview_fallback: "Codice email non inviato: anteprima Staff",
+        otp_verify_missing_code: "Codice email mancante",
+        otp_verify_started: "Verifica email avviata",
+        otp_verified: "Email verificata",
+        otp_verify_failed: "Verifica email fallita",
+      };
+      if (labels[key]) return labels[key];
+    }
+    if (verificationChannel === "sms") {
+      const labels = {
+        lead_modal_opened: "Verifica numero aperta",
+        lead_modal_closed: "Verifica numero chiusa",
+        otp_request_started: "Invio SMS richiesto",
+        otp_sent: "SMS inviato",
+        otp_failed: "Invio SMS fallito",
+        otp_failed_preview_fallback: "SMS non inviato: anteprima Staff",
+        otp_verify_missing_code: "Codice SMS mancante",
+        otp_verify_started: "Verifica numero avviata",
+        otp_verified: "Numero verificato",
+        otp_verify_failed: "Verifica numero fallita",
+      };
+      if (labels[key]) return labels[key];
+    }
     return String(STAFF_EVENT_LABELS_IT[key] || event?.eventLabel || fallback || key || "—");
   }
 
@@ -1236,7 +1279,7 @@
     "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
-    "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
+    "offer_verified_direct_redirect", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
     "partner_funnel_opened", "business_photovoltaic_tool_opened", "assistance_guide_opened",
     "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
   ]);
@@ -1248,7 +1291,7 @@
 
   const SESSION_OFFER_ACTION_EVENTS = new Set([
     "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing",
-    "offer_partner_consent_confirmed", "offer_request_started", "offer_request_recorded",
+    "offer_partner_consent_confirmed", "offer_request_started", "offer_verified_direct_redirect", "offer_request_recorded",
     "offer_switcho_redirect", "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened",
   ]);
 
@@ -1259,7 +1302,7 @@
     "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
-    "offer_request_started", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
+    "offer_request_started", "offer_verified_direct_redirect", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
     "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened",
@@ -1418,7 +1461,7 @@
       ];
     }
 
-    const offerJourney = has("offer_card_clicked") || has("offer_click_locked") || has("lead_modal_opened") || has("otp_verified") || has("offer_request_started") || has("offer_request_failed");
+    const offerJourney = has("offer_card_clicked") || has("offer_click_locked") || has("lead_modal_opened") || has("otp_verified") || has("offer_verified_direct_redirect") || has("offer_request_started") || has("offer_request_failed");
     if (offerJourney) {
       const landing = has("landing_view");
       const selfService = has("landing_self_service_click");
@@ -1433,7 +1476,7 @@
       const verification = analyticsVerificationCopy(ordered);
       const requestFailed = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed");
       const commercialEvent = [...ordered].reverse().find(item => SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
-      const requestStarted = has("offer_request_started") || Boolean(commercialEvent) || Boolean(requestFailed);
+      const requestStarted = has("offer_verified_direct_redirect") || has("offer_request_started") || Boolean(commercialEvent) || Boolean(requestFailed);
       const lastExternal = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed" || SESSION_COMMERCIAL_EVENTS.has(String(item.eventType || "")));
       const externalState = lastExternal && String(lastExternal.eventType || "") === "offer_request_failed" ? "error" : commercialEvent ? "done" : requestStarted ? "miss" : "idle";
       const externalNote = externalState === "error" ? "apertura non riuscita" : externalState === "done" ? "aperto" : requestStarted ? "avvio registrato" : "non raggiunto";
@@ -1587,6 +1630,9 @@
       offer_consent_opened: providerOffer ? `Ha aperto il consenso per ${providerOffer}` : "Ha aperto il consenso dell’offerta",
       offer_partner_consent_confirmed: "Consenso partner confermato",
       offer_request_started: "Richiesta dell’offerta avviata",
+      offer_verified_direct_redirect: providerOffer
+        ? `Dopo la verifica ha avviato direttamente il percorso verso ${providerOffer}`
+        : "Dopo la verifica ha avviato direttamente il percorso verso l’offerta scelta",
       offer_request_recorded: "Richiesta dell’offerta registrata",
       offer_request_failed: "Richiesta dell’offerta non riuscita",
       offer_switcho_redirect: providerOffer
@@ -1661,7 +1707,7 @@
       "landing_view", "landing_self_service_click", "landing_assisted_click", "calculator_view", "comparison_path_selected",
       "comparison_started", "comparison_completed", "offers_rendered", "pdf_analysis_completed", "pdf_data_confirmed",
       "offer_card_clicked", "offer_click_locked", "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
-      "offers_unlocked", "offer_partner_consent_confirmed", "offer_request_recorded", "offer_switcho_redirect",
+      "offer_verified_direct_redirect", "offers_unlocked", "offer_partner_consent_confirmed", "offer_request_recorded", "offer_switcho_redirect",
       "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened"
     ].includes(type)) return "ok";
     if (type.startsWith("assistance_prompt_")) return "warn";
