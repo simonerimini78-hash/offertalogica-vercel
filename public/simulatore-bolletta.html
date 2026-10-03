@@ -11,12 +11,12 @@
   </script>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Simulatore storico bolletta luce e gas | OffertaLogica</title>
-  <meta name="description" content="Carica una bolletta reale e verifica quanto avresti pagato con un’altra offerta disponibile nello stesso periodo, usando gli stessi consumi.">
+  <title>Confronto storico bolletta luce e gas | OffertaLogica</title>
+  <meta name="description" content="Confronta una bolletta reale con un’altra offerta dello stesso periodo, usando gli stessi consumi. Se le date non coincidono, mostriamo una comparazione.">
   <meta name="robots" content="index,follow,max-image-preview:large">
   <link rel="canonical" href="https://offertalogica.it/simulatore-bolletta.html">
-  <meta property="og:title" content="Simulatore storico bolletta luce e gas | OffertaLogica">
-  <meta property="og:description" content="Confronta la stessa bolletta, sugli stessi consumi e sullo stesso periodo, con un’altra offerta verificata nello storico OffertaLogica.">
+  <meta property="og:title" content="Confronto storico bolletta luce e gas | OffertaLogica">
+  <meta property="og:description" content="Stessa bolletta, stessi consumi e stesso periodo: verifica quanto avresti pagato con un’altra offerta disponibile in quelle date.">
   <meta property="og:type" content="website">
   <meta property="og:url" content="https://offertalogica.it/simulatore-bolletta.html">
   <meta name="twitter:card" content="summary">
@@ -30,36 +30,37 @@
       {
         "@type":"WebPage",
         "@id":"https://offertalogica.it/simulatore-bolletta.html#webpage",
-        "name":"Simulatore storico bolletta luce e gas",
+        "name":"Confronto storico bolletta luce e gas",
         "url":"https://offertalogica.it/simulatore-bolletta.html",
-        "description":"Simulatore storico OffertaLogica che applica a una bolletta reale gli stessi consumi e lo stesso periodo e verifica, quando i dati archivio lo consentono, se l’altra offerta era disponibile nel periodo fatturato.",
+        "description":"Confronto storico OffertaLogica: parte da una bolletta reale, mantiene gli stessi consumi e lo stesso periodo e verifica, quando i dati di archivio lo consentono, se l’altra offerta era disponibile nel periodo fatturato.",
         "inLanguage":"it-IT",
         "isPartOf":{"@id":"https://offertalogica.it/#website"}
       },
       {
         "@type":"WebApplication",
-        "name":"Simulatore storico bolletta OffertaLogica",
+        "name":"Confronto storico bolletta OffertaLogica",
         "url":"https://offertalogica.it/simulatore-bolletta.html",
         "applicationCategory":"FinanceApplication",
         "operatingSystem":"Web",
         "isAccessibleForFree":true,
-        "description":"Strumento informativo per confrontare una bolletta luce o gas reale con un’altra offerta sugli stessi consumi e sullo stesso periodo. Se la ricostruzione storica non è verificabile, il risultato viene presentato come comparazione e non come simulazione storica."
+        "description":"Strumento informativo per confrontare una bolletta luce o gas reale con un’altra offerta sugli stessi consumi e sullo stesso periodo. Il risultato viene definito confronto storico solo quando la validità temporale dell’offerta è verificabile; negli altri casi viene presentato come comparazione."
       },
       {
         "@type":"BreadcrumbList",
         "itemListElement":[
           {"@type":"ListItem","position":1,"name":"OffertaLogica","item":"https://offertalogica.it/"},
-          {"@type":"ListItem","position":2,"name":"Simulatore storico bolletta","item":"https://offertalogica.it/simulatore-bolletta.html"}
+          {"@type":"ListItem","position":2,"name":"Confronto storico bolletta","item":"https://offertalogica.it/simulatore-bolletta.html"}
         ]
       },
       {
         "@type":"FAQPage",
         "mainEntity":[
-          {"@type":"Question","name":"Il simulatore usa i consumi reali della bolletta?","acceptedAnswer":{"@type":"Answer","text":"Sì, quando periodo e consumo del periodo sono leggibili nel documento. Il simulatore usa i dati della bolletta caricata e non li sostituisce con un consumo medio generico."}},
-          {"@type":"Question","name":"Il simulatore funziona anche con le bollette business?","acceptedAnswer":{"@type":"Answer","text":"Sì. Quando la bolletta aziendale contiene i dati necessari, OffertaLogica può usare lo stesso periodo e gli stessi consumi per simulare un'offerta business compatibile."}},
-          {"@type":"Question","name":"La bolletta simulata è una fattura del nuovo fornitore?","acceptedAnswer":{"@type":"Answer","text":"No. È una simulazione informativa OffertaLogica costruita sui dati disponibili nella bolletta caricata e sulle condizioni economiche dell'offerta selezionata."}},
-          {"@type":"Question","name":"Il simulatore funziona anche con una fornitura dual luce e gas?","acceptedAnswer":{"@type":"Answer","text":"Sì, quando sono disponibili i dati necessari per luce e gas. Il simulatore può usare una bolletta dual oppure due bollette separate caricate insieme e propone offerte dual compatibili."}},
-          {"@type":"Question","name":"Il simulatore controlla se l’offerta esisteva nel periodo della bolletta?","acceptedAnswer":{"@type":"Answer","text":"Sì, quando l’offerta è identificabile nello storico OffertaLogica. Se non era disponibile, oppure se la disponibilità storica non è verificabile, il simulatore lo segnala e distingue il confronto con condizioni attuali da una simulazione storica."}},
+          {"@type":"Question","name":"Qual è la differenza tra un simulatore di bolletta e il confronto storico?","acceptedAnswer":{"@type":"Answer","text":"Nel confronto storico OffertaLogica il punto decisivo è la coincidenza temporale: usa i consumi della bolletta reale e verifica che l’altra offerta fosse disponibile nello stesso periodo. Se questa condizione non è verificabile, il risultato viene presentato come comparazione."}},
+          {"@type":"Question","name":"Il confronto storico usa i consumi reali della bolletta?","acceptedAnswer":{"@type":"Answer","text":"Sì, quando periodo e consumo del periodo sono leggibili nel documento. OffertaLogica usa i dati della bolletta caricata e non li sostituisce con un consumo medio generico."}},
+          {"@type":"Question","name":"Il confronto storico funziona anche con le bollette business?","acceptedAnswer":{"@type":"Answer","text":"Sì. Quando la bolletta aziendale contiene i dati necessari, OffertaLogica può usare lo stesso periodo e gli stessi consumi per confrontare un'offerta business compatibile."}},
+          {"@type":"Question","name":"La bolletta ricalcolata è una fattura del nuovo fornitore?","acceptedAnswer":{"@type":"Answer","text":"No. È un risultato informativo OffertaLogica costruito sui dati disponibili nella bolletta caricata e sulle condizioni economiche dell'offerta selezionata."}},
+          {"@type":"Question","name":"Il confronto storico funziona anche con una fornitura dual luce e gas?","acceptedAnswer":{"@type":"Answer","text":"Sì, quando sono disponibili i dati necessari per luce e gas. OffertaLogica può usare una bolletta dual oppure due bollette separate caricate insieme e propone offerte dual compatibili."}},
+          {"@type":"Question","name":"Cosa succede se l’offerta non esisteva nel periodo della bolletta?","acceptedAnswer":{"@type":"Answer","text":"OffertaLogica lo segnala. In quel caso il risultato non viene definito confronto storico, ma comparazione degli stessi consumi con le condizioni disponibili dell’offerta."}},
           {"@type":"Question","name":"Posso partire da una fotografia della bolletta?","acceptedAnswer":{"@type":"Answer","text":"Sì. Da smartphone puoi fotografare la bolletta. Per una lettura più completa, quando disponibile, è preferibile il PDF originale."}}
         ]
       }
@@ -459,21 +460,21 @@
     </aside>
   </div>
 </header>
-<nav class="breadcrumbs shell" aria-label="Percorso di navigazione"><a href="/">Home</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">Simulatore storico bolletta</span></nav>
+<nav class="breadcrumbs shell" aria-label="Percorso di navigazione"><a href="/">Home</a><span class="sep" aria-hidden="true">›</span><span aria-current="page">Confronto storico bolletta</span></nav>
 <main id="main-content">
   <section class="hero">
     <div class="shell">
-      <div class="eyebrow">Simulatore storico della bolletta</div>
+      <div class="eyebrow">Confronto storico della bolletta</div>
       <h1>Quanto avresti pagato con un'altra offerta?</h1>
       <p class="hero-copy">Carica la bolletta reale: usiamo gli stessi consumi e lo stesso periodo e verifichiamo se l'offerta scelta era disponibile in quelle date.</p>
-      <div class="hero-modes" aria-label="Classificazione del confronto"><span><strong>Storico verificabile</strong> → simulazione storica</span><span><strong>Altrimenti</strong> → comparazione</span></div>
+      <div class="hero-modes" aria-label="Classificazione del confronto"><span><strong>Stesso periodo + offerta disponibile allora</strong> → confronto storico</span><span><strong>Periodo diverso o dati non verificabili</strong> → comparazione</span></div>
     </div>
   </section>
 
   <section class="comparison-wrap" id="risultato">
     <div class="shell">
       <div class="comparison-stage" aria-live="polite">
-        <div class="bill-compare" aria-label="Confronto tra bolletta reale e simulata">
+        <div class="bill-compare" aria-label="Confronto tra bolletta reale e ricalcolata">
           <article class="bill-paper real" aria-labelledby="real-bill-title">
             <header class="bill-paper-head">
               <div class="bill-brand-row"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><span class="doc-label">Bolletta reale</span></div>
@@ -495,7 +496,7 @@
 
           <article class="bill-paper simulated" aria-labelledby="virtual-bill-title">
             <header class="bill-paper-head">
-              <div class="bill-brand-row"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><span class="doc-label" id="virtual-doc-label">Bolletta simulata</span></div>
+              <div class="bill-brand-row"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it"><span class="doc-label" id="virtual-doc-label">Bolletta ricalcolata</span></div>
               <h2 id="virtual-bill-title">La stessa bolletta</h2>
               <p class="bill-subtitle" id="virtual-bill-subtitle">Stesso periodo e stessi consumi, con una nuova offerta.</p>
               <div class="bill-head-action-slot">
@@ -505,7 +506,7 @@
               </div>
             </header>
             <div class="bill-tools">
-              <section class="offer-picker" id="offer-picker" aria-label="Scegli l'offerta da simulare">
+              <section class="offer-picker" id="offer-picker" aria-label="Scegli l'offerta da confrontare">
                 <div class="offer-picker-grid">
                   <div class="field"><label for="provider-select">Fornitore</label><select id="provider-select" disabled title="Seleziona fornitore"><option value="">Fornitore</option></select></div>
                   <div class="field"><label for="offer-select">Offerta</label><select id="offer-select" disabled title="Seleziona offerta"><option value="">Offerta</option></select></div>
@@ -516,21 +517,21 @@
             <ul class="bill-lines" id="virtual-bill-lines">
               <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong>—</strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Componente offerta</span><strong>—</strong></li><li><span>Altre voci</span><strong>—</strong></li>
             </ul>
-            <footer class="bill-total"><span id="virtual-total-label">Totale bolletta simulata</span><strong id="simulated-total">—</strong></footer>
+            <footer class="bill-total"><span id="virtual-total-label">Totale bolletta ricalcolata</span><strong id="simulated-total">—</strong></footer>
           </article>
-          <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Simula la bolletta</button></div>
+          <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Confronta la bolletta</button></div>
         </div>
         <span class="result-status" id="result-status">Confronto pronto</span>
         <div class="history-status" id="history-status" role="status" aria-live="polite" hidden></div>
-        <section class="saving-band" id="saving-box" aria-label="Differenza tra bolletta reale e simulata"><div class="saving-copy"><span id="saving-label">Risultato del confronto</span><strong id="saving-total">—</strong><small id="saving-percent">Stesso periodo e stessi consumi</small></div><div class="saving-equation"><strong id="saving-equation">— → —</strong><span id="saving-equation-caption">Bolletta reale → bolletta simulata</span></div></section>
-        <section class="result-toolbar" id="result-toolbar" aria-label="Azioni dopo la simulazione">
+        <section class="saving-band" id="saving-box" aria-label="Differenza tra bolletta reale e ricalcolata"><div class="saving-copy"><span id="saving-label">Risultato del confronto</span><strong id="saving-total">—</strong><small id="saving-percent">Stesso periodo e stessi consumi</small></div><div class="saving-equation"><strong id="saving-equation">— → —</strong><span id="saving-equation-caption">Bolletta reale → bolletta ricalcolata</span></div></section>
+        <section class="result-toolbar" id="result-toolbar" aria-label="Azioni dopo il confronto">
           <div class="result-actions"><button class="button primary" id="activate-selected-offer" type="button" disabled>Attiva l'offerta</button><button class="button secondary" id="back-to-offers" type="button">Torna alle offerte</button><button class="button secondary reset-button" id="reset-simulator-bottom" type="button">Azzera tutto</button></div>
         </section>
         <div class="comparison-meta">
-          <details class="info-card info-disclosure"><summary>Come viene calcolata</summary><div class="info-card-body"><ul><li>consumo del periodo letto dalla bolletta;</li><li>quota fissa riproporzionata sui giorni fatturati;</li><li>prezzo della nuova offerta;</li><li>altre voci mantenute come riferimento quando non dipendono dall'offerta simulata.</li></ul></div></details>
-          <details class="info-card info-disclosure"><summary>Dati dell'offerta simulata</summary><div class="info-card-body"><p><strong>Fornitore:</strong> <span id="offer-provider">—</span></p><p><strong>Offerta:</strong> <span id="offer-name">—</span></p><p><strong>Tipologia:</strong> <span id="offer-type">—</span></p><p id="offer-price-line"><strong>Prezzo applicato:</strong> —</p></div></details>
+          <details class="info-card info-disclosure"><summary>Come viene calcolata</summary><div class="info-card-body"><ul><li>consumo del periodo letto dalla bolletta;</li><li>quota fissa riproporzionata sui giorni fatturati;</li><li>prezzo della nuova offerta;</li><li>altre voci mantenute come riferimento quando non dipendono dall'offerta confrontata.</li></ul></div></details>
+          <details class="info-card info-disclosure"><summary>Dati dell'offerta confrontata</summary><div class="info-card-body"><p><strong>Fornitore:</strong> <span id="offer-provider">—</span></p><p><strong>Offerta:</strong> <span id="offer-name">—</span></p><p><strong>Tipologia:</strong> <span id="offer-type">—</span></p><p id="offer-price-line"><strong>Prezzo applicato:</strong> —</p></div></details>
         </div>
-        <p class="bill-note" id="bill-note"><strong>Nota:</strong> la bolletta simulata è una simulazione informativa OffertaLogica e non una fattura emessa dal fornitore.</p>
+        <p class="bill-note" id="bill-note"><strong>Nota:</strong> la bolletta ricalcolata è un risultato informativo OffertaLogica e non una fattura emessa dal fornitore.</p>
       </div>
     </div>
   </section>
@@ -538,16 +539,16 @@
   <section class="content-section">
     <div class="shell">
       <details class="seo-details" id="seo-details" open>
-        <summary class="seo-mobile-summary">Approfondisci il simulatore</summary>
+        <summary class="seo-mobile-summary">Come funziona il confronto storico</summary>
         <div class="content-layout">
-      <aside class="toc" aria-label="Indice pagina"><strong>In questa pagina</strong><a href="#come-funziona">Come funziona</a><a href="#privati-business">Privati e aziende</a><a href="#dati-usati">Quali dati usa</a><a href="#cosa-confronta">Cosa confronta</a><a href="#limiti">Limiti della simulazione</a><a href="#faq">Domande frequenti</a></aside>
+      <aside class="toc" aria-label="Indice pagina"><strong>In questa pagina</strong><a href="#come-funziona">Come funziona</a><a href="#privati-business">Privati e aziende</a><a href="#dati-usati">Quali dati usa</a><a href="#cosa-confronta">Cosa confronta</a><a href="#limiti">Quando non è storico</a><a href="#faq">Domande frequenti</a></aside>
       <div class="content">
-        <section class="panel" id="come-funziona"><h2>Come funziona la simulazione storica della bolletta</h2><p>Il simulatore usa come riferimento la bolletta che carichi o fotografi. OffertaLogica mantiene nel confronto tutte le voci economiche e le condizioni che il lettore riconosce esplicitamente nel documento: importi di bolletta, componenti del prezzo, quota fissa, tipologia e struttura del prezzo, indice, spread, formula e date delle condizioni quando presenti. Dopo l'analisi puoi applicare una delle offerte compatibili alla stessa base di consumo.</p><ol><li>Carichi il PDF oppure fotografi la bolletta.</li><li>OffertaLogica legge i dati utili presenti nel documento.</li><li>Scegli un'offerta dal catalogo oppure carichi la <strong>CTE / scheda sintetica</strong> della proposta nel blocco della nuova offerta.</li><li>Avvii la simulazione dell'offerta che vuoi verificare.</li><li>Visualizzi affiancate la bolletta letta e la bolletta virtuale, con la differenza sul periodo reale.</li></ol></section>
-        <section class="panel" id="privati-business"><h2>Simulazione per bollette domestiche e business</h2><p>Lo stesso strumento può essere usato per utenze domestiche e aziendali. Nel percorso business vengono considerate le offerte business compatibili disponibili nel catalogo utilizzato da OffertaLogica. La simulazione viene mostrata solo quando dalla bolletta sono disponibili i dati necessari per applicare la nuova componente economica senza inventare valori mancanti.</p></section>
-        <section class="panel" id="dati-usati"><h2>Quali dati della bolletta vengono usati</h2><p>La simulazione usa il <strong>consumo riferito al periodo fatturato</strong>, le date del periodo, il totale della bolletta e i dati economici leggibili della fornitura. Per la luce il consumo è espresso in kWh; per il gas in Smc. La quota fissa annuale dell'offerta viene riproporzionata sui giorni effettivamente fatturati.</p></section>
-        <section class="panel" id="cosa-confronta"><h2>Cosa confronta davvero la bolletta virtuale</h2><p>L'obiettivo è rispondere a una domanda concreta: <strong>se l'offerta selezionata era disponibile in quel periodo, quanto sarebbe cambiato il totale della stessa bolletta?</strong> Prima del calcolo OffertaLogica controlla, quando il codice offerta è presente nell'archivio storico, la sua validità rispetto alle date della bolletta.</p><p>Se l'offerta non era disponibile, oppure se la verifica storica non è sufficiente, il simulatore lo dichiara e distingue il confronto con le <strong>condizioni attuali</strong> da una simulazione storica. Per evitare di inventare righe che il documento non espone in modo affidabile, viene ricalcolata solo la componente economica determinabile e il resto della bolletta reale resta come riferimento.</p></section>
-        <section class="panel" id="limiti"><h2>Perché il risultato resta una simulazione</h2><p>Il risultato non è una fattura del nuovo fornitore. Per un'offerta a prezzo fisso presente nello storico e valida per l'intero periodo, il simulatore può applicare le condizioni archiviate a quei consumi. Per un'offerta indicizzata la sola presenza storica non basta: per ricostruire il passato servono anche i valori PUN o PSV riferiti al periodo. Quando questi dati non sono disponibili in modo completo, OffertaLogica non presenta il risultato come simulazione storica e mostra chiaramente che il confronto usa condizioni attuali.</p></section>
-        <section class="panel faq" id="faq"><h2>Domande frequenti sul simulatore bolletta</h2><details><summary>Il simulatore usa i miei consumi reali?</summary><p>Sì, quando la bolletta riporta in modo leggibile il consumo riferito al periodo fatturato. Un consumo annuo non viene automaticamente trattato come consumo della singola bolletta.</p></details><details><summary>Funziona anche con una bolletta aziendale?</summary><p>Sì, quando la bolletta business contiene periodo, consumi, totale e dati economici sufficienti per applicare una delle offerte business compatibili.</p></details><details><summary>Posso simulare una bolletta partendo da una foto?</summary><p>Sì. Da smartphone puoi fotografare la bolletta. Se hai il PDF originale, in genere contiene più informazioni ed è preferibile per una lettura completa.</p></details><details><summary>La bolletta virtuale è uguale a quella che riceverei dal nuovo fornitore?</summary><p>No. È una simulazione informativa basata sui dati disponibili e sulle condizioni considerate. Una fattura reale può includere ulteriori elementi, aggiornamenti o conguagli.</p></details><details><summary>Posso provare più offerte sulla stessa bolletta?</summary><p>Sì. Dopo la lettura puoi cambiare direttamente l'offerta nel menu del simulatore oppure partire dal pulsante presente nelle card delle offerte.</p></details><details><summary>Il simulatore funziona anche con una fornitura dual luce e gas?</summary><p>Sì, quando la bolletta dual contiene i dati necessari per entrambe le forniture. Puoi anche caricare insieme una bolletta luce e una bolletta gas: il simulatore propone soltanto offerte dual compatibili e confronta entrambe le componenti senza inventare dati mancanti.</p></details><details><summary>Cosa succede se l'offerta non esisteva nel periodo della bolletta?</summary><p>Il simulatore lo segnala. In quel caso non usa la formula “avresti speso”, ma può mostrare separatamente quanto costerebbero gli stessi consumi applicando le condizioni attuali dell'offerta.</p></details></section>
+        <section class="panel" id="come-funziona"><h2>Come funziona il confronto storico della bolletta</h2><p>Il confronto storico usa come riferimento la bolletta che carichi o fotografi. OffertaLogica mantiene nel confronto tutte le voci economiche e le condizioni che il lettore riconosce esplicitamente nel documento: importi di bolletta, componenti del prezzo, quota fissa, tipologia e struttura del prezzo, indice, spread, formula e date delle condizioni quando presenti. Dopo l'analisi puoi applicare una delle offerte compatibili alla stessa base di consumo.</p><ol><li>Carichi il PDF oppure fotografi la bolletta.</li><li>OffertaLogica legge i dati utili presenti nel documento.</li><li>Scegli un'offerta dal catalogo oppure carichi la <strong>CTE / scheda sintetica</strong> della proposta nel blocco della nuova offerta.</li><li>Avvii il confronto con l'offerta che vuoi verificare.</li><li>Visualizzi affiancate la bolletta letta e la bolletta ricalcolata, con la differenza sul periodo reale.</li></ol></section>
+        <section class="panel" id="privati-business"><h2>Confronto storico per bollette domestiche e business</h2><p>Lo stesso strumento può essere usato per utenze domestiche e aziendali. Nel percorso business vengono considerate le offerte business compatibili disponibili nel catalogo utilizzato da OffertaLogica. Il confronto viene mostrato solo quando dalla bolletta sono disponibili i dati necessari per applicare la nuova componente economica senza inventare valori mancanti.</p></section>
+        <section class="panel" id="dati-usati"><h2>Quali dati della bolletta vengono usati</h2><p>Il confronto usa il <strong>consumo riferito al periodo fatturato</strong>, le date del periodo, il totale della bolletta e i dati economici leggibili della fornitura. Per la luce il consumo è espresso in kWh; per il gas in Smc. La quota fissa annuale dell'offerta viene riproporzionata sui giorni effettivamente fatturati.</p></section>
+        <section class="panel" id="cosa-confronta"><h2>Cosa confronta davvero la bolletta virtuale</h2><p>L'obiettivo è rispondere a una domanda concreta: <strong>se l'offerta selezionata era disponibile in quel periodo, quanto sarebbe cambiato il totale della stessa bolletta?</strong> Prima del calcolo OffertaLogica controlla, quando il codice offerta è presente nell'archivio storico, la sua validità rispetto alle date della bolletta.</p><p>Se l'offerta non era disponibile, oppure se la verifica storica non è sufficiente, OffertaLogica lo dichiara e distingue il confronto con le <strong>condizioni attuali</strong> dal confronto storico sullo stesso periodo. Per evitare di inventare righe che il documento non espone in modo affidabile, viene ricalcolata solo la componente economica determinabile e il resto della bolletta reale resta come riferimento.</p></section>
+        <section class="panel" id="limiti"><h2>Quando il risultato non è un confronto storico</h2><p>Il risultato non è una fattura del nuovo fornitore. Per un'offerta a prezzo fisso presente nello storico e valida per l'intero periodo, OffertaLogica può applicare le condizioni archiviate a quei consumi. Per un'offerta indicizzata la sola presenza storica non basta: per ricostruire il passato servono anche i valori PUN o PSV riferiti al periodo. Quando questi dati non sono disponibili in modo completo, il risultato viene indicato come comparazione con le condizioni disponibili e non come confronto storico sullo stesso periodo.</p></section>
+        <section class="panel faq" id="faq"><h2>Domande frequenti sul confronto storico della bolletta</h2><details><summary>Qual è la differenza tra un simulatore di bolletta e il confronto storico?</summary><p>Nel confronto storico OffertaLogica il punto decisivo è la coincidenza temporale: usiamo i consumi della bolletta reale e verifichiamo che l'altra offerta fosse disponibile nello stesso periodo. Se questa condizione non è verificabile, il risultato viene presentato come comparazione.</p></details><details><summary>Il confronto usa i miei consumi reali?</summary><p>Sì, quando la bolletta riporta in modo leggibile il consumo riferito al periodo fatturato. Un consumo annuo non viene automaticamente trattato come consumo della singola bolletta.</p></details><details><summary>Funziona anche con una bolletta aziendale?</summary><p>Sì, quando la bolletta business contiene periodo, consumi, totale e dati economici sufficienti per applicare una delle offerte business compatibili.</p></details><details><summary>Posso fare il confronto partendo da una foto della bolletta?</summary><p>Sì. Da smartphone puoi fotografare la bolletta. Se hai il PDF originale, in genere contiene più informazioni ed è preferibile per una lettura completa.</p></details><details><summary>La bolletta virtuale è uguale a quella che riceverei dal nuovo fornitore?</summary><p>No. È un ricalcolo informativo basato sui dati disponibili e sulle condizioni considerate. Una fattura reale può includere ulteriori elementi, aggiornamenti o conguagli.</p></details><details><summary>Posso provare più offerte sulla stessa bolletta?</summary><p>Sì. Dopo la lettura puoi cambiare direttamente l'offerta nel menu del confronto oppure partire dal pulsante presente nelle card delle offerte.</p></details><details><summary>Il confronto funziona anche con una fornitura dual luce e gas?</summary><p>Sì, quando la bolletta dual contiene i dati necessari per entrambe le forniture. Puoi anche caricare insieme una bolletta luce e una bolletta gas: OffertaLogica propone soltanto offerte dual compatibili e confronta entrambe le componenti senza inventare dati mancanti.</p></details><details><summary>Cosa succede se l'offerta non esisteva nel periodo della bolletta?</summary><p>OffertaLogica lo segnala. In quel caso il risultato non viene definito confronto storico, ma comparazione degli stessi consumi con le condizioni disponibili dell'offerta.</p></details></section>
       </div>
         </div>
       </details>
@@ -662,7 +663,7 @@
     const docs=[];
     try{
       for(const file of list){const payload=kind==="photo"?await analyzePhoto(file,"camera"):await analyzePdf(file);const doc=compactBill(payload.normalized);if(doc)docs.push(doc);}
-      if(!docs.length)throw new Error("Il documento non contiene dati sufficienti per il simulatore");
+      if(!docs.length)throw new Error("Il documento non contiene dati sufficienti per il confronto");
       state.docs=docs;document.body.classList.add("simulator-has-docs");document.body.classList.remove("simulator-has-result");storeJson(DOCS_KEY,docs);storeJson(PAYLOAD_KEY,null);renderDocsPreview();setUploadStatus(docs.length===1?"Bolletta letta":"Bollette lette","ready");
       await refreshOfferOptions();renderSimulationPreview();if(state.selected?.source==="card"&&$("offer-select")?.value!=="")await simulateSelected();else window.setTimeout(()=>$("offer-picker")?.scrollIntoView({behavior:"smooth",block:"center"}),80);
     }catch(error){setUploadStatus(error?.message||"Lettura bolletta non disponibile","error");}
@@ -789,12 +790,12 @@
         if(!docs.length||!Number.isFinite(from)||!Number.isFinite(to)){mode="unknown";}else for(const doc of docs){const start=parseHistoryDate(doc.billing_period_start),end=parseHistoryDate(doc.billing_period_end,true);if(!Number.isFinite(start)||!Number.isFinite(end)){mode="unknown";break;}if(from<=start&&to>=end)continue;if(from<=end&&to>=start)mode="partial";else {mode="unavailable";break;}}
         details[commodity]={mode,from:component?.conditionsStart||"",to:component?.conditionsEnd||""};modes.push(mode);
       }
-      if(modes.includes("unavailable"))return {mode:"document_unavailable",components:details,message:"La CTE / scheda caricata riporta condizioni economiche fuori dal periodo fatturato. Il risultato è una comparazione, non una simulazione storica."};
+      if(modes.includes("unavailable"))return {mode:"document_unavailable",components:details,message:"La CTE / scheda caricata riporta condizioni economiche fuori dal periodo fatturato. Il risultato è una comparazione, non un confronto storico."};
       if(modes.includes("partial"))return {mode:"document_partial",components:details,message:"Le condizioni della CTE / scheda coprono solo una parte del periodo fatturato. Il risultato è una comparazione."};
       if(modes.includes("unknown"))return {mode:"document_unknown",components:details,message:"La CTE / scheda non contiene date sufficienti per verificare che le condizioni fossero valide per l'intero periodo della bolletta. Il risultato è una comparazione."};
       const variable=Object.values(offer.components||{}).some((component)=>String(component?.type||"").toLowerCase()!=="fisso");
       if(variable)return {mode:"document_variable",components:details,message:"La CTE / scheda copre il periodo, ma l'offerta è indicizzata o mista. Senza i valori storici necessari il risultato resta una comparazione."};
-      return {mode:"document_historical_fixed",components:details,message:"La CTE / scheda caricata riporta condizioni a prezzo fisso valide per l'intero periodo fatturato. Il risultato è una simulazione storica sulla stessa bolletta."};
+      return {mode:"document_historical_fixed",components:details,message:"La CTE / scheda caricata riporta condizioni a prezzo fisso valide per l'intero periodo fatturato. Il risultato è un confronto storico sulla stessa bolletta."};
     }
     const history=state.catalog?.history;if(!history?.offers?.length)return {mode:"unknown",message:"La disponibilità storica dell'offerta non è verificabile: il risultato viene trattato come comparazione con le condizioni disponibili oggi.",components:{}};
     const byCode=new Map(history.offers.map((row)=>[String(row.offerCode||""),row]));const details={};let modes=[];
@@ -805,12 +806,12 @@
       for(const doc of docs){const start=parseHistoryDate(doc.billing_period_start),end=parseHistoryDate(doc.billing_period_end,true);const versions=(record.versions||[]).map((version)=>({version,from:parseHistoryDate(version.validFrom),to:parseHistoryDate(version.validTo,true)})).filter((item)=>Number.isFinite(item.from)&&Number.isFinite(item.to));const full=versions.filter((item)=>item.from<=start&&item.to>=end);if(full.length){full.sort((a,b)=>String(b.version.catalogDate||"").localeCompare(String(a.version.catalogDate||"")));chosen=chosen||full[0].version;continue;}const overlap=versions.some((item)=>item.from<=end&&item.to>=start);if(overlap)mode="partial";else mode="unavailable";}
       details[commodity]={mode,record,version:chosen};modes.push(mode);
     }
-    if(modes.includes("unavailable"))return {mode:"unavailable",components:details,message:"L'offerta non era valida nel periodo fatturato. Il risultato è una comparazione con le condizioni disponibili oggi, non una simulazione storica della bolletta."};
-    if(modes.includes("partial"))return {mode:"partial",components:details,message:"L'offerta risulta valida solo per una parte del periodo fatturato. Il risultato è una comparazione, perché non può essere applicata all'intera bolletta come simulazione storica."};
+    if(modes.includes("unavailable"))return {mode:"unavailable",components:details,message:"L'offerta non era valida nel periodo fatturato. Il risultato è una comparazione con le condizioni disponibili oggi, non un confronto storico della bolletta."};
+    if(modes.includes("partial"))return {mode:"partial",components:details,message:"L'offerta risulta valida solo per una parte del periodo fatturato. Il risultato è una comparazione, perché non può essere applicata all'intera bolletta come confronto storico."};
     if(modes.includes("unknown"))return {mode:"unknown",components:details,message:"La validità dell'offerta nel periodo fatturato non è verificabile con certezza. Il risultato è una comparazione con le condizioni disponibili oggi."};
     const variable=Object.entries(details).some(([commodity,item])=>String(item.version?.priceType||offer.components?.[commodity]?.type||"").toLowerCase()==="variabile");
     if(variable)return {mode:"historical_variable",components:details,message:"L'offerta era valida nel periodo, ma il prezzo era indicizzato e lo storico non contiene tutti i valori PUN/PSV necessari. Il risultato è quindi una comparazione con le condizioni disponibili oggi."};
-    return {mode:"historical_fixed",components:details,message:"L'offerta era valida per l'intero periodo fatturato. Il risultato è una simulazione storica sulle condizioni a prezzo fisso archiviate per quel periodo."};
+    return {mode:"historical_fixed",components:details,message:"L'offerta era valida per l'intero periodo fatturato. Il risultato è un confronto storico sulle condizioni a prezzo fisso archiviate per quel periodo."};
   }
   function historicalVersionForDoc(item,doc){
     if(!item?.record||!doc)return item?.version||null;const start=parseHistoryDate(doc.billing_period_start),end=parseHistoryDate(doc.billing_period_end,true);if(!Number.isFinite(start)||!Number.isFinite(end))return item?.version||null;
@@ -819,7 +820,7 @@
   function offerForHistoricalSimulation(offer,history,doc=null){if(history?.mode!=="historical_fixed")return offer;const copy=JSON.parse(JSON.stringify(offer));Object.entries(history.components||{}).forEach(([commodity,item])=>{const version=historicalVersionForDoc(item,doc);if(!version||!copy.components?.[commodity])return;const price=Number(version.price),fixed=Number(version.annualFixedFee);if(price>0)copy.components[commodity].price=price;if(Number.isFinite(fixed)&&fixed>=0)copy.components[commodity].annualFixedFee=fixed;copy.components[commodity].historical=true;});return copy;}
   function resultKindForHistory(history){return ["historical_fixed","document_historical_fixed"].includes(history?.mode)?"simulation":"comparison";}
   function renderHistory(history){
-    const node=$("history-status");if(!node)return;const kind=resultKindForHistory(history);node.hidden=false;node.className=`history-status ${kind==="simulation"?"is-simulation":"is-comparison"}`;node.innerHTML=`<strong>${kind==="simulation"?"Simulazione storica":"Comparazione"}.</strong> ${escapeHtml(history?.message||"")}`;
+    const node=$("history-status");if(!node)return;const kind=resultKindForHistory(history);node.hidden=false;node.className=`history-status ${kind==="simulation"?"is-simulation":"is-comparison"}`;node.innerHTML=`<strong>${kind==="simulation"?"Confronto storico":"Comparazione"}.</strong> ${escapeHtml(history?.message||"")}`;
   }
 
   const BILL_CATEGORY_ORDER={bill_materia:0,bill_transport:1,bill_system_charges:2,bill_excise:3,bill_vat:4,bill_other_charge:5};
@@ -997,18 +998,18 @@
   }
   function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
-    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}const historyNode=$("history-status");if(historyNode){historyNode.hidden=true;historyNode.className="history-status";historyNode.textContent="";}$("virtual-doc-label").textContent="Bolletta simulata";$("virtual-bill-title").textContent="La stessa bolletta";$("virtual-bill-subtitle").textContent="Stesso periodo e stessi consumi, con una nuova offerta.";$("virtual-total-label").textContent="Totale bolletta simulata";$("saving-equation-caption").textContent="Bolletta reale → bolletta simulata";$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;renderBillPanels(null);
+    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}const historyNode=$("history-status");if(historyNode){historyNode.hidden=true;historyNode.className="history-status";historyNode.textContent="";}$("virtual-doc-label").textContent="Bolletta ricalcolata";$("virtual-bill-title").textContent="La stessa bolletta";$("virtual-bill-subtitle").textContent="Stesso periodo e stessi consumi, con una nuova offerta.";$("virtual-total-label").textContent="Totale bolletta ricalcolata";$("saving-equation-caption").textContent="Bolletta reale → bolletta ricalcolata";$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;renderBillPanels(null);
   }
   function renderDocsPreview(){renderBillPanels(null);}
 
   function currentOfferLabel(){
     const parts=[];for(const doc of state.docs){const commodity=String(doc.commodity||"");if(commodity==="dual"){const luce=String(doc.nome_offerta_luce||"").trim(),gas=String(doc.nome_offerta_gas||"").trim(),generic=String(doc.nome_offerta||"").trim();if(luce&&gas){parts.push(luce===gas?luce:`Luce: ${luce} · Gas: ${gas}`);}else if(luce)parts.push(`Luce: ${luce}`);else if(gas)parts.push(`Gas: ${gas}`);else if(generic)parts.push(generic);continue;}const name=String(commodity==="luce"?(doc.nome_offerta_luce||doc.nome_offerta):(doc.nome_offerta_gas||doc.nome_offerta)||"").trim();if(name)parts.push(commoditiesFromDocs().length===2?`${commodityLabel(commodity)}: ${name}`:name);}return [...new Set(parts)].join(" · ");
   }
-  function updateSimulationActionLabel(){const button=$("simulate-selected-offer");if(!button)return;if(!state.selected||!state.docs.length){button.textContent="Simula la bolletta";return;}const history=historicalCheck(state.selected);button.textContent=resultKindForHistory(history)==="simulation"?"Simula la bolletta":"Confronta l'offerta";}
+  function updateSimulationActionLabel(){const button=$("simulate-selected-offer");if(!button)return;if(!state.selected||!state.docs.length){button.textContent="Confronta la bolletta";return;}const history=historicalCheck(state.selected);button.textContent=resultKindForHistory(history)==="simulation"?"Confronta la bolletta":"Confronta l'offerta";}
   function renderPayload(payload){
-    if(!payload?.summary||!payload.bills?.length)return;document.body.classList.add("simulator-has-result");renderBillPanels(payload);const status=$("result-status"),kind=payload.resultKind||resultKindForHistory(payload.history),isSimulation=kind==="simulation";if(status){status.textContent=isSimulation?"Simulazione pronta":"Comparazione pronta";status.classList.add("is-ready");}
-    $("virtual-doc-label").textContent=isSimulation?"Bolletta simulata":"Comparazione";$("virtual-bill-title").textContent=isSimulation?"La stessa bolletta":"Confronto con l'offerta";$("virtual-bill-subtitle").textContent=isSimulation?"Stesso periodo e stessi consumi, con un'offerta valida in quel periodo.":"Stessi consumi e stessa durata, usando le condizioni disponibili oggi.";$("virtual-total-label").textContent=isSimulation?"Totale bolletta simulata":"Totale comparato";$("saving-equation-caption").textContent=isSimulation?"Bolletta reale → bolletta simulata":"Bolletta reale → comparazione offerta";renderHistory(payload.history||state.history);$("saving-box")?.setAttribute("aria-label",isSimulation?"Differenza tra bolletta reale e simulata":"Differenza tra bolletta reale e comparazione con la nuova offerta");
-    const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);$("saving-label").textContent=saving>=0?(isSimulation?"Risparmio simulato sul periodo":"Differenza favorevole nel confronto"):(isSimulation?"Costo in più simulato sul periodo":"Costo in più nel confronto");$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
+    if(!payload?.summary||!payload.bills?.length)return;document.body.classList.add("simulator-has-result");renderBillPanels(payload);const status=$("result-status"),kind=payload.resultKind||resultKindForHistory(payload.history),isSimulation=kind==="simulation";if(status){status.textContent=isSimulation?"Confronto storico pronto":"Comparazione pronta";status.classList.add("is-ready");}
+    $("virtual-doc-label").textContent=isSimulation?"Confronto storico":"Comparazione";$("virtual-bill-title").textContent=isSimulation?"La stessa bolletta":"Confronto con l'offerta";$("virtual-bill-subtitle").textContent=isSimulation?"Stesso periodo e stessi consumi, con un'offerta valida in quel periodo.":"Stessi consumi e stessa durata, usando le condizioni disponibili oggi.";$("virtual-total-label").textContent=isSimulation?"Totale bolletta ricalcolata":"Totale comparato";$("saving-equation-caption").textContent=isSimulation?"Bolletta reale → bolletta ricalcolata":"Bolletta reale → comparazione offerta";renderHistory(payload.history||state.history);$("saving-box")?.setAttribute("aria-label",isSimulation?"Differenza tra bolletta reale e ricalcolata":"Differenza tra bolletta reale e comparazione con la nuova offerta");
+    const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);$("saving-label").textContent=saving>=0?(isSimulation?"Risparmio nel confronto storico":"Differenza favorevole nel confronto"):(isSimulation?"Costo in più nel confronto storico":"Costo in più nel confronto");$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
     $("offer-provider").textContent=payload.offer?.provider||"—";$("offer-name").textContent=payload.offer?.name||"—";$("offer-type").textContent=payload.offer?.type==="variabile"?"Prezzo variabile":payload.offer?.type==="misto"?"Prezzi misti":"Prezzo fisso";const prices=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(part)prices.push(`${commodityLabel(commodity)}: ${number(part.prezzoNuovo,6)} €/${commodity==="luce"?"kWh":"Smc"}`);}$("offer-price-line").innerHTML=`<strong>Prezzo applicato:</strong> ${prices.join(" · ")||"—"}`;
     const note=$("bill-note");if(note){const oldDiscount=Number(payload.summary.realBillDiscountsExcluded)||0,newDiscount=Number(payload.summary.newOfferDiscounts)||0;const discountText=oldDiscount>0?` Gli sconti/bonus della bolletta reale (${euro(oldDiscount)}) non sono trasferiti.`:" Gli eventuali sconti della bolletta reale non vengono trasferiti.";const newDiscountText=newDiscount>0?` Sono applicati solo gli sconti/bonus verificabili della nuova offerta per ${euro(newDiscount)}.`:" Non risultano sconti della nuova offerta applicabili con dati verificabili.";note.innerHTML=`<strong>Nota:</strong>${discountText}${newDiscountText} ${isSimulation?"La nuova offerta era valida per l'intero periodo fatturato.":"Questo risultato è una comparazione e non ricostruisce una fattura storica del nuovo fornitore."}`;}const activate=$("activate-selected-offer");if(activate){activate.disabled=false;activate.setAttribute("aria-label",payload.offer?.source==="card"&&payload.offer?.cardActivation?`Attiva ${payload.offer?.name||"l'offerta"}`:"Torna alle offerte per scegliere la card da attivare");}
   }
@@ -1042,7 +1043,7 @@
     if(state.docs.length){renderDocsPreview();setUploadStatus(state.docs.length===1?"Bolletta letta":"Bollette lette","ready");await refreshOfferOptions();renderSimulationPreview();if(payload?.summary&&payload?.bills?.length&&state.selected){await loadCatalog();const history=historicalCheck(state.selected);state.history=history;renderHistory(history);const rebuilt=buildPayload(state.selected,history);if(rebuilt){storeJson(PAYLOAD_KEY,rebuilt);renderPayload(rebuilt);}}}
     else {setUploadStatus("");await refreshOfferOptions();if(state.selected){$("offer-selection-note").innerHTML=`Hai già scelto <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Carica o fotografa la bolletta: l'offerta resterà selezionata.`;}}
   }
-  init().catch((error)=>setUploadStatus(error?.message||"Impossibile inizializzare il simulatore","error"));
+  init().catch((error)=>setUploadStatus(error?.message||"Impossibile inizializzare il confronto storico","error"));
 })();
 </script>
 <script type="text/javascript">(function(w,d){var loader=function(){var s=d.createElement('script'),tag=d.getElementsByTagName('script')[0];s.src='https://cdn.iubenda.com/iubenda.js';tag.parentNode.insertBefore(s,tag);};if(w.addEventListener){w.addEventListener('load',loader,false);}else if(w.attachEvent){w.attachEvent('onload',loader);}else{w.onload=loader;}})(window,document);</script>
