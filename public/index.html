@@ -8524,7 +8524,6 @@ function normalizzaRigaAreraMenu(riga) {
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
     provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riga.provenienzaPrezzo),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
-    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
   };
 }
 
@@ -8562,7 +8561,6 @@ function normalizzaRigaAreraDual(riga) {
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
-    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
     luce,
     gas,
   };
@@ -9413,10 +9411,15 @@ function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
     const nome = testoHtmlSicuro(String(sconto?.nome || "Sconto"));
     const valore = testoHtmlSicuro(valoreNominalePromozioneArera(sconto));
     const durata = testoHtmlSicuro(durataPromozioneArera(sconto));
-    const condizione = condizionePromozioneArera(sconto);
+    const condizioneRaw = String(condizionePromozioneArera(sconto) || "").trim();
+    const condizione = testoHtmlSicuro(condizioneRaw);
     const dettagli = [valore, durata].filter(Boolean).join(" · ");
-    const notaCondizione = condizione
-      ? `<br><span style="color:var(--text-muted);">Bonus soggetto alle condizioni dell'offerta.</span>`
+    const notaCondizione = condizioneRaw
+      ? `<div style="margin-top:3px; color:var(--text-muted);">Bonus soggetto alle condizioni dell'offerta.</div>
+         <details style="margin-top:2px; color:var(--text-muted);">
+           <summary style="cursor:pointer; font-weight:700;">Vedi condizioni bonus</summary>
+           <div style="margin-top:4px; line-height:1.4;">${condizione}</div>
+         </details>`
       : "";
     return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul profilo di calcolo</span>${notaCondizione}</div>`;
   }).join("");
@@ -9464,28 +9467,80 @@ function condizioniRecessoOfferta(offerta) {
   return result;
 }
 
+function euroCompattoArera(valore) {
+  const numero = Number(String(valore ?? "").replace(",", "."));
+  if (!Number.isFinite(numero)) return "";
+  return `${new Intl.NumberFormat("it-IT", {
+    minimumFractionDigits: Number.isInteger(numero) ? 0 : 2,
+    maximumFractionDigits: 2,
+  }).format(numero)} €`;
+}
+
+function sintesiCondizioneRecessoArera(condizione) {
+  const testoOriginale = String(condizione?.descrizione || condizione?.altro || "").trim();
+  const testo = testoAreraNormalizzato(testoOriginale);
+  if (!testo) return "Onere di recesso previsto";
+  if (condizioneRecessoSenzaOnereArera(condizione)) return "Nessun onere di recesso";
+
+  const ordinali = {
+    primo: "1°",
+    secondo: "2°",
+    terzo: "3°",
+    quarto: "4°",
+    quinto: "5°",
+  };
+  const importiPerAnno = [];
+  const regexAnno = /(\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)\s*(?:per|nel|durante)\s+(?:il\s+)?(primo|secondo|terzo|quarto|quinto|1[°º]?|2[°º]?|3[°º]?|4[°º]?|5[°º]?)\s+anno/gi;
+  let match;
+  while ((match = regexAnno.exec(testoOriginale)) !== null) {
+    const rawAnno = String(match[2] || "").toLowerCase();
+    const anno = ordinali[rawAnno] || `${rawAnno.replace(/[^1-5]/g, "")}°`;
+    importiPerAnno.push({ anno, importo: euroCompattoArera(match[1]) });
+  }
+  if (importiPerAnno.length) {
+    return `Fino a ${importiPerAnno.map(({ anno, importo }) => `${importo} nel ${anno} anno`).join(" · ")}`;
+  }
+
+  const massimo = testoOriginale.match(/(?:importo|valore)[^.!]{0,160}?(?:massimo|non (?:potrà|può) superare|non eccedente)[^.!]{0,100}?(\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)/i)
+    || testoOriginale.match(/(?:massimo|non (?:potrà|può) superare|non eccedente)[^.!]{0,100}?(\d+(?:[.,]\d{1,2})?)\s*(?:€|euro)/i);
+  if (massimo) return `Fino a ${euroCompattoArera(massimo[1])}`;
+
+  if (/tabella|cte|condizioni (?:economiche|contrattuali)|url offerta/.test(testo)) {
+    return "Onere previsto · importo indicato nelle condizioni dell'offerta";
+  }
+  return "Onere di recesso previsto";
+}
+
+function htmlRigaRecessoCompatta(ambito, condizione) {
+  const testoCompleto = String(condizione?.descrizione || condizione?.altro || "").trim();
+  const sintesi = sintesiCondizioneRecessoArera(condizione);
+  const dettagli = testoCompleto
+    ? `<details style="margin-top:3px; color:inherit; opacity:.86;">
+         <summary style="cursor:pointer; font-weight:700;">Vedi condizioni complete</summary>
+         <div style="margin-top:4px; line-height:1.4;">${testoHtmlSicuro(testoCompleto)}</div>
+       </details>`
+    : "";
+  return `<div style="margin-top:4px;"><strong>${testoHtmlSicuro(ambito)}</strong>: ${testoHtmlSicuro(sintesi)}${dettagli}</div>`;
+}
+
 function htmlCondizioniRecessoOfferta(offerta) {
   const condizioni = condizioniRecessoOfferta(offerta);
   if (!condizioni.length) return "";
 
   const conOnere = condizioni.filter(({ condizione }) => !condizioneRecessoSenzaOnereArera(condizione));
   const senzaOnere = condizioni.filter(({ condizione }) => condizioneRecessoSenzaOnereArera(condizione));
-  const htmlRighe = (voci) => voci.map(({ ambito, condizione }) => {
-    const testo = String(condizione?.descrizione || condizione?.altro || "").trim();
-    return `<div style="margin-top:4px;"><strong>${testoHtmlSicuro(ambito)}</strong>: ${testoHtmlSicuro(testo)}</div>`;
-  }).join("");
 
   const avviso = conOnere.length
     ? `<div style="margin-top:7px; padding:7px 9px; border:1px solid #fecaca; border-radius:9px; background:#fef2f2; color:#991b1b; font-size:12px; line-height:1.4;">
         <strong>Onere di recesso anticipato</strong>
-        ${htmlRighe(conOnere)}
-        <div style="margin-top:4px; font-weight:600;">Non incluso nella spesa annua stimata: si applica solo nelle condizioni indicate dall'offerta.</div>
+        ${conOnere.map(({ ambito, condizione }) => htmlRigaRecessoCompatta(ambito, condizione)).join("")}
+        <div style="margin-top:4px; font-weight:600;">Non incluso nella spesa annua stimata.</div>
       </div>`
     : "";
   const rassicurazione = senzaOnere.length
     ? `<div style="margin-top:7px; padding:7px 9px; border:1px solid #bbf7d0; border-radius:9px; background:#f0fdf4; color:#166534; font-size:12px; line-height:1.4;">
-        <strong>Nessun onere di recesso anticipato indicato</strong>
-        ${htmlRighe(senzaOnere)}
+        <strong>Recesso anticipato</strong>
+        ${senzaOnere.map(({ ambito, condizione }) => htmlRigaRecessoCompatta(ambito, condizione)).join("")}
       </div>`
     : "";
   return `${avviso}${rassicurazione}`;
