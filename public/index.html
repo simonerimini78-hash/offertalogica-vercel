@@ -8524,6 +8524,7 @@ function normalizzaRigaAreraMenu(riga) {
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
     provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riga.provenienzaPrezzo),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
   };
 }
 
@@ -8561,6 +8562,7 @@ function normalizzaRigaAreraDual(riga) {
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
     luce,
     gas,
   };
@@ -9411,9 +9413,12 @@ function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
     const nome = testoHtmlSicuro(String(sconto?.nome || "Sconto"));
     const valore = testoHtmlSicuro(valoreNominalePromozioneArera(sconto));
     const durata = testoHtmlSicuro(durataPromozioneArera(sconto));
-    const condizione = testoHtmlSicuro(condizionePromozioneArera(sconto));
+    const condizione = condizionePromozioneArera(sconto);
     const dettagli = [valore, durata].filter(Boolean).join(" · ");
-    return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul profilo di calcolo</span>${condizione ? `<br><span style="color:var(--text-muted);">Condizione: ${condizione}</span>` : ""}</div>`;
+    const notaCondizione = condizione
+      ? `<br><span style="color:var(--text-muted);">Bonus soggetto alle condizioni dell'offerta.</span>`
+      : "";
+    return `<div style="margin-top:3px;"><strong>${ambito} · ${nome}</strong>${dettagli ? `: ${dettagli}` : ""} <span style="white-space:nowrap;">→ −${euro(importo)} sul profilo di calcolo</span>${notaCondizione}</div>`;
   }).join("");
 
   const incluse = riepilogo.applicate.length
