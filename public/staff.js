@@ -1472,6 +1472,7 @@
       const selectedEvent = analyticsCardClickedEvent(ordered) || analyticsSelectedOfferEvent(ordered);
       const provider = String(selectedEvent?.provider || [...ordered].reverse().find(item => item.provider)?.provider || "").trim();
       const verificationSeen = has("lead_modal_opened") || has("otp_request_started") || has("otp_sent") || has("otp_verify_started") || has("otp_verified");
+      const verificationSent = has("otp_sent");
       const verified = has("otp_verified");
       const verification = analyticsVerificationCopy(ordered);
       const requestFailed = [...ordered].reverse().find(item => String(item.eventType || "") === "offer_request_failed");
@@ -1489,7 +1490,7 @@
         { label: "Confronto", state: comparison ? "done" : (pathEvent ? "miss" : "idle"), note: comparison ? "completato / avviato" : "non raggiunto" },
         { label: "Offerte", state: offers ? "done" : (comparison ? "miss" : "idle"), note: offers ? "visualizzate" : "non raggiunte" },
         { label: provider || "Offerta", state: selectedEvent ? "done" : (offers ? "miss" : "idle"), note: selectedEvent ? "card selezionata" : "nessuna selezione" },
-        { label: verification.stage, state: verified ? "done" : (verificationSeen ? "miss" : "idle"), note: verified ? "completata" : verificationSeen ? "non completata" : "non richiesta" },
+        { label: verification.stage, state: verified ? "done" : (verificationSeen ? "miss" : "idle"), note: verified ? "completata" : verificationSent ? "codice inviato, in attesa di verifica" : verificationSeen ? "non completata" : "non richiesta" },
         { label: `Funnel ${provider || "fornitore"}`, state: externalState, note: externalNote },
       ];
     }
@@ -2219,9 +2220,11 @@
     renderAnalyticsSessionNarrative(rows);
 
     clear(funnel);
-    analyticsSessionFunnel(rows).forEach(step => {
+    const sessionFunnelSteps = analyticsSessionFunnel(rows);
+    sessionFunnelSteps.forEach((step, index) => {
       const symbol = step.state === "done" ? "✓" : step.state === "error" ? "!" : step.state === "miss" ? "✕" : step.state === "skip" ? "—" : "·";
-      funnel.append(node("div", { className: `analytics-session-funnel-step ${step.state}` }, [
+      const stageTone = analyticsSessionFunnelStageTone(step, index, sessionFunnelSteps);
+      funnel.append(node("div", { className: `analytics-session-funnel-step ${step.state}${stageTone ? ` ${stageTone}` : ""}` }, [
         node("span", { className: "analytics-session-funnel-symbol", text: symbol }),
         node("strong", { text: step.label }),
         node("small", { text: step.note }),
@@ -2347,6 +2350,44 @@
     return button;
   }
 
+  function analyticsJourneyOutcomeTone(row = {}) {
+    const outcome = String(row.esito_sessione || "").trim().toLowerCase();
+    if (row.switcho || row.partner || outcome.includes("passaggio a switcho") || outcome.includes("passaggio partner")) return "journey-final";
+    if (outcome.includes("errore tecnico") || outcome.includes("non riconosciuto") || outcome.includes("nessun avanzamento")) return "journey-none";
+    if (outcome.includes("analisi interrotta") || outcome.includes("dati mancanti") || outcome.includes("analisi parziale") || outcome.includes("senza completamento")) return "journey-caution";
+    if (row.otp_verificato || outcome.includes("email verificata") || outcome.includes("codice verificato") || outcome.includes("numero verificato")) return "journey-verified";
+    if (row.otp_inviato || outcome.includes("codice email inviato") || outcome.includes("codice inviato via email") || outcome.includes("codice inviato via sms")) return "journey-verification-pending";
+    if (outcome.includes("azione su offerta")) return "journey-offer-action";
+    if (row.offerte_visualizzate || outcome.includes("offerte visualizzate")) return "journey-offers";
+    if (outcome.includes("confronto completato")) return "journey-comparison-done";
+    if (outcome.includes("confronto avviato")) return "journey-comparison";
+    if (outcome.includes("pdf:") || outcome.includes("percorso pdf")) return "journey-data";
+    if (outcome.includes("percorso scelto")) return "journey-choice";
+    if (outcome.includes("solo landing")) return "journey-landing";
+    return "journey-neutral";
+  }
+
+  function analyticsSessionFunnelStageTone(step = {}, index = 0, steps = []) {
+    const label = String(step.label || "").toLowerCase();
+    const note = String(step.note || "").toLowerCase();
+    const last = index === steps.length - 1;
+    if (last && step.state === "done" && /funnel|partner|switcho|fornitore/.test(label)) return "stage-final";
+    if (/verifica/.test(label)) {
+      if (step.state === "done") return "stage-verification-done";
+      if (step.state === "miss" && note.includes("codice inviato")) return "stage-verification-pending";
+      return "";
+    }
+    if (step.state !== "done") return "";
+    if ((steps.length >= 8 && index === 5) || (steps.length === 4 && index === 2)) return "stage-offer-action";
+    if (/offerte/.test(label)) return "stage-offers";
+    if (/confronto/.test(label)) return "stage-comparison-done";
+    if (/dati|pdf|profilo medio/.test(label)) return "stage-data";
+    if (/autonomia|guidato|cta|percorso/.test(label)) return "stage-choice";
+    if (/landing|sito/.test(label)) return "stage-landing";
+    if (/offerta/.test(label)) return "stage-offer-action";
+    return "stage-neutral";
+  }
+
   function renderJourneyAnalytics() {
     const rows = Array.isArray(cache.journeys) ? cache.journeys : [];
     const summary = cache.journeySummary || {};
@@ -2382,7 +2423,7 @@
         node("td", {}, [node("strong", { text: source }), node("small", { text: [row.campaign, row.term].filter(Boolean).join(" · ") })]),
         node("td", { text: row.scelta_percorso || "—" }),
         node("td", {}, [node("strong", { text: comparison }), node("small", { text: comparisonBasis.replace(/^ · /, "") })]),
-        node("td", {}, [badge(row.esito_sessione || "—", row.switcho || row.partner ? "ok" : row.offerte_visualizzate ? "info" : "warn"), node("small", { text: row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "" })]),
+        node("td", {}, [badge(row.esito_sessione || "—", analyticsJourneyOutcomeTone(row)), node("small", { text: row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "" })]),
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
