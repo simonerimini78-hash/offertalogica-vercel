@@ -2948,6 +2948,7 @@
     const summary = usage.summary || {};
     text(byId("usageVisitors"), summary.visitors || 0);
     text(byId("usageAnalyses"), summary.meaningfulAnalyses || 0);
+    text(byId("usageBreakdown"), `Domestico ${summary.domesticAnalyses || 0} · Business ${summary.businessAnalyses || 0}`);
     text(byId("usageMultiDay"), summary.multiDayVisitors || 0);
     text(byId("usageMaxPeak24h"), summary.maxPeak24h || 0);
     text(byId("usageDistribution"), `P50 ${summary.p50Peak24h || 0} · P90 ${summary.p90Peak24h || 0}`);
@@ -2961,7 +2962,7 @@
     clear(body);
     const rows = Array.isArray(usage.rows) ? usage.rows : [];
     if (!rows.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun evento Business conteggiabile con identità usage-v1 disponibile negli ultimi 7 giorni.", attrs: { colspan: "9" } })]));
+      body.append(node("tr", {}, [node("td", { text: "Nessun utilizzo conteggiabile del calcolatore domestico o Business con identità usage-v1 disponibile negli ultimi 7 giorni.", attrs: { colspan: "11" } })]));
       return;
     }
     rows.forEach((row) => {
@@ -2976,6 +2977,8 @@
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: usageVisitorLabel(row.visitorHash), attrs: { title: String(row.visitorHash || "") } })]),
         node("td", { text: row.analyses7d || 0 }),
+        node("td", { text: row.domesticAnalyses7d || 0 }),
+        node("td", { text: row.businessAnalyses7d || 0 }),
         node("td", { text: row.peak2h || 0 }),
         node("td", { text: row.peak24h || 0 }),
         node("td", { text: row.activeDays || 0 }),

@@ -50,7 +50,7 @@ function usagePercentile(values, percentile) {
   return sorted[index];
 }
 
-function businessUsageObservation(events = [], now = Date.now(), exclusions = []) {
+function usageObservation(events = [], now = Date.now(), exclusions = []) {
   const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
   const twoHoursMs = 2 * 60 * 60 * 1000;
   const oneDayMs = 24 * 60 * 60 * 1000;
@@ -64,8 +64,9 @@ function businessUsageObservation(events = [], now = Date.now(), exclusions = []
       .filter((value) => !value.endsWith(":")),
   );
 
+  const observedEventTypes = new Set(["comparison_completed", "business_calculation_completed"]);
   const ordered = events
-    .filter((event) => event?.eventType === "business_calculation_completed")
+    .filter((event) => observedEventTypes.has(String(event?.eventType || "")))
     .filter((event) => event?.usageIdentityVersion === "usage-v1" && event?.usageVisitorHash)
     .filter((event) => event?.payload?.usageExcluded !== true)
     .filter((event) => !activeExclusions.has(`visitor_hash:${String(event?.usageVisitorHash || "")}`))
@@ -78,7 +79,8 @@ function businessUsageObservation(events = [], now = Date.now(), exclusions = []
   ordered.forEach((event) => {
     const visitor = String(event.usageVisitorHash || "");
     const analysis = String(event.usageAnalysisHash || "");
-    const dedupKey = analysis ? `${visitor}:${analysis}` : "";
+    const eventType = String(event.eventType || "");
+    const dedupKey = analysis ? `${visitor}:${eventType}:${analysis}` : "";
     if (dedupKey) {
       const previous = Number(lastAnalysisByVisitor.get(dedupKey) || 0);
       lastAnalysisByVisitor.set(dedupKey, event.timestamp);
@@ -92,12 +94,21 @@ function businessUsageObservation(events = [], now = Date.now(), exclusions = []
     const timestamps = visitorEvents.map((event) => event.timestamp).sort((a, b) => a - b);
     const sessions = new Set(visitorEvents.map((event) => String(event.sessionId || "")).filter(Boolean));
     const days = new Set(timestamps.map(usageRomeDayKey).filter(Boolean));
-    const profiles = new Set(visitorEvents.map((event) => String(event.usageAnalysisHash || "")).filter(Boolean));
+    const profiles = new Set(visitorEvents
+      .map((event) => {
+        const hash = String(event.usageAnalysisHash || "");
+        return hash ? `${String(event.eventType || "")}:${hash}` : "";
+      })
+      .filter(Boolean));
+    const domesticAnalyses7d = visitorEvents.filter((event) => event.eventType === "comparison_completed").length;
+    const businessAnalyses7d = visitorEvents.filter((event) => event.eventType === "business_calculation_completed").length;
     return {
       visitorHash,
       firstAt: new Date(timestamps[0]).toISOString(),
       lastAt: new Date(timestamps[timestamps.length - 1]).toISOString(),
       analyses7d: timestamps.length,
+      domesticAnalyses7d,
+      businessAnalyses7d,
       analysesCurrent2h: timestamps.filter((value) => value >= now - twoHoursMs).length,
       analysesCurrent24h: timestamps.filter((value) => value >= now - oneDayMs).length,
       peak2h: usagePeakWithin(timestamps, twoHoursMs),
@@ -117,6 +128,8 @@ function businessUsageObservation(events = [], now = Date.now(), exclusions = []
     summary: {
       visitors: rows.length,
       meaningfulAnalyses: rows.reduce((sum, row) => sum + row.analyses7d, 0),
+      domesticAnalyses: rows.reduce((sum, row) => sum + row.domesticAnalyses7d, 0),
+      businessAnalyses: rows.reduce((sum, row) => sum + row.businessAnalyses7d, 0),
       multiDayVisitors: rows.filter((row) => row.activeDays > 1).length,
       maxPeak24h: peak24hValues.length ? Math.max(...peak24hValues) : 0,
       p50Peak24h: usagePercentile(peak24hValues, 0.50),
@@ -2617,7 +2630,12 @@ export default async function handler(req, res) {
   if (mode === "usage") {
     const now = Date.now();
     const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
-    const [raw, exclusions] = await Promise.all([
+    const [domesticRaw, businessRaw, exclusions] = await Promise.all([
+      listCustomerAnalytics({
+        limit: 10000,
+        from,
+        eventType: "comparison_completed",
+      }),
       listCustomerAnalytics({
         limit: 10000,
         from,
@@ -2625,17 +2643,19 @@ export default async function handler(req, res) {
       }),
       listUsageCountExclusions(),
     ]);
-    if (!raw.ok) {
-      return json(res, 500, { ok: false, status: raw.status || "error", error: raw.error || "usage_observation_error" });
+    if (!domesticRaw.ok || !businessRaw.ok) {
+      const failed = !domesticRaw.ok ? domesticRaw : businessRaw;
+      return json(res, 500, { ok: false, status: failed.status || "error", error: failed.error || "usage_observation_error" });
     }
     if (!exclusions.ok) {
       return json(res, 503, { ok: false, status: "usage_exclusions_unavailable", error: exclusions.error || "Archivio esclusioni non disponibile" });
     }
+    const observedEvents = [...(domesticRaw.events || []), ...(businessRaw.events || [])];
     return json(res, 200, {
       ok: true,
-      configured: raw.configured,
-      status: raw.status,
-      usage: { ...businessUsageObservation(raw.events || [], now, exclusions.rows), exclusions: exclusions.rows },
+      configured: domesticRaw.configured && businessRaw.configured,
+      status: domesticRaw.status || businessRaw.status,
+      usage: { ...usageObservation(observedEvents, now, exclusions.rows), exclusions: exclusions.rows },
       authorizedBy,
       checkedAt: new Date(now).toISOString(),
     });
@@ -2892,4 +2912,5 @@ export default async function handler(req, res) {
   });
 }
 
-export { businessUsageObservation };
+const businessUsageObservation = usageObservation;
+export { businessUsageObservation, usageObservation };
