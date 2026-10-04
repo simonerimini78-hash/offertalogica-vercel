@@ -2006,6 +2006,24 @@
     return item?.label || known[key] || key || "Tutte le provenienze";
   }
 
+  function analyticsReferrerHost(value = "") {
+    const raw = String(value || "").trim();
+    if (!raw) return "";
+    try {
+      const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, "")}`;
+      return String(new URL(candidate).hostname || "").toLowerCase().replace(/^www\./, "");
+    } catch {
+      return raw.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/, 1)[0].toLowerCase();
+    }
+  }
+
+  function analyticsSourceDisplay(sourceKey = "", referrer = "") {
+    const label = analyticsSourceLabel(sourceKey);
+    if (String(sourceKey || "") !== "referral_other") return label;
+    const host = analyticsReferrerHost(referrer);
+    return host ? `${label} · ${host}` : label;
+  }
+
   function renderAnalyticsSessionTechnicalRows(rows = []) {
     const technicalList = byId("analyticsSessionTechnicalEvents");
     if (!technicalList) return;
@@ -2413,7 +2431,7 @@
     const pageData = analyticsPageRows(rows, "journeys");
     if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione disponibile.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(row => {
-      const source = analyticsSourceLabel(row.source || "direct");
+      const source = analyticsSourceDisplay(row.source || "direct", row.referrer);
       const intent = row.intento || "Intento non determinabile";
       const intentBasis = row.intento_base || "";
       const comparison = row.percorso_sequenza || row.percorso_confronto || "—";
@@ -2511,7 +2529,7 @@
       ].filter(Boolean).join(" · ");
       body.append(node("tr", { className: `analytics-session-tone-${analysisTone}` }, [
         node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
-        node("td", {}, [node("strong", { text: analyticsSourceLabel(row.source || "direct") }), node("small", { text: row.intento || "Intento non determinabile" })]),
+        node("td", {}, [node("strong", { text: analyticsSourceDisplay(row.source || "direct", row.referrer) }), node("small", { text: row.intento || "Intento non determinabile" })]),
         node("td", {}, [analyticsCellDetails("PDF", pdfTone, "Passaggi PDF", [steps])]),
         node("td", { className: "analytics-pdf-status" }, [analyticsCellDetails("Analisi", analysisTone, row.pdf_esito || "Esito non disponibile", [analysisMeta])]),
         node("td", {}, [analyticsCellDetails(row.pdf_missing_field_count ? `${row.pdf_missing_field_count} mancanti` : "Diagnostica", row.pdf_missing_field_count ? "warn" : analysisTone === "danger" ? "danger" : "info", row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "Diagnostica PDF", [diagnostics])]),
@@ -2614,7 +2632,7 @@
       const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
-        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: String(row.trafficSource || "") === "referral_other" ? analyticsSourceDisplay("referral_other", row.trafficReferrer) : switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
         node("td", { text: path }), node("td", { text: offer }), node("td", { text: ranking }), node("td", { text: values }),
         node("td", {}, [badge(switchoStatusLabel(row), row.landingOpened || row.redirectRecorded ? "ok" : "warn")]),
         node("td", {}, [node("span", { className: "switcho-session", text: displayId, attrs: { title: sessionId || "" } }), journeySessionButton(sessionId)])
