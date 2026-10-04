@@ -263,7 +263,7 @@ function usageSubjectHash(value) {
 }
 
 function usageIpSubjectHash(ip) {
-  const secret = String(process.env.CUSTOMER_DB_HASH_SECRET || "").trim();
+  const secret = String(process.env.USAGE_CONTROL_HASH_SECRET || "").trim();
   const normalizedIp = String(ip || "").trim();
   if (secret.length < 32 || !isIP(normalizedIp)) return "";
   return crypto.createHmac("sha256", secret).update(`usage-ip:${normalizedIp}`).digest("hex");
@@ -2418,7 +2418,7 @@ export default async function handler(req, res) {
       subjectType = "ip_hash";
       subjectHash = usageIpSubjectHash(clientIp(req));
       if (!subjectHash) {
-        return json(res, 503, { ok: false, error: "IP corrente non disponibile o CUSTOMER_DB_HASH_SECRET non configurato correttamente" });
+        return json(res, 503, { ok: false, error: "IP corrente non disponibile o USAGE_CONTROL_HASH_SECRET non configurato correttamente" });
       }
     } else if (action === "exclude_ip") {
       const rawIp = String(body.ip || "").trim();
@@ -2426,7 +2426,7 @@ export default async function handler(req, res) {
       subjectType = "ip_hash";
       subjectHash = usageIpSubjectHash(rawIp);
       if (!subjectHash) {
-        return json(res, 503, { ok: false, error: "CUSTOMER_DB_HASH_SECRET non configurato correttamente" });
+        return json(res, 503, { ok: false, error: "USAGE_CONTROL_HASH_SECRET non configurato correttamente" });
       }
     } else if (action === "exclude_visitor") {
       subjectType = "visitor_hash";
