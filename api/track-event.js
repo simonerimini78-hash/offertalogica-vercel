@@ -2,7 +2,7 @@ import { clientIp, json, leadSessionSubject, method, readJson, requireAllowedOri
 import { findUsageCountExclusion, persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson } from "../lib/store.js";
-import { observeBusinessUsageIdentity } from "../lib/usageIdentity.js";
+import { observeUsageIdentity } from "../lib/usageIdentity.js";
 
 // Security Step 7A — only analytics events actually used by OffertaLogica
 // may enter the public analytics endpoint. Unknown/custom event names are
@@ -389,7 +389,7 @@ function sanitizePayload(payload = {}) {
     engagementOffersReachedSeconds: numberOrNull(input.engagementOffersReachedSeconds),
     telemetry: booleanOrNull(input.telemetry),
     reason: text(input.reason, 100),
-    // Internal-only input used to deduplicate business analyses. It is removed
+    // Internal-only input used to deduplicate observed tool analyses. It is removed
     // before persistence and replaced by a server-derived pseudonymous hash.
     usageAnalysisKey: text(input.usageAnalysisKey, 800),
   };
@@ -519,8 +519,8 @@ export default async function handler(req, res) {
 
     let trustedPayload = integrity.payload || payload;
     let usageObservation = null;
-    if (eventType === "business_calculation_completed") {
-      usageObservation = observeBusinessUsageIdentity(req, res, trustedPayload.usageAnalysisKey);
+    if (["business_calculation_completed", "comparison_completed"].includes(eventType)) {
+      usageObservation = observeUsageIdentity(req, res, trustedPayload.usageAnalysisKey);
       const exclusion = await findUsageCountExclusion({
         visitorHash: usageObservation.usageVisitorHash,
         ipHash: usageObservation.usageIpHash,
