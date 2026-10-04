@@ -1,7 +1,8 @@
 import { clientIp, json, leadSessionSubject, method, readJson, requireAllowedOrigin } from "../lib/http.js";
-import { persistAnalyticsEvent } from "../lib/customerDb.js";
+import { findUsageCountExclusion, persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson } from "../lib/store.js";
+import { observeBusinessUsageIdentity } from "../lib/usageIdentity.js";
 
 // Security Step 7A — only analytics events actually used by OffertaLogica
 // may enter the public analytics endpoint. Unknown/custom event names are
@@ -388,6 +389,9 @@ function sanitizePayload(payload = {}) {
     engagementOffersReachedSeconds: numberOrNull(input.engagementOffersReachedSeconds),
     telemetry: booleanOrNull(input.telemetry),
     reason: text(input.reason, 100),
+    // Internal-only input used to deduplicate business analyses. It is removed
+    // before persistence and replaced by a server-derived pseudonymous hash.
+    usageAnalysisKey: text(input.usageAnalysisKey, 800),
   };
 }
 
@@ -513,7 +517,25 @@ export default async function handler(req, res) {
       return;
     }
 
-    const trustedPayload = integrity.payload || payload;
+    let trustedPayload = integrity.payload || payload;
+    let usageObservation = null;
+    if (eventType === "business_calculation_completed") {
+      usageObservation = observeBusinessUsageIdentity(req, res, trustedPayload.usageAnalysisKey);
+      const exclusion = await findUsageCountExclusion({
+        visitorHash: usageObservation.usageVisitorHash,
+        ipHash: usageObservation.usageIpHash,
+      });
+      if (!exclusion.ok) {
+        console.warn("usage_exclusion_check_failed", String(exclusion.error || "usage_exclusion_check_error").slice(0, 180));
+      }
+      usageObservation = {
+        ...usageObservation,
+        usageExcluded: exclusion.excluded === true,
+        usageExclusionType: exclusion.excluded ? String(exclusion.type || "") : "",
+      };
+      const { usageAnalysisKey: _discardUsageAnalysisKey, ...safePayload } = trustedPayload;
+      trustedPayload = { ...safePayload, ...usageObservation };
+    }
 
     if (VERIFIED_LEAD_EVENT_TYPES.has(eventType)) {
       if (!(await enforceRateLimit(req, res, {
@@ -548,6 +570,7 @@ export default async function handler(req, res) {
       ok: true,
       stored: Boolean(result.ok && !result.skipped),
       skipped: Boolean(result.skipped),
+      usage: usageObservation ? { mode: usageObservation.usageMode, identityVersion: usageObservation.usageIdentityVersion, excluded: usageObservation.usageExcluded === true } : undefined,
     });
   } catch (error) {
     json(res, 200, { ok: true, stored: false, skipped: true });

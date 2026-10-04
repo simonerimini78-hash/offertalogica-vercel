@@ -7439,8 +7439,11 @@ function trackEvent(eventType, payload = {}) {
   });
   if (engagement.nextStage) analyticsEngagementSetStage(engagement.nextStage);
 
+  const usageObservationEvent = String(eventType || "") === "business_calculation_completed";
   try {
-    if (navigator.sendBeacon) {
+    // Il primo evento business deve passare da fetch: la risposta puo impostare
+    // il cookie tecnico HttpOnly usato esclusivamente per osservare l'uso ripetuto.
+    if (!usageObservationEvent && navigator.sendBeacon) {
       const blob = new Blob([body], { type: "application/json" });
       if (navigator.sendBeacon("/api/track-event", blob)) return;
     }
@@ -10518,6 +10521,7 @@ window.calcolaBusiness = function calcolaBusiness() {
     rankingOffersCount: ranking.length,
     businessCatalogOffersCount: OFFERTE_ARERA_BUSINESS.length,
     businessCatalogDualOffersCount: OFFERTE_ARERA_DUAL_BUSINESS.length,
+    usageAnalysisKey: chiaveProfiloBusiness(profile),
   });
   return profiloCalcolato;
 };
