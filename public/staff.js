@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const ALLOWED_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
-  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "collaborators", "pdf", "costs"]);
+  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "usage", "collaborators", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
   const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
@@ -45,6 +45,7 @@
     offerRoutes: { summary: {} },
     photoJourneySummary: {},
     landingPath: null,
+    usage: { mode: "shadow", summary: {}, rows: [], exclusions: [] },
     customers: [],
     checks: [],
     communications: [],
@@ -2823,6 +2824,177 @@
     }
   }
 
+
+  function usageVisitorLabel(hash) {
+    const value = String(hash || "");
+    return value.length > 16 ? `${value.slice(0, 8)}…${value.slice(-6)}` : (value || "—");
+  }
+
+  function renderUsageExclusions(usage) {
+    const body = byId("usageExclusionRows");
+    if (!body) return;
+    clear(body);
+    const exclusions = Array.isArray(usage?.exclusions) ? usage.exclusions : [];
+    if (!exclusions.length) {
+      body.append(node("tr", {}, [node("td", { text: "Nessuna esclusione attiva.", attrs: { colspan: "5" } })]));
+      return;
+    }
+    exclusions.forEach((entry) => {
+      const typeLabel = entry.subjectType === "ip_hash" ? "IP" : entry.subjectType === "visitor_hash" ? "Visitor" : entry.subjectType || "—";
+      const action = node("td");
+      if (isAdmin()) {
+        const revoke = node("button", { className: "button danger compact", type: "button", text: "REVOCA" });
+        revoke.addEventListener("click", () => revokeUsageExclusion(entry).catch(error => setMessage("error", friendlyError(error))));
+        action.append(revoke);
+      } else {
+        action.textContent = "—";
+      }
+      body.append(node("tr", {}, [
+        node("td", { text: typeLabel }),
+        node("td", { text: entry.label || "—" }),
+        node("td", {}, [node("strong", { text: usageVisitorLabel(entry.subjectHash), attrs: { title: String(entry.subjectHash || "") } })]),
+        node("td", { text: formatDate(entry.createdAt) }),
+        action,
+      ]));
+    });
+  }
+
+  async function usageExclusionAction(action, payload = {}) {
+    return staffFetch("/api/staff-analytics?mode=usage-exclusion", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...payload }),
+    });
+  }
+
+  async function excludeCurrentUsageIp() {
+    if (!isAdmin() || busy) return;
+    const confirmed = await confirmAction({
+      title: "Escludi IP corrente",
+      message: "Escludere dai conteggi Usage Control l'indirizzo IP pubblico con cui stai usando ora la Staff? Tutti gli utenti che condividono lo stesso IP pubblico saranno esclusi finché l'esclusione resta attiva.",
+      confirmLabel: "ESCLUDI",
+    });
+    if (!confirmed) return;
+    const label = String(byId("usageExclusionLabel")?.value || "IP personale Staff").trim().slice(0, 120);
+    setBusy(true);
+    try {
+      const result = await usageExclusionAction("exclude_current_ip", { label, reason: "Esclusione manuale Usage Control" });
+      await loadUsage({ silent: true });
+      setMessage("success", result.created === false ? "Questo IP era già escluso." : "IP corrente escluso dai conteggi Usage Control.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function excludeUsageIp() {
+    if (!isAdmin() || busy) return;
+    const ip = String(byId("usageExclusionIp")?.value || "").trim();
+    if (!ip) {
+      setMessage("error", "Indica l'indirizzo IP da escludere.");
+      return;
+    }
+    const label = String(byId("usageExclusionLabel")?.value || "IP escluso").trim().slice(0, 120);
+    setBusy(true);
+    try {
+      const result = await usageExclusionAction("exclude_ip", { ip, label, reason: "Esclusione manuale Usage Control" });
+      if (byId("usageExclusionIp")) byId("usageExclusionIp").value = "";
+      await loadUsage({ silent: true });
+      setMessage("success", result.created === false ? "Questo IP era già escluso." : "IP escluso dai conteggi Usage Control.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function excludeUsageVisitor(row) {
+    if (!isAdmin() || busy || !row?.visitorHash) return;
+    const visitorLabel = usageVisitorLabel(row.visitorHash);
+    const confirmed = await confirmAction({
+      title: "Escludi visitor",
+      message: `Escludere ${visitorLabel} dai conteggi Usage Control? L'esclusione riguarda questo identificatore browser e resta attiva finché non viene revocata.`,
+      confirmLabel: "ESCLUDI",
+    });
+    if (!confirmed) return;
+    const label = String(byId("usageExclusionLabel")?.value || `Visitor ${visitorLabel}`).trim().slice(0, 120);
+    setBusy(true);
+    try {
+      const result = await usageExclusionAction("exclude_visitor", { visitorHash: row.visitorHash, label, reason: "Esclusione manuale Usage Control" });
+      await loadUsage({ silent: true });
+      setMessage("success", result.created === false ? "Questo visitor era già escluso." : "Visitor escluso dai conteggi Usage Control.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function revokeUsageExclusion(entry) {
+    if (!isAdmin() || busy || !entry?.id) return;
+    const confirmed = await confirmAction({
+      title: "Revoca esclusione",
+      message: `Revocare l'esclusione ${entry.label || usageVisitorLabel(entry.subjectHash)}? Gli utilizzi successivi torneranno a entrare nei conteggi.`,
+      confirmLabel: "REVOCA",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      await usageExclusionAction("revoke", { id: entry.id });
+      await loadUsage({ silent: true });
+      setMessage("success", "Esclusione revocata.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function renderUsage() {
+    const usage = cache.usage && typeof cache.usage === "object" ? cache.usage : { summary: {}, rows: [], exclusions: [] };
+    const summary = usage.summary || {};
+    text(byId("usageVisitors"), summary.visitors || 0);
+    text(byId("usageAnalyses"), summary.meaningfulAnalyses || 0);
+    text(byId("usageMultiDay"), summary.multiDayVisitors || 0);
+    text(byId("usageMaxPeak24h"), summary.maxPeak24h || 0);
+    text(byId("usageDistribution"), `P50 ${summary.p50Peak24h || 0} · P90 ${summary.p90Peak24h || 0}`);
+    const adminControls = byId("usageExclusionAdminControls");
+    if (adminControls) adminControls.hidden = !isAdmin();
+    const currentIpButton = byId("usageExcludeCurrentIp");
+    if (currentIpButton) currentIpButton.hidden = !isAdmin();
+    renderUsageExclusions(usage);
+    const body = byId("usageRows");
+    if (!body) return;
+    clear(body);
+    const rows = Array.isArray(usage.rows) ? usage.rows : [];
+    if (!rows.length) {
+      body.append(node("tr", {}, [node("td", { text: "Nessun evento Business conteggiabile con identità usage-v1 disponibile negli ultimi 7 giorni.", attrs: { colspan: "9" } })]));
+      return;
+    }
+    rows.forEach((row) => {
+      const action = node("td");
+      if (isAdmin()) {
+        const exclude = node("button", { className: "button secondary compact", type: "button", text: "ESCLUDI" });
+        exclude.addEventListener("click", () => excludeUsageVisitor(row).catch(error => setMessage("error", friendlyError(error))));
+        action.append(exclude);
+      } else {
+        action.textContent = "—";
+      }
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: usageVisitorLabel(row.visitorHash), attrs: { title: String(row.visitorHash || "") } })]),
+        node("td", { text: row.analyses7d || 0 }),
+        node("td", { text: row.peak2h || 0 }),
+        node("td", { text: row.peak24h || 0 }),
+        node("td", { text: row.activeDays || 0 }),
+        node("td", { text: row.sessions || 0 }),
+        node("td", { text: row.distinctProfiles || 0 }),
+        node("td", { text: formatDate(row.lastAt) }),
+        action,
+      ]));
+    });
+  }
+
+  async function loadUsage({ silent = false } = {}) {
+    if (!silent) setMessage("info", "Aggiornamento utilizzo strumenti…");
+    const payload = await staffFetch("/api/staff-analytics?mode=usage");
+    cache.usage = payload.usage && typeof payload.usage === "object" ? payload.usage : { mode: "shadow", summary: {}, rows: [], exclusions: [] };
+    renderUsage();
+    if (!silent) setMessage("success", "Utilizzo strumenti aggiornato.");
+  }
+
   async function loadAnalytics({ silent = false } = {}) {
     const sequence = ++analyticsLoadSequence;
     if (!silent) setMessage("info", "Aggiornamento analytics…");
@@ -4999,6 +5171,7 @@
     if (tab === "checks") return loadChecks({ silent });
     if (tab === "customers") return loadCustomers({ silent });
     if (tab === "analytics") return loadAnalytics({ silent });
+    if (tab === "usage") return loadUsage({ silent });
     if (tab === "collaborators") {
       if (silent && collaboratorsLoaded) return;
       return loadCollaborators({ silent });
@@ -5214,6 +5387,9 @@
     byId("staffComplimentaryLayer").addEventListener("click", event => { if (event.target === byId("staffComplimentaryLayer")) closeComplimentary(); });
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh")?.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
+    byId("usageRefresh")?.addEventListener("click", () => loadUsage().catch(error => setMessage("error", friendlyError(error))));
+    byId("usageExcludeCurrentIp")?.addEventListener("click", () => excludeCurrentUsageIp().catch(error => setMessage("error", friendlyError(error))));
+    byId("usageExcludeIp")?.addEventListener("click", () => excludeUsageIp().catch(error => setMessage("error", friendlyError(error))));
     document.querySelectorAll("[data-analytics-refresh]").forEach(button => button.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error)))));
     document.querySelectorAll("[data-analytics-export]").forEach(button => button.addEventListener("click", () => { void exportAnalyticsCsv(String(button.dataset.analyticsExport || "events")); }));
     byId("analyticsExportAll")?.addEventListener("click", () => { void exportAnalyticsCsv("events"); });

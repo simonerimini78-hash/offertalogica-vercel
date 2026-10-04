@@ -1,4 +1,6 @@
-import { json, method, requireAllowedOrigin } from "../lib/http.js";
+import crypto from "node:crypto";
+import { isIP } from "node:net";
+import { clientIp, json, method, requireAllowedOrigin } from "../lib/http.js";
 import { deleteCustomerAnalytics, listCustomerAnalytics } from "../lib/customerDb.js";
 import { isStaffAdminRole } from "../lib/staffRoles.js";
 import { requireStaffSession } from "../lib/staffSessionAuth.js";
@@ -15,9 +17,114 @@ const CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY =
   "";
 
 const CUSTOMER_DB_EVENTS_TABLE = process.env.CUSTOMER_DB_EVENTS_TABLE || "lead_events";
+const CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE = process.env.CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE || "usage_count_exclusions";
 const CAMPAIGN_BASELINE_ISO = "2026-09-02T22:00:00.000Z";
 const CAMPAIGN_BASELINE_LABEL = "3 settembre 2026, 00:00";
 const ANALYTICS_TIME_ZONE = "Europe/Rome";
+
+
+function usageRomeDayKey(timestamp) {
+  const date = new Date(timestamp);
+  if (!Number.isFinite(date.getTime())) return "";
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone: ANALYTICS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
+  }).formatToParts(date);
+  const part = (type) => parts.find((item) => item.type === type)?.value || "";
+  return `${part("year")}-${part("month")}-${part("day")}`;
+}
+
+function usagePeakWithin(timestamps, windowMs) {
+  let best = 0;
+  let left = 0;
+  for (let right = 0; right < timestamps.length; right += 1) {
+    while (timestamps[right] - timestamps[left] > windowMs) left += 1;
+    best = Math.max(best, right - left + 1);
+  }
+  return best;
+}
+
+function usagePercentile(values, percentile) {
+  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
+  if (!sorted.length) return 0;
+  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * percentile) - 1));
+  return sorted[index];
+}
+
+function businessUsageObservation(events = [], now = Date.now(), exclusions = []) {
+  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+  const twoHoursMs = 2 * 60 * 60 * 1000;
+  const oneDayMs = 24 * 60 * 60 * 1000;
+  const dedupMs = 10 * 60 * 1000;
+  const cutoff = now - sevenDaysMs;
+  const groups = new Map();
+  const activeExclusions = new Set(
+    (Array.isArray(exclusions) ? exclusions : [])
+      .filter((entry) => entry?.active !== false)
+      .map((entry) => `${String(entry?.subjectType || "")}:${String(entry?.subjectHash || "")}`)
+      .filter((value) => !value.endsWith(":")),
+  );
+
+  const ordered = events
+    .filter((event) => event?.eventType === "business_calculation_completed")
+    .filter((event) => event?.usageIdentityVersion === "usage-v1" && event?.usageVisitorHash)
+    .filter((event) => event?.payload?.usageExcluded !== true)
+    .filter((event) => !activeExclusions.has(`visitor_hash:${String(event?.usageVisitorHash || "")}`))
+    .filter((event) => !activeExclusions.has(`ip_hash:${String(event?.usageIpHash || "")}`))
+    .map((event) => ({ ...event, timestamp: new Date(event.createdAt || 0).getTime() }))
+    .filter((event) => Number.isFinite(event.timestamp) && event.timestamp >= cutoff && event.timestamp <= now + 60000)
+    .sort((a, b) => a.timestamp - b.timestamp);
+
+  const lastAnalysisByVisitor = new Map();
+  ordered.forEach((event) => {
+    const visitor = String(event.usageVisitorHash || "");
+    const analysis = String(event.usageAnalysisHash || "");
+    const dedupKey = analysis ? `${visitor}:${analysis}` : "";
+    if (dedupKey) {
+      const previous = Number(lastAnalysisByVisitor.get(dedupKey) || 0);
+      lastAnalysisByVisitor.set(dedupKey, event.timestamp);
+      if (previous && event.timestamp - previous <= dedupMs) return;
+    }
+    if (!groups.has(visitor)) groups.set(visitor, []);
+    groups.get(visitor).push(event);
+  });
+
+  const rows = [...groups.entries()].map(([visitorHash, visitorEvents]) => {
+    const timestamps = visitorEvents.map((event) => event.timestamp).sort((a, b) => a - b);
+    const sessions = new Set(visitorEvents.map((event) => String(event.sessionId || "")).filter(Boolean));
+    const days = new Set(timestamps.map(usageRomeDayKey).filter(Boolean));
+    const profiles = new Set(visitorEvents.map((event) => String(event.usageAnalysisHash || "")).filter(Boolean));
+    return {
+      visitorHash,
+      firstAt: new Date(timestamps[0]).toISOString(),
+      lastAt: new Date(timestamps[timestamps.length - 1]).toISOString(),
+      analyses7d: timestamps.length,
+      analysesCurrent2h: timestamps.filter((value) => value >= now - twoHoursMs).length,
+      analysesCurrent24h: timestamps.filter((value) => value >= now - oneDayMs).length,
+      peak2h: usagePeakWithin(timestamps, twoHoursMs),
+      peak24h: usagePeakWithin(timestamps, oneDayMs),
+      activeDays: days.size,
+      sessions: sessions.size,
+      distinctProfiles: profiles.size,
+    };
+  }).sort((a, b) => b.peak24h - a.peak24h || b.analyses7d - a.analyses7d || String(b.lastAt).localeCompare(String(a.lastAt)));
+
+  const peak24hValues = rows.map((row) => row.peak24h);
+  return {
+    mode: "shadow",
+    identityVersion: "usage-v1",
+    windowDays: 7,
+    dedupMinutes: 10,
+    summary: {
+      visitors: rows.length,
+      meaningfulAnalyses: rows.reduce((sum, row) => sum + row.analyses7d, 0),
+      multiDayVisitors: rows.filter((row) => row.activeDays > 1).length,
+      maxPeak24h: peak24hValues.length ? Math.max(...peak24hValues) : 0,
+      p50Peak24h: usagePercentile(peak24hValues, 0.50),
+      p90Peak24h: usagePercentile(peak24hValues, 0.90),
+    },
+    rows,
+  };
+}
 
 function normalizeAnalyticsMonth(value) {
   const normalized = String(value || "").trim();
@@ -140,6 +247,124 @@ function customerDbReadHeaders() {
     headers.Authorization = `Bearer ${CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY}`;
   }
   return headers;
+}
+
+function customerDbWriteHeaders(prefer = "return=representation") {
+  return {
+    ...customerDbReadHeaders(),
+    "Content-Type": "application/json",
+    Prefer: prefer,
+  };
+}
+
+function usageSubjectHash(value) {
+  const normalized = String(value || "").trim().toLowerCase();
+  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : "";
+}
+
+function usageIpSubjectHash(ip) {
+  const secret = String(process.env.CUSTOMER_DB_HASH_SECRET || "").trim();
+  const normalizedIp = String(ip || "").trim();
+  if (secret.length < 32 || !isIP(normalizedIp)) return "";
+  return crypto.createHmac("sha256", secret).update(`usage-ip:${normalizedIp}`).digest("hex");
+}
+
+function usageExclusionRow(row = {}) {
+  return {
+    id: String(row.id || ""),
+    subjectType: String(row.subject_type || ""),
+    subjectHash: String(row.subject_hash || ""),
+    label: String(row.label || ""),
+    reason: String(row.reason || ""),
+    active: row.active !== false,
+    createdAt: row.created_at || "",
+  };
+}
+
+async function listUsageCountExclusions() {
+  if (!customerDbConfiguredForLandingAnalytics()) {
+    return { ok: false, error: "Database clienti non configurato", rows: [] };
+  }
+  const query = new URLSearchParams({
+    select: "id,subject_type,subject_hash,label,reason,active,created_at",
+    active: "eq.true",
+    order: "created_at.desc",
+    limit: "500",
+  });
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${query.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!response.ok) {
+    return { ok: false, error: `Archivio esclusioni non disponibile (${response.status})`, rows: [] };
+  }
+  const payload = await response.json().catch(() => []);
+  return { ok: true, rows: Array.isArray(payload) ? payload.map(usageExclusionRow) : [] };
+}
+
+async function createUsageCountExclusion({ subjectType, subjectHash, label, reason, staffUserId }) {
+  const hash = usageSubjectHash(subjectHash);
+  if (!hash || !["visitor_hash", "ip_hash"].includes(subjectType)) {
+    return { ok: false, error: "Esclusione non valida" };
+  }
+
+  const existingQuery = new URLSearchParams({
+    select: "id,subject_type,subject_hash,label,reason,active,created_at",
+    subject_type: `eq.${subjectType}`,
+    subject_hash: `eq.${hash}`,
+    active: "eq.true",
+    limit: "1",
+  });
+  const existingResponse = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${existingQuery.toString()}`,
+    { method: "GET", headers: customerDbReadHeaders() },
+  );
+  if (!existingResponse.ok) return { ok: false, error: `Archivio esclusioni non disponibile (${existingResponse.status})` };
+  const existingRows = await existingResponse.json().catch(() => []);
+  if (Array.isArray(existingRows) && existingRows[0]) {
+    return { ok: true, created: false, row: usageExclusionRow(existingRows[0]) };
+  }
+
+  const response = await fetch(`${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}`, {
+    method: "POST",
+    headers: customerDbWriteHeaders(),
+    body: JSON.stringify([{
+      subject_type: subjectType,
+      subject_hash: hash,
+      label: String(label || "").trim().slice(0, 120),
+      reason: String(reason || "").trim().slice(0, 500),
+      active: true,
+      created_by: staffUserId || null,
+    }]),
+  });
+  if (!response.ok) return { ok: false, error: `Creazione esclusione non riuscita (${response.status})` };
+  const rows = await response.json().catch(() => []);
+  return { ok: true, created: true, row: usageExclusionRow(Array.isArray(rows) ? rows[0] || {} : {}) };
+}
+
+async function revokeUsageCountExclusion({ id, staffUserId }) {
+  const normalizedId = String(id || "").trim().toLowerCase();
+  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalizedId)) {
+    return { ok: false, error: "Identificativo esclusione non valido" };
+  }
+  const query = new URLSearchParams({ id: `eq.${normalizedId}`, active: "eq.true" });
+  const response = await fetch(
+    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${query.toString()}`,
+    {
+      method: "PATCH",
+      headers: customerDbWriteHeaders(),
+      body: JSON.stringify({
+        active: false,
+        revoked_at: new Date().toISOString(),
+        revoked_by: staffUserId || null,
+      }),
+    },
+  );
+  if (!response.ok) return { ok: false, error: `Revoca esclusione non riuscita (${response.status})` };
+  const rows = await response.json().catch(() => []);
+  const row = Array.isArray(rows) ? rows[0] || null : null;
+  if (!row) return { ok: false, error: "Esclusione attiva non trovata" };
+  return { ok: true, row: usageExclusionRow(row) };
 }
 
 function normalizeLandingRange(value) {
@@ -2131,12 +2356,16 @@ function bodyObject(req) {
 }
 
 export default async function handler(req, res) {
-  if (!method(req, res, ["GET", "DELETE"])) return;
+  const existingAnalyticsMethods = ["GET", "DELETE"];
+  const allowedMethods = req.method === "POST" ? [...existingAnalyticsMethods, "POST"] : existingAnalyticsMethods;
+  if (!method(req, res, allowedMethods)) return;
   const identity = await requireStaffSession(req, res, {
-    roles: req.method === "DELETE" ? ["admin"] : ["reviewer", "admin"],
+    roles: req.method === "GET" ? ["reviewer", "admin"] : ["admin"],
     permissions: req.method === "DELETE"
       ? ["view_analytics", "delete_records"]
-      : ["view_analytics", "view_control"],
+      : req.method === "POST"
+        ? ["view_control"]
+        : ["view_analytics", "view_control"],
     permissionMode: req.method === "DELETE" ? "all" : "any",
     allowHealth: req.method === "GET",
   });
@@ -2152,6 +2381,83 @@ export default async function handler(req, res) {
   }
 
   const url = new URL(req.url || "/api/staff-analytics", `https://${req.headers.host || "offertalogica.it"}`);
+  if (req.method === "POST") {
+    if (authorizedBy !== "supabase" || !isStaffAdminRole(identity.staff.role)) {
+      return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
+    }
+    if (!requireAllowedOrigin(req, res)) return;
+    if (url.searchParams.get("mode") !== "usage-exclusion") {
+      return json(res, 400, { ok: false, error: "Operazione Staff non riconosciuta" });
+    }
+
+    const body = bodyObject(req);
+    const action = String(body.action || "").trim().toLowerCase();
+    const staffUserId = identity.user?.id || null;
+
+    if (action === "revoke") {
+      const result = await revokeUsageCountExclusion({ id: body.id, staffUserId });
+      if (!result.ok) return json(res, 400, { ok: false, error: result.error || "Revoca esclusione non riuscita" });
+      try {
+        await writeStaffAudit({
+          identity,
+          action: "usage_exclusion_revoked",
+          targetType: "usage_count_exclusion",
+          targetId: String(body.id || ""),
+          metadata: { source: "usage_control" },
+          source: "api:staff-analytics",
+        });
+      } catch (error) {
+        console.error("staff-usage-exclusion-audit", error);
+      }
+      return json(res, 200, { ok: true, exclusion: result.row });
+    }
+
+    let subjectType = "";
+    let subjectHash = "";
+    if (action === "exclude_current_ip") {
+      subjectType = "ip_hash";
+      subjectHash = usageIpSubjectHash(clientIp(req));
+      if (!subjectHash) {
+        return json(res, 503, { ok: false, error: "IP corrente non disponibile o CUSTOMER_DB_HASH_SECRET non configurato correttamente" });
+      }
+    } else if (action === "exclude_ip") {
+      const rawIp = String(body.ip || "").trim();
+      if (!isIP(rawIp)) return json(res, 400, { ok: false, error: "Indirizzo IP non valido" });
+      subjectType = "ip_hash";
+      subjectHash = usageIpSubjectHash(rawIp);
+      if (!subjectHash) {
+        return json(res, 503, { ok: false, error: "CUSTOMER_DB_HASH_SECRET non configurato correttamente" });
+      }
+    } else if (action === "exclude_visitor") {
+      subjectType = "visitor_hash";
+      subjectHash = usageSubjectHash(body.visitorHash);
+      if (!subjectHash) return json(res, 400, { ok: false, error: "Visitor non valido" });
+    } else {
+      return json(res, 400, { ok: false, error: "Azione esclusione non valida" });
+    }
+
+    const result = await createUsageCountExclusion({
+      subjectType,
+      subjectHash,
+      label: body.label,
+      reason: body.reason,
+      staffUserId,
+    });
+    if (!result.ok) return json(res, 500, { ok: false, error: result.error || "Creazione esclusione non riuscita" });
+    try {
+      await writeStaffAudit({
+        identity,
+        action: result.created ? "usage_exclusion_added" : "usage_exclusion_already_active",
+        targetType: "usage_count_exclusion",
+        targetId: result.row?.id || null,
+        metadata: { subject_type: subjectType, subject_hash: subjectHash, source: "usage_control" },
+        source: "api:staff-analytics",
+      });
+    } catch (error) {
+      console.error("staff-usage-exclusion-audit", error);
+    }
+    return json(res, 200, { ok: true, created: result.created === true, exclusion: result.row });
+  }
   if (req.method === "DELETE") {
     if (authorizedBy !== "supabase" || !isStaffAdminRole(identity.staff.role)) {
       return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
@@ -2307,6 +2613,33 @@ export default async function handler(req, res) {
   const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
   const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase();
   const period = analyticsMonthPeriod(url.searchParams.get("month"));
+
+  if (mode === "usage") {
+    const now = Date.now();
+    const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const [raw, exclusions] = await Promise.all([
+      listCustomerAnalytics({
+        limit: 10000,
+        from,
+        eventType: "business_calculation_completed",
+      }),
+      listUsageCountExclusions(),
+    ]);
+    if (!raw.ok) {
+      return json(res, 500, { ok: false, status: raw.status || "error", error: raw.error || "usage_observation_error" });
+    }
+    if (!exclusions.ok) {
+      return json(res, 503, { ok: false, status: "usage_exclusions_unavailable", error: exclusions.error || "Archivio esclusioni non disponibile" });
+    }
+    return json(res, 200, {
+      ok: true,
+      configured: raw.configured,
+      status: raw.status,
+      usage: { ...businessUsageObservation(raw.events || [], now, exclusions.rows), exclusions: exclusions.rows },
+      authorizedBy,
+      checkedAt: new Date(now).toISOString(),
+    });
+  }
 
   if (mode === "overview") {
     let databaseSummary = null;
@@ -2558,3 +2891,5 @@ export default async function handler(req, res) {
     checkedAt: new Date().toISOString(),
   });
 }
+
+export { businessUsageObservation };
