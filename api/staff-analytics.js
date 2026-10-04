@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.87";
+const VERSION = "0.12.88";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -13,6 +13,12 @@ const ANALYSIS_PAGE_SIZE = 1000;
 const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
 const ANALYSIS_SIGNAL_LIMIT = 100;
 const ANALYSIS_WINDOWS = [7, 28, 90];
+const EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION = 2;
+const EDITORIAL_RESEARCH_RADAR_DAYS = new Set([1, 6, 7]); // lunedi, sabato, domenica
+const EDITORIAL_RESEARCH_RADAR_START_MINUTE = 8 * 60;
+const EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES = 8;
+const EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS = 6;
+const EDITORIAL_RESEARCH_RADAR_MAX_ATTEMPTS_PER_DAY = 2;
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
 const OPPORTUNITY_TYPES = new Set(["new_article", "social_only", "monitor"]);
 const OPPORTUNITY_LIST_LIMIT = 50;
@@ -662,7 +668,7 @@ function manualIdeaMeta(opportunity) {
 
 function manualIdeaRationale(priority, deadline) {
   const priorityLabel = ({ urgent: "urgente", high: "alta", normal: "normale" })[priority] || "normale";
-  return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità è distinta dal punteggio tecnico Search Console.`;
+  return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità manuale è distinta dai punteggi automatici di Search Console e Radar web.`;
 }
 
 function opportunityEditorialBrief(opportunity, signal = null) {
@@ -691,6 +697,32 @@ function opportunityEditorialBrief(opportunity, signal = null) {
     };
   }
 
+  if (evidence.source === "research_radar") {
+    const radar = evidence.research_radar && typeof evidence.research_radar === "object" ? evidence.research_radar : {};
+    const searchIntent = cleanEditorialText(radar.search_intent, 700) || `Interesse emergente verificato sul web per «${topic}».`;
+    const angle = cleanEditorialText(radar.angle, 1200) || `Sviluppare un articolo originale su «${topic}» verificando i fatti aggiornabili e distinguendolo dai contenuti OffertaLogica gia pubblicati.`;
+    const difference = cleanEditorialText(radar.difference_from_existing, 900);
+    const existingTitle = cleanEditorialText(radar.existing_article?.title, 180);
+    const toolLabels = (Array.isArray(radar.related_targets) ? radar.related_targets : [])
+      .map((row) => cleanEditorialText(row?.label, 180))
+      .filter(Boolean)
+      .slice(0, 4);
+    return {
+      source: "research_radar",
+      search_intent: searchIntent,
+      article_angle: [
+        angle,
+        radar.editorial_action === "NEW_ANGLE" && existingTitle
+          ? `Esiste gia l’articolo «${existingTitle}»: il nuovo contenuto deve rispondere a un intento diverso e non ripeterne struttura o risposta.`
+          : "",
+        difference ? `Differenza editoriale obbligatoria: ${difference}` : "",
+        toolLabels.length ? `Se pertinente e solo dopo avere risposto al problema del lettore, collega naturalmente gli strumenti OffertaLogica: ${toolLabels.join(" · ")}.` : "",
+      ].filter(Boolean).join(" "),
+      query_examples: queryExamples,
+      context_pages: contextPages,
+    };
+  }
+
   const normalizedTopic = cleanToken(topic);
   const commercialIntent = /\b(offerta|offerte|tariffa|tariffe|prezzo|prezzi|costo|costi|fornitore|fornitori|luce|gas|energia|energy|direct|contratto|contratti|mercato)\b/.test(normalizedTopic);
   const questionIntent = /\b(come|quanto|perche|cosa|cos|conviene|convenienza|funziona|funzionamento|significa|leggere|calcolare|scegliere)\b/.test(normalizedTopic);
@@ -712,6 +744,495 @@ function opportunityEditorialBrief(opportunity, signal = null) {
     query_examples: queryExamples,
     context_pages: contextPages,
   };
+}
+
+
+function researchRadarCandidateSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["candidates"],
+    properties: {
+      candidates: {
+        type: "array",
+        minItems: 1,
+        maxItems: EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "topic", "search_intent", "angle", "query_examples", "demand_score", "trend_score",
+            "freshness_score", "content_gap_score", "user_utility_score", "offertalogica_fit_score",
+            "authority_score", "editorial_action", "existing_article_id", "difference_from_existing",
+            "related_target_ids", "rationale", "source_urls"
+          ],
+          properties: {
+            topic: { type: "string" },
+            search_intent: { type: "string" },
+            angle: { type: "string" },
+            query_examples: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+            demand_score: { type: "integer", minimum: 0, maximum: 100 },
+            trend_score: { type: "integer", minimum: 0, maximum: 100 },
+            freshness_score: { type: "integer", minimum: 0, maximum: 100 },
+            content_gap_score: { type: "integer", minimum: 0, maximum: 100 },
+            user_utility_score: { type: "integer", minimum: 0, maximum: 100 },
+            offertalogica_fit_score: { type: "integer", minimum: 0, maximum: 100 },
+            authority_score: { type: "integer", minimum: 0, maximum: 100 },
+            editorial_action: { type: "string", enum: ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE"] },
+            existing_article_id: { type: ["string", "null"] },
+            difference_from_existing: { type: "string" },
+            related_target_ids: { type: "array", maxItems: 4, items: { type: "string" } },
+            rationale: { type: "string" },
+            source_urls: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+          },
+        },
+      },
+    },
+  };
+}
+
+function researchRadarClampScore(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 0;
+}
+
+function researchRadarTokens(value) {
+  return new Set(cleanToken(value)
+    .split(/\s+/)
+    .filter((token) => token.length >= 3 && !TOPIC_STOPWORDS.has(token)));
+}
+
+function researchRadarSimilarity(left, right) {
+  const a = researchRadarTokens(left);
+  const b = researchRadarTokens(right);
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection += 1;
+  return (2 * intersection) / (a.size + b.size);
+}
+
+function researchRadarKey(candidate) {
+  const seed = `${cleanToken(candidate?.topic)}|${cleanToken(candidate?.search_intent)}|${cleanToken(candidate?.angle)}`;
+  return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 24);
+}
+
+async function researchRadarArchive() {
+  const rows = await serviceFetch(
+    "editorial_articles?select=id,title,slug,status,published_at,excerpt&status=eq.published&order=published_at.desc&limit=120",
+  ).catch(() => []);
+  return (rows || []).filter((row) => validUuid(String(row?.id || ""))).map((row) => ({
+    id: row.id,
+    title: cleanEditorialText(row.title, 180),
+    slug: cleanEditorialText(row.slug, 160),
+    published_at: row.published_at || null,
+    excerpt: cleanEditorialText(row.excerpt, 420),
+  }));
+}
+
+async function researchRadarTargets() {
+  const rows = await enabledPromotionTargets().catch(() => []);
+  return (rows || []).slice(0, 30).map((row) => ({
+    id: String(row.id || ""),
+    label: cleanEditorialText(row.label, 180),
+    url_path: cleanEditorialText(row.url_path, 500),
+    category: cleanEditorialText(row.category, 100) || null,
+  })).filter((row) => validUuid(row.id) && row.label);
+}
+
+async function researchRadarSearchSignals() {
+  const analysis = await analysisPayload().catch(() => null);
+  if (!analysis?.ready) return [];
+  return (analysis.signals || []).slice(0, 20).map((signal) => ({
+    topic: cleanEditorialText(signal.topic, 220),
+    score: Number(signal.score || 0),
+    momentum_ratio: signal.momentum_ratio ?? null,
+    query_examples: (signal.query_examples || []).slice(0, 5),
+    metrics_7: signal.metrics?.["7"] || null,
+    metrics_28: signal.metrics?.["28"] || null,
+  }));
+}
+
+function researchRadarDateCutoff(days = EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS) {
+  return new Date(Date.now() - Math.max(1, Number(days) || 1) * 86400000).toISOString();
+}
+
+async function researchRadarRuns(limit = 30) {
+  const cutoff = encodeURIComponent(researchRadarDateCutoff());
+  const rows = await serviceFetch(
+    `editorial_automation_runs?select=id,run_type,status,started_at,finished_at,details,last_error,created_at&run_type=eq.research_radar&created_at=gte.${cutoff}&order=created_at.desc&limit=${Math.max(1, Math.min(60, Number(limit) || 30))}`,
+  ).catch(() => []);
+  return rows || [];
+}
+
+function researchRadarPreviousCandidates(runs) {
+  const values = [];
+  for (const run of runs || []) {
+    if (String(run?.status || "") !== "success") continue;
+    for (const candidate of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
+      values.push({
+        topic: cleanEditorialText(candidate?.topic, 220),
+        search_intent: cleanEditorialText(candidate?.search_intent, 420),
+        editorial_action: cleanEditorialText(candidate?.editorial_action, 40),
+        score: Number(candidate?.score || 0),
+      });
+      if (values.length >= 20) return values;
+    }
+  }
+  return values;
+}
+
+async function startOpenAiResearchRadar({ localDate, archive, targets, searchSignals, previousCandidates }) {
+  const input = JSON.stringify({
+    local_date: localDate,
+    country: "Italia",
+    search_console_top_signals: searchSignals,
+    published_offertalogica_articles: archive,
+    offertalogica_tools_and_destinations: targets,
+    previous_weekend_radar_candidates: previousCandidates,
+  });
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      tools: [{ type: "web_search", search_context_size: "high" }],
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
+      instructions: [
+        "Sei il radar editoriale di OffertaLogica.it per il mercato energia italiano.",
+        "Fai una ricerca web reale e aggiornata prima di proporre i temi. Cerca cosa sta emergendo negli ultimi giorni: domande degli utenti, variazioni di prezzo, bollette, mercato libero e vulnerabilita, offerte, PUN/PSV, regolazione, ARERA, GSE, MASE, Acquirente Unico, Terna, efficienza, pompe di calore e fotovoltaico quando pertinenti.",
+        "Privilegia fonti primarie e istituzionali per i fatti. Usa fonti secondarie affidabili per capire quali domande o temi stanno circolando. Se Google Trends o altre evidenze di domanda sono accessibili, usale; non inventare volumi di ricerca e non trasformare il demand_score in un numero di ricerche mensili.",
+        "Search Console e' un segnale quantitativo forte ma non deve creare un circuito chiuso: trova anche temi nuovi sui quali OffertaLogica non ha ancora impressioni.",
+        "Confronta ogni proposta con l'archivio articoli fornito. Se lo stesso intento e' gia coperto e non ci sono novita sostanziali usa SKIP_DUPLICATE. Se fatti, prezzi o regole rendono vecchio un articolo esistente usa UPDATE_EXISTING. Usa NEW_ANGLE solo quando l'intento del lettore e' realmente diverso e spiega precisamente la differenza. Usa NEW_ARTICLE per un bisogno nuovo non coperto.",
+        "Gli strumenti OffertaLogica non devono guidare artificialmente la scelta. Prima identifica un problema reale dell'utente; poi indica eventuali destinazioni OffertaLogica che permettono un passo pratico successivo. Non trasformare l'articolo in pubblicita.",
+        "Attribuisci punteggi 0-100 separati: demand_score=forza della domanda osservabile, trend_score=crescita/accelerazione recente, freshness_score=novita e attualita, content_gap_score=buco nell'archivio OffertaLogica, user_utility_score=utilita concreta, offertalogica_fit_score=collegamento naturale con strumenti esistenti, authority_score=qualita delle fonti.",
+        "Preferisci 3-8 candidati diversificati, ma non riempire l’output con temi deboli: se solo 1-2 temi sono davvero verificabili restituisci solo quelli. Evita varianti dello stesso tema nello stesso output.",
+        "source_urls deve contenere solo URL https effettivamente consultati nella ricerca. existing_article_id e related_target_ids devono usare soltanto gli ID forniti nell'input oppure null/lista vuota.",
+        "Scrivi topic, intento, angolo, motivazione e differenza in italiano, in modo concreto e verificabile.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 6500,
+      background: true,
+      store: true,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_research_radar_v2",
+          strict: true,
+          schema: researchRadarCandidateSchema(),
+        },
+      },
+    },
+    economics: { activity: "research_radar" },
+  });
+  if (!response?.id) throw new Error("Radar editoriale: ricerca web non avviata");
+  return { response_id: response.id, status: response.status || "queued" };
+}
+
+function validateResearchRadarPayload(payload, { archive, targets }) {
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(payload));
+  } catch {
+    throw new Error("Radar editoriale: risposta AI non interpretabile");
+  }
+  const observedSources = new Set(responseSourceUrls(payload).map(sourceUrlKey).filter(Boolean));
+  const archiveById = new Map((archive || []).map((row) => [String(row.id), row]));
+  const targetById = new Map((targets || []).map((row) => [String(row.id), row]));
+  const output = [];
+  const seen = new Set();
+
+  for (const raw of Array.isArray(parsed?.candidates) ? parsed.candidates : []) {
+    const topic = cleanEditorialText(raw?.topic, 240);
+    const searchIntent = cleanEditorialText(raw?.search_intent, 700);
+    const angle = cleanEditorialText(raw?.angle, 1200);
+    if (topic.length < 8 || searchIntent.length < 20 || angle.length < 30) continue;
+
+    const candidateText = `${topic} ${searchIntent} ${angle}`;
+    let closest = null;
+    let closestSimilarity = 0;
+    for (const article of archive || []) {
+      const similarity = researchRadarSimilarity(candidateText, `${article.title} ${article.excerpt}`);
+      if (similarity > closestSimilarity) {
+        closest = article;
+        closestSimilarity = similarity;
+      }
+    }
+
+    let action = ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE"].includes(String(raw?.editorial_action || ""))
+      ? String(raw.editorial_action)
+      : "NEW_ARTICLE";
+    let existing = archiveById.get(String(raw?.existing_article_id || "")) || closest || null;
+    const difference = cleanEditorialText(raw?.difference_from_existing, 900);
+    const freshness = researchRadarClampScore(raw?.freshness_score);
+
+    // Guardrail deterministico contro cannibalizzazione: un'elevata sovrapposizione non puo'
+    // diventare automaticamente un nuovo articolo solo per decisione del modello.
+    if (closestSimilarity >= 0.72) {
+      action = freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE";
+      existing = closest || existing;
+    } else if (action === "NEW_ARTICLE" && closestSimilarity >= 0.55) {
+      action = difference.length >= 45 ? "NEW_ANGLE" : (freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE");
+      existing = closest || existing;
+    } else if (action === "NEW_ANGLE" && (!existing || difference.length < 45)) {
+      action = closestSimilarity >= 0.45 ? (freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE") : "NEW_ARTICLE";
+    }
+
+    const componentScores = {
+      demand: researchRadarClampScore(raw?.demand_score),
+      trend: researchRadarClampScore(raw?.trend_score),
+      freshness,
+      content_gap: researchRadarClampScore(raw?.content_gap_score),
+      user_utility: researchRadarClampScore(raw?.user_utility_score),
+      offertalogica_fit: researchRadarClampScore(raw?.offertalogica_fit_score),
+      authority: researchRadarClampScore(raw?.authority_score),
+    };
+    const baseScore = Math.round(
+      componentScores.demand * 0.25
+      + componentScores.trend * 0.20
+      + componentScores.freshness * 0.15
+      + componentScores.content_gap * 0.15
+      + componentScores.user_utility * 0.10
+      + componentScores.offertalogica_fit * 0.10
+      + componentScores.authority * 0.05,
+    );
+    const duplicationPenalty = action === "NEW_ANGLE"
+      ? Math.round(closestSimilarity * 18)
+      : action === "NEW_ARTICLE"
+        ? Math.round(closestSimilarity * 28)
+        : 100;
+    const score = ["NEW_ARTICLE", "NEW_ANGLE"].includes(action)
+      ? Math.max(0, Math.min(100, baseScore - duplicationPenalty))
+      : baseScore;
+
+    const queryExamples = [...new Set((Array.isArray(raw?.query_examples) ? raw.query_examples : [])
+      .map((value) => cleanEditorialText(value, 220)).filter(Boolean))].slice(0, 6);
+    const relatedTargets = [...new Set(Array.isArray(raw?.related_target_ids) ? raw.related_target_ids.map(String) : [])]
+      .map((id) => targetById.get(id)).filter(Boolean).slice(0, 4);
+    const sourceUrls = [...new Set((Array.isArray(raw?.source_urls) ? raw.source_urls : [])
+      .map(normalizedHttps).filter(Boolean))]
+      .filter((url) => observedSources.has(sourceUrlKey(url)))
+      .slice(0, 6);
+    if (!sourceUrls.length) continue;
+
+    const candidate = {
+      schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+      topic,
+      search_intent: searchIntent,
+      angle,
+      query_examples: queryExamples,
+      component_scores: componentScores,
+      base_score: baseScore,
+      duplication_penalty: duplicationPenalty,
+      score,
+      editorial_action: action,
+      existing_article: existing ? { id: existing.id, title: existing.title, slug: existing.slug, published_at: existing.published_at || null } : null,
+      existing_article_similarity: roundMetric(closestSimilarity, 3),
+      difference_from_existing: difference,
+      related_targets: relatedTargets,
+      rationale: cleanEditorialText(raw?.rationale, 1000),
+      source_urls: sourceUrls,
+    };
+    candidate.radar_key = researchRadarKey(candidate);
+    if (seen.has(candidate.radar_key)) continue;
+    seen.add(candidate.radar_key);
+    output.push(candidate);
+  }
+
+  if (!output.length) throw new Error("Radar editoriale: nessun candidato verificabile prodotto");
+  return output.slice(0, EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES);
+}
+
+function consolidateResearchRadarCandidates(runs) {
+  const groups = new Map();
+  for (const run of runs || []) {
+    if (String(run?.status || "") !== "success") continue;
+    for (const raw of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
+      const key = String(raw?.radar_key || researchRadarKey(raw));
+      if (!key) continue;
+      const current = groups.get(key);
+      const candidate = { ...raw, radar_key: key, scan_date: run?.details?.local_date || null };
+      if (!current) groups.set(key, { candidate, appearances: 1, scan_dates: new Set([candidate.scan_date].filter(Boolean)) });
+      else {
+        current.appearances += 1;
+        if (candidate.scan_date) current.scan_dates.add(candidate.scan_date);
+        if (Number(candidate.score || 0) > Number(current.candidate?.score || 0)) current.candidate = candidate;
+      }
+    }
+  }
+  return [...groups.values()].map(({ candidate, appearances, scan_dates }) => ({
+    ...candidate,
+    appearances,
+    scan_dates: [...scan_dates].sort(),
+    score: Math.min(100, Number(candidate.score || 0) + Math.min(8, Math.max(0, appearances - 1) * 3)),
+  })).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+}
+
+async function researchRadarPayload() {
+  const runs = await researchRadarRuns(40);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  const candidates = consolidateResearchRadarCandidates(runs);
+  const scans = (runs || []).filter((run) => String(run?.status || "") !== "running").slice(0, 12).map((run) => ({
+    id: run.id,
+    status: run.status,
+    local_date: run?.details?.local_date || null,
+    started_at: run.started_at || run.created_at || null,
+    finished_at: run.finished_at || null,
+    candidate_count: Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates.length : 0,
+    last_error: run.last_error || null,
+  }));
+  return {
+    ok: true,
+    version: VERSION,
+    schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+    automatic_days: ["sabato", "domenica", "lunedi"],
+    automatic_after_local_time: "08:00",
+    running: running ? { id: running.id, local_date: running?.details?.local_date || null, stage: running?.details?.stage || null, started_at: running.started_at || null } : null,
+    scans,
+    candidates,
+  };
+}
+
+async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}) {
+  const currentLocal = local || schedulerLocalParts("Europe/Rome");
+  const archive = await researchRadarArchive();
+  const targets = await researchRadarTargets();
+  const searchSignals = await researchRadarSearchSignals();
+  const recentRuns = await researchRadarRuns(30);
+  const previousCandidates = researchRadarPreviousCandidates(recentRuns);
+  const run = await automationSchedulerRunStart("research_radar", {
+    stage: "starting",
+    trigger,
+    local_date: currentLocal.date,
+    local_time: currentLocal.time,
+    timezone: currentLocal.time_zone,
+    publication_performed: false,
+  });
+  if (!run?.id) throw new Error("Radar editoriale: run non creato");
+  try {
+    const started = await startOpenAiResearchRadar({ localDate: currentLocal.date, archive, targets, searchSignals, previousCandidates });
+    const updated = await automationSchedulerRunPatch(run, {
+      stage: "web_search_running",
+      response_id: started.response_id,
+      response_status: started.status,
+      archive_count: archive.length,
+      target_count: targets.length,
+      search_console_signal_count: searchSignals.length,
+    });
+    return { action: "research_radar_started", pending: true, run: updated, local: currentLocal };
+  } catch (error) {
+    await automationRunFinish(run, "failed", {
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { ...(run.details || {}), stage: "failed", trigger, local_date: currentLocal.date, version: VERSION, source: "scheduler" },
+    });
+    throw error;
+  }
+}
+
+async function resumeResearchRadarRun(run) {
+  const responseId = String(run?.details?.response_id || "").trim();
+  if (!responseId) {
+    await automationRunFinish(run, "failed", { last_error: "Radar editoriale: response_id mancante", details: { ...(run.details || {}), stage: "failed" } });
+    return { action: "research_radar_failed", pending: false };
+  }
+  const payload = await retrieveOpenAiEditorialPackage(responseId);
+  const status = String(payload?.status || "");
+  if (["queued", "in_progress"].includes(status)) {
+    const updated = await automationSchedulerRunPatch(run, { stage: "web_search_running", response_status: status });
+    return { action: "research_radar_waiting", pending: true, run: updated };
+  }
+  if (status !== "completed") {
+    const message = payload?.error?.message || payload?.incomplete_details?.reason || `stato ${status || "sconosciuto"}`;
+    await automationRunFinish(run, "failed", { last_error: `Radar editoriale: ${message}`.slice(0, 2000), details: { ...(run.details || {}), stage: "failed", response_status: status } });
+    return { action: "research_radar_failed", pending: false, error: message };
+  }
+  const [archive, targets] = await Promise.all([researchRadarArchive(), researchRadarTargets()]);
+  const candidates = validateResearchRadarPayload(payload, { archive, targets });
+  const sourceUrls = responseSourceUrls(payload).map(normalizedHttps).filter(Boolean).slice(0, 40);
+  const details = {
+    ...(run.details || {}),
+    stage: "completed",
+    response_status: status,
+    radar_schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+    radar_candidates: candidates,
+    source_urls: sourceUrls,
+    completed_at: new Date().toISOString(),
+  };
+  await automationRunFinish(run, "success", { details });
+  return { action: "research_radar_completed", pending: false, candidate_count: candidates.length, candidates };
+}
+
+async function schedulerMaybeResearchRadar(user, settings, local) {
+  const runs = await researchRadarRuns(30);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  if (running) return resumeResearchRadarRun(running);
+
+  if (!EDITORIAL_RESEARCH_RADAR_DAYS.has(Number(local?.weekday))) return null;
+  if (Number(local?.minutes || 0) < EDITORIAL_RESEARCH_RADAR_START_MINUTE) return null;
+  const sameDay = runs.filter((run) => String(run?.details?.local_date || "") === String(local.date || ""));
+  if (sameDay.some((run) => String(run?.status || "") === "success")) return null;
+  const failures = sameDay.filter((run) => String(run?.status || "") === "failed").length;
+  if (failures >= EDITORIAL_RESEARCH_RADAR_MAX_ATTEMPTS_PER_DAY) return null;
+  return startResearchRadarRun(user, { local, trigger: "scheduler_weekend_radar" });
+}
+
+async function startManualResearchRadar(user, settings) {
+  const runs = await researchRadarRuns(30);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  if (running) return { action: "research_radar_already_running", pending: true, run: running };
+  const local = schedulerLocalParts(settings?.timezone || "Europe/Rome");
+  return startResearchRadarRun(user, { local, trigger: "manual" });
+}
+
+async function saveResearchRadarOpportunity(user, candidate) {
+  const radarKey = String(candidate?.radar_key || "").trim();
+  if (!radarKey) throw new Error("Radar editoriale: candidato non valido");
+  const existingRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,deferred)&order=created_at.desc&limit=100`,
+  );
+  const duplicate = (existingRows || []).find((row) => String(row?.evidence?.research_radar?.radar_key || "") === radarKey);
+  if (duplicate) return duplicate;
+
+  const evidence = {
+    source: "research_radar",
+    research_radar: {
+      schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+      radar_key: radarKey,
+      editorial_action: candidate.editorial_action,
+      search_intent: candidate.search_intent,
+      angle: candidate.angle,
+      query_examples: candidate.query_examples || [],
+      component_scores: candidate.component_scores || {},
+      base_score: candidate.base_score ?? null,
+      duplication_penalty: candidate.duplication_penalty ?? null,
+      appearances: candidate.appearances || 1,
+      scan_dates: candidate.scan_dates || [],
+      existing_article: candidate.existing_article || null,
+      difference_from_existing: candidate.difference_from_existing || "",
+      related_targets: candidate.related_targets || [],
+      rationale: candidate.rationale || "",
+      source_urls: candidate.source_urls || [],
+    },
+    query_examples: candidate.query_examples || [],
+    page_urls: [],
+  };
+  evidence.editorial_brief = opportunityEditorialBrief({ topic: candidate.topic, evidence });
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic: candidate.topic,
+      category: null,
+      opportunity_type: "new_article",
+      score: Math.round(Number(candidate.score || 0)),
+      rationale: candidate.rationale || "Tema individuato dal radar web e confrontato con l'archivio OffertaLogica.",
+      evidence,
+      status: "pending",
+    },
+  });
+  if (!rows?.[0]?.id) throw new Error("Radar editoriale: opportunita non salvata");
+  return rows[0];
 }
 
 function manualIdeaDeadlineTime(value) {
@@ -900,14 +1421,8 @@ async function editorialPlannerPreview() {
 
   for (const row of savedRows || []) {
     const savedType = String(row.opportunity_type || "");
-    // Le vecchie opportunità update_article restano leggibili solo per essere
-    // convertite a nuovo articolo dal ciclo automatico; non possono più
-    // avviare un aggiornamento della pagina esistente.
     if (!MANUAL_IDEA_TYPES.has(savedType) && savedType !== "update_article") continue;
     const manual = manualIdeaMeta(row);
-    // Un'opportunità già collegata a un articolo appartiene al ciclo precedente:
-    // non deve bloccare la ricerca del ciclo successivo mentre il post del lunedì
-    // è ancora in attesa di pubblicazione.
     if (row.status === "selected" && validUuid(String(row.target_article_id || ""))) continue;
     if (row.status === "selected") {
       candidates.push({
@@ -922,7 +1437,7 @@ async function editorialPlannerPreview() {
         created_at: row.created_at,
         decided_at: row.decided_at || null,
         rank: 500,
-        reason: "Opportunità già selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
+        reason: "Opportunita gia selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
       });
       continue;
     }
@@ -940,19 +1455,32 @@ async function editorialPlannerPreview() {
       created_at: row.created_at,
       rank: MANUAL_IDEA_PRIORITY_RANK[priority],
       reason: priority === "urgent"
-        ? "Idea manuale urgente: precede i segnali Search Console."
+        ? "Idea manuale urgente: precede i segnali automatici."
         : priority === "high"
-          ? "Idea manuale ad alta priorità: precede i segnali Search Console."
-          : "Idea manuale a priorità normale: viene considerata dopo i segnali Search Console sopra soglia.",
+          ? "Idea manuale ad alta priorita: precede i segnali automatici."
+          : "Idea manuale a priorita normale: viene considerata dopo i segnali automatici sopra soglia.",
     });
   }
 
   const analysis = await analysisPayload().catch(() => null);
   const allSearchSignals = analysis?.ready && Array.isArray(analysis.signals) ? analysis.signals : [];
+  const archive = await researchRadarArchive();
+  let searchSignalsExcludedArchive = 0;
   const searchSignals = allSearchSignals.filter((signal) => {
     const cycleStatus = String(signal?.cycle_opportunity?.status || "");
     if (cycleStatus === "rejected" || cycleStatus === "completed") return false;
     if (signal?.cycle_opportunity?.target_article_id) return false;
+    const signalText = `${signal?.topic || ""} ${(signal?.query_examples || []).join(" ")}`;
+    let closestSimilarity = 0;
+    for (const article of archive) {
+      closestSimilarity = Math.max(closestSimilarity, researchRadarSimilarity(signalText, `${article.title} ${article.excerpt}`));
+    }
+    // Search Console da sola non dimostra un nuovo intento. Se il tema e' gia coperto,
+    // lo lasciamo al radar web che puo' proporre UPDATE_EXISTING o un vero NEW_ANGLE.
+    if (closestSimilarity >= 0.60) {
+      searchSignalsExcludedArchive += 1;
+      return false;
+    }
     return true;
   });
   const topSearchSignal = searchSignals.find((signal) => Number(signal.score || 0) >= minimumScore) || null;
@@ -968,31 +1496,67 @@ async function editorialPlannerPreview() {
       status: "live_signal",
       created_at: null,
       rank: 200,
-      reason: `Miglior segnale Search Console sopra la soglia ${minimumScore}/100.`,
+      reason: `Segnale Search Console sopra la soglia ${minimumScore}/100.`,
       topic_key: topSearchSignal.topic_key,
       metrics: topSearchSignal.metrics,
       fallback_below_threshold: false,
     });
-  } else if (!Boolean(settings.allow_no_publish)) {
-    const fallbackSearchSignal = searchSignals.find((signal) => signal?.topic_key && signal?.topic) || null;
-    if (fallbackSearchSignal) {
-      candidates.push({
-        source: "search_console",
-        id: null,
-        topic: fallbackSearchSignal.topic,
-        opportunity_type: "research_candidate",
-        priority: null,
-        deadline: null,
-        score: Number(fallbackSearchSignal.score || 0),
-        status: "live_signal",
-        created_at: null,
-        rank: 50,
-        reason: `Nessun segnale Search Console raggiunge la soglia ${minimumScore}/100: il ciclo richiede comunque un articolo, quindi viene usato il miglior segnale disponibile.`,
-        topic_key: fallbackSearchSignal.topic_key,
-        metrics: fallbackSearchSignal.metrics,
-        fallback_below_threshold: true,
-      });
-    }
+  }
+
+  const radar = await researchRadarPayload().catch(() => ({ candidates: [] }));
+  const radarAll = Array.isArray(radar?.candidates) ? radar.candidates : [];
+  const radarEligible = radarAll.filter((candidate) => ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || "")));
+  const topRadarSignal = radarEligible.find((candidate) => Number(candidate.score || 0) >= minimumScore) || null;
+  if (topRadarSignal) {
+    candidates.push({
+      source: "research_radar",
+      id: null,
+      topic: topRadarSignal.topic,
+      opportunity_type: "research_candidate",
+      priority: null,
+      deadline: null,
+      score: Number(topRadarSignal.score || 0),
+      status: "live_signal",
+      created_at: null,
+      rank: 200,
+      reason: `Radar web ${topRadarSignal.editorial_action === "NEW_ANGLE" ? "con nuovo angolo" : "su tema nuovo"} sopra la soglia ${minimumScore}/100.`,
+      radar_key: topRadarSignal.radar_key,
+      radar_candidate: topRadarSignal,
+      fallback_below_threshold: false,
+    });
+  }
+
+  const hasQualifiedAutomatic = Boolean(topSearchSignal || topRadarSignal);
+  if (!hasQualifiedAutomatic && !Boolean(settings.allow_no_publish)) {
+    const fallbackSearch = searchSignals.find((signal) => signal?.topic_key && signal?.topic) || null;
+    const fallbackRadar = radarEligible[0] || null;
+    const fallbackOptions = [];
+    if (fallbackSearch) fallbackOptions.push({
+      source: "search_console",
+      topic: fallbackSearch.topic,
+      opportunity_type: "research_candidate",
+      score: Number(fallbackSearch.score || 0),
+      status: "live_signal",
+      rank: 50,
+      reason: `Nessun segnale automatico raggiunge la soglia ${minimumScore}/100: candidato Search Console di ripiego.`,
+      topic_key: fallbackSearch.topic_key,
+      metrics: fallbackSearch.metrics,
+      fallback_below_threshold: true,
+    });
+    if (fallbackRadar) fallbackOptions.push({
+      source: "research_radar",
+      topic: fallbackRadar.topic,
+      opportunity_type: "research_candidate",
+      score: Number(fallbackRadar.score || 0),
+      status: "live_signal",
+      rank: 50,
+      reason: `Nessun segnale automatico raggiunge la soglia ${minimumScore}/100: candidato radar web di ripiego.`,
+      radar_key: fallbackRadar.radar_key,
+      radar_candidate: fallbackRadar,
+      fallback_below_threshold: true,
+    });
+    fallbackOptions.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+    if (fallbackOptions[0]) candidates.push(fallbackOptions[0]);
   }
 
   candidates.sort(plannerCandidateComparator);
@@ -1001,7 +1565,8 @@ async function editorialPlannerPreview() {
     : 1;
   const articleCycleDisabled = maxArticlesPerCycle === 0;
   const decision = articleCycleDisabled ? null : (candidates[0] || null);
-  const noPublish = articleCycleDisabled || (!decision && Boolean(settings.allow_no_publish));
+  const duplicateProtectionNoPublish = !decision && searchSignalsExcludedArchive > 0 && !radarEligible.length;
+  const noPublish = articleCycleDisabled || (!decision && (Boolean(settings.allow_no_publish) || duplicateProtectionNoPublish));
   return {
     ok: true,
     version: VERSION,
@@ -1017,16 +1582,22 @@ async function editorialPlannerPreview() {
     search_signals_available: allSearchSignals.length,
     search_signals_eligible: searchSignals.length,
     search_signals_excluded_current_cycle: Math.max(0, allSearchSignals.length - searchSignals.length),
+    search_signals_excluded_archive_duplicate: searchSignalsExcludedArchive,
+    duplicate_protection_no_publish: duplicateProtectionNoPublish,
+    research_radar_candidates: radarAll.length,
+    research_radar_new_candidates: radarEligible.length,
+    research_radar_update_suggestions: radarAll.filter((row) => row?.editorial_action === "UPDATE_EXISTING").length,
+    research_radar_duplicates_skipped: radarAll.filter((row) => row?.editorial_action === "SKIP_DUPLICATE").length,
     analysis_reference_snapshot_id: analysis?.reference_snapshot_id || null,
     decision,
     no_publish: noPublish,
     ordering: [
-      "opportunità già selezionata manualmente",
+      "opportunita gia selezionata manualmente",
       "idea manuale urgente",
-      "idea manuale ad alta priorità",
-      "segnale Search Console sopra soglia",
-      "idea manuale a priorità normale",
-      "miglior segnale Search Console sotto soglia quando il ciclo non può chiudersi senza articolo",
+      "idea manuale ad alta priorita",
+      "miglior segnale automatico sopra soglia (Search Console o Radar web)",
+      "idea manuale a priorita normale",
+      "miglior segnale automatico sotto soglia quando il ciclo non puo chiudersi senza articolo",
     ],
   };
 }
@@ -2134,6 +2705,9 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
   const editorialBrief = opportunityEditorialBrief(opportunity);
   const queryExamples = Array.isArray(editorialBrief.query_examples) ? editorialBrief.query_examples : [];
   const contextPages = Array.isArray(editorialBrief.context_pages) ? editorialBrief.context_pages : [];
+  const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
+  const radarSources = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls.slice(0, 6) : [];
+  const radarTools = Array.isArray(radarEvidence?.related_targets) ? radarEvidence.related_targets.slice(0, 4) : [];
   const articleUrl = `https://offertalogica.it/articoli/${encodeURIComponent(article.slug)}.html`;
   const instructions = [
     "Sei il motore editoriale server-side di OffertaLogica.it.",
@@ -2150,8 +2724,9 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
     "Non proporre Reel, video o TikTok come strategia. LinkedIn è gestito separatamente per il solo lancio dell’articolo e non deve comparire nei due post statici.",
     "Il BRIEF EDITORIALE fornito nell'input è vincolante per il taglio dell'articolo: il tema Search Console non va usato come semplice titolo se non descrive già chiaramente l'intento.",
     "Se il tema cita un marchio, prodotto o offerta, spiega prima che cosa sia e verifica condizioni e informazioni attuali da fonti affidabili; evita recensioni arbitrarie o conclusioni promozionali.",
+    "Se il brief proviene dal Radar web e indica strumenti OffertaLogica pertinenti, usali solo quando rappresentano davvero il passo pratico successivo per il lettore; per il post related preferisci una di quelle destinazioni se resta coerente con il contenuto reale della pagina.",
   ].join(" ");
-  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
   const payload = await openAiResponseRequest("", {
     method: "POST",
     body: {
@@ -4730,6 +5305,8 @@ async function schedulerSelectOpportunity(user, settings) {
   } else if (decision.source === "search_console" && decision.topic_key) {
     const saved = await saveEditorialOpportunity(user, decision.topic_key);
     opportunity = saved?.opportunity || null;
+  } else if (decision.source === "research_radar" && decision.radar_candidate) {
+    opportunity = await saveResearchRadarOpportunity(user, decision.radar_candidate);
   }
   if (!opportunity?.id) return null;
   if (opportunity.status === "pending") opportunity = await updateEditorialOpportunity(user, opportunity.id, "selected");
@@ -4749,6 +5326,8 @@ async function schedulerSelectOpportunity(user, settings) {
         score: Number.isFinite(Number(decision.score)) ? Number(decision.score) : null,
         reason: decision.reason || null,
         fallback_below_threshold: Boolean(decision.fallback_below_threshold),
+        radar_key: decision.radar_key || null,
+        editorial_action: decision.radar_candidate?.editorial_action || null,
       },
       enumerable: false,
       configurable: false,
@@ -5754,6 +6333,13 @@ async function editorialAutopilotTick() {
     }
     const result = await schedulerProcessSlot(due, user, settings, runs, local);
     return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+  }
+
+  try {
+    const radar = await schedulerMaybeResearchRadar(user, settings, local);
+    if (radar) return { ok: true, version: VERSION, active: true, ...radar, local };
+  } catch (error) {
+    console.error("editorial_research_radar_failed", String(error?.message || error).slice(0, 1200));
   }
 
   if (socialAssetError || regenerationError) {
@@ -6845,6 +7431,10 @@ export default async function handler(req, res) {
       return json(res, 200, await analysisPayload());
     }
 
+    if (req.method === "GET" && action === "editorial-research-radar") {
+      return json(res, 200, await researchRadarPayload());
+    }
+
     if (req.method === "GET" && action === "editorial-opportunities") {
       return json(res, 200, await opportunitiesPayload());
     }
@@ -6865,6 +7455,12 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "collect-search-console") {
       const result = await collectSearchConsole(user, req.body?.days);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "start-editorial-web-radar") {
+      const settings = await automationSchedulerSettings();
+      const result = await startManualResearchRadar(user, settings || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.87";
+  const VERSION = "0.12.88";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -106,8 +106,8 @@
                   <div class="ol-field">
                     <label for="autopilot-manual-idea-priority">Priorità</label>
                     <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
-                      <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
-                      <option value="high">Alta · precede Search Console</option>
+                      <option value="normal">Normale · dopo i segnali automatici sopra soglia</option>
+                      <option value="high">Alta · precede i segnali automatici</option>
                       <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
                     </select>
                   </div>
@@ -147,7 +147,7 @@
         </details>
 
         <details class="ol-autopilot-stage ol-autopilot-stage-collapsible">
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Dati Search Console</h4><p>Acquisizione, graduatoria dei segnali e strumenti di controllo.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Ricerca e segnali</h4><p>Search Console, radar web, attualità e controllo duplicati.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
           <div class="ol-autopilot-stage-body">
             <div class="ol-autopilot-pair">
               <div class="ol-autopilot-pane">
@@ -219,6 +219,16 @@
                 </div>
               </div>
             </div>
+
+            <div class="ol-autopilot-pane">
+              <h5>Radar web editoriale</h5>
+              <p class="ol-muted">Scansione automatica sabato, domenica e lunedì dalle 08:00. Confronta web, Search Console, archivio articoli e strumenti OffertaLogica prima di proporre un nuovo contenuto.</p>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-research-radar-message>Caricamento radar…</p>
+                <button class="ol-button ol-button-secondary" type="button" data-research-radar-start>Avvia scansione ora</button>
+              </div>
+              <div class="ol-autopilot-archive-list" data-research-radar-results><p class="ol-muted">Caricamento…</p></div>
+            </div>
           </div>
         </details>
 
@@ -245,6 +255,7 @@
     host.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
+    section.querySelector("[data-research-radar-start]")?.addEventListener("click", startResearchRadar);
     section.querySelector("[data-signal-search]")?.addEventListener("input", (event) => {
       analysisSearchTerm = String(event.currentTarget?.value || "").trim().toLocaleLowerCase("it");
       analysisPage = 1;
@@ -260,6 +271,7 @@
     statusLoaded = false;
     loadStatus(section);
     loadAnalysis(section, true);
+    loadResearchRadar(section);
     loadOpportunities(section);
     loadPlannerPreview(section, true);
     loadSocialPlan(section);
@@ -363,6 +375,100 @@
         statusLoaded = false;
         await loadStatus(section).catch(() => {});
       }
+    }
+  }
+
+
+  function researchRadarActionLabel(action) {
+    return ({
+      NEW_ARTICLE: "Nuovo articolo",
+      NEW_ANGLE: "Nuovo punto di vista",
+      UPDATE_EXISTING: "Aggiornamento consigliato",
+      SKIP_DUPLICATE: "Duplicato da scartare",
+    })[String(action || "")] || String(action || "Da valutare");
+  }
+
+  function researchRadarActionTone(action) {
+    return ({
+      NEW_ARTICLE: "success",
+      NEW_ANGLE: "success",
+      UPDATE_EXISTING: "warning",
+      SKIP_DUPLICATE: "muted",
+    })[String(action || "")] || "muted";
+  }
+
+  function renderResearchRadar(section, payload) {
+    const box = section?.querySelector("[data-research-radar-results]");
+    const message = section?.querySelector("[data-research-radar-message]");
+    const button = section?.querySelector("[data-research-radar-start]");
+    if (!box || !message || !button) return;
+    const running = payload?.running || null;
+    button.disabled = Boolean(running);
+    if (running) {
+      message.textContent = `Scansione web in corso${running.local_date ? ` · ${running.local_date}` : ""}. L'Autopilota la riprenderà al prossimo tick.`;
+    } else {
+      const lastScan = Array.isArray(payload?.scans) ? payload.scans.find((row) => row.status === "success") : null;
+      message.textContent = lastScan
+        ? `Ultima scansione completata ${dateIt(lastScan.finished_at || lastScan.started_at)} · ${Number(lastScan.candidate_count || 0)} candidati.`
+        : "Nessuna scansione web completata negli ultimi giorni.";
+    }
+
+    const candidates = Array.isArray(payload?.candidates) ? payload.candidates.slice(0, 10) : [];
+    if (!candidates.length) {
+      box.innerHTML = '<div class="ol-autopilot-archive-item"><strong>Nessun candidato radar disponibile</strong><small>Il radar web non sostituisce Search Console: aggiunge attualità, domanda emergente, controllo duplicati e collegamento con gli strumenti OffertaLogica.</small></div>';
+      return;
+    }
+    box.innerHTML = candidates.map((candidate) => {
+      const action = String(candidate?.editorial_action || "");
+      const sources = (candidate?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
+      const tools = (candidate?.related_targets || []).slice(0, 4).map((row) => esc(row?.label || row?.url_path || "")).filter(Boolean).join(" · ");
+      const existing = candidate?.existing_article?.title
+        ? `<small><b>Articolo correlato:</b> ${esc(candidate.existing_article.title)}${candidate.difference_from_existing ? ` · ${esc(candidate.difference_from_existing)}` : ""}</small>`
+        : "";
+      const component = candidate?.component_scores || {};
+      return `<div class="ol-autopilot-archive-item">
+        <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100</strong>
+        <small><b>${esc(researchRadarActionLabel(action))}</b> · domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · novità ${Number(component.freshness || 0)} · gap ${Number(component.content_gap || 0)}</small>
+        <small><b>Intento:</b> ${esc(candidate?.search_intent || "—")}</small>
+        <small><b>Angolo:</b> ${esc(candidate?.angle || "—")}</small>
+        ${existing}
+        ${tools ? `<small><b>Strumenti OffertaLogica pertinenti:</b> ${tools}</small>` : ""}
+        ${candidate?.rationale ? `<small><b>Perché:</b> ${esc(candidate.rationale)}</small>` : ""}
+        ${sources ? `<small><b>Fonti consultate:</b> ${sources}</small>` : ""}
+      </div>`;
+    }).join("");
+  }
+
+  async function loadResearchRadar(section) {
+    if (!section?.isConnected) return;
+    const message = section.querySelector("[data-research-radar-message]");
+    try {
+      const payload = await endpoint("editorial-research-radar");
+      if (section.isConnected) renderResearchRadar(section, payload);
+    } catch (error) {
+      if (message) message.textContent = `Radar non disponibile: ${error.message}`;
+      const button = section.querySelector("[data-research-radar-start]");
+      if (button) button.disabled = false;
+    }
+  }
+
+  async function startResearchRadar(event) {
+    const button = event.currentTarget;
+    const section = button.closest("[data-search-console-card]");
+    const message = section?.querySelector("[data-research-radar-message]");
+    if (!section || !message) return;
+    button.disabled = true;
+    message.textContent = "Avvio ricerca web editoriale…";
+    try {
+      const payload = await endpoint("start-editorial-web-radar", { method: "POST", body: {} });
+      const result = payload?.result || {};
+      message.textContent = result.action === "research_radar_already_running"
+        ? "Una scansione è già in corso. L'Autopilota la riprenderà al prossimo tick."
+        : "Scansione avviata. La ricerca web gira in background e verrà chiusa dai prossimi tick dell'Autopilota.";
+      await loadResearchRadar(section);
+    } catch (error) {
+      message.textContent = `Scansione non avviata: ${error.message}`;
+      button.disabled = false;
     }
   }
 
@@ -478,10 +584,12 @@
     if (!decision) {
       const reason = payload?.article_cycle_disabled
         ? "Il limite massimo articoli per ciclo è impostato a 0."
-        : payload?.no_publish
-          ? "La configurazione consente di chiudere il ciclo senza articolo."
-          : "Nessun candidato disponibile con le regole attuali.";
-      box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia Search Console: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
+        : payload?.duplicate_protection_no_publish
+          ? "I segnali disponibili risultano già coperti dall'archivio: il sistema evita un articolo duplicato e attende un nuovo angolo o una novità verificabile."
+          : payload?.no_publish
+            ? "La configurazione consente di chiudere il ciclo senza articolo."
+            : "Nessun candidato disponibile con le regole attuali.";
+      box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia automatica: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
       if (!quiet) message.textContent = "Dry-run completato senza candidato.";
       if (opportunityRows.length) renderOpportunities(section, opportunityRows);
       return;
@@ -490,9 +598,11 @@
       ? `Idea manuale · priorità ${manualIdeaPriorityLabel(decision.priority).toLowerCase()}`
       : decision.source === "search_console"
         ? `Search Console · ${Number(decision.score || 0)}/100`
-        : "Opportunità già selezionata";
+        : decision.source === "research_radar"
+          ? `Radar web · ${Number(decision.score || 0)}/100 · ${researchRadarActionLabel(decision?.radar_candidate?.editorial_action)}`
+          : "Opportunità già selezionata";
     const deadline = decision.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(decision.deadline)}` : "";
-    const destination = decision.source === "search_console"
+    const destination = ["search_console", "research_radar"].includes(decision.source)
       ? "Segnale da classificare"
       : opportunityTypeLabel(decision.opportunity_type);
     box.innerHTML = `<div class="ol-autopilot-archive-item">
@@ -702,13 +812,21 @@
 
   function opportunitySourceDetails(row) {
     const manual = manualIdeaMeta(row);
-    if (!manual) return "";
-    const deadline = manual.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(manual.deadline)}` : " · nessuna scadenza";
-    const notes = manual.notes ? `<small>Note: ${esc(manual.notes)}</small>` : "";
-    const editable = row.status !== "completed" && !row.target_article_id
-      ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
-      : "";
-    return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
+    if (manual) {
+      const deadline = manual.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(manual.deadline)}` : " · nessuna scadenza";
+      const notes = manual.notes ? `<small>Note: ${esc(manual.notes)}</small>` : "";
+      const editable = row.status !== "completed" && !row.target_article_id
+        ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
+        : "";
+      return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
+    }
+    const radar = row?.evidence?.source === "research_radar" ? row.evidence.research_radar : null;
+    if (radar) {
+      const tools = (radar.related_targets || []).slice(0, 4).map((target) => esc(target?.label || target?.url_path || "")).filter(Boolean).join(" · ");
+      const existing = radar.existing_article?.title ? `<small>Articolo correlato: ${esc(radar.existing_article.title)}</small>` : "";
+      return `<small>Origine: Radar web · ${esc(researchRadarActionLabel(radar.editorial_action))}</small>${existing}${radar.difference_from_existing ? `<small>Differenza: ${esc(radar.difference_from_existing)}</small>` : ""}${tools ? `<small>Strumenti pertinenti: ${tools}</small>` : ""}`;
+    }
+    return "";
   }
 
 
