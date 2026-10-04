@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.88";
+const VERSION = "0.12.89";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -13,7 +13,10 @@ const ANALYSIS_PAGE_SIZE = 1000;
 const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
 const ANALYSIS_SIGNAL_LIMIT = 100;
 const ANALYSIS_WINDOWS = [7, 28, 90];
-const EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION = 2;
+const EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION = 3;
+const EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION = 1;
+const EDITORIAL_RESEARCH_HINT_MAX_ACTIVE = 8;
+const EDITORIAL_RESEARCH_HINT_DEPTHS = new Set(["normal", "deep"]);
 const EDITORIAL_RESEARCH_RADAR_DAYS = new Set([1, 6, 7]); // lunedi, sabato, domenica
 const EDITORIAL_RESEARCH_RADAR_START_MINUTE = 8 * 60;
 const EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES = 8;
@@ -666,6 +669,19 @@ function manualIdeaMeta(opportunity) {
   return manual;
 }
 
+function researchHintMeta(opportunity) {
+  const evidence = opportunity?.evidence;
+  const hint = evidence && typeof evidence === "object" ? evidence.research_hint : null;
+  if (evidence?.source !== "research_hint" || !hint || typeof hint !== "object") return null;
+  return hint;
+}
+
+function researchHintRationale(depth) {
+  return depth === "deep"
+    ? "Tema suggerito dalla Redazione per validazione Radar con approfondimento. Non riceve priorita editoriale automatica: deve essere confermato da domanda, fonti, archivio e utilita reale."
+    : "Tema suggerito dalla Redazione per validazione Radar. Non riceve priorita editoriale automatica: deve essere confermato da domanda, fonti, archivio e utilita reale.";
+}
+
 function manualIdeaRationale(priority, deadline) {
   const priorityLabel = ({ urgent: "urgente", high: "alta", normal: "normale" })[priority] || "normale";
   return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità manuale è distinta dai punteggi automatici di Search Console e Radar web.`;
@@ -751,7 +767,7 @@ function researchRadarCandidateSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["candidates"],
+    required: ["candidates", "hint_reviews"],
     properties: {
       candidates: {
         type: "array",
@@ -764,7 +780,7 @@ function researchRadarCandidateSchema() {
             "topic", "search_intent", "angle", "query_examples", "demand_score", "trend_score",
             "freshness_score", "content_gap_score", "user_utility_score", "offertalogica_fit_score",
             "authority_score", "editorial_action", "existing_article_id", "difference_from_existing",
-            "related_target_ids", "rationale", "source_urls"
+            "related_target_ids", "rationale", "source_urls", "research_hint_id"
           ],
           properties: {
             topic: { type: "string" },
@@ -783,6 +799,24 @@ function researchRadarCandidateSchema() {
             difference_from_existing: { type: "string" },
             related_target_ids: { type: "array", maxItems: 4, items: { type: "string" } },
             rationale: { type: "string" },
+            source_urls: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+            research_hint_id: { type: ["string", "null"] },
+          },
+        },
+      },
+      hint_reviews: {
+        type: "array",
+        maxItems: EDITORIAL_RESEARCH_HINT_MAX_ACTIVE,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["hint_id", "verdict", "score", "rationale", "suggested_angle", "source_urls"],
+          properties: {
+            hint_id: { type: "string" },
+            verdict: { type: "string", enum: ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE", "INSUFFICIENT_SIGNAL"] },
+            score: { type: "integer", minimum: 0, maximum: 100 },
+            rationale: { type: "string" },
+            suggested_angle: { type: "string" },
             source_urls: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
           },
         },
@@ -839,6 +873,21 @@ async function researchRadarTargets() {
   })).filter((row) => validUuid(row.id) && row.label);
 }
 
+async function researchRadarHints() {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,deferred)&order=created_at.asc&limit=100`,
+  ).catch(() => []);
+  return (rows || []).filter((row) => researchHintMeta(row)).slice(0, EDITORIAL_RESEARCH_HINT_MAX_ACTIVE).map((row) => {
+    const hint = researchHintMeta(row) || {};
+    return {
+      id: String(row.id || ""),
+      topic: cleanEditorialText(row.topic, 240),
+      depth: EDITORIAL_RESEARCH_HINT_DEPTHS.has(String(hint.depth || "")) ? String(hint.depth) : "normal",
+      created_at: row.created_at || hint.created_at || null,
+    };
+  }).filter((row) => validUuid(row.id) && row.topic);
+}
+
 async function researchRadarSearchSignals() {
   const analysis = await analysisPayload().catch(() => null);
   if (!analysis?.ready) return [];
@@ -881,7 +930,7 @@ function researchRadarPreviousCandidates(runs) {
   return values;
 }
 
-async function startOpenAiResearchRadar({ localDate, archive, targets, searchSignals, previousCandidates }) {
+async function startOpenAiResearchRadar({ localDate, archive, targets, searchSignals, previousCandidates, researchHints }) {
   const input = JSON.stringify({
     local_date: localDate,
     country: "Italia",
@@ -889,6 +938,7 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
     published_offertalogica_articles: archive,
     offertalogica_tools_and_destinations: targets,
     previous_weekend_radar_candidates: previousCandidates,
+    editorial_research_hints: researchHints,
   });
   const response = await openAiResponseRequest("", {
     method: "POST",
@@ -904,6 +954,8 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
         "Search Console e' un segnale quantitativo forte ma non deve creare un circuito chiuso: trova anche temi nuovi sui quali OffertaLogica non ha ancora impressioni.",
         "Confronta ogni proposta con l'archivio articoli fornito. Se lo stesso intento e' gia coperto e non ci sono novita sostanziali usa SKIP_DUPLICATE. Se fatti, prezzi o regole rendono vecchio un articolo esistente usa UPDATE_EXISTING. Usa NEW_ANGLE solo quando l'intento del lettore e' realmente diverso e spiega precisamente la differenza. Usa NEW_ARTICLE per un bisogno nuovo non coperto.",
         "Gli strumenti OffertaLogica non devono guidare artificialmente la scelta. Prima identifica un problema reale dell'utente; poi indica eventuali destinazioni OffertaLogica che permettono un passo pratico successivo. Non trasformare l'articolo in pubblicita.",
+        "I temi in editorial_research_hints sono suggerimenti della Redazione da verificare, non ordini di pubblicazione e non ricevono bonus di punteggio. Per ciascun hint devi fare ricerche mirate e restituire esattamente una hint_review. Se depth=deep, approfondisci con piu query e confronto fonti, ma non alzare il punteggio per il solo fatto che il tema e' stato suggerito.",
+        "Per una hint_review usa NEW_ARTICLE o NEW_ANGLE solo se le evidenze la validano davvero; UPDATE_EXISTING se e' meglio aggiornare un articolo presente; SKIP_DUPLICATE se l'intento e' gia coperto; INSUFFICIENT_SIGNAL se non trovi domanda o evidenze sufficienti. Se un hint validato merita di competere nella graduatoria, includilo anche tra candidates impostando research_hint_id con il suo ID.",
         "Attribuisci punteggi 0-100 separati: demand_score=forza della domanda osservabile, trend_score=crescita/accelerazione recente, freshness_score=novita e attualita, content_gap_score=buco nell'archivio OffertaLogica, user_utility_score=utilita concreta, offertalogica_fit_score=collegamento naturale con strumenti esistenti, authority_score=qualita delle fonti.",
         "Preferisci 3-8 candidati diversificati, ma non riempire l’output con temi deboli: se solo 1-2 temi sono davvero verificabili restituisci solo quelli. Evita varianti dello stesso tema nello stesso output.",
         "source_urls deve contenere solo URL https effettivamente consultati nella ricerca. existing_article_id e related_target_ids devono usare soltanto gli ID forniti nell'input oppure null/lista vuota.",
@@ -911,13 +963,13 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
       ].join(" "),
       input,
       reasoning: { effort: "medium" },
-      max_output_tokens: 6500,
+      max_output_tokens: 7600,
       background: true,
       store: true,
       text: {
         format: {
           type: "json_schema",
-          name: "offertalogica_research_radar_v2",
+          name: "offertalogica_research_radar_v3",
           strict: true,
           schema: researchRadarCandidateSchema(),
         },
@@ -929,7 +981,7 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
   return { response_id: response.id, status: response.status || "queued" };
 }
 
-function validateResearchRadarPayload(payload, { archive, targets }) {
+function validateResearchRadarPayload(payload, { archive, targets, researchHints = [] }) {
   let parsed;
   try {
     parsed = JSON.parse(responseOutputText(payload));
@@ -939,6 +991,7 @@ function validateResearchRadarPayload(payload, { archive, targets }) {
   const observedSources = new Set(responseSourceUrls(payload).map(sourceUrlKey).filter(Boolean));
   const archiveById = new Map((archive || []).map((row) => [String(row.id), row]));
   const targetById = new Map((targets || []).map((row) => [String(row.id), row]));
+  const hintById = new Map((researchHints || []).map((row) => [String(row.id), row]));
   const output = [];
   const seen = new Set();
 
@@ -966,8 +1019,6 @@ function validateResearchRadarPayload(payload, { archive, targets }) {
     const difference = cleanEditorialText(raw?.difference_from_existing, 900);
     const freshness = researchRadarClampScore(raw?.freshness_score);
 
-    // Guardrail deterministico contro cannibalizzazione: un'elevata sovrapposizione non puo'
-    // diventare automaticamente un nuovo articolo solo per decisione del modello.
     if (closestSimilarity >= 0.72) {
       action = freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE";
       existing = closest || existing;
@@ -1014,6 +1065,8 @@ function validateResearchRadarPayload(payload, { archive, targets }) {
       .filter((url) => observedSources.has(sourceUrlKey(url)))
       .slice(0, 6);
     if (!sourceUrls.length) continue;
+    const requestedHintId = String(raw?.research_hint_id || "").trim();
+    const researchHint = hintById.get(requestedHintId) || null;
 
     const candidate = {
       schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
@@ -1032,6 +1085,7 @@ function validateResearchRadarPayload(payload, { archive, targets }) {
       related_targets: relatedTargets,
       rationale: cleanEditorialText(raw?.rationale, 1000),
       source_urls: sourceUrls,
+      research_hint: researchHint ? { id: researchHint.id, topic: researchHint.topic, depth: researchHint.depth } : null,
     };
     candidate.radar_key = researchRadarKey(candidate);
     if (seen.has(candidate.radar_key)) continue;
@@ -1039,8 +1093,51 @@ function validateResearchRadarPayload(payload, { archive, targets }) {
     output.push(candidate);
   }
 
+  const hintReviews = [];
+  const reviewed = new Set();
+  for (const raw of Array.isArray(parsed?.hint_reviews) ? parsed.hint_reviews : []) {
+    const hintId = String(raw?.hint_id || "").trim();
+    const hint = hintById.get(hintId);
+    if (!hint || reviewed.has(hintId)) continue;
+    const sourceUrls = [...new Set((Array.isArray(raw?.source_urls) ? raw.source_urls : [])
+      .map(normalizedHttps).filter(Boolean))]
+      .filter((url) => observedSources.has(sourceUrlKey(url)))
+      .slice(0, 6);
+    if (!sourceUrls.length) continue;
+    const verdict = ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE", "INSUFFICIENT_SIGNAL"].includes(String(raw?.verdict || ""))
+      ? String(raw.verdict)
+      : "INSUFFICIENT_SIGNAL";
+    hintReviews.push({
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      hint_id: hintId,
+      topic: hint.topic,
+      depth: hint.depth,
+      verdict,
+      score: researchRadarClampScore(raw?.score),
+      rationale: cleanEditorialText(raw?.rationale, 1000),
+      suggested_angle: cleanEditorialText(raw?.suggested_angle, 1200),
+      source_urls: sourceUrls,
+    });
+    reviewed.add(hintId);
+  }
+
+  for (const hint of researchHints || []) {
+    if (reviewed.has(String(hint.id))) continue;
+    hintReviews.push({
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      hint_id: String(hint.id),
+      topic: hint.topic,
+      depth: hint.depth,
+      verdict: "INSUFFICIENT_SIGNAL",
+      score: 0,
+      rationale: "Il Radar non ha prodotto una validazione verificabile per questo tema nella scansione corrente.",
+      suggested_angle: "",
+      source_urls: [],
+    });
+  }
+
   if (!output.length) throw new Error("Radar editoriale: nessun candidato verificabile prodotto");
-  return output.slice(0, EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES);
+  return { candidates: output.slice(0, EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES), hint_reviews: hintReviews };
 }
 
 function consolidateResearchRadarCandidates(runs) {
@@ -1069,7 +1166,7 @@ function consolidateResearchRadarCandidates(runs) {
 }
 
 async function researchRadarPayload() {
-  const runs = await researchRadarRuns(40);
+  const [runs, hints] = await Promise.all([researchRadarRuns(40), researchRadarHints()]);
   const running = runs.find((run) => String(run?.status || "") === "running") || null;
   const candidates = consolidateResearchRadarCandidates(runs);
   const scans = (runs || []).filter((run) => String(run?.status || "") !== "running").slice(0, 12).map((run) => ({
@@ -1081,6 +1178,22 @@ async function researchRadarPayload() {
     candidate_count: Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates.length : 0,
     last_error: run.last_error || null,
   }));
+  const hintStatus = (hints || []).map((hint) => {
+    const reviews = [];
+    for (const run of runs || []) {
+      if (String(run?.status || "") !== "success") continue;
+      const review = (Array.isArray(run?.details?.research_hint_reviews) ? run.details.research_hint_reviews : [])
+        .find((row) => String(row?.hint_id || "") === String(hint.id));
+      if (!review) continue;
+      reviews.push({ ...review, scan_date: run?.details?.local_date || null, reviewed_at: run.finished_at || run.created_at || null });
+    }
+    return {
+      ...hint,
+      review_count: reviews.length,
+      scan_dates: [...new Set(reviews.map((row) => row.scan_date).filter(Boolean))].sort(),
+      latest_review: reviews[0] || null,
+    };
+  });
   return {
     ok: true,
     version: VERSION,
@@ -1090,6 +1203,7 @@ async function researchRadarPayload() {
     running: running ? { id: running.id, local_date: running?.details?.local_date || null, stage: running?.details?.stage || null, started_at: running.started_at || null } : null,
     scans,
     candidates,
+    research_hints: hintStatus,
   };
 }
 
@@ -1098,6 +1212,7 @@ async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}
   const archive = await researchRadarArchive();
   const targets = await researchRadarTargets();
   const searchSignals = await researchRadarSearchSignals();
+  const researchHints = await researchRadarHints();
   const recentRuns = await researchRadarRuns(30);
   const previousCandidates = researchRadarPreviousCandidates(recentRuns);
   const run = await automationSchedulerRunStart("research_radar", {
@@ -1110,7 +1225,7 @@ async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}
   });
   if (!run?.id) throw new Error("Radar editoriale: run non creato");
   try {
-    const started = await startOpenAiResearchRadar({ localDate: currentLocal.date, archive, targets, searchSignals, previousCandidates });
+    const started = await startOpenAiResearchRadar({ localDate: currentLocal.date, archive, targets, searchSignals, previousCandidates, researchHints });
     const updated = await automationSchedulerRunPatch(run, {
       stage: "web_search_running",
       response_id: started.response_id,
@@ -1118,6 +1233,9 @@ async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}
       archive_count: archive.length,
       target_count: targets.length,
       search_console_signal_count: searchSignals.length,
+      research_hint_count: researchHints.length,
+      research_hint_ids: researchHints.map((row) => row.id),
+      research_hint_snapshot: researchHints,
     });
     return { action: "research_radar_started", pending: true, run: updated, local: currentLocal };
   } catch (error) {
@@ -1147,7 +1265,9 @@ async function resumeResearchRadarRun(run) {
     return { action: "research_radar_failed", pending: false, error: message };
   }
   const [archive, targets] = await Promise.all([researchRadarArchive(), researchRadarTargets()]);
-  const candidates = validateResearchRadarPayload(payload, { archive, targets });
+  const researchHints = Array.isArray(run?.details?.research_hint_snapshot) ? run.details.research_hint_snapshot : [];
+  const validated = validateResearchRadarPayload(payload, { archive, targets, researchHints });
+  const candidates = validated.candidates;
   const sourceUrls = responseSourceUrls(payload).map(normalizedHttps).filter(Boolean).slice(0, 40);
   const details = {
     ...(run.details || {}),
@@ -1155,6 +1275,7 @@ async function resumeResearchRadarRun(run) {
     response_status: status,
     radar_schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
     radar_candidates: candidates,
+    research_hint_reviews: validated.hint_reviews,
     source_urls: sourceUrls,
     completed_at: new Date().toISOString(),
   };
@@ -1258,7 +1379,7 @@ async function opportunitiesPayload() {
   const rows = await serviceFetch(
     `editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=${OPPORTUNITY_LIST_LIMIT}`,
   );
-  const opportunities = Array.isArray(rows) ? rows : [];
+  const opportunities = (Array.isArray(rows) ? rows : []).filter((row) => !researchHintMeta(row));
   const needsContext = opportunities.some((row) => {
     const savedPages = row?.evidence?.page_urls;
     return (!Array.isArray(savedPages) || !savedPages.length) && row?.evidence?.topic_key;
@@ -1343,6 +1464,75 @@ async function createManualEditorialIdea(user, payload = {}) {
   const opportunity = rows?.[0];
   if (!opportunity?.id) throw new Error("Idea editoriale non salvata");
   return { created: true, opportunity };
+}
+
+async function existingActiveResearchHint(topic) {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,deferred)&order=created_at.desc&limit=100`,
+  );
+  const normalized = normalizeManualIdeaTopic(topic);
+  return (rows || []).find((row) => researchHintMeta(row) && normalizeManualIdeaTopic(row.topic) === normalized) || null;
+}
+
+async function createEditorialResearchHint(user, payload = {}) {
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const depth = String(payload.depth || "normal").trim();
+  if (topic.length < 3) throw new Error("Inserisci un tema di almeno 3 caratteri");
+  if (!EDITORIAL_RESEARCH_HINT_DEPTHS.has(depth)) throw new Error("Livello di ricerca non valido");
+  const duplicate = await existingActiveResearchHint(topic);
+  if (duplicate) return { created: false, hint: duplicate };
+  const active = await researchRadarHints();
+  if (active.length >= EDITORIAL_RESEARCH_HINT_MAX_ACTIVE) {
+    throw new Error(`Puoi mantenere al massimo ${EDITORIAL_RESEARCH_HINT_MAX_ACTIVE} temi da validare attivi`);
+  }
+  const now = new Date().toISOString();
+  const evidence = {
+    source: "research_hint",
+    research_hint: {
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      depth,
+      created_at: now,
+      created_by: user.id,
+    },
+  };
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic,
+      category: null,
+      opportunity_type: "monitor",
+      score: 0,
+      rationale: researchHintRationale(depth),
+      evidence,
+      status: "pending",
+    },
+  });
+  const hint = rows?.[0];
+  if (!hint?.id) throw new Error("Tema da validare non salvato");
+  return { created: true, hint };
+}
+
+async function archiveEditorialResearchHint(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo tema non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = rows?.[0];
+  const hint = researchHintMeta(current);
+  if (!current || !hint) throw new Error("Tema da validare non trovato");
+  const now = new Date().toISOString();
+  const evidence = {
+    ...(current.evidence && typeof current.evidence === "object" ? current.evidence : {}),
+    research_hint: { ...hint, archived_at: now, archived_by: user.id },
+  };
+  const updated = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: "rejected", evidence, updated_at: now },
+  });
+  if (!updated?.[0]?.id) throw new Error("Tema da validare non rimosso");
+  return updated[0];
 }
 
 async function updateManualEditorialIdea(user, payload = {}) {
@@ -7446,6 +7636,16 @@ export default async function handler(req, res) {
     if (req.method === "POST" && action === "create-manual-editorial-idea") {
       const result = await createManualEditorialIdea(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "create-editorial-research-hint") {
+      const result = await createEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "archive-editorial-research-hint") {
+      const hint = await archiveEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, hint });
     }
 
     if (req.method === "POST" && action === "update-manual-editorial-idea") {

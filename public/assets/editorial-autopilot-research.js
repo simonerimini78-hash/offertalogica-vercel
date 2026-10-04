@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.88";
+  const VERSION = "0.12.89";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -223,6 +223,29 @@
             <div class="ol-autopilot-pane">
               <h5>Radar web editoriale</h5>
               <p class="ol-muted">Scansione automatica sabato, domenica e lunedì dalle 08:00. Confronta web, Search Console, archivio articoli e strumenti OffertaLogica prima di proporre un nuovo contenuto.</p>
+              <div class="ol-autopilot-pane" data-research-hint-editor>
+                <h5>Questo potrebbe essere il tema del prossimo articolo</h5>
+                <p class="ol-muted">Suggeriscilo al Radar: verrà verificato sul web e contro Search Console e archivio. Il suggerimento non aumenta il punteggio e non forza la pubblicazione.</p>
+                <div class="ol-autopilot-fields ol-autopilot-fields-compact">
+                  <div class="ol-field">
+                    <label for="autopilot-research-hint-topic">Tema da validare</label>
+                    <input id="autopilot-research-hint-topic" data-research-hint-topic type="text" maxlength="240" placeholder="Es. Spread a zero: conviene davvero?">
+                  </div>
+                  <div class="ol-field">
+                    <label for="autopilot-research-hint-depth">Livello di ricerca</label>
+                    <select id="autopilot-research-hint-depth" data-research-hint-depth>
+                      <option value="normal">Normale</option>
+                      <option value="deep">Approfondisci</option>
+                    </select>
+                    <small>“Approfondisci” chiede più verifiche, ma non dà punti extra.</small>
+                  </div>
+                </div>
+                <div class="ol-autopilot-toolbar">
+                  <p class="ol-autopilot-save-state" data-research-hint-message>Il tema entrerà nelle prossime scansioni Radar finché non lo rimuovi.</p>
+                  <button class="ol-button ol-button-primary" type="button" data-research-hint-save>Inserisci nelle ricerche</button>
+                </div>
+                <div class="ol-autopilot-archive-list" data-research-hint-list></div>
+              </div>
               <div class="ol-autopilot-toolbar">
                 <p class="ol-autopilot-save-state" data-research-radar-message>Caricamento radar…</p>
                 <button class="ol-button ol-button-secondary" type="button" data-research-radar-start>Avvia scansione ora</button>
@@ -388,6 +411,41 @@
     })[String(action || "")] || String(action || "Da valutare");
   }
 
+  function researchHintVerdictLabel(verdict) {
+    return ({
+      NEW_ARTICLE: "Validato · nuovo articolo",
+      NEW_ANGLE: "Validato · nuovo punto di vista",
+      UPDATE_EXISTING: "Meglio aggiornare un articolo",
+      SKIP_DUPLICATE: "Già coperto · da non duplicare",
+      INSUFFICIENT_SIGNAL: "Segnale insufficiente",
+    })[verdict] || "In attesa di validazione";
+  }
+
+  function renderResearchHints(section, hints = []) {
+    const box = section?.querySelector("[data-research-hint-list]");
+    if (!box) return;
+    if (!hints.length) {
+      box.innerHTML = '<div class="ol-autopilot-archive-item"><small>Nessun tema suggerito in attesa di validazione.</small></div>';
+      return;
+    }
+    box.innerHTML = hints.map((hint) => {
+      const review = hint?.latest_review || null;
+      const sources = (review?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
+      const scans = Number(hint?.review_count || 0);
+      const status = review
+        ? `${researchHintVerdictLabel(review.verdict)} · ${Number(review.score || 0)}/100`
+        : "In attesa della prossima scansione";
+      return `<div class="ol-autopilot-archive-item">
+        <strong>${esc(hint?.topic || "Tema senza titolo")}</strong>
+        <small><b>${esc(status)}</b> · ricerca ${hint?.depth === "deep" ? "approfondita" : "normale"}${scans ? ` · valutato in ${scans} scansione${scans === 1 ? "" : "i"}` : ""}</small>
+        ${review?.rationale ? `<small><b>Esito:</b> ${esc(review.rationale)}</small>` : ""}
+        ${review?.suggested_angle ? `<small><b>Possibile angolo:</b> ${esc(review.suggested_angle)}</small>` : ""}
+        ${sources ? `<small><b>Fonti:</b> ${sources}</small>` : ""}
+        <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-research-hint-archive="${esc(hint.id || "")}">Rimuovi dalle ricerche</button></div>
+      </div>`;
+    }).join("");
+  }
+
   function researchRadarActionTone(action) {
     return ({
       NEW_ARTICLE: "success",
@@ -402,6 +460,7 @@
     const message = section?.querySelector("[data-research-radar-message]");
     const button = section?.querySelector("[data-research-radar-start]");
     if (!box || !message || !button) return;
+    renderResearchHints(section, Array.isArray(payload?.research_hints) ? payload.research_hints : []);
     const running = payload?.running || null;
     button.disabled = Boolean(running);
     if (running) {
@@ -426,8 +485,9 @@
         ? `<small><b>Articolo correlato:</b> ${esc(candidate.existing_article.title)}${candidate.difference_from_existing ? ` · ${esc(candidate.difference_from_existing)}` : ""}</small>`
         : "";
       const component = candidate?.component_scores || {};
+      const hintBadge = candidate?.research_hint?.id ? " · tema suggerito dalla Redazione" : "";
       return `<div class="ol-autopilot-archive-item">
-        <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100</strong>
+        <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100${esc(hintBadge)}</strong>
         <small><b>${esc(researchRadarActionLabel(action))}</b> · domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · novità ${Number(component.freshness || 0)} · gap ${Number(component.content_gap || 0)}</small>
         <small><b>Intento:</b> ${esc(candidate?.search_intent || "—")}</small>
         <small><b>Angolo:</b> ${esc(candidate?.angle || "—")}</small>
@@ -1692,6 +1752,8 @@
   async function handleOpportunityAction(event) {
     const section = event.currentTarget;
     const manualSaveButton = event.target.closest("[data-manual-idea-save]");
+    const researchHintSaveButton = event.target.closest("[data-research-hint-save]");
+    const researchHintArchiveButton = event.target.closest("[data-research-hint-archive]");
     const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
@@ -1724,6 +1786,50 @@
       if (expandedOpportunityIds.has(id)) expandedOpportunityIds.delete(id);
       else expandedOpportunityIds.add(id);
       renderOpportunities(section, opportunityRows);
+      return;
+    }
+
+    if (researchHintSaveButton) {
+      const hintMessage = section.querySelector("[data-research-hint-message]");
+      const topicInput = section.querySelector("[data-research-hint-topic]");
+      const depthInput = section.querySelector("[data-research-hint-depth]");
+      const topic = String(topicInput?.value || "").trim();
+      const depth = String(depthInput?.value || "normal");
+      if (topic.length < 3) {
+        if (hintMessage) hintMessage.textContent = "Inserisci un tema di almeno 3 caratteri.";
+        return;
+      }
+      researchHintSaveButton.disabled = true;
+      if (hintMessage) hintMessage.textContent = "Inserimento del tema nelle ricerche…";
+      try {
+        const payload = await endpoint("create-editorial-research-hint", { method: "POST", body: { topic, depth } });
+        if (topicInput) topicInput.value = "";
+        if (depthInput) depthInput.value = "normal";
+        if (hintMessage) hintMessage.textContent = payload?.result?.created === false
+          ? "Questo tema è già presente nelle ricerche."
+          : "Tema inserito. Verrà validato nella prossima scansione Radar; puoi avviare una scansione manuale se vuoi valutarlo subito.";
+        await loadResearchRadar(section);
+      } catch (error) {
+        if (hintMessage) hintMessage.textContent = `Tema non inserito: ${error.message}`;
+      } finally {
+        researchHintSaveButton.disabled = false;
+      }
+      return;
+    }
+
+    if (researchHintArchiveButton) {
+      const id = researchHintArchiveButton.dataset.researchHintArchive || "";
+      const hintMessage = section.querySelector("[data-research-hint-message]");
+      if (!id || researchHintArchiveButton.disabled) return;
+      researchHintArchiveButton.disabled = true;
+      try {
+        await endpoint("archive-editorial-research-hint", { method: "POST", body: { id } });
+        if (hintMessage) hintMessage.textContent = "Tema rimosso dalle prossime ricerche Radar.";
+        await loadResearchRadar(section);
+      } catch (error) {
+        if (hintMessage) hintMessage.textContent = `Tema non rimosso: ${error.message}`;
+        researchHintArchiveButton.disabled = false;
+      }
       return;
     }
 
