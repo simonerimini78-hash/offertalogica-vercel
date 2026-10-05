@@ -1,7 +1,7 @@
 {
-  "versioneDati": "provider-brand-2026-09-28-v46-greenius",
+  "versioneDati": "provider-brand-2026-10-05-v47-elit",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
-  "aggiornatoIl": "2026-09-28",
+  "aggiornatoIl": "2026-10-05",
   "providers": {
     "a2a": {
       "label": "A2A",
@@ -230,6 +230,12 @@
       "logo": "/assets/providers/ho-mobile-user.png",
       "source": "asset fornito dal titolare OffertaLogica il 2026-07-07",
       "usageStatus": "asset_fornito_da_titolare_mobile"
+    },
+    "elit": {
+      "label": "Elit Energia",
+      "logo": "/assets/providers/elit-user.png",
+      "source": "/assets/providers/elit-user.png",
+      "usageStatus": "asset_locale_presente_repository"
     }
   }
 }

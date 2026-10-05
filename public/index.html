@@ -45,7 +45,7 @@
 @media (min-width: 981px) {
   .ol-site-header {
     width:min(100%,1000px); margin:0 auto 22px; padding:18px 0 12px;
-    display:grid; grid-template-columns:220px minmax(0,1fr) 46px; gap:16px;
+    display:grid; grid-template-columns:220px minmax(0,1fr); gap:16px;
     align-items:center; justify-content:stretch; text-align:left;
   }
   .ol-site-header::after { display:none !important; }
@@ -53,7 +53,7 @@
   .ol-site-header .site-logo-main { width:220px; max-width:220px; margin:0; }
   .ol-desktop-nav { width:100%; justify-content:center; gap:2px; padding:5px; border-radius:16px; }
   .ol-desktop-nav a { padding:8px 9px; font-size:11.5px; }
-  .ol-menu-toggle { position:static; transform:none; display:grid !important; width:46px; height:46px; }
+  .ol-menu-toggle { display:none !important; }
   .ol-discovery-shell { width:min(100%,1000px); margin:34px auto 0; }
   .ol-discovery { padding:0; border:0; border-radius:0; background:transparent; box-shadow:none; backdrop-filter:none; -webkit-backdrop-filter:none; }
   .ol-discovery-head { padding:0 2px; margin-bottom:15px; }
@@ -6157,6 +6157,7 @@ let PROVIDER_BRANDS = {
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude-user.png" },
   engie: { label: "Engie", logo: "/assets/providers/engie-user.png" },
   eon: { label: "E.ON", logo: "/assets/providers/eon-user.png" },
+  elit: { label: "Elit Energia", logo: "/assets/providers/elit-user.png" },
   iren: { label: "Iren Luce e Gas", logo: "/assets/providers/iren-user.png" },
   lene: { label: "Lene Energia", logo: "/assets/providers/lene-user.png" },
   magis: { label: "Magis Energia", logo: "/assets/providers/magis-user.png" },
@@ -18805,6 +18806,7 @@ const PROVIDER_MATCHERS = [
   ["enercom", ["enercom"]],
   ["engie", ["engie"]],
   ["eja", ["eja energia"]],
+  ["elit", ["elit energia", "elit"]],
   ["hera", ["hera", "heracomm"]],
   ["illum", ["illumia", "illum"]],
   ["iren", ["iren"]],
