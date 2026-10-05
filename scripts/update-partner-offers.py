@@ -411,6 +411,483 @@ def parse_greenius(path: Path, partner_key: str, partner_label: str, market_indi
     return ParseResult(payload=payload, text=text)
 
 
+
+def parse_cte_date(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    text = normalize_space(raw)
+    match = re.search(r"\b(\d{1,2})[/-](\d{1,2})[/-](\d{4})\b", text)
+    if match:
+        try:
+            return date(int(match.group(3)), int(match.group(2)), int(match.group(1))).isoformat()
+        except ValueError:
+            return None
+    return parse_italian_date(text)
+
+
+def detail_component(name: str, value: float | None, unit: str, note: str | None = None) -> dict[str, Any]:
+    item: dict[str, Any] = {
+        "name": name,
+        "value": value,
+        "unit": unit,
+        "rankingTreatment": "detail_only",
+    }
+    if note:
+        item["note"] = note
+    return item
+
+
+def annual_fixed_component(name: str, value: float, unit: str = "EUR/anno") -> dict[str, Any]:
+    return {
+        "name": name,
+        "value": round(float(value), 8),
+        "unit": unit,
+        "rankingTreatment": "annual_fixed_fee",
+    }
+
+
+def build_partner_payload(
+    *,
+    path: Path,
+    partner_key: str,
+    partner_label: str,
+    provider_key: str,
+    provider_label: str,
+    provider_vat: str,
+    offer_code: str,
+    offer_name: str,
+    commercial_family_name: str,
+    commodity: str,
+    customer_type: str,
+    sale_from: str | None,
+    sale_to: str,
+    conditions_duration_months: int | None,
+    index_name: str | None,
+    spread: float | None,
+    annual_fixed_fee: float,
+    market_indices: dict[str, float],
+    variable_components: list[dict[str, Any]] | None = None,
+    fixed_components: list[dict[str, Any]] | None = None,
+    requirements_other: list[str] | None = None,
+    ranking_eligible: bool = True,
+    exclusion_reason: str | None = None,
+    alternative_offer_codes: list[str] | None = None,
+    known_partial_variable_adder: float | None = None,
+    unpriced_components: list[str] | None = None,
+) -> ParseResult:
+    if commodity not in {"luce", "gas"}:
+        raise ValueError("commodity partner non supportata")
+    if customer_type not in {"domestico", "business"}:
+        raise ValueError("customerType partner non supportato")
+    if not offer_code or not offer_name or not sale_to:
+        raise ValueError("Campi identificativi CTE incompleti")
+    if annual_fixed_fee < 0:
+        raise ValueError("quota fissa partner negativa")
+
+    index_value = market_indices.get(str(index_name or "").lower()) if index_name else None
+    projected_price: float | None = None
+    partial_price: float | None = None
+    if ranking_eligible:
+        if index_name not in {"PUN", "PSV"} or spread is None or index_value is None:
+            raise ValueError("indice/spread non disponibili per la proiezione partner")
+        projected_price = round(float(index_value) + float(spread), 8)
+    elif known_partial_variable_adder is not None:
+        if index_name not in {"PUN", "PSV"} or index_value is None:
+            raise ValueError("indice non disponibile per la proiezione parziale partner")
+        partial_price = round(float(index_value) + float(known_partial_variable_adder), 8)
+
+    identity: dict[str, Any] = {
+        "canonicalKey": f"{provider_vat}|{commodity}|{offer_code}",
+        "providerKey": provider_key,
+        "providerLabel": provider_label,
+        "providerVat": provider_vat,
+        "offerCode": offer_code,
+        "offerName": offer_name,
+        "commercialFamily": commercial_family_name,
+    }
+    alternatives = [str(code).strip() for code in (alternative_offer_codes or []) if str(code).strip() and str(code).strip() != offer_code]
+    if alternatives:
+        identity["alternativeOfferCodes"] = alternatives
+
+    source_hash = sha256_file(path)
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+    payload = {
+        "schemaVersion": SCHEMA_VERSION,
+        "sourceType": "partner_direct",
+        "partner": {
+            "partnerKey": partner_key,
+            "partnerLabel": partner_label,
+        },
+        "identity": identity,
+        "classification": {
+            "commodity": commodity,
+            "customerType": customer_type,
+            "priceType": "variabile",
+        },
+        "validity": {
+            "saleFrom": sale_from,
+            "saleTo": sale_to,
+            "conditionsDurationMonths": conditions_duration_months,
+        },
+        "economics": {
+            "indexName": index_name,
+            "indexValueAtProjection": index_value,
+            "fixedPrice": None,
+            "spread": spread,
+            "annualFixedFee": round(float(annual_fixed_fee), 8),
+            "economicCompleteness": "complete" if ranking_eligible else "partial",
+            "knownPartialVariableAdder": round(float(known_partial_variable_adder), 8) if known_partial_variable_adder is not None else None,
+            "unpricedComponents": [str(item).strip() for item in (unpriced_components or []) if str(item).strip()],
+            "networkLosses": {
+                "rankingPriceConvention": "net" if commodity == "luce" else None,
+            },
+            "variableComponents": variable_components or [],
+            "fixedComponents": fixed_components or [],
+            "cap": {
+                "enabled": False,
+                "value": None,
+                "unit": None,
+                "validForMonths": None,
+                "rule": None,
+            },
+            "discounts": [],
+        },
+        "requirements": {
+            "sdd": None,
+            "digitalInvoice": None,
+            "powerConstraints": None,
+            "geographicConstraints": None,
+            "other": requirements_other or [],
+        },
+        "activation": {
+            "channel": None,
+            "partnerDirect": True,
+        },
+        "rankingProjection": {
+            "eligible": ranking_eligible,
+            "price": projected_price,
+            "partialPrice": partial_price,
+            "annualFixedFee": round(float(annual_fixed_fee), 8),
+            "projectionRule": "indice corrente + spread netto perdite" if ranking_eligible and commodity == "luce" else ("indice corrente + spread" if ranking_eligible else ("indice corrente + sole componenti note (parziale)" if partial_price is not None else None)),
+            "exclusionReason": exclusion_reason,
+        },
+        "source": {
+            "originalFile": path.name,
+            "fileHash": source_hash,
+            "normalizedAt": now,
+        },
+        "status": "normalizzata" if ranking_eligible else "normalizzata_non_calcolabile",
+    }
+    return ParseResult(payload=payload, text="")
+
+
+def lion_green_commercial_family(name: str) -> str:
+    value = normalize_space(name).lower().replace("_", " ")
+    value = re.sub(r"\b(?:power|gas)\b", " ", value)
+    return re.sub(r"\s+", " ", value).strip()
+
+
+def ovenergy_commercial_family(name: str) -> str:
+    value = normalize_space(name).lower()
+    value = re.sub(r"\b(?:pun|psv)\b", " ", value)
+    value = re.sub(r"\s+", " ", value).strip()
+    if value == "flex business":
+        return "business flex"
+    return value
+
+
+def parse_lion_green(path: Path, partner_key: str, partner_label: str, market_indices: dict[str, float]) -> ParseResult:
+    text = extract_pdf_text(path)
+    normalized = normalize_space(text)
+    code = first_match(r"Codice\s+offerta:\s*([A-Z0-9]+)", text)
+    if not code or not code.startswith("039840") or "FAMILY FORCE" not in normalized.upper():
+        raise ValueError("CTE non riconosciuta come Lion Green FAMILY FORCE")
+
+    offer_name = first_match(r"Condizioni\s+Tecnico\s+Economiche\s*[–-]\s*Offerta\s+(.+?)\s+nel\s+Mercato\s+Libero", normalized)
+    valid_to = parse_cte_date(first_match(r"richiesta\s+sia\s+effettuata\s+entro\s+il:\s*([0-9/.-]+)", text))
+    header = normalized[:900].upper()
+    commodity = "gas" if "FORNITURA DI GAS NATURALE" in header else "luce" if "FORNITURA DI ENERGIA ELETTRICA" in header else ""
+    if not commodity:
+        raise ValueError("commodity Lion Green non riconosciuta")
+    annual_fixed_fee = parse_number(first_match(r"Corrispettivo\s+annuo\s+([0-9.,]+)\s*(?:€|Euro)/(?:POD|PdR)/anno", text))
+    if not offer_name or not valid_to or annual_fixed_fee is None:
+        raise ValueError("Campi identificativi/economici Lion Green incompleti")
+
+    variable_components: list[dict[str, Any]] = []
+    if commodity == "luce":
+        gross_spread = parse_number(first_match(r"PUN_INDEX_GME\s*\+\s*α:\s*([0-9.,]+)\s*(?:€|Euro)/kWh", text))
+        if gross_spread is None:
+            raise ValueError("spread luce Lion Green non leggibile")
+        spread = round(gross_spread / 1.10, 8)
+        variable_components.append(detail_component(
+            "Spread CTE comprensivo perdite di rete",
+            gross_spread,
+            "EUR/kWh",
+            "Normalizzato al netto delle perdite per coerenza con il motore, che applica separatamente il fattore perdite.",
+        ))
+        index_name = "PUN"
+    else:
+        spread = parse_number(first_match(r"PSV\s*\+\s*α:\s*([0-9.,]+)\s*(?:€|Euro)/Smc", text))
+        if spread is None:
+            raise ValueError("spread gas Lion Green non leggibile")
+        index_name = "PSV"
+
+    result = build_partner_payload(
+        path=path,
+        partner_key=partner_key,
+        partner_label=partner_label,
+        provider_key="liongreen",
+        provider_label="Lion Green",
+        provider_vat="04569010616",
+        offer_code=code,
+        offer_name=offer_name,
+        commercial_family_name=lion_green_commercial_family(offer_name),
+        commodity=commodity,
+        customer_type="domestico",
+        sale_from=None,
+        sale_to=valid_to,
+        conditions_duration_months=12,
+        index_name=index_name,
+        spread=spread,
+        annual_fixed_fee=annual_fixed_fee,
+        market_indices=market_indices,
+        variable_components=variable_components,
+        fixed_components=[annual_fixed_component("Corrispettivo annuo CTE", annual_fixed_fee)],
+        requirements_other=["Condizioni economiche valide per i primi 12 mesi dalla data di attivazione."],
+    )
+    return ParseResult(payload=result.payload, text=text)
+
+
+def parse_ovenergy(path: Path, partner_key: str, partner_label: str, market_indices: dict[str, float]) -> ParseResult:
+    text = extract_pdf_text(path)
+    normalized = normalize_space(text)
+    codes: list[str] = []
+    for code in re.findall(r"\b021889[A-Z0-9]{20,}\b", text):
+        if code not in codes:
+            codes.append(code)
+    if not codes:
+        raise ValueError("CTE non riconosciuta come OV Energy")
+
+    validity = re.search(r"Offerta\s+sottoscrivibile\s+dal\s+([0-9/.-]+)\s+al\s+([0-9/.-]+)", text, re.I)
+    sale_from = parse_cte_date(validity.group(1)) if validity else None
+    sale_to = parse_cte_date(validity.group(2)) if validity else None
+    offer_name = None
+    for known_name in ("PSV Domestici Flex", "PSV Flex Business", "PUN Domestici Flex", "PUN Business Flex"):
+        if known_name.lower() in normalized.lower():
+            offer_name = known_name
+            break
+    if not sale_from or not sale_to or not offer_name:
+        raise ValueError("Campi identificativi OV Energy incompleti")
+
+    header = normalized[:900].upper()
+    commodity = "gas" if "FORNITURA DI GAS NATURALE" in header else "luce" if "FORNITURA DI ENERGIA ELETTRICA" in header else ""
+    if not commodity:
+        raise ValueError("commodity OV Energy non riconosciuta")
+    customer_type = "business" if "NON DOMESTIC" in normalized.upper() else "domestico"
+    family = ovenergy_commercial_family(offer_name)
+    variable_components: list[dict[str, Any]] = []
+    fixed_components: list[dict[str, Any]] = []
+    requirements_other = ["Condizioni economiche riferite ai primi 12 mesi dalla data di attivazione."]
+
+    if customer_type == "domestico" and commodity == "gas":
+        spread = parse_number(first_match(r"Corrispettivo\s+per\s+il\s+Consumo\s+PSV\s*\+\s*([0-9.,]+)\s*(?:€|Euro)/Smc", text))
+        programming = parse_number(first_match(r"Onere\s+di\s+programmazione\s+([0-9.,]+)\s*(?:€|Euro)/PdR/Anno", text))
+        monthly_fixed = parse_number(first_match(r"fatturato\s+in\s+quote\s+mensili\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/mese", text))
+        spread_month_13 = parse_number(first_match(r"dal\s+13\s+mese\s+PSV\s*\+\s*([0-9.,]+)\s*(?:€|Euro)/Smc", text))
+        if spread is None or programming is None or monthly_fixed is None:
+            raise ValueError("Dati economici OV Energy PSV Domestici incompleti")
+        annual_monthly_fixed = round(monthly_fixed * 12, 8)
+        annual_fixed_fee = round(programming + annual_monthly_fixed, 8)
+        fixed_components.extend([
+            annual_fixed_component("Onere di programmazione", programming),
+            annual_fixed_component("Corrispettivo annuo fisso", annual_monthly_fixed),
+        ])
+        if spread_month_13 is not None:
+            variable_components.append(detail_component("Spread dal 13° mese", spread_month_13, "EUR/Smc"))
+        result = build_partner_payload(
+            path=path,
+            partner_key=partner_key,
+            partner_label=partner_label,
+            provider_key="ovenergy",
+            provider_label="OV Energy",
+            provider_vat="12952081003",
+            offer_code=codes[0],
+            offer_name=offer_name,
+            commercial_family_name=family,
+            commodity=commodity,
+            customer_type=customer_type,
+            sale_from=sale_from,
+            sale_to=sale_to,
+            conditions_duration_months=12,
+            index_name="PSV",
+            spread=spread,
+            annual_fixed_fee=annual_fixed_fee,
+            market_indices=market_indices,
+            variable_components=variable_components,
+            fixed_components=fixed_components,
+            requirements_other=requirements_other,
+        )
+        return ParseResult(payload=result.payload, text=text)
+
+    if customer_type == "domestico" and commodity == "luce":
+        gross_spread = parse_number(first_match(r"Corrispettivo\s+per\s+il\s+consumo\s+PUN\s+Index\s+GME\s*\+\s*([0-9.,]+)\s*(?:€|Euro)/kWh", text))
+        programming = parse_number(first_match(r"Onere\s+di\s+programmazione\s+([0-9.,]+)\s*(?:€|Euro)/POD/anno", text))
+        monthly_fixed = parse_number(first_match(r"fatturato\s+in\s+quote\s+mensili\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/mese", text))
+        gross_spread_month_13 = parse_number(first_match(r"dal\s+13\s+mese\s+PUN\s+Index\s+GME\s*\+\s*([0-9.,]+)\s*(?:€|Euro)/kWh", text))
+        cdispd = parse_number(first_match(r"CDISPD.{0,220}?pari\s+al\s+valore\s+([0-9.,]+)", normalized))
+        if gross_spread is None or programming is None or monthly_fixed is None:
+            raise ValueError("Dati economici OV Energy PUN Domestici incompleti")
+        spread = round(gross_spread / 1.10, 8)
+        annual_monthly_fixed = round(monthly_fixed * 12, 8)
+        annual_fixed_fee = round(programming + annual_monthly_fixed, 8)
+        variable_components.append(detail_component(
+            "Spread CTE comprensivo perdite di rete",
+            gross_spread,
+            "EUR/kWh",
+            "Normalizzato al netto delle perdite per coerenza con il motore, che applica separatamente il fattore perdite.",
+        ))
+        if gross_spread_month_13 is not None:
+            variable_components.append(detail_component("Spread CTE dal 13° mese comprensivo perdite", gross_spread_month_13, "EUR/kWh"))
+        if cdispd is not None:
+            variable_components.append(detail_component(
+                "C_DISPD indicato nella CTE",
+                cdispd,
+                "EUR/kWh",
+                "Voce regolata documentata ma esclusa dal ranking partner: il motore applica separatamente il C_DISPD corrente.",
+            ))
+        fixed_components.extend([
+            annual_fixed_component("Onere di programmazione", programming),
+            annual_fixed_component("Corrispettivo annuo fisso", annual_monthly_fixed),
+        ])
+        result = build_partner_payload(
+            path=path,
+            partner_key=partner_key,
+            partner_label=partner_label,
+            provider_key="ovenergy",
+            provider_label="OV Energy",
+            provider_vat="12952081003",
+            offer_code=codes[0],
+            offer_name=offer_name,
+            commercial_family_name=family,
+            commodity=commodity,
+            customer_type=customer_type,
+            sale_from=sale_from,
+            sale_to=sale_to,
+            conditions_duration_months=12,
+            index_name="PUN",
+            spread=spread,
+            annual_fixed_fee=annual_fixed_fee,
+            market_indices=market_indices,
+            variable_components=variable_components,
+            fixed_components=fixed_components,
+            requirements_other=requirements_other,
+        )
+        return ParseResult(payload=result.payload, text=text)
+
+    if customer_type == "business" and commodity == "gas":
+        base_spread = parse_number(first_match(r"Spread\s+([0-9.,]+)\s*(?:€|Euro)/Smc", text))
+        contractual_monthly = parse_number(first_match(r"quota\s+fissa.{0,160}?([0-9.,]+)\s*(?:€|Euro)/mese", normalized))
+        programming_monthly = parse_number(first_match(r"onere\s+di\s+programmazione.{0,140}?([0-9.,]+)\s*(?:€|Euro)/mese", normalized))
+        cpr = parse_number(first_match(r"componente\s+sostitutiva\s+della\s+CPR\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/Smc", normalized))
+        ccr = parse_number(first_match(r"componente\s+sostitutiva\s+della\s+CCR\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/Smc", normalized))
+        if base_spread is None or contractual_monthly is None or programming_monthly is None:
+            raise ValueError("Dati documentali OV Energy PSV Business incompleti")
+        annual_fixed_fee = round((contractual_monthly + programming_monthly) * 12, 8)
+        variable_components.extend([
+            detail_component("Spread energia CTE", base_spread, "EUR/Smc"),
+            detail_component("QTint", None, "EUR/Smc", "Componente richiamata dalla CTE senza valore unitario riportato."),
+            detail_component("QTpsv", None, "EUR/Smc", "Componente richiamata dalla CTE senza valore unitario riportato."),
+            detail_component("CPR sostitutiva", cpr, "EUR/Smc"),
+            detail_component("CCR sostitutiva", ccr, "EUR/Smc"),
+            detail_component("QOA", None, "EUR/Smc", "Componente richiamata dalla CTE senza valore unitario riportato."),
+        ])
+        fixed_components.extend([
+            annual_fixed_component("Quota fissa contrattuale", contractual_monthly * 12),
+            annual_fixed_component("Onere di programmazione", programming_monthly * 12),
+        ])
+        exclusion = "CTE business normalizzata a fini documentali: QTint, QTpsv e QOA non hanno un valore unitario completo modellabile dal ranking partner corrente."
+        requirements_other.append(exclusion)
+        result = build_partner_payload(
+            path=path,
+            partner_key=partner_key,
+            partner_label=partner_label,
+            provider_key="ovenergy",
+            provider_label="OV Energy",
+            provider_vat="12952081003",
+            offer_code=codes[0],
+            offer_name=offer_name,
+            commercial_family_name=family,
+            commodity=commodity,
+            customer_type=customer_type,
+            sale_from=sale_from,
+            sale_to=sale_to,
+            conditions_duration_months=12,
+            index_name="PSV",
+            spread=None,
+            annual_fixed_fee=annual_fixed_fee,
+            market_indices=market_indices,
+            variable_components=variable_components,
+            fixed_components=fixed_components,
+            requirements_other=requirements_other,
+            ranking_eligible=False,
+            exclusion_reason=exclusion,
+            alternative_offer_codes=codes[1:],
+            known_partial_variable_adder=round(base_spread + float(cpr or 0) + float(ccr or 0), 8),
+            unpriced_components=["QTint", "QTpsv", "QOA"],
+        )
+        return ParseResult(payload=result.payload, text=text)
+
+    if customer_type == "business" and commodity == "luce":
+        base_spread = parse_number(first_match(r"Spread\s+([0-9.,]+)\s*(?:€|Euro)/kWh", text))
+        gross_spread = parse_number(first_match(r"Spread\s+comprensivo\s+delle\s+perdite\s+di\s+rete\s+([0-9.,]+)\s*(?:€|Euro)/kWh", text))
+        programming_monthly = parse_number(first_match(r"onere\s+di\s+programmazione\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/POD/mese", normalized))
+        commercial_variable = parse_number(first_match(r"commercializzazione\s+e\s+vendita\s+variabile\s+pari\s+a\s+([0-9.,]+)\s*(?:€|Euro)/kWh", normalized))
+        if base_spread is None or programming_monthly is None or commercial_variable is None:
+            raise ValueError("Dati documentali OV Energy PUN Business incompleti")
+        annual_fixed_fee = round(programming_monthly * 12, 8)
+        variable_components.extend([
+            detail_component("Spread energia CTE", base_spread, "EUR/kWh"),
+            detail_component("Spread CTE comprensivo perdite di rete", gross_spread, "EUR/kWh"),
+            detail_component("Commercializzazione e vendita variabile", commercial_variable, "EUR/kWh"),
+            detail_component("Dispacciamento TIDE", None, "EUR/kWh", "Voce regolata richiamata dalla CTE; il valore è aggiornato separatamente dal motore."),
+            detail_component("Mercato capacità CMC", None, "EUR/kWh", "Voce regolata richiamata dalla CTE; il valore è aggiornato separatamente dal motore."),
+        ])
+        fixed_components.append(annual_fixed_component("Onere di programmazione", annual_fixed_fee))
+        exclusion = "CTE business normalizzata a fini documentali: la struttura commerciale multi-componente e i due codici offerta non sono rappresentati integralmente dal ranking partner corrente."
+        requirements_other.append(exclusion)
+        result = build_partner_payload(
+            path=path,
+            partner_key=partner_key,
+            partner_label=partner_label,
+            provider_key="ovenergy",
+            provider_label="OV Energy",
+            provider_vat="12952081003",
+            offer_code=codes[0],
+            offer_name=offer_name,
+            commercial_family_name=family,
+            commodity=commodity,
+            customer_type=customer_type,
+            sale_from=sale_from,
+            sale_to=sale_to,
+            conditions_duration_months=12,
+            index_name="PUN",
+            spread=None,
+            annual_fixed_fee=annual_fixed_fee,
+            market_indices=market_indices,
+            variable_components=variable_components,
+            fixed_components=fixed_components,
+            requirements_other=requirements_other,
+            ranking_eligible=False,
+            exclusion_reason=exclusion,
+            alternative_offer_codes=codes[1:],
+            known_partial_variable_adder=None,
+            unpriced_components=["Dispacciamento TIDE", "Mercato capacità CMC"],
+        )
+        return ParseResult(payload=result.payload, text=text)
+
+    raise ValueError("CTE OV Energy non supportata")
+
+
 def partner_key_from_dir(path: Path) -> str:
     key = re.sub(r"[^a-z0-9]+", "-", path.name.lower()).strip("-")
     return key or "partner"
@@ -420,8 +897,16 @@ def parser_for_partner(path: Path, text_hint: str | None = None):
     key = partner_key_from_dir(path)
     if key == "greenius":
         return parse_greenius
+    if key == "lion-green":
+        return parse_lion_green
+    if key == "ovenergy":
+        return parse_ovenergy
     if text_hint and "GREENIUS Srl" in text_hint:
         return parse_greenius
+    if text_hint and "FAMILY FORCE" in text_hint.upper():
+        return parse_lion_green
+    if text_hint and "OV ENERGY" in text_hint.upper():
+        return parse_ovenergy
     return None
 
 
@@ -517,6 +1002,30 @@ def refresh_ranking_projection(payload: dict[str, Any], market_indices: dict[str
     if not isinstance(annual_fixed_fee, (int, float)):
         raise ValueError("quota fissa normalizzata assente o non numerica")
 
+    if projection.get("eligible") is False or economics.get("economicCompleteness") == "partial":
+        index_name = str(economics.get("indexName") or "").upper()
+        known_partial_variable_adder = economics.get("knownPartialVariableAdder")
+        index_value = market_indices.get(index_name.lower())
+        if index_name not in {"PUN", "PSV"} or not isinstance(index_value, (int, float)):
+            raise ValueError("indice non disponibile per la proiezione parziale corrente")
+        partial_price = (
+            round(float(index_value) + float(known_partial_variable_adder), 8)
+            if isinstance(known_partial_variable_adder, (int, float))
+            else None
+        )
+        economics["indexValueAtProjection"] = float(index_value)
+        projection.update({
+            "eligible": False,
+            "price": None,
+            "partialPrice": partial_price,
+            "annualFixedFee": round(float(annual_fixed_fee), 8),
+            "projectionRule": "indice corrente + sole componenti note (parziale)" if partial_price is not None else "componenti note separate; totale parziale non aggregato",
+            "exclusionReason": projection.get("exclusionReason") or "Condizioni economiche incomplete: record escluso dal ranking.",
+        })
+        refreshed["economics"] = economics
+        refreshed["rankingProjection"] = projection
+        return refreshed
+
     if price_type == "fisso":
         fixed_price = economics.get("fixedPrice")
         if not isinstance(fixed_price, (int, float)):
@@ -575,7 +1084,6 @@ def validate_active_record(payload: dict[str, Any], source_path: Path) -> dict[s
         "customerType": classification.get("customerType"),
         "priceType": classification.get("priceType"),
         "saleTo": validity.get("saleTo"),
-        "price": projection.get("price"),
         "annualFixedFee": projection.get("annualFixedFee"),
     }
     missing = [key for key, value in required.items() if value in (None, "")]
@@ -591,10 +1099,31 @@ def validate_active_record(payload: dict[str, Any], source_path: Path) -> dict[s
     if str(identity.get("canonicalKey") or "").lower() != canonical_expected.lower():
         raise ValueError(f"canonicalKey incoerente in {source_path.name}")
     date.fromisoformat(str(validity.get("saleTo")))
-    if projection.get("eligible") is not True:
-        raise ValueError(f"offerta non marcata eligible in {source_path.name}")
-    if float(projection.get("price")) < 0 or float(projection.get("annualFixedFee")) < 0:
-        raise ValueError(f"valori economici negativi in {source_path.name}")
+    eligible = projection.get("eligible") is True
+    if eligible:
+        price = projection.get("price")
+        if not isinstance(price, (int, float)):
+            raise ValueError(f"prezzo completo non numerico in {source_path.name}")
+        if float(price) < 0 or float(projection.get("annualFixedFee")) < 0:
+            raise ValueError(f"valori economici negativi in {source_path.name}")
+        return payload
+
+    economics = payload.get("economics") or {}
+    partial_price = projection.get("partialPrice")
+    unpriced = economics.get("unpricedComponents")
+    known_components = economics.get("variableComponents") or []
+    if economics.get("economicCompleteness") != "partial":
+        raise ValueError(f"offerta non eligible senza stato economico parziale in {source_path.name}")
+    if partial_price is not None and (not isinstance(partial_price, (int, float)) or float(partial_price) < 0):
+        raise ValueError(f"prezzo parziale non valido in {source_path.name}")
+    if not any(isinstance(item, dict) and isinstance(item.get("value"), (int, float)) for item in known_components):
+        raise ValueError(f"componenti economiche note mancanti in {source_path.name}")
+    if not isinstance(unpriced, list) or not [item for item in unpriced if str(item).strip()]:
+        raise ValueError(f"componenti non valorizzate mancanti in {source_path.name}")
+    if projection.get("price") is not None:
+        raise ValueError(f"offerta parziale con prezzo completo valorizzato in {source_path.name}")
+    if float(projection.get("annualFixedFee")) < 0:
+        raise ValueError(f"quota fissa negativa in {source_path.name}")
     return payload
 
 
@@ -615,6 +1144,9 @@ def active_economic_signature(payload: dict[str, Any]) -> str:
             "fixedPrice": economics.get("fixedPrice"),
             "spread": economics.get("spread"),
             "annualFixedFee": economics.get("annualFixedFee"),
+            "economicCompleteness": economics.get("economicCompleteness"),
+            "knownPartialVariableAdder": economics.get("knownPartialVariableAdder"),
+            "unpricedComponents": economics.get("unpricedComponents"),
             "networkLosses": economics.get("networkLosses"),
             "variableComponents": economics.get("variableComponents"),
             "fixedComponents": economics.get("fixedComponents"),
@@ -622,9 +1154,12 @@ def active_economic_signature(payload: dict[str, Any]) -> str:
             "discounts": economics.get("discounts"),
         },
         "rankingProjection": {
+            "eligible": projection.get("eligible"),
             "price": projection.get("price"),
+            "partialPrice": projection.get("partialPrice"),
             "annualFixedFee": projection.get("annualFixedFee"),
             "projectionRule": projection.get("projectionRule"),
+            "exclusionReason": projection.get("exclusionReason"),
         },
     }
     return json.dumps(relevant, ensure_ascii=False, sort_keys=True, separators=(",", ":"))
@@ -742,11 +1277,74 @@ def arera_like_row(payload: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+def partial_catalog_row(payload: dict[str, Any]) -> dict[str, Any]:
+    identity = payload["identity"]
+    classification = payload["classification"]
+    validity = payload["validity"]
+    projection = payload["rankingProjection"]
+    economics = payload.get("economics") or {}
+    partner = payload.get("partner") or {}
+    available_partners = payload.get("_availablePartners") if isinstance(payload.get("_availablePartners"), list) else []
+    if not available_partners:
+        available_partners = [partner]
+    normalized_partners: list[dict[str, str]] = []
+    seen_partner_keys: set[str] = set()
+    for item in available_partners:
+        if not isinstance(item, dict):
+            continue
+        key = str(item.get("partnerKey") or "").strip()
+        if not key or key in seen_partner_keys:
+            continue
+        seen_partner_keys.add(key)
+        normalized_partners.append({
+            "partnerKey": key,
+            "partnerLabel": str(item.get("partnerLabel") or key).strip(),
+        })
+    normalized_partners.sort(key=lambda item: item["partnerKey"])
+    partner_keys = [item["partnerKey"] for item in normalized_partners]
+    primary_partner_key = str(partner.get("partnerKey") or "").strip() or (partner_keys[0] if partner_keys else "")
+    return {
+        "providerKey": identity["providerKey"],
+        "providerLabel": identity.get("providerLabel") or identity["providerKey"],
+        "fornitore": identity.get("providerLabel") or identity["providerKey"],
+        "commodity": classification["commodity"],
+        "tipo": classification["priceType"],
+        "nome": identity["offerName"],
+        "codice": identity["offerCode"],
+        "codiciAlternativi": identity.get("alternativeOfferCodes") or [],
+        "pivaVenditore": identity["providerVat"],
+        "dataInizio": validity.get("saleFrom") or "",
+        "dataFine": validity["saleTo"],
+        "customerType": classification["customerType"],
+        "eligible": False,
+        "economicCompleteness": "partial",
+        "prezzo": None,
+        "prezzoParziale": float(projection["partialPrice"]) if isinstance(projection.get("partialPrice"), (int, float)) else None,
+        "quotaFissaAnnua": float(projection["annualFixedFee"]),
+        "indiceRiferimento": str(economics.get("indexName") or "").lower(),
+        "maggiorazioneVariabileNota": float(economics["knownPartialVariableAdder"]) if isinstance(economics.get("knownPartialVariableAdder"), (int, float)) else None,
+        "componentiNonValorizzate": list(economics.get("unpricedComponents") or []),
+        "componentiVariabiliNote": list(economics.get("variableComponents") or []),
+        "componentiFisseNote": list(economics.get("fixedComponents") or []),
+        "projectionRule": projection.get("projectionRule"),
+        "exclusionReason": projection.get("exclusionReason"),
+        "sourceType": "partner_direct",
+        "partnerKey": primary_partner_key,
+        "partnerKeys": partner_keys,
+        "partners": normalized_partners,
+        "commercialFamily": identity.get("commercialFamily") or "",
+        "canonicalKey": identity.get("canonicalKey") or "",
+        "sourceFile": payload.get("source", {}).get("originalFile"),
+        "sourceHash": payload.get("source", {}).get("fileHash"),
+    }
+
+
 def build_active_catalog(partner_root: Path, package_root: Path) -> dict[str, Any]:
     today = date.today()
     market_indices = load_market_indices(package_root)
     private_rows: list[dict[str, Any]] = []
     business_rows: list[dict[str, Any]] = []
+    partial_rows: list[dict[str, Any]] = []
     active_by_key: dict[str, dict[str, Any]] = {}
     source_files = 0
     expired = 0
@@ -783,6 +1381,9 @@ def build_active_catalog(partner_root: Path, package_root: Path) -> dict[str, An
     for item in active_by_key.values():
         payload = copy.deepcopy(item["payload"])
         payload["_availablePartners"] = item["partners"]
+        if payload.get("rankingProjection", {}).get("eligible") is False:
+            partial_rows.append(partial_catalog_row(payload))
+            continue
         row = arera_like_row(payload)
         if payload["classification"]["customerType"] == "business":
             business_rows.append(row)
@@ -791,18 +1392,21 @@ def build_active_catalog(partner_root: Path, package_root: Path) -> dict[str, An
 
     private_rows.sort(key=lambda row: (row["providerKey"], row["commodity"], row["tipo"], row["codice"]))
     business_rows.sort(key=lambda row: (row["providerKey"], row["commodity"], row["tipo"], row["codice"]))
+    partial_rows.sort(key=lambda row: (row["providerKey"], row["customerType"], row["commodity"], row["tipo"], row["codice"]))
     updated = today.isoformat()
     return {
         "versioneDati": f"partner-menu-{updated}-v{PARTNER_CATALOG_VERSION}",
         "schemaVersion": PARTNER_CATALOG_VERSION,
-        "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; ranking economico indipendente dal canale commerciale.",
+        "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; le offerte con condizioni economiche incomplete sono pubblicate separatamente e restano escluse dal ranking.",
         "aggiornatoIl": updated,
         "offerte": private_rows,
         "offerteBusiness": business_rows,
+        "offerteParziali": partial_rows,
         "statistiche": {
             "fileAttiviLetti": source_files,
             "offertePrivateAttive": len(private_rows),
             "offerteBusinessAttive": len(business_rows),
+            "offerteParzialiAttive": len(partial_rows),
             "offerteScaduteEscluse": expired,
         },
     }
