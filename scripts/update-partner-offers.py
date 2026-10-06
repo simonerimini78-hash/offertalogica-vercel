@@ -80,6 +80,11 @@ def sha256_file(path: Path) -> str:
     return digest.hexdigest()
 
 
+def normalizer_revision() -> str:
+    """Fingerprint automatico del normalizzatore per invalidare la cache quando cambia il codice."""
+    return sha256_file(Path(__file__).resolve())[:16]
+
+
 def extract_pdf_text(path: Path) -> str:
     try:
         import pdfplumber  # type: ignore
@@ -933,61 +938,170 @@ def write_json_atomic(path: Path, payload: dict[str, Any]) -> None:
     os.replace(temporary, path)
 
 
-def normalize_partner_folder(partner_dir: Path, package_root: Path, indices: dict[str, float]) -> tuple[int, int]:
+def archive_json(path: Path, archive_dir: Path, tag: str) -> Path:
+    archive_dir.mkdir(parents=True, exist_ok=True)
+    archived_at = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%z")
+    stem = path.stem
+    candidate = archive_dir / f"{stem}__{tag}__{archived_at}.json"
+    suffix = 1
+    while candidate.exists():
+        candidate = archive_dir / f"{stem}__{tag}__{archived_at}__{suffix}.json"
+        suffix += 1
+    path.replace(candidate)
+    return candidate
+
+
+def active_payload_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
+    """Confronta i payload ignorando solo metadati tecnici di cache/normalizzazione."""
+    def compact(payload: dict[str, Any]) -> dict[str, Any]:
+        value = copy.deepcopy(payload)
+        source = value.get("source")
+        if isinstance(source, dict):
+            source.pop("normalizedAt", None)
+            source.pop("normalizerRevision", None)
+        return value
+    return compact(left) == compact(right)
+
+
+def promote_normalized_payload(
+    partner_dir: Path,
+    normalized_path: Path,
+    payload: dict[str, Any],
+    indices: dict[str, float],
+) -> bool:
+    """Promuove in 20_ATTIVE solo record che superano la validazione del catalogo attivo."""
+    validated = validate_active_record(refresh_ranking_projection(payload, indices), normalized_path)
+    code = str((validated.get("identity") or {}).get("offerCode") or "").strip()
+    if not code:
+        raise ValueError(f"codice offerta assente in {normalized_path.name}")
+
+    active_dir = partner_dir / "20_ATTIVE"
+    archive_dir = partner_dir / "90_ARCHIVIO"
+    active_dir.mkdir(parents=True, exist_ok=True)
+    target = active_dir / f"{code}.json"
+
+    if target.exists():
+        existing = json.loads(target.read_text(encoding="utf-8"))
+        if active_payload_equivalent(existing, payload):
+            return False
+        archived = archive_json(target, archive_dir, "attiva")
+        log(f"Versione attiva precedente archiviata: {archived.name}")
+
+    write_json_atomic(target, payload)
+    return True
+
+
+def ensure_partner_structure(partner_dir: Path) -> None:
+    for name in ("00_DA_VALIDARE", "10_NORMALIZZATE", "20_ATTIVE", "90_ARCHIVIO"):
+        (partner_dir / name).mkdir(parents=True, exist_ok=True)
+
+
+def normalize_partner_folder(partner_dir: Path, package_root: Path, indices: dict[str, float]) -> tuple[int, int, int]:
+    ensure_partner_structure(partner_dir)
     source_dir = partner_dir / "00_DA_VALIDARE"
     normalized_dir = partner_dir / "10_NORMALIZZATE"
-    normalized_dir.mkdir(parents=True, exist_ok=True)
-    if not source_dir.is_dir():
-        return 0, 0
+    archive_dir = partner_dir / "90_ARCHIVIO"
 
     partner_key = partner_key_from_dir(partner_dir)
     partner_label = partner_dir.name
+    revision = normalizer_revision()
     ok = 0
     errors = 0
+    promoted = 0
     seen_codes: dict[str, str] = {}
-    existing_by_hash: dict[str, Path] = {}
+    existing_by_cache: dict[tuple[str, str], Path] = {}
+    existing_by_source_name: dict[str, Path] = {}
+
     for existing_path in normalized_dir.glob("*.json"):
         try:
             existing_payload = json.loads(existing_path.read_text(encoding="utf-8"))
-            existing_hash = str((existing_payload.get("source") or {}).get("fileHash") or "")
-            if existing_hash:
-                existing_by_hash[existing_hash] = existing_path
+            source = existing_payload.get("source") or {}
+            existing_hash = str(source.get("fileHash") or "")
+            existing_revision = str(source.get("normalizerRevision") or "")
+            original_file = str(source.get("originalFile") or "")
+            if existing_hash and existing_revision:
+                existing_by_cache[(existing_hash, existing_revision)] = existing_path
+            if original_file:
+                existing_by_source_name[original_file] = existing_path
         except Exception:
             continue
+
     for pdf_path in sorted(source_dir.glob("*.pdf")):
         try:
             digest_now = sha256_file(pdf_path)
-            if digest_now in existing_by_hash:
+            cached_path = existing_by_cache.get((digest_now, revision))
+            if cached_path is not None and cached_path.exists():
+                cached_payload = json.loads(cached_path.read_text(encoding="utf-8"))
+                if promote_normalized_payload(partner_dir, cached_path, cached_payload, indices):
+                    promoted += 1
                 ok += 1
                 continue
+
             parser = parser_for_partner(partner_dir)
             if parser is None:
+                text_hint = extract_pdf_text(pdf_path)
+                parser = parser_for_partner(partner_dir, text_hint=text_hint)
+            if parser is None:
                 raise ValueError(f"nessun parser disponibile per il partner {partner_label}")
+
             result = parser(pdf_path, partner_key, partner_label, indices)
+            source = result.payload.setdefault("source", {})
+            source["normalizerRevision"] = revision
             code = str(result.payload["identity"]["offerCode"])
-            digest = str(result.payload["source"]["fileHash"])
+            digest = str(source["fileHash"])
             if code in seen_codes and seen_codes[code] != digest:
                 raise ValueError(f"codice offerta duplicato con contenuti differenti: {code}")
             seen_codes[code] = digest
             target = normalized_dir / f"{code}.json"
+
+            # Se lo stesso PDF (stesso nome file) ora produce un codice diverso,
+            # la vecchia normalizzazione e la relativa attiva vengono archiviate.
+            previous_for_source = existing_by_source_name.get(pdf_path.name)
+            replaced_offer_code: str | None = None
+            if previous_for_source is not None and previous_for_source.exists() and previous_for_source != target:
+                try:
+                    previous_payload = json.loads(previous_for_source.read_text(encoding="utf-8"))
+                    replaced_offer_code = str((previous_payload.get("identity") or {}).get("offerCode") or previous_for_source.stem)
+                except Exception:
+                    replaced_offer_code = previous_for_source.stem
+                archived = archive_json(previous_for_source, archive_dir, "normalizzata-sostituita")
+                log(f"Versione normalizzata sostituita archiviata: {archived.name}")
+
             if target.exists():
                 existing = json.loads(target.read_text(encoding="utf-8"))
-                existing_hash = str((existing.get("source") or {}).get("fileHash") or "")
+                existing_source = existing.get("source") or {}
+                existing_hash = str(existing_source.get("fileHash") or "")
+                if not replaced_offer_code:
+                    carried_replacement = str(existing_source.get("replacesOfferCode") or "").strip()
+                    if carried_replacement and carried_replacement != code:
+                        replaced_offer_code = carried_replacement
                 if existing_hash == digest:
-                    result.payload["source"]["normalizedAt"] = existing.get("source", {}).get("normalizedAt") or result.payload["source"]["normalizedAt"]
+                    source["normalizedAt"] = existing_source.get("normalizedAt") or source.get("normalizedAt")
                 else:
-                    archive_dir = partner_dir / "90_ARCHIVIO"
-                    archive_dir.mkdir(parents=True, exist_ok=True)
-                    archived_at = datetime.now().astimezone().strftime("%Y%m%dT%H%M%S%z")
-                    archive_target = archive_dir / f"{code}__{archived_at}.json"
-                    target.replace(archive_target)
-                    log(f"Versione normalizzata precedente archiviata: {archive_target.name}")
+                    archived = archive_json(target, archive_dir, "normalizzata")
+                    log(f"Versione normalizzata precedente archiviata: {archived.name}")
+
+            if replaced_offer_code and replaced_offer_code != code:
+                source["replacesOfferCode"] = replaced_offer_code
+            else:
+                source.pop("replacesOfferCode", None)
+
             write_json_atomic(target, result.payload)
+            existing_by_cache[(digest, revision)] = target
+            existing_by_source_name[pdf_path.name] = target
+
+            if promote_normalized_payload(partner_dir, target, result.payload, indices):
+                promoted += 1
+            if replaced_offer_code and replaced_offer_code != code:
+                previous_active = partner_dir / "20_ATTIVE" / f"{replaced_offer_code}.json"
+                if previous_active.exists():
+                    archived_active = archive_json(previous_active, archive_dir, "attiva-sostituita")
+                    log(f"Versione attiva sostituita archiviata: {archived_active.name}")
             ok += 1
         except Exception as exc:
             errors += 1
             log(f"ERRORE normalizzazione {pdf_path.name}: {exc}")
-    return ok, errors
+    return ok, errors, promoted
 
 
 def refresh_ranking_projection(payload: dict[str, Any], market_indices: dict[str, float]) -> dict[str, Any]:
@@ -1449,13 +1563,13 @@ def main() -> int:
         normalized_total = 0
         errors_total = 0
         for partner_dir in sorted(p for p in partner_root.iterdir() if p.is_dir()):
-            ok, errors = normalize_partner_folder(partner_dir, package_root, indices)
+            ok, errors, promoted = normalize_partner_folder(partner_dir, package_root, indices)
             normalized_total += ok
             errors_total += errors
             if ok or errors:
-                log(f"{partner_dir.name}: {ok} normalizzate, {errors} errori.")
+                log(f"{partner_dir.name}: {ok} normalizzate, {promoted} promosse/aggiornate in 20_ATTIVE, {errors} errori.")
         if errors_total:
-            log("Normalizzazione completata con errori: 00_DA_VALIDARE resta esclusa dalla pubblicazione.")
+            log("Normalizzazione completata con errori: le CTE non valide non vengono promosse; le versioni attive valide restano intatte.")
         else:
             log(f"Normalizzazione completata: {normalized_total} CTE elaborate.")
 
@@ -1466,6 +1580,7 @@ def main() -> int:
             log(
                 "Catalogo attivo pubblicato localmente: "
                 f"{stats['offertePrivateAttive']} private, {stats['offerteBusinessAttive']} business, "
+                f"{stats['offerteParzialiAttive']} parziali fuori ranking, "
                 f"{stats['offerteScaduteEscluse']} scadute escluse."
             )
     return 0
