@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.89";
+  const VERSION = "0.12.90";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -486,6 +486,10 @@
         : "";
       const component = candidate?.component_scores || {};
       const hintBadge = candidate?.research_hint?.id ? " · tema suggerito dalla Redazione" : "";
+      const selectable = ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) && candidate?.radar_key;
+      const choose = selectable
+        ? `<div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-radar-select="${esc(candidate.radar_key)}">Scegli come prossimo articolo</button></div>`
+        : "";
       return `<div class="ol-autopilot-archive-item">
         <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100${esc(hintBadge)}</strong>
         <small><b>${esc(researchRadarActionLabel(action))}</b> · domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · novità ${Number(component.freshness || 0)} · gap ${Number(component.content_gap || 0)}</small>
@@ -495,6 +499,7 @@
         ${tools ? `<small><b>Strumenti OffertaLogica pertinenti:</b> ${tools}</small>` : ""}
         ${candidate?.rationale ? `<small><b>Perché:</b> ${esc(candidate.rationale)}</small>` : ""}
         ${sources ? `<small><b>Fonti consultate:</b> ${sources}</small>` : ""}
+        ${choose}
       </div>`;
     }).join("");
   }
@@ -1655,7 +1660,7 @@
     const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
-      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
+      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a><button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-discard-draft="${id}" data-article-id="${esc(targetArticleId)}">Scarta bozza e non pubblicare</button></div><small>Disponibile finché l’articolo è ancora una bozza. Elimina la bozza e rifiuta questo tema senza toccare articoli già pubblicati.</small>` : ""}${articleGenerationMarkup(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -1757,6 +1762,8 @@
     const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
+    const radarSelectButton = event.target.closest("[data-radar-select]");
+    const discardDraftButton = event.target.closest("[data-opportunity-discard-draft]");
     const generateArticleButton = event.target.closest("[data-article-generate]");
     const generateImageButton = event.target.closest("[data-article-image-generate]");
     const uploadImageButton = event.target.closest("[data-article-image-upload]");
@@ -1870,6 +1877,41 @@
         if (ideaMessage) ideaMessage.textContent = `Idea non salvata: ${error.message}`;
       } finally {
         manualSaveButton.disabled = false;
+      }
+      return;
+    }
+
+    if (radarSelectButton) {
+      const radarKey = radarSelectButton.dataset.radarSelect || "";
+      if (!radarKey || radarSelectButton.disabled) return;
+      if (!window.confirm("Usare questo candidato Radar come prossimo articolo? La scelta manuale avrà precedenza fino all’avvio della bozza.")) return;
+      radarSelectButton.disabled = true;
+      if (message) message.textContent = "Salvataggio della scelta Radar…";
+      try {
+        await endpoint("select-editorial-radar-candidate", { method: "POST", body: { radar_key: radarKey } });
+        if (message) message.textContent = "Candidato Radar selezionato manualmente.";
+        await Promise.all([loadOpportunities(section, true), loadPlannerPreview(section, true), loadResearchRadar(section)]);
+      } catch (error) {
+        radarSelectButton.disabled = false;
+        if (message) message.textContent = `Scelta Radar non salvata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (discardDraftButton) {
+      const id = discardDraftButton.dataset.opportunityDiscardDraft || "";
+      const articleId = discardDraftButton.dataset.articleId || "";
+      if (!id || !articleId || discardDraftButton.disabled) return;
+      if (!window.confirm("Scartare definitivamente questa bozza e rifiutare il tema per il ciclo corrente? Questa operazione non tocca articoli già pubblicati.")) return;
+      discardDraftButton.disabled = true;
+      if (message) message.textContent = "Eliminazione della bozza e rifiuto del tema…";
+      try {
+        await endpoint("discard-editorial-draft-opportunity", { method: "POST", body: { id, article_id: articleId } });
+        if (message) message.textContent = "Bozza eliminata e tema rifiutato. Ora puoi scegliere il candidato Radar corretto.";
+        await Promise.all([loadOpportunities(section, true), loadPlannerPreview(section, false), loadAutomationRuns(section)]);
+      } catch (error) {
+        discardDraftButton.disabled = false;
+        if (message) message.textContent = `Bozza non scartata: ${error.message}`;
       }
       return;
     }

@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.89";
+const VERSION = "0.12.90";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -845,6 +845,17 @@ function researchRadarSimilarity(left, right) {
   return (2 * intersection) / (a.size + b.size);
 }
 
+function researchRadarLikelyDuplicate(left, right) {
+  const a = researchRadarTokens(left);
+  const b = researchRadarTokens(right);
+  if (!a.size || !b.size) return false;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection += 1;
+  const dice = (2 * intersection) / (a.size + b.size);
+  const containment = intersection / Math.min(a.size, b.size);
+  return dice >= 0.60 || (intersection >= 3 && containment >= 0.80);
+}
+
 function researchRadarKey(candidate) {
   const seed = `${cleanToken(candidate?.topic)}|${cleanToken(candidate?.search_intent)}|${cleanToken(candidate?.angle)}`;
   return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 24);
@@ -1356,6 +1367,29 @@ async function saveResearchRadarOpportunity(user, candidate) {
   return rows[0];
 }
 
+async function selectResearchRadarCandidate(user, payload = {}) {
+  const radarKey = String(payload?.radar_key || "").trim();
+  if (!radarKey) throw new Error("Candidato Radar non valido");
+  const radar = await researchRadarPayload();
+  const candidate = (Array.isArray(radar?.candidates) ? radar.candidates : [])
+    .find((row) => String(row?.radar_key || "") === radarKey);
+  if (!candidate) throw new Error("Candidato Radar non più disponibile");
+  if (!["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || ""))) {
+    throw new Error("Questo candidato non può creare un nuovo articolo");
+  }
+  let opportunity = await saveResearchRadarOpportunity(user, candidate);
+  if (!opportunity?.id) throw new Error("Opportunità Radar non disponibile");
+  if (!opportunity.target_article_id) {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id, {
+      origin: "manual",
+      score: candidate.score,
+      reason: `Scelta manuale dalla graduatoria Radar: ${candidate.score}/100.`,
+      radar_key: candidate.radar_key,
+    });
+  }
+  return opportunity;
+}
+
 function manualIdeaDeadlineTime(value) {
   const parsed = value ? Date.parse(`${value}T12:00:00Z`) : NaN;
   return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
@@ -1613,22 +1647,28 @@ async function editorialPlannerPreview() {
     const savedType = String(row.opportunity_type || "");
     if (!MANUAL_IDEA_TYPES.has(savedType) && savedType !== "update_article") continue;
     const manual = manualIdeaMeta(row);
+    const selectionOrigin = String(row?.evidence?.selection?.origin || "");
     if (row.status === "selected" && validUuid(String(row.target_article_id || ""))) continue;
     if (row.status === "selected") {
-      candidates.push({
-        source: manual ? "manual_idea" : "saved_opportunity",
-        id: row.id,
-        topic: row.topic,
-        opportunity_type: row.opportunity_type,
-        priority: manual?.priority || null,
-        deadline: manual?.deadline || null,
-        score: Number(row.score || 0),
-        status: row.status,
-        created_at: row.created_at,
-        decided_at: row.decided_at || null,
-        rank: 500,
-        reason: "Opportunita gia selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
-      });
+      // Solo una scelta esplicitamente umana deve bloccare il planner.
+      // Le selezioni automatiche senza articolo vengono ricalcolate contro i segnali correnti,
+      // altrimenti un vecchio candidato può restare "incollato" e battere Radar/Search Console.
+      if (manual || selectionOrigin === "manual") {
+        candidates.push({
+          source: manual ? "manual_idea" : "saved_opportunity",
+          id: row.id,
+          topic: row.topic,
+          opportunity_type: row.opportunity_type,
+          priority: manual?.priority || null,
+          deadline: manual?.deadline || null,
+          score: Number(row.score || 0),
+          status: row.status,
+          created_at: row.created_at,
+          decided_at: row.decided_at || null,
+          rank: 500,
+          reason: "Opportunita selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
+        });
+      }
       continue;
     }
     if (!manual) continue;
@@ -1662,12 +1702,15 @@ async function editorialPlannerPreview() {
     if (signal?.cycle_opportunity?.target_article_id) return false;
     const signalText = `${signal?.topic || ""} ${(signal?.query_examples || []).join(" ")}`;
     let closestSimilarity = 0;
+    let likelyDuplicate = false;
     for (const article of archive) {
       closestSimilarity = Math.max(closestSimilarity, researchRadarSimilarity(signalText, `${article.title} ${article.excerpt}`));
+      if (researchRadarLikelyDuplicate(signal?.topic || "", article.title || "")) likelyDuplicate = true;
     }
-    // Search Console da sola non dimostra un nuovo intento. Se il tema e' gia coperto,
-    // lo lasciamo al radar web che puo' proporre UPDATE_EXISTING o un vero NEW_ANGLE.
-    if (closestSimilarity >= 0.60) {
+    // Search Console da sola non dimostra un nuovo intento. Se il nucleo del tema e' gia
+    // contenuto in un titolo pubblicato (anche con parole aggiuntive), il segnale viene escluso
+    // e lasciato al Radar, che puo' proporre UPDATE_EXISTING o un vero NEW_ANGLE.
+    if (closestSimilarity >= 0.60 || likelyDuplicate) {
       searchSignalsExcludedArchive += 1;
       return false;
     }
@@ -1906,7 +1949,7 @@ async function saveEditorialOpportunity(user, topicKeyValue, requestedStatusValu
   return { created: true, status_changed: requestedStatus !== "pending", opportunity };
 }
 
-async function selectEditorialOpportunity(user, idValue) {
+async function selectEditorialOpportunity(user, idValue, options = {}) {
   const id = String(idValue || "").trim();
   if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
 
@@ -1942,6 +1985,15 @@ async function selectEditorialOpportunity(user, idValue) {
   evidence.editorial_brief = opportunityEditorialBrief({ ...current, evidence }, liveSignal);
 
   const now = new Date().toISOString();
+  const selectionOrigin = String(options?.origin || "manual") === "scheduler" ? "scheduler" : "manual";
+  evidence.selection = {
+    ...(evidence.selection && typeof evidence.selection === "object" ? evidence.selection : {}),
+    origin: selectionOrigin,
+    selected_at: now,
+    selected_score: Number.isFinite(Number(options?.score)) ? Number(options.score) : Number(current.score || 0),
+    selected_reason: cleanEditorialText(options?.reason, 600) || null,
+    selected_radar_key: cleanEditorialText(options?.radar_key, 80) || null,
+  };
   // Una scelta umana deve essere univoca tra le opportunità non ancora avviate.
   // Le opportunità già collegate a un articolo appartengono a cicli in corso/passati
   // e restano intatte; il planner le ignora già quando sceglie il prossimo articolo.
@@ -3565,6 +3617,25 @@ async function deleteEditorialDraftArticle(user, payload = {}) {
     storage_warning: storage.warning,
     opportunity_reset: Boolean((opportunities || []).length),
   };
+}
+
+async function discardEditorialDraftOpportunity(user, payload = {}) {
+  const opportunityId = String(payload?.id || "").trim();
+  const articleId = String(payload?.article_id || "").trim();
+  if (!validUuid(opportunityId) || !validUuid(articleId)) throw new Error("Bozza o opportunità non valida");
+
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunityId)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (String(opportunity.target_article_id || "") !== articleId) {
+    throw new Error("La bozza non appartiene all’opportunità indicata");
+  }
+
+  const deleted = await deleteEditorialDraftArticle(user, { article_id: articleId });
+  const rejected = await updateEditorialOpportunity(user, opportunityId, "rejected");
+  return { deleted, opportunity: rejected };
 }
 
 async function editorialSocialPlanPayload() {
@@ -5499,7 +5570,14 @@ async function schedulerSelectOpportunity(user, settings) {
     opportunity = await saveResearchRadarOpportunity(user, decision.radar_candidate);
   }
   if (!opportunity?.id) return null;
-  if (opportunity.status === "pending") opportunity = await updateEditorialOpportunity(user, opportunity.id, "selected");
+  if (opportunity.status === "pending") {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id, {
+      origin: "scheduler",
+      score: decision.score,
+      reason: decision.reason,
+      radar_key: decision.radar_key || null,
+    });
+  }
   if (opportunity.status !== "selected") return opportunity;
 
   if (["monitor", "update_article"].includes(String(opportunity.opportunity_type || ""))) {
@@ -7669,6 +7747,11 @@ export default async function handler(req, res) {
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
+    if (req.method === "POST" && action === "select-editorial-radar-candidate") {
+      const opportunity = await selectResearchRadarCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
     if (req.method === "POST" && action === "update-editorial-opportunity") {
       const opportunity = await updateEditorialOpportunity(user, req.body?.id, req.body?.status);
       return json(res, 200, { ok: true, version: VERSION, opportunity });
@@ -7711,6 +7794,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "delete-editorial-draft-article") {
       const result = await deleteEditorialDraftArticle(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "discard-editorial-draft-opportunity") {
+      const result = await discardEditorialDraftOpportunity(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
