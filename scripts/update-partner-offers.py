@@ -952,13 +952,23 @@ def archive_json(path: Path, archive_dir: Path, tag: str) -> Path:
 
 
 def active_payload_equivalent(left: dict[str, Any], right: dict[str, Any]) -> bool:
-    """Confronta i payload ignorando solo metadati tecnici di cache/normalizzazione."""
+    """Confronta le condizioni commerciali ignorando metadati e sole proiezioni dinamiche."""
     def compact(payload: dict[str, Any]) -> dict[str, Any]:
         value = copy.deepcopy(payload)
         source = value.get("source")
         if isinstance(source, dict):
             source.pop("normalizedAt", None)
             source.pop("normalizerRevision", None)
+
+        economics = value.get("economics")
+        if isinstance(economics, dict):
+            economics.pop("indexValueAtProjection", None)
+
+        projection = value.get("rankingProjection")
+        if isinstance(projection, dict):
+            projection.pop("price", None)
+            projection.pop("partialPrice", None)
+
         return value
     return compact(left) == compact(right)
 
