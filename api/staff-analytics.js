@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.90";
+const VERSION = "0.12.91";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2937,7 +2937,7 @@ async function openAiResponseRequest(path, { method = "GET", body, economics = n
   return payload;
 }
 
-async function startOpenAiEditorialPackage({ opportunity, article, categories, targets }) {
+async function startOpenAiEditorialPackage({ opportunity, article, categories, targets, revisionNotes = "", revisionMode = false }) {
   const model = editorialAiModel();
   const categoryList = categories.map((row) => `${row.slug} = ${row.name}`).join("\n");
   const targetList = targets.map((row) => `${row.id} | ${row.label} | ${row.url_path}${row.category ? ` | ${row.category}` : ""}`).join("\n");
@@ -2950,6 +2950,17 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
   const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
   const radarSources = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls.slice(0, 6) : [];
   const radarTools = Array.isArray(radarEvidence?.related_targets) ? radarEvidence.related_targets.slice(0, 4) : [];
+  const revisionText = cleanEditorialText(revisionNotes, 3000);
+  const revisionBaseline = revisionMode || revisionText
+    ? {
+        title: cleanEditorialText(article?.title, 180),
+        excerpt: cleanEditorialText(article?.excerpt, 600),
+        content: cleanEditorialText(article?.content, 30000),
+        sources: cleanEditorialText(article?.sources, 5000),
+        seo_title: cleanEditorialText(article?.seo_title, 120),
+        seo_description: cleanEditorialText(article?.seo_description, 260),
+      }
+    : null;
   const articleUrl = `https://offertalogica.it/articoli/${encodeURIComponent(article.slug)}.html`;
   const instructions = [
     "Sei il motore editoriale server-side di OffertaLogica.it.",
@@ -2967,8 +2978,12 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
     "Il BRIEF EDITORIALE fornito nell'input è vincolante per il taglio dell'articolo: il tema Search Console non va usato come semplice titolo se non descrive già chiaramente l'intento.",
     "Se il tema cita un marchio, prodotto o offerta, spiega prima che cosa sia e verifica condizioni e informazioni attuali da fonti affidabili; evita recensioni arbitrarie o conclusioni promozionali.",
     "Se il brief proviene dal Radar web e indica strumenti OffertaLogica pertinenti, usali solo quando rappresentano davvero il passo pratico successivo per il lettore; per il post related preferisci una di quelle destinazioni se resta coerente con il contenuto reale della pagina.",
+    "Se sono presenti INDICAZIONI DI REVISIONE REDAZIONE e una BOZZA ATTUALE, tratta quella bozza come base editoriale vincolante: conserva le parti corrette e le modifiche manuali, applica le richieste della Redazione, ricontrolla i fatti sul web e restituisci l'intero pacchetto aggiornato. Non tornare arbitrariamente a una versione precedente e non ignorare le modifiche già presenti nella bozza.",
   ].join(" ");
-  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}\n\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const revisionBlock = revisionBaseline
+    ? `\nINDICAZIONI DI REVISIONE REDAZIONE: ${revisionText || "mantieni le modifiche manuali già presenti e completa/rafforza la bozza senza perderle"}\nBOZZA ATTUALE DA REVISIONARE:\nTitolo: ${revisionBaseline.title || ""}\nSommario: ${revisionBaseline.excerpt || ""}\nSEO title: ${revisionBaseline.seo_title || ""}\nSEO description: ${revisionBaseline.seo_description || ""}\nFonti correnti: ${revisionBaseline.sources || ""}\nContenuto:\n${revisionBaseline.content || ""}\n`
+    : "";
+  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}${revisionBlock}\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
   const payload = await openAiResponseRequest("", {
     method: "POST",
     body: {
@@ -3193,6 +3208,8 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     editorialSocialChannels(),
   ]);
   const platforms = validateRequestedPlatforms(payload.platforms, channels);
+  const revisionNotes = cleanEditorialText(payload.revision_notes, 3000);
+  const runSource = user?._automation ? "scheduler" : "manual_controlled_run";
   if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
   if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
 
@@ -3210,14 +3227,15 @@ async function generateEditorialArticlePackage(user, payload = {}) {
   const previousGeneration = opportunity?.evidence?.article_generation;
   const currentFingerprint = articleEditorialFingerprint(article);
   const hasEditorialContent = Boolean(String(article.content || "").trim() || String(article.excerpt || "").trim());
-  if (hasEditorialContent && (!previousGeneration?.article_fingerprint_sha256 || previousGeneration.article_fingerprint_sha256 !== currentFingerprint)) {
-    throw new Error("La bozza contiene modifiche manuali o contenuto non generato dall’Autopilota: sovrascrittura bloccata");
+  const manuallyChanged = Boolean(hasEditorialContent && (!previousGeneration?.article_fingerprint_sha256 || previousGeneration.article_fingerprint_sha256 !== currentFingerprint));
+  const manualRevision = runSource === "manual_controlled_run" && Boolean(previousGeneration || revisionNotes || manuallyChanged);
+  if (manuallyChanged && !manualRevision) {
+    throw new Error("La bozza contiene modifiche manuali: l’Autopilota non la sovrascrive automaticamente. Usa la revisione manuale dalla Redazione per rigenerarla mantenendo le tue modifiche.");
   }
 
-  const runSource = user?._automation ? "scheduler" : "manual_controlled_run";
   const run = await automationRunStart(id, runSource);
   try {
-    const ai = await startOpenAiEditorialPackage({ opportunity, article, categories, targets });
+    const ai = await startOpenAiEditorialPackage({ opportunity, article, categories, targets, revisionNotes, revisionMode: manualRevision });
     const now = new Date().toISOString();
     const job = {
       schema_version: 1,
@@ -3233,9 +3251,21 @@ async function generateEditorialArticlePackage(user, payload = {}) {
       platforms,
       automatic_publish: false,
       source: runSource,
+      revision_mode: manualRevision,
+      revision_notes: revisionNotes || null,
     };
+    const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
     const evidence = {
-      ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+      ...evidenceBase,
+      ...(manualRevision && previousGeneration ? {
+        article_generation: {
+          ...previousGeneration,
+          status: "revision_in_progress",
+          article_fingerprint_sha256: null,
+          revision_requested_at: now,
+          revision_notes: revisionNotes || null,
+        },
+      } : {}),
       article_generation_job: job,
     };
     const savedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
@@ -3373,7 +3403,10 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     let generated;
     try { generated = JSON.parse(text); }
     catch { throw new Error("Risposta editoriale non interpretabile"); }
-    sourceUrls = responseSourceUrls(response);
+    const currentWebSourceUrls = responseSourceUrls(response);
+    const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
+    const radarSourceUrls = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls : [];
+    sourceUrls = [...new Set([...currentWebSourceUrls, ...radarSourceUrls].map(normalizedHttps).filter(Boolean))];
     validated = validateGeneratedEditorialPackage(generated, {
       opportunity, categories, targets, settings, observedSourceUrls: sourceUrls,
     });
@@ -3430,6 +3463,9 @@ async function checkEditorialArticlePackage(user, payload = {}) {
       platforms,
       automatic_publish: false,
       background: true,
+      revision_mode: Boolean(job.revision_mode),
+      revision_notes: cleanEditorialText(job.revision_notes, 3000) || null,
+      revision_number: Number(evidenceBase?.article_generation?.revision_number || 0) + (job.revision_mode ? 1 : 0),
     };
     const nextEvidence = {
       ...evidenceBase,

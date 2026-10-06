@@ -997,8 +997,9 @@
     const jobRunning = Boolean(job?.response_id && ["queued", "in_progress"].includes(String(job.status || "")));
     const qa = generation?.qa || {};
     const sourceCount = Number(qa.sources_count || generation?.sources?.length || 0);
-    const buttonLabel = jobRunning ? "Riprendi controllo generazione" : generation ? "Rigenera bozza completa" : "Genera bozza completa con fonti";
+    const buttonLabel = jobRunning ? "Riprendi controllo generazione" : generation ? "Rigenera bozza con le mie indicazioni" : "Genera bozza completa con fonti";
     const currentPlatforms = Array.isArray(job?.platforms) ? job.platforms : Array.isArray(generation?.platforms) ? generation.platforms : [];
+    const lastRevision = generation?.revision_notes ? `<small><b>Ultime indicazioni applicate:</b> ${esc(generation.revision_notes)}</small>` : "";
     const summary = jobRunning
       ? `<small>Generazione asincrona ${esc(job.status === "queued" ? "in coda" : "in corso")} dal ${esc(dateIt(job.started_at))}. Puoi lasciare lavorare il motore e riprendere il controllo senza perdere il job.</small>`
       : generation
@@ -1008,6 +1009,7 @@
       <label>Canali del ciclo editoriale</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
       <small>Facebook e Instagram vengono usati per lancio articolo + due post statici. LinkedIn, se collegato, pubblica solo il lancio dell’articolo.</small>
+      ${generation ? `<div class="ol-field" style="margin-top:10px"><label>Indicazioni di revisione <span class="ol-muted">(facoltative)</span></label><textarea data-article-revision-notes="${esc(id)}" maxlength="3000" rows="4" placeholder="Es. chiarisci meglio l'aumento luce rispetto al gas; aggiungi un esempio pratico; elimina il paragrafo X; mantieni la mia modifica al titolo…"></textarea><small>La rigenerazione usa la bozza attuale come base, conserva le modifiche manuali e applica queste indicazioni dopo un nuovo controllo delle fonti. È una revisione manuale e non consuma i tentativi automatici dello slot del martedì.</small>${lastRevision}</div>` : ""}
       <div class="ol-toolbar-group" style="margin-top:8px">
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
@@ -2023,7 +2025,9 @@
       const row = opportunityRows.find((item) => String(item.id || "") === id);
       const existingJob = row?.evidence?.article_generation_job;
       const jobRunning = Boolean(existingJob?.response_id && ["queued", "in_progress"].includes(String(existingJob.status || "")));
-      if (!jobRunning && row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza completa? È consentito solo se la bozza non è stata modificata manualmente dopo l’ultima generazione.")) return;
+      const revisionInput = section.querySelector(`[data-article-revision-notes="${id}"]`);
+      const revisionNotes = String(revisionInput?.value || "").trim();
+      if (!jobRunning && row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza usando quella attuale come base? Le eventuali modifiche manuali verranno mantenute e le indicazioni inserite saranno applicate dopo un nuovo controllo delle fonti.")) return;
       const platforms = [...section.querySelectorAll(`input[data-package-platform="${id}"]:checked`)].map((input) => input.value);
       generateArticleButton.disabled = true;
       if (message) message.textContent = jobRunning ? "Riprendo il controllo della generazione in background…" : "Avvio ricerca fonti e generazione editoriale in background…";
@@ -2033,7 +2037,7 @@
           const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
           result = check?.result;
         } else {
-          const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms } });
+          const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms, revision_notes: revisionNotes } });
           result = payload?.result;
         }
         while (result?.pending) {
@@ -2044,7 +2048,9 @@
           const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
           result = check?.result;
         }
-        if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici. La pubblicazione segue modalità e calendario Autopilota.`;
+        if (message) message.textContent = revisionNotes
+          ? `Revisione completata: bozza rigenerata con le tue indicazioni, ${Number(result?.qa?.sources_count || 0)} fonti verificate. Resta in bozza fino allo slot di pubblicazione.`
+          : `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici. La pubblicazione segue modalità e calendario Autopilota.`;
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
       } catch (error) {
         generateArticleButton.disabled = false;
