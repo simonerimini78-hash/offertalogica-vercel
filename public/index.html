@@ -4983,43 +4983,47 @@
                         <select id="nome-fornitore-att">
                     <option value="" disabled selected>-- Seleziona il tuo fornitore --</option>
                     <option value="a2a">A2A Energia</option>
+                    <option value="accendi">Accendi luce &amp; gas Coop</option>
                     <option value="acea">Acea Energia</option>
                     <option value="agasco">Agasco</option>
                     <option value="alperia">Alperia</option>
                     <option value="amga">Amga</option>
                     <option value="argos">Argos</option>
                     <option value="axpo">Axpo Energia</option>
+                    <option value="butangas">ButanGas</option>
                     <option value="dolomiti">Dolomiti Energia</option>
                     <option value="eco">E.CO Energia Corrente</option>
-                    <option value="eon">E.ON</option>
                     <option value="edison">Edison</option>
-                    <option value="estra">Estra Energie</option>
-                    <option value="free">Free Luce&amp;Gas</option>
-                    <option value="butangas">ButanGas</option>
-                    <option value="unoenergy">Unoenergy</option>
-                    <option value="eni">Eni Plenitude</option>
+                    <option value="eja">Eja Energia</option>
+                    <option value="elit">Elit Energia</option>
                     <option value="enel">Enel Energia</option>
                     <option value="enercom">Enercom</option>
                     <option value="engie">Engie</option>
-                    <option value="eja">Eja Energia</option>
+                    <option value="eon">E.ON</option>
+                    <option value="estra">Estra Energie</option>
+                    <option value="free">Free Luce&amp;Gas</option>
+                    <option value="greenius">Greenius</option>
                     <option value="hera">Hera Comm</option>
                     <option value="illum">Illumia</option>
                     <option value="iren">Iren Luce e Gas</option>
                     <option value="lene">Lene Energia</option>
+                    <option value="liongreen">Lion Green</option>
                     <option value="magis">Magis Energia</option>
                     <option value="nen">neN</option>
                     <option value="nova">Nova Aeg</option>
                     <option value="octopus">Octopus Energy</option>
                     <option value="optima">Optima Italia</option>
+                    <option value="ovenergy">OV Energy</option>
+                    <option value="eni">Plenitude</option>
                     <option value="poste">Poste Energia</option>
                     <option value="pulsee">Pulsee Luce e Gas</option>
                     <option value="segnoverde">Segnoverde</option>
                     <option value="sen">Servizio Elettrico Nazionale</option>
+                    <option value="sinergy">Sinergy</option>
                     <option value="sorgenia">Sorgenia</option>
-                    <option value="tate">Tate</option>
+                    <option value="unoenergy">Unoenergy</option>
                     <option value="vivi">Vivi Energia</option>
                     <option value="wekiwi">Wekiwi</option>
-                    <option value="sinergy">Sinergy</option>
                     <option value="altro">Altro (Fornitore non in elenco)</option>
                 </select>
                     </div>
@@ -6157,6 +6161,9 @@ let PROVIDER_BRANDS = {
   eni: { label: "Plenitude", logo: "/assets/providers/plenitude-user.png" },
   engie: { label: "Engie", logo: "/assets/providers/engie-user.png" },
   eon: { label: "E.ON", logo: "/assets/providers/eon-user.png" },
+  greenius: { label: "Greenius", logo: null },
+  liongreen: { label: "Lion Green", logo: null },
+  ovenergy: { label: "OV Energy", logo: null },
   elit: { label: "Elit Energia", logo: "/assets/providers/elit-user.png" },
   iren: { label: "Iren Luce e Gas", logo: "/assets/providers/iren-user.png" },
   lene: { label: "Lene Energia", logo: "/assets/providers/lene-user.png" },
@@ -11826,46 +11833,40 @@ function providerKeysArera() {
   ].filter(Boolean))].sort();
 }
 
-const MAX_PROVIDER_MENU_CORRENTE = 30;
+const PARTNER_PROVIDER_MENU_OPTIONS = [
+  { key: "greenius", label: "Greenius" },
+  { key: "liongreen", label: "Lion Green" },
+  { key: "ovenergy", label: "OV Energy" },
+];
 
 function providerCatalogoCorrenteOrdinati() {
-  const contatori = new Map();
+  const providers = new Map();
+  const upsert = (rawKey, rawLabel = "") => {
+    let key = String(rawKey || "").trim();
+    if (!key) return;
+    // Tate e' stata incorporata in Plenitude dal 1/1/2026: manteniamo
+    // compatibilita' con eventuali dati storici ma non la esponiamo come fornitore autonomo.
+    if (key === "tate") key = "eni";
+    const label = key === "eni"
+      ? String(PROVIDER_BRANDS.eni?.label || "Plenitude").trim()
+      : String(rawLabel || PROVIDER_BRANDS[key]?.label || key).trim();
+    if (!providers.has(key)) providers.set(key, { key, label });
+  };
+
   OFFERTE_ARERA_MENU
     .filter(rigaAreraIdonea)
-    .forEach((riga) => {
-      const key = String(riga.providerKey || "").trim();
-      if (!key) return;
-      const corrente = contatori.get(key) || {
-        key,
-        label: String(riga.providerLabel || riga.fornitore || PROVIDER_BRANDS[key]?.label || key).trim(),
-        count: 0,
-      };
-      corrente.count += 1;
-      if (!corrente.label) corrente.label = String(PROVIDER_BRANDS[key]?.label || key).trim();
-      contatori.set(key, corrente);
-    });
+    .forEach((riga) => upsert(riga.providerKey, riga.providerLabel || riga.fornitore));
 
-  // I partner diretti devono comparire nel selettore anche se non sono ancora
-  // presenti (o non rientrano nei primi 30) nel catalogo ARERA del giorno.
-  const partnerKeys = new Set();
   OFFERTE_PARTNER_DIRETTE.forEach((riga) => {
-    const key = String(riga?.providerKey || "").trim();
-    if (!key) return;
-    partnerKeys.add(key);
-    if (contatori.has(key)) return;
-    contatori.set(key, {
-      key,
-      label: String(riga.providerLabel || riga.fornitore || PROVIDER_BRANDS[key]?.label || key).trim(),
-      count: 0,
-    });
+    upsert(riga?.providerKey, riga?.providerLabel || riga?.fornitore);
   });
 
-  const ordinati = [...contatori.values()]
-    .sort((a, b) => (b.count - a.count) || a.label.localeCompare(b.label, "it"));
-  const base = ordinati.slice(0, MAX_PROVIDER_MENU_CORRENTE);
-  const presenti = new Set(base.map((item) => item.key));
-  const partnerExtra = ordinati.filter((item) => partnerKeys.has(item.key) && !presenti.has(item.key));
-  return [...base, ...partnerExtra];
+  // I partner noti devono essere selezionabili anche prima che una nuova CTE
+  // approvata sia stata pubblicata nel catalogo partner del giorno.
+  PARTNER_PROVIDER_MENU_OPTIONS.forEach(({ key, label }) => upsert(key, label));
+
+  return [...providers.values()]
+    .sort((a, b) => a.label.localeCompare(b.label, "it", { sensitivity: "base" }));
 }
 
 function aggiornaSelectFornitoreNuovoDaCatalogo() {
@@ -18799,10 +18800,12 @@ const PROVIDER_MATCHERS = [
   ["estra", ["estra", "estra energie"]],
   ["free", ["free luce e gas", "free lucegas"]],
   ["greenius", ["greenius"]],
+  ["liongreen", ["lion green", "liongreen"]],
+  ["ovenergy", ["ov energy", "ovenergy"]],
   ["butangas", ["butangas", "butan gas"]],
   ["unoenergy", ["unoenergy", "uno energy"]],
   ["enel", ["enel"]],
-  ["eni", ["eni", "plenitude"]],
+  ["eni", ["eni", "plenitude", "tate"]],
   ["enercom", ["enercom"]],
   ["engie", ["engie"]],
   ["eja", ["eja energia"]],
@@ -18821,7 +18824,6 @@ const PROVIDER_MATCHERS = [
   ["segnoverde", ["segnoverde", "segno verde", "sogno verde"]],
   ["sen", ["servizio elettrico nazionale"]],
   ["sorgenia", ["sorgenia"]],
-  ["tate", ["tate"]],
   ["vivi", ["vivi energia", "vivi"]],
   ["wekiwi", ["wekiwi"]],
   ["sinergy", ["sinergy"]],

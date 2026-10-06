@@ -1,7 +1,7 @@
 {
-  "versioneDati": "provider-brand-2026-10-05-v47-elit",
+  "versioneDati": "provider-brand-2026-10-06-v48-partner-menu",
   "fonte": "Registro brand OffertaLogica. I marchi sono usati solo per identificare offerte e fornitori confrontati; preferire asset ufficiali o di affiliazione quando disponibili.",
-  "aggiornatoIl": "2026-10-05",
+  "aggiornatoIl": "2026-10-06",
   "providers": {
     "a2a": {
       "label": "A2A",
@@ -184,10 +184,10 @@
       "usageStatus": "asset_fornito_da_titolare"
     },
     "tate": {
-      "label": "Tate",
-      "logo": "/assets/providers/tate.png",
-      "source": "https://cdn.prod.website-files.com/6285f541c451f42daf730fa8/62b1e155d1a61eb2240d940b_T_webclip.png",
-      "usageStatus": "asset_pubblico_recuperato_da_sito_fornitore"
+      "label": "Plenitude",
+      "logo": "/assets/providers/plenitude-user.png",
+      "source": "https://eniplenitude.com/landing/tate-diventa-plenitude",
+      "usageStatus": "legacy_merged_into_plenitude_2026-01-01"
     },
     "vivi": {
       "label": "Vivi Energia",
@@ -236,6 +236,18 @@
       "logo": "/assets/providers/elit-user.png",
       "source": "/assets/providers/elit-user.png",
       "usageStatus": "asset_locale_presente_repository"
+    },
+    "liongreen": {
+      "label": "Lion Green",
+      "logo": null,
+      "source": "CTE Lion Green ricevute dal partner il 2026-10-05",
+      "usageStatus": "brand_da_cte_partner"
+    },
+    "ovenergy": {
+      "label": "OV Energy",
+      "logo": null,
+      "source": "CTE OV Energy ricevute dal partner il 2026-10-05",
+      "usageStatus": "brand_da_cte_partner"
     }
   }
 }

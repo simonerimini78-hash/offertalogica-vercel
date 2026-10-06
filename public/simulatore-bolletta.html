@@ -737,8 +737,10 @@
     return {version:1,id,name,provider,providerKey:String(row.providerKey||""),type:String(row.tipo||"fisso"),supply:commodity,customerType:String(row.customerType||"privato"),codes:[row.codice].filter(Boolean),url,discounts:[],activationOffer:activationOffer(id,name,provider,commodity,url),components:{[commodity]:{price:Number(row.prezzo),annualFixedFee:Number(row.quotaFissaAnnua),type:String(row.tipo||"fisso"),code:String(row.codice||""),indexName:String(row.indiceRiferimento||""),discounts:compactOfferDiscounts(row.sconti)}}};
   }
   function offerCompatible(offer){const customer=customerTypeFromDocs();const supply=new Set(commoditiesFromDocs());if(customer&&offer.customerType&&offer.customerType!==customer)return false;const keys=Object.keys(offer.components||{});if(!keys.length)return false;if(!supply.size)return true;return keys.length===supply.size&&keys.every((key)=>supply.has(key));}
+  const PARTNER_PROVIDER_MENU_OPTIONS=[["greenius","Greenius"],["liongreen","Lion Green"],["ovenergy","OV Energy"]];
   function normalizeProvider(value){return String(value||"").trim().toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-z0-9]+/g,"");}
-  function providerKeyForOffer(offer){if(offer?.providerKey)return String(offer.providerKey);const needle=normalizeProvider(offer?.provider);const brands=state.catalog?.brands?.providers||{};const exact=Object.entries(brands).find(([key,item])=>normalizeProvider(key)===needle||normalizeProvider(item?.label)===needle);return exact?.[0]||needle;}
+  function canonicalProviderKey(value){const key=String(value||"").trim();return key==="tate"?"eni":key;}
+  function providerKeyForOffer(offer){if(offer?.providerKey)return canonicalProviderKey(offer.providerKey);const needle=normalizeProvider(offer?.provider);const brands=state.catalog?.brands?.providers||{};const exact=Object.entries(brands).find(([key,item])=>normalizeProvider(key)===needle||normalizeProvider(item?.label)===needle);return canonicalProviderKey(exact?.[0]||needle);}
   function offerKey(offer){return `${offer.customerType||""}|${offer.supply||""}|${offer.id||offer.name}`;}
   function compactSimulatorSelects(){return typeof window!=="undefined"&&window.matchMedia&&window.matchMedia("(max-width:520px)").matches;}
   function providerPlaceholderText(){return compactSimulatorSelects()?"Fornitore":"Seleziona un fornitore…";}
@@ -752,6 +754,7 @@
     const select=$("provider-select");if(!select)return;const selectedOfferKey=state.selected?providerKeyForOffer(state.selected):"";const current=select.value||selectedOfferKey;select.innerHTML="";
     const brands=state.catalog?.brands?.providers||{},seen=new Map();
     state.offers.forEach((offer)=>{const key=providerKeyForOffer(offer),brandLabel=String(brands?.[key]?.label||"").trim(),label=brandLabel||String(offer.provider||"").trim();if(key&&label&&!seen.has(key))seen.set(key,label);});
+    PARTNER_PROVIDER_MENU_OPTIONS.forEach(([key,fallbackLabel])=>{const label=String(brands?.[key]?.label||fallbackLabel).trim();if(key&&label&&!seen.has(key))seen.set(key,label);});
     select.add(new Option(providerPlaceholderText(),""));[...seen.entries()].sort((a,b)=>a[1].localeCompare(b[1],"it",{sensitivity:"base"})).forEach(([key,label])=>select.add(new Option(label,key)));select.disabled=false;if(current&&[...select.options].some((opt)=>opt.value===current))select.value=current;
   }
   function renderOfferSelect(){
