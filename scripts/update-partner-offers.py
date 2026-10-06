@@ -849,8 +849,8 @@ def parse_ovenergy(path: Path, partner_key: str, partner_label: str, market_indi
             detail_component("Spread energia CTE", base_spread, "EUR/kWh"),
             detail_component("Spread CTE comprensivo perdite di rete", gross_spread, "EUR/kWh"),
             detail_component("Commercializzazione e vendita variabile", commercial_variable, "EUR/kWh"),
-            detail_component("Dispacciamento TIDE", None, "EUR/kWh", "Voce regolata richiamata dalla CTE; il valore è aggiornato separatamente dal motore."),
-            detail_component("Mercato capacità CMC", None, "EUR/kWh", "Voce regolata richiamata dalla CTE; il valore è aggiornato separatamente dal motore."),
+            detail_component("Dispacciamento TIDE", None, "EUR/kWh", "Voce richiamata dalla CTE ma non valorizzata nella normalizzazione corrente."),
+            detail_component("Mercato capacità CMC", None, "EUR/kWh", "Voce richiamata dalla CTE ma non valorizzata nella normalizzazione corrente."),
         ])
         fixed_components.append(annual_fixed_component("Onere di programmazione", annual_fixed_fee))
         exclusion = "CTE business normalizzata a fini documentali: la struttura commerciale multi-componente e i due codici offerta non sono rappresentati integralmente dal ranking partner corrente."
