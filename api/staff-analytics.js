@@ -50,12 +50,16 @@ function usagePercentile(values, percentile) {
   return sorted[index];
 }
 
-function usageObservation(events = [], now = Date.now(), exclusions = []) {
-  const sevenDaysMs = 7 * 24 * 60 * 60 * 1000;
+function usageObservation(events = [], now = Date.now(), exclusions = [], options = {}) {
+  const requestedWindowDays = Number(options?.windowDays || 7);
+  const windowDays = [1, 7, 30].includes(requestedWindowDays) ? requestedWindowDays : 7;
+  const requestedTool = String(options?.tool || "all").trim().toLowerCase();
+  const tool = ["all", "domestic", "business"].includes(requestedTool) ? requestedTool : "all";
+  const windowMs = windowDays * 24 * 60 * 60 * 1000;
   const twoHoursMs = 2 * 60 * 60 * 1000;
   const oneDayMs = 24 * 60 * 60 * 1000;
   const dedupMs = 10 * 60 * 1000;
-  const cutoff = now - sevenDaysMs;
+  const cutoff = now - windowMs;
   const groups = new Map();
   const activeExclusions = new Set(
     (Array.isArray(exclusions) ? exclusions : [])
@@ -64,7 +68,11 @@ function usageObservation(events = [], now = Date.now(), exclusions = []) {
       .filter((value) => !value.endsWith(":")),
   );
 
-  const observedEventTypes = new Set(["comparison_completed", "business_calculation_completed"]);
+  const observedEventTypes = tool === "domestic"
+    ? new Set(["comparison_completed"])
+    : tool === "business"
+      ? new Set(["business_calculation_completed"])
+      : new Set(["comparison_completed", "business_calculation_completed"]);
   const ordered = events
     .filter((event) => observedEventTypes.has(String(event?.eventType || "")))
     .filter((event) => event?.usageIdentityVersion === "usage-v1" && event?.usageVisitorHash)
@@ -100,36 +108,55 @@ function usageObservation(events = [], now = Date.now(), exclusions = []) {
         return hash ? `${String(event.eventType || "")}:${hash}` : "";
       })
       .filter(Boolean));
-    const domesticAnalyses7d = visitorEvents.filter((event) => event.eventType === "comparison_completed").length;
-    const businessAnalyses7d = visitorEvents.filter((event) => event.eventType === "business_calculation_completed").length;
+    const domesticAnalysesWindow = visitorEvents.filter((event) => event.eventType === "comparison_completed").length;
+    const businessAnalysesWindow = visitorEvents.filter((event) => event.eventType === "business_calculation_completed").length;
+    const analysesWindow = timestamps.length;
+    const activeDays = days.size;
+    const sessionCount = sessions.size;
+    const distinctProfiles = profiles.size;
+    const watchCandidate = analysesWindow > 1 || activeDays > 1 || sessionCount > 1 || distinctProfiles > 1;
     return {
       visitorHash,
       firstAt: new Date(timestamps[0]).toISOString(),
       lastAt: new Date(timestamps[timestamps.length - 1]).toISOString(),
-      analyses7d: timestamps.length,
-      domesticAnalyses7d,
-      businessAnalyses7d,
+      analysesWindow,
+      domesticAnalysesWindow,
+      businessAnalysesWindow,
+      // Alias mantenuti per compatibilità con eventuali consumer Staff precedenti.
+      analyses7d: analysesWindow,
+      domesticAnalyses7d: domesticAnalysesWindow,
+      businessAnalyses7d: businessAnalysesWindow,
       analysesCurrent2h: timestamps.filter((value) => value >= now - twoHoursMs).length,
       analysesCurrent24h: timestamps.filter((value) => value >= now - oneDayMs).length,
       peak2h: usagePeakWithin(timestamps, twoHoursMs),
       peak24h: usagePeakWithin(timestamps, oneDayMs),
-      activeDays: days.size,
-      sessions: sessions.size,
-      distinctProfiles: profiles.size,
+      activeDays,
+      sessions: sessionCount,
+      distinctProfiles,
+      watchCandidate,
     };
-  }).sort((a, b) => b.peak24h - a.peak24h || b.analyses7d - a.analyses7d || String(b.lastAt).localeCompare(String(a.lastAt)));
+  }).sort((a, b) => (
+    b.peak24h - a.peak24h
+    || b.activeDays - a.activeDays
+    || b.distinctProfiles - a.distinctProfiles
+    || String(b.lastAt).localeCompare(String(a.lastAt))
+  ));
 
   const peak24hValues = rows.map((row) => row.peak24h);
+  const occasionalVisitors = rows.filter((row) => !row.watchCandidate).length;
   return {
     mode: "shadow",
     identityVersion: "usage-v1",
-    windowDays: 7,
+    windowDays,
+    tool,
     dedupMinutes: 10,
     summary: {
       visitors: rows.length,
-      meaningfulAnalyses: rows.reduce((sum, row) => sum + row.analyses7d, 0),
-      domesticAnalyses: rows.reduce((sum, row) => sum + row.domesticAnalyses7d, 0),
-      businessAnalyses: rows.reduce((sum, row) => sum + row.businessAnalyses7d, 0),
+      meaningfulAnalyses: rows.reduce((sum, row) => sum + row.analysesWindow, 0),
+      domesticAnalyses: rows.reduce((sum, row) => sum + row.domesticAnalysesWindow, 0),
+      businessAnalyses: rows.reduce((sum, row) => sum + row.businessAnalysesWindow, 0),
+      occasionalVisitors,
+      watchVisitors: rows.length - occasionalVisitors,
       multiDayVisitors: rows.filter((row) => row.activeDays > 1).length,
       maxPeak24h: peak24hValues.length ? Math.max(...peak24hValues) : 0,
       p50Peak24h: usagePercentile(peak24hValues, 0.50),
@@ -2629,18 +2656,27 @@ export default async function handler(req, res) {
 
   if (mode === "usage") {
     const now = Date.now();
-    const from = new Date(now - 7 * 24 * 60 * 60 * 1000).toISOString();
+    const requestedWindowDays = Number(url.searchParams.get("days") || 7);
+    const windowDays = [1, 7, 30].includes(requestedWindowDays) ? requestedWindowDays : 7;
+    const requestedTool = String(url.searchParams.get("tool") || "all").trim().toLowerCase();
+    const tool = ["all", "domestic", "business"].includes(requestedTool) ? requestedTool : "all";
+    const from = new Date(now - windowDays * 24 * 60 * 60 * 1000).toISOString();
+    const emptyUsageResult = { ok: true, configured: true, status: "ready", events: [] };
     const [domesticRaw, businessRaw, exclusions] = await Promise.all([
-      listCustomerAnalytics({
-        limit: 10000,
-        from,
-        eventType: "comparison_completed",
-      }),
-      listCustomerAnalytics({
-        limit: 10000,
-        from,
-        eventType: "business_calculation_completed",
-      }),
+      tool === "business"
+        ? Promise.resolve(emptyUsageResult)
+        : listCustomerAnalytics({
+            limit: 10000,
+            from,
+            eventType: "comparison_completed",
+          }),
+      tool === "domestic"
+        ? Promise.resolve(emptyUsageResult)
+        : listCustomerAnalytics({
+            limit: 10000,
+            from,
+            eventType: "business_calculation_completed",
+          }),
       listUsageCountExclusions(),
     ]);
     if (!domesticRaw.ok || !businessRaw.ok) {
@@ -2655,7 +2691,10 @@ export default async function handler(req, res) {
       ok: true,
       configured: domesticRaw.configured && businessRaw.configured,
       status: domesticRaw.status || businessRaw.status,
-      usage: { ...usageObservation(observedEvents, now, exclusions.rows), exclusions: exclusions.rows },
+      usage: {
+        ...usageObservation(observedEvents, now, exclusions.rows, { windowDays, tool }),
+        exclusions: exclusions.rows,
+      },
       authorizedBy,
       checkedAt: new Date(now).toISOString(),
     });

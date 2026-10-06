@@ -58,6 +58,16 @@
     audit: [],
   };
 
+
+  const USAGE_PAGE_SIZE = 25;
+  const usageUi = {
+    view: "watch",
+    periodDays: 7,
+    tool: "all",
+    sort: "density",
+    page: 1,
+  };
+
   const byId = id => document.getElementById(id);
 
   function analyticsCurrentMonthKey() {
@@ -2006,24 +2016,6 @@
     return item?.label || known[key] || key || "Tutte le provenienze";
   }
 
-  function analyticsReferrerHost(value = "") {
-    const raw = String(value || "").trim();
-    if (!raw) return "";
-    try {
-      const candidate = /^[a-z][a-z0-9+.-]*:\/\//i.test(raw) ? raw : `https://${raw.replace(/^\/\//, "")}`;
-      return String(new URL(candidate).hostname || "").toLowerCase().replace(/^www\./, "");
-    } catch {
-      return raw.replace(/^https?:\/\//i, "").replace(/^www\./i, "").split(/[/?#]/, 1)[0].toLowerCase();
-    }
-  }
-
-  function analyticsSourceDisplay(sourceKey = "", referrer = "") {
-    const label = analyticsSourceLabel(sourceKey);
-    if (String(sourceKey || "") !== "referral_other") return label;
-    const host = analyticsReferrerHost(referrer);
-    return host ? `${label} · ${host}` : label;
-  }
-
   function renderAnalyticsSessionTechnicalRows(rows = []) {
     const technicalList = byId("analyticsSessionTechnicalEvents");
     if (!technicalList) return;
@@ -2431,7 +2423,7 @@
     const pageData = analyticsPageRows(rows, "journeys");
     if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione disponibile.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(row => {
-      const source = analyticsSourceDisplay(row.source || "direct", row.referrer);
+      const source = analyticsSourceLabel(row.source || "direct");
       const intent = row.intento || "Intento non determinabile";
       const intentBasis = row.intento_base || "";
       const comparison = row.percorso_sequenza || row.percorso_confronto || "—";
@@ -2529,7 +2521,7 @@
       ].filter(Boolean).join(" · ");
       body.append(node("tr", { className: `analytics-session-tone-${analysisTone}` }, [
         node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
-        node("td", {}, [node("strong", { text: analyticsSourceDisplay(row.source || "direct", row.referrer) }), node("small", { text: row.intento || "Intento non determinabile" })]),
+        node("td", {}, [node("strong", { text: analyticsSourceLabel(row.source || "direct") }), node("small", { text: row.intento || "Intento non determinabile" })]),
         node("td", {}, [analyticsCellDetails("PDF", pdfTone, "Passaggi PDF", [steps])]),
         node("td", { className: "analytics-pdf-status" }, [analyticsCellDetails("Analisi", analysisTone, row.pdf_esito || "Esito non disponibile", [analysisMeta])]),
         node("td", {}, [analyticsCellDetails(row.pdf_missing_field_count ? `${row.pdf_missing_field_count} mancanti` : "Diagnostica", row.pdf_missing_field_count ? "warn" : analysisTone === "danger" ? "danger" : "info", row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "Diagnostica PDF", [diagnostics])]),
@@ -2632,7 +2624,7 @@
       const path = `${switchoPathLabel(row)} · ${switchoOriginLabel(row.dataOrigin)}`;
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.createdAt || row.firstAt) })]),
-        node("td", {}, [node("strong", { text: String(row.trafficSource || "") === "referral_other" ? analyticsSourceDisplay("referral_other", row.trafficReferrer) : switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: switchoSourceLabel(row.trafficSource) }), node("small", { text: [row.trafficCampaign, row.trafficTerm].filter(Boolean).join(" · ") })]),
         node("td", { text: path }), node("td", { text: offer }), node("td", { text: ranking }), node("td", { text: values }),
         node("td", {}, [badge(switchoStatusLabel(row), row.landingOpened || row.redirectRecorded ? "ok" : "warn")]),
         node("td", {}, [node("span", { className: "switcho-session", text: displayId, attrs: { title: sessionId || "" } }), journeySessionButton(sessionId)])
@@ -2961,10 +2953,110 @@
     }
   }
 
+  function usageWindowLabel(days = 7) {
+    const value = Number(days || 7);
+    if (value === 1) return "24 ore";
+    if (value === 30) return "30 giorni";
+    return "7 giorni";
+  }
+
+  function usageToolLabel(tool = "all") {
+    if (tool === "domestic") return "Domestico";
+    if (tool === "business") return "Business";
+    return "Tutti gli strumenti";
+  }
+
+  function usageSortedRows(rows = []) {
+    const sorted = [...rows];
+    if (usageUi.sort === "recent") {
+      return sorted.sort((a, b) => String(b.lastAt || "").localeCompare(String(a.lastAt || "")));
+    }
+    if (usageUi.sort === "profiles") {
+      return sorted.sort((a, b) => (
+        Number(b.distinctProfiles || 0) - Number(a.distinctProfiles || 0)
+        || Number(b.activeDays || 0) - Number(a.activeDays || 0)
+        || String(b.lastAt || "").localeCompare(String(a.lastAt || ""))
+      ));
+    }
+    if (usageUi.sort === "days") {
+      return sorted.sort((a, b) => (
+        Number(b.activeDays || 0) - Number(a.activeDays || 0)
+        || Number(b.distinctProfiles || 0) - Number(a.distinctProfiles || 0)
+        || String(b.lastAt || "").localeCompare(String(a.lastAt || ""))
+      ));
+    }
+    return sorted.sort((a, b) => (
+      Number(b.peak24h || 0) - Number(a.peak24h || 0)
+      || Number(b.activeDays || 0) - Number(a.activeDays || 0)
+      || Number(b.distinctProfiles || 0) - Number(a.distinctProfiles || 0)
+      || String(b.lastAt || "").localeCompare(String(a.lastAt || ""))
+    ));
+  }
+
+  function usageVisibleRows(usage = {}) {
+    const rows = Array.isArray(usage.rows) ? usage.rows : [];
+    const filtered = usageUi.view === "watch"
+      ? rows.filter((row) => row?.watchCandidate === true)
+      : rows;
+    return usageSortedRows(filtered);
+  }
+
+  function renderUsagePagination(totalRows) {
+    const target = byId("usagePagination");
+    if (!target) return;
+    clear(target);
+    const totalPages = Math.max(1, Math.ceil(Number(totalRows || 0) / USAGE_PAGE_SIZE));
+    usageUi.page = Math.min(Math.max(1, Number(usageUi.page || 1)), totalPages);
+    const current = usageUi.page;
+    if (totalPages <= 1) {
+      target.append(node("span", { text: totalRows ? `Pagina 1 di 1 · ${formatNumber(totalRows)} risultati` : "Nessun risultato" }));
+      return;
+    }
+    const addButton = (label, page, disabled = false, active = false) => {
+      const button = node("button", { type: "button", text: label, className: active ? "active" : "" });
+      button.disabled = disabled;
+      if (!disabled && !active) button.addEventListener("click", () => { usageUi.page = page; renderUsage(); });
+      target.append(button);
+    };
+    addButton("←", current - 1, current <= 1);
+    const pages = new Set([1, totalPages, current, current - 1, current + 1, current - 2, current + 2].filter((page) => page >= 1 && page <= totalPages));
+    let previous = 0;
+    [...pages].sort((a, b) => a - b).forEach((page) => {
+      if (previous && page - previous > 1) target.append(node("span", { text: "…" }));
+      addButton(String(page), page, false, page === current);
+      previous = page;
+    });
+    addButton("→", current + 1, current >= totalPages);
+    target.append(node("span", { text: `${formatNumber(totalRows)} risultati · ${USAGE_PAGE_SIZE} per pagina` }));
+  }
+
+  function updateUsageControls(usage = {}) {
+    document.querySelectorAll("[data-usage-view]").forEach((button) => {
+      button.classList.toggle("active", String(button.dataset.usageView || "") === usageUi.view);
+    });
+    const period = byId("usagePeriod");
+    if (period) period.value = String(usageUi.periodDays);
+    const tool = byId("usageTool");
+    if (tool) tool.value = usageUi.tool;
+    const sort = byId("usageSort");
+    if (sort) sort.value = usageUi.sort;
+
+    const exclusionsPanel = byId("usageExclusionsPanel");
+    const densityPanel = byId("usageDensityPanel");
+    if (exclusionsPanel) exclusionsPanel.hidden = usageUi.view !== "excluded";
+    if (densityPanel) densityPanel.hidden = usageUi.view === "excluded";
+
+    const windowLabel = usageWindowLabel(usage.windowDays || usageUi.periodDays);
+    text(byId("usageWindowHeader"), windowLabel);
+    text(byId("usageWindowCopy"), `${windowLabel} · ${usageToolLabel(usage.tool || usageUi.tool)}`);
+  }
+
   function renderUsage() {
     const usage = cache.usage && typeof cache.usage === "object" ? cache.usage : { summary: {}, rows: [], exclusions: [] };
     const summary = usage.summary || {};
+    const windowLabel = usageWindowLabel(usage.windowDays || usageUi.periodDays);
     text(byId("usageVisitors"), summary.visitors || 0);
+    text(byId("usageVisitorsMeta"), `${summary.watchVisitors || 0} da osservare · ${summary.occasionalVisitors || 0} occasionali`);
     text(byId("usageAnalyses"), summary.meaningfulAnalyses || 0);
     text(byId("usageBreakdown"), `Domestico ${summary.domesticAnalyses || 0} · Business ${summary.businessAnalyses || 0}`);
     text(byId("usageMultiDay"), summary.multiDayVisitors || 0);
@@ -2975,28 +3067,47 @@
     const currentIpButton = byId("usageExcludeCurrentIp");
     if (currentIpButton) currentIpButton.hidden = !isAdmin();
     renderUsageExclusions(usage);
+    updateUsageControls(usage);
+
     const body = byId("usageRows");
-    if (!body) return;
+    if (!body || usageUi.view === "excluded") return;
     clear(body);
-    const rows = Array.isArray(usage.rows) ? usage.rows : [];
-    if (!rows.length) {
-      body.append(node("tr", {}, [node("td", { text: "Nessun utilizzo conteggiabile del calcolatore domestico o Business con identità usage-v1 disponibile negli ultimi 7 giorni.", attrs: { colspan: "11" } })]));
+
+    const visibleRows = usageVisibleRows(usage);
+    const occasionalCount = Number(summary.occasionalVisitors || 0);
+    const filterInfo = byId("usageFilterInfo");
+    if (filterInfo) {
+      filterInfo.textContent = usageUi.view === "watch"
+        ? `${formatNumber(visibleRows.length)} visitor da osservare · ${formatNumber(occasionalCount)} occasionali raggruppati e nascosti`
+        : `${formatNumber(visibleRows.length)} visitor nel periodo selezionato`;
+    }
+
+    if (!visibleRows.length) {
+      const message = usageUi.view === "watch"
+        ? `Nessun visitor con utilizzo ripetuto nel periodo ${windowLabel}. Gli utilizzi occasionali restano conteggiati nel riepilogo.`
+        : `Nessun utilizzo conteggiabile nel periodo ${windowLabel}.`;
+      body.append(node("tr", {}, [node("td", { text: message, attrs: { colspan: "11" } })]));
+      renderUsagePagination(0);
       return;
     }
-    rows.forEach((row) => {
+
+    const totalPages = Math.max(1, Math.ceil(visibleRows.length / USAGE_PAGE_SIZE));
+    usageUi.page = Math.min(Math.max(1, Number(usageUi.page || 1)), totalPages);
+    const start = (usageUi.page - 1) * USAGE_PAGE_SIZE;
+    visibleRows.slice(start, start + USAGE_PAGE_SIZE).forEach((row) => {
       const action = node("td");
       if (isAdmin()) {
         const exclude = node("button", { className: "button secondary compact", type: "button", text: "ESCLUDI" });
-        exclude.addEventListener("click", () => excludeUsageVisitor(row).catch(error => setMessage("error", friendlyError(error))));
+        exclude.addEventListener("click", () => excludeUsageVisitor(row).catch((error) => setMessage("error", friendlyError(error))));
         action.append(exclude);
       } else {
         action.textContent = "—";
       }
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: usageVisitorLabel(row.visitorHash), attrs: { title: String(row.visitorHash || "") } })]),
-        node("td", { text: row.analyses7d || 0 }),
-        node("td", { text: row.domesticAnalyses7d || 0 }),
-        node("td", { text: row.businessAnalyses7d || 0 }),
+        node("td", { text: row.analysesWindow ?? row.analyses7d ?? 0 }),
+        node("td", { text: row.domesticAnalysesWindow ?? row.domesticAnalyses7d ?? 0 }),
+        node("td", { text: row.businessAnalysesWindow ?? row.businessAnalyses7d ?? 0 }),
         node("td", { text: row.peak2h || 0 }),
         node("td", { text: row.peak24h || 0 }),
         node("td", { text: row.activeDays || 0 }),
@@ -3006,12 +3117,21 @@
         action,
       ]));
     });
+    renderUsagePagination(visibleRows.length);
   }
 
   async function loadUsage({ silent = false } = {}) {
     if (!silent) setMessage("info", "Aggiornamento utilizzo strumenti…");
-    const payload = await staffFetch("/api/staff-analytics?mode=usage");
-    cache.usage = payload.usage && typeof payload.usage === "object" ? payload.usage : { mode: "shadow", summary: {}, rows: [], exclusions: [] };
+    const params = new URLSearchParams({
+      mode: "usage",
+      days: String(usageUi.periodDays),
+      tool: usageUi.tool,
+    });
+    const payload = await staffFetch(`/api/staff-analytics?${params.toString()}`);
+    cache.usage = payload.usage && typeof payload.usage === "object"
+      ? payload.usage
+      : { mode: "shadow", summary: {}, rows: [], exclusions: [], windowDays: usageUi.periodDays, tool: usageUi.tool };
+    usageUi.page = 1;
     renderUsage();
     if (!silent) setMessage("success", "Utilizzo strumenti aggiornato.");
   }
@@ -5409,6 +5529,31 @@
     document.addEventListener("keydown", event => { if (event.key === "Escape" && !byId("staffComplimentaryLayer")?.hidden) closeComplimentary(); });
     byId("analyticsRefresh")?.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error))));
     byId("usageRefresh")?.addEventListener("click", () => loadUsage().catch(error => setMessage("error", friendlyError(error))));
+    document.querySelectorAll("[data-usage-view]").forEach((button) => button.addEventListener("click", () => {
+      usageUi.view = ["watch", "all", "excluded"].includes(String(button.dataset.usageView || ""))
+        ? String(button.dataset.usageView)
+        : "watch";
+      usageUi.page = 1;
+      renderUsage();
+    }));
+    byId("usagePeriod")?.addEventListener("change", () => {
+      const value = Number(byId("usagePeriod")?.value || 7);
+      usageUi.periodDays = [1, 7, 30].includes(value) ? value : 7;
+      usageUi.page = 1;
+      loadUsage({ silent: true }).catch(error => setMessage("error", friendlyError(error)));
+    });
+    byId("usageTool")?.addEventListener("change", () => {
+      const value = String(byId("usageTool")?.value || "all");
+      usageUi.tool = ["all", "domestic", "business"].includes(value) ? value : "all";
+      usageUi.page = 1;
+      loadUsage({ silent: true }).catch(error => setMessage("error", friendlyError(error)));
+    });
+    byId("usageSort")?.addEventListener("change", () => {
+      const value = String(byId("usageSort")?.value || "density");
+      usageUi.sort = ["density", "recent", "profiles", "days"].includes(value) ? value : "density";
+      usageUi.page = 1;
+      renderUsage();
+    });
     byId("usageExcludeCurrentIp")?.addEventListener("click", () => excludeCurrentUsageIp().catch(error => setMessage("error", friendlyError(error))));
     byId("usageExcludeIp")?.addEventListener("click", () => excludeUsageIp().catch(error => setMessage("error", friendlyError(error))));
     document.querySelectorAll("[data-analytics-refresh]").forEach(button => button.addEventListener("click", () => loadAnalytics().catch(error => setMessage("error", friendlyError(error)))));
