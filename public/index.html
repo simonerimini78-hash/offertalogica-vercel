@@ -13787,16 +13787,17 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   const isAssistance = source === "assistance_callback";
   const isBusiness = source === "business";
   const isOfferSelection = source === "offer_selection";
+  const isEmailOnlyOfferSelection = isOfferSelection;
   const isBusinessOfferSelection = isOfferSelection && LEAD_STATE.customerType === "business" && Boolean(LEAD_STATE.selectedOffer?.businessPartner);
   const isOfferAssistance = isAssistance && LEAD_STATE.assistance?.reason === "offer_support" && Boolean(LEAD_STATE.selectedOffer?.name);
   const selectedOfferName = LEAD_STATE.selectedOffer?.name || "l\'offerta scelta";
   const nameField = document.querySelector('label[for="lead-nome"]');
   const phoneField = document.querySelector('label[for="lead-telefono"]');
   const emailField = document.querySelector('label[for="lead-email"]');
-  if (nameField) nameField.style.display = isBusinessOfferSelection ? "none" : "";
-  if (phoneField) phoneField.style.display = isBusinessOfferSelection ? "none" : "";
+  if (nameField) nameField.style.display = isEmailOnlyOfferSelection ? "none" : "";
+  if (phoneField) phoneField.style.display = isEmailOnlyOfferSelection ? "none" : "";
   if (emailField) emailField.style.display = "";
-  if (isBusinessOfferSelection) {
+  if (isEmailOnlyOfferSelection) {
     const nameInput = document.getElementById("lead-nome");
     const phoneInput = document.getElementById("lead-telefono");
     if (nameInput) nameInput.value = "";
@@ -13804,7 +13805,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
   }
   if (sendBtn) {
     sendBtn.style.display = "inline-block";
-    sendBtn.innerText = isBusinessOfferSelection ? "Invia codice via email" : "Invia il codice di verifica";
+    sendBtn.innerText = isEmailOnlyOfferSelection ? "Invia codice via email" : "Invia il codice di verifica";
   }
   if (verifyBtn) {
     verifyBtn.style.display = "none";
@@ -13813,7 +13814,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Verifica e prosegui con la richiesta"
         : isOfferSelection
-          ? (isBusinessOfferSelection ? "Verifica email e prosegui" : "Verifica e continua")
+          ? "Verifica email e prosegui"
           : "Verifica e continua";
   }
   if (title) {
@@ -13824,7 +13825,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Verifica il numero"
         : isOfferSelection
-          ? (isBusinessOfferSelection ? "Verifica l'email" : "Verifica il numero")
+          ? "Verifica l'email"
           : "Verifica il numero";
   }
   if (copy) {
@@ -13835,9 +13836,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
       : isBusiness
         ? "Ricevi un codice SMS per confermare il numero. Nessun dato viene inviato a partner senza autorizzazione."
         : isOfferSelection
-          ? (isBusinessOfferSelection
           ? `Hai selezionato ${selectedOfferName}. Inserisci la tua email: riceverai un codice di verifica prima di proseguire sul percorso del fornitore. I dati della bolletta non vengono trasferiti automaticamente.`
-          : `Stai scegliendo di proseguire con ${selectedOfferName}. Solo ora OffertaLogica ti chiede telefono ed email: la verifica avviene tramite il recapito previsto dal percorso. OffertaLogica non effettua chiamate telefoniche e i dati non vengono trasmessi al partner senza autorizzazione.`)
           : "Inserisci i dati e ricevi un codice SMS. Nessun dato viene inviato a partner finché non scegli un'offerta.";
   }
   if (serviceCopy) {
@@ -13848,7 +13847,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
         : isOfferSelection
           ? (isBusinessOfferSelection
           ? `<strong>Richiedo di verificare la mia email e proseguire con l'offerta business selezionata.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica abilita il passaggio al sito del fornitore; i dati della bolletta non vengono trasferiti automaticamente.</span>`
-          : `<strong>Richiedo di verificare il recapito e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica non autorizza da sola la trasmissione dei dati al fornitore o al partner.</span>`)
+          : `<strong>Richiedo di verificare la mia email e proseguire con l'offerta che ho selezionato.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">La verifica non autorizza da sola la trasmissione dei dati al fornitore o al partner.</span>`)
           : `<strong>Richiedo la comparazione personalizzata e l'assistenza necessaria alla gestione della mia richiesta.</strong> Dichiaro di aver letto l'<a href="https://www.iubenda.com/privacy-policy/36565194" target="_blank" rel="noopener">informativa privacy</a>.<span class="lead-consent-detail">Useremo i dati inseriti o caricati per elaborare il confronto e gestire la tua richiesta.</span>`;
   }
   if (partnerLabel) partnerLabel.style.display = (isAssistance || isBusinessOfferSelection) ? "none" : "flex";
@@ -13864,7 +13863,7 @@ window.apriLeadModal = function apriLeadModal(source = "manual") {
         : isOfferSelection
           ? (isBusinessOfferSelection
           ? "Il codice viene inviato all'email indicata. Dopo la verifica apriamo il percorso ufficiale del fornitore; i dati inseriti in OffertaLogica non vengono trasferiti automaticamente."
-          : "La verifica conferma il recapito e sblocca la prosecuzione sull'offerta scelta. La trasmissione dei dati al fornitore o al partner resta separata e richiede la relativa autorizzazione.")
+          : "Il codice viene inviato all'email indicata. La verifica sblocca la prosecuzione sull'offerta scelta; la trasmissione dei dati al fornitore o al partner resta separata e richiede la relativa autorizzazione.")
           : "L'SMS serve solo a confermare il numero. L'invio dei dati a fornitori o partner resta separato e facoltativo fino alla scelta di un'offerta.";
   }
   if (partnerCopy && !isAssistance) {
@@ -13909,11 +13908,9 @@ function leggiLeadForm() {
 
 function leadValido() {
   const { nome, telefono, email, consents } = leggiLeadForm();
-  const businessEmailOnly = LEAD_STATE.leadSource === "offer_selection"
-    && LEAD_STATE.customerType === "business"
-    && Boolean(LEAD_STATE.selectedOffer?.businessPartner);
-  if (businessEmailOnly ? !email : (!nome || !telefono || !email)) {
-    leadStatus(businessEmailOnly ? "Inserisci una email valida." : "Compila nome, telefono ed email.", true);
+  const emailOnlyOfferSelection = LEAD_STATE.leadSource === "offer_selection";
+  if (emailOnlyOfferSelection ? !email : (!nome || !telefono || !email)) {
+    leadStatus(emailOnlyOfferSelection ? "Inserisci una email valida." : "Compila nome, telefono ed email.", true);
     return false;
   }
   if (!consents.service) {
@@ -13926,7 +13923,7 @@ function leadValido() {
     leadStatus("Inserisci una email valida.", true);
     return false;
   }
-  if (!businessEmailOnly && telefono.replace(/\D/g, "").length < 8) {
+  if (!emailOnlyOfferSelection && telefono.replace(/\D/g, "").length < 8) {
     leadStatus("Inserisci un numero di cellulare valido.", true);
     return false;
   }
@@ -14146,7 +14143,9 @@ async function verificaOtp() {
     });
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Codice non corretto");
-    leadStatus("Numero verificato. Le offerte sono ora disponibili.");
+    leadStatus(LEAD_STATE.leadSource === "offer_selection"
+      ? "Email verificata. Puoi proseguire con l'offerta scelta."
+      : "Numero verificato. Le offerte sono ora disponibili.");
     trackEvent("otp_verified", { leadSource: LEAD_STATE.leadSource });
     if (typeof gtag === "function") {
       gtag("event", "conversion", {
@@ -15051,6 +15050,7 @@ async function registraRichiestaOfferta() {
     if (!payload.ok) throw new Error(payload.error || "Errore consenso offerta");
     if (payload.redirectUrl) {
       offerConsentStatus("Richiesta registrata. Ti portiamo alla pagina dell'offerta scelta.");
+      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       trackEvent("offer_redirect", {
         route: "offertalogica_partner",
         channel: "partner_redirect",
@@ -15061,7 +15061,6 @@ async function registraRichiestaOfferta() {
         destinationStatus: offer.destinationStatus || "",
         redirect: true,
       });
-      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
       window.location.href = payload.redirectUrl;
       return;
     }

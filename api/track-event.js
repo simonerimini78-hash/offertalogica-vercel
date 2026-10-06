@@ -123,6 +123,7 @@ const VERIFIED_LEAD_EVENT_TYPES = new Set([
   "offer_verified_direct_redirect",
   "offer_request_recorded",
   "offer_redirect",
+  "partner_funnel_opened",
   "assistance_callback_verified",
 ]);
 
@@ -131,6 +132,7 @@ const VERIFIED_LEAD_EVENT_TYPES = new Set([
 const SERVER_OFFER_MATCH_EVENT_TYPES = new Set([
   "offer_request_recorded",
   "offer_redirect",
+  "partner_funnel_opened",
 ]);
 
 const INTERACTIVE_TOOL_EVENT_TYPE = "interactive_tool_event";
