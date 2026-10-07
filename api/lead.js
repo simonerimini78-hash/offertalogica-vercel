@@ -5,6 +5,7 @@ import {
   maskPhone,
   protectionActivate,
   protectionLookupUserId,
+  protectionLookupCallerContext,
   protectionSignIn,
   protectionSignUp,
   protectionState,
@@ -63,11 +64,42 @@ async function protectionStatusResponse(req, res) {
 }
 
 async function handleProtection(req, res, body) {
+  const action = String(body?.action || "").trim().toLowerCase();
+
+  if (action === "lookup-number") {
+    if (!(await enforceRateLimit(req, res, {
+      label: "protection-number-lookup",
+      ...rateLimitConfig("PROTECTION_NUMBER_LOOKUP", 120, 3600),
+    }))) return;
+    const phone = String(body?.phone || "").trim();
+    if (!/^\+[1-9][0-9]{7,14}$/.test(phone)) {
+      return json(res, 400, { ok: false, error: "Numero non valido" });
+    }
+    try {
+      const auth = await protectionUserFromRequest(req, res);
+      const lookup = await protectionLookupCallerContext({
+        phone,
+        userId: auth?.user?.id || null,
+      });
+      return json(res, 200, {
+        ok: true,
+        authenticated: Boolean(auth?.user?.id),
+        recognized: lookup.recognized,
+        matches: lookup.matches,
+        requestMatch: lookup.requestMatch,
+      });
+    } catch (error) {
+      console.warn("protection_number_lookup_failed", {
+        message: String(error?.message || "lookup_failed").slice(0, 180),
+      });
+      return json(res, 503, { ok: false, error: "Archivio numeri temporaneamente non disponibile" });
+    }
+  }
+
   if (!protectionRegistrationEnabled()) {
     return json(res, 503, { ok: false, error: "Registrazione Protezione temporaneamente non disponibile" });
   }
 
-  const action = String(body?.action || "").trim().toLowerCase();
   if (!(await enforceRateLimit(req, res, {
     label: `protection-${action || "unknown"}`,
     ...rateLimitConfig("PROTECTION_AUTH", 60, 3600),

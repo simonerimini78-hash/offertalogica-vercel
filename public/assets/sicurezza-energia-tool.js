@@ -1,6 +1,6 @@
 (function(){
   'use strict';
-  const TOOL_VERSION='security-energy-v0.1.8';
+  const TOOL_VERSION='security-energy-v0.1.9';
   const TOOL_CODE='sicurezza_energia';
   const SOURCE='seo_sicurezza_energia';
   const TRACK_URL='/api/track-event';
@@ -25,6 +25,7 @@
   let normalizedPhone='';
   let hasTrackedStart=false;
   let currentDiagnosis=null;
+  let olNumberLookup={status:'idle',authenticated:false,recognized:false,matches:[],requestMatch:null,error:''};
 
   const sessionId=(()=>{try{if(globalThis.crypto&&crypto.randomUUID)return crypto.randomUUID();}catch(e){}return 'sec-'+Date.now()+'-'+Math.random().toString(36).slice(2,10);})();
   function isStaffPreview(){try{return sessionStorage.getItem('offertalogicaStaffMode')==='true';}catch(e){return false;}}
@@ -44,6 +45,96 @@
     if(raw.length<6||raw.length>12)return {ok:false,error:'Controlla il numero: la lunghezza non sembra valida per una numerazione italiana.'};
     return {ok:true,value:raw,display:raw};
   }
+
+  function lookupPhoneE164(value){
+    const digits=String(value||'').replace(/\D/g,'');
+    return digits?'+39'+digits:'';
+  }
+  function contactRoleLabel(value){
+    const labels={partner:'partner',area_manager:'responsabile di zona',dedicated_call_center:'call center dedicato',other:'canale verificato'};
+    return labels[String(value||'').trim()]||'canale verificato';
+  }
+  function formatLookupDate(value){
+    if(!value)return '';
+    const date=new Date(value);
+    if(Number.isNaN(date.getTime()))return '';
+    try{return new Intl.DateTimeFormat('it-IT',{day:'2-digit',month:'2-digit',year:'numeric'}).format(date);}catch(e){return '';}
+  }
+  function renderOlNumberLookup(){
+    const box=root.querySelector('[data-ol-number-result]');
+    const title=root.querySelector('[data-ol-number-title]');
+    const text=root.querySelector('[data-ol-number-text]');
+    const note=root.querySelector('[data-ol-number-note]');
+    if(!box||!title||!text||!note)return;
+    if(olNumberLookup.status==='idle'){box.hidden=true;return;}
+    box.hidden=false;
+    box.dataset.lookupLevel='neutral';
+    note.textContent='';
+    if(olNumberLookup.status==='loading'){
+      title.textContent='Controllo del numero in corso';
+      text.textContent='Stiamo confrontando il numero con l’archivio verificato Offerta Logica.';
+      return;
+    }
+    if(olNumberLookup.status==='error'){
+      title.textContent='Archivio temporaneamente non disponibile';
+      text.textContent='Puoi continuare con le fonti ufficiali indicate sotto e riprovare più tardi.';
+      return;
+    }
+    const matches=Array.isArray(olNumberLookup.matches)?olNumberLookup.matches:[];
+    const requestMatch=olNumberLookup.requestMatch||matches.map(function(item){return item&&item.requestMatch;}).find(Boolean)||null;
+    if(requestMatch){
+      const matched=matches.find(function(item){return item&&item.requestMatch;})||matches[0]||{};
+      const supplier=String(matched.supplierName||requestMatch.partnerName||'il soggetto indicato');
+      box.dataset.lookupLevel='confirmed';
+      title.textContent='Contatto coerente con una tua richiesta Offerta Logica';
+      text.textContent='Il numero risulta associato a '+supplier+' e nel tuo account è presente una richiesta attiva: '+String(requestMatch.serviceName||'richiesta di contatto')+'.';
+      const when=formatLookupDate(requestMatch.requestedAt);
+      note.textContent=(when?'Richiesta del '+when+'. ':'')+'La corrispondenza riguarda il perimetro Offerta Logica e non certifica altri consensi eventualmente ottenuti dal fornitore.';
+      return;
+    }
+    if(!matches.length){
+      title.textContent='Numero non presente nell’archivio Offerta Logica';
+      text.textContent='Non abbiamo una corrispondenza verificata per questo numero. Questo non significa che il numero sia illecito o fraudolento.';
+      note.textContent='Continua la verifica con le fonti ufficiali indicate sotto.';
+      return;
+    }
+    if(matches.length>1){
+      const names=[...new Set(matches.map(function(item){return String(item&&item.supplierName||'').trim();}).filter(Boolean))];
+      box.dataset.lookupLevel='review';
+      title.textContent='Numero riconosciuto in più contesti';
+      text.textContent='Il numero compare nell’archivio Offerta Logica associato a: '+names.join(', ')+'. Non usare questo dato da solo per attribuire con certezza la chiamata a un singolo soggetto.';
+      note.textContent='Verifica anche ciò che il chiamante ha dichiarato e le fonti ufficiali.';
+      return;
+    }
+    const match=matches[0]||{};
+    const channels=Array.isArray(match.olChannels)?match.olChannels:[];
+    const channel=channels[0]||null;
+    box.dataset.lookupLevel=channel?'confirmed':'neutral';
+    if(channel&&olNumberLookup.authenticated){
+      title.textContent='Canale verificato OL, senza richiesta attiva collegata';
+      text.textContent='Il numero risulta associato a '+String(match.supplierName||channel.partnerName||'un partner')+' come '+contactRoleLabel(channel.contactRole)+', ma nel tuo account non troviamo una richiesta Offerta Logica attiva collegata a questo contatto.';
+      note.textContent='Questo non esclude consensi o rapporti che il fornitore possa avere ottenuto direttamente fuori da Offerta Logica.';
+    }else if(channel){
+      title.textContent='Canale verificato Offerta Logica';
+      text.textContent='Il numero risulta associato a '+String(match.supplierName||channel.partnerName||'un partner')+' ed è stato verificato come '+contactRoleLabel(channel.contactRole)+' per richieste Offerta Logica.';
+      note.textContent='Accedi a Protezione OL per verificare se esiste anche una tua richiesta attiva collegata.';
+    }else{
+      title.textContent='Numero riconosciuto nell’archivio Offerta Logica';
+      text.textContent='Il numero risulta associato a '+String(match.supplierName||'un soggetto verificato')+'.';
+      note.textContent='Questa informazione identifica il numero nell’archivio OL, ma non stabilisce da sola il motivo o la legittimità della chiamata.';
+    }
+  }
+  function lookupOlNumber(phone){
+    const e164=lookupPhoneE164(phone);
+    if(!e164)return;
+    olNumberLookup={status:'loading',authenticated:false,recognized:false,matches:[],requestMatch:null,error:''};
+    renderOlNumberLookup();
+    fetch('/api/lead',{method:'POST',headers:{'Content-Type':'application/json'},credentials:'same-origin',body:JSON.stringify({mode:'protection',action:'lookup-number',phone:e164})})
+      .then(function(response){return response.json().catch(function(){return {};}).then(function(payload){if(!response.ok||payload.ok===false)throw new Error(payload.error||'lookup_failed');return payload;});})
+      .then(function(payload){olNumberLookup={status:'done',authenticated:payload.authenticated===true,recognized:payload.recognized===true,matches:Array.isArray(payload.matches)?payload.matches:[],requestMatch:payload.requestMatch||null,error:''};renderOlNumberLookup();})
+      .catch(function(error){olNumberLookup={status:'error',authenticated:false,recognized:false,matches:[],requestMatch:null,error:String(error&&error.message||'lookup_failed')};renderOlNumberLookup();});
+  }
+
   function selectedIdentity(){const el=root.querySelector('input[name="declared-identity"]:checked');return el?el.value:'';}
   function checkedValues(selector){return Array.from(root.querySelectorAll(selector+':checked')).map(function(el){return el.value;});}
   function behavior(name){const el=root.querySelector('[data-behavior="'+name+'"]');return el?el.value:'unknown';}
@@ -284,6 +375,7 @@
     root.querySelector('[data-result-identity-note]').textContent=diagnosis.identity==='unknown'?'Non hai indicato chi dichiarava di essere il chiamante. La verifica del numero resta comunque utile.':'Questa è l’identità che ricordi dalla chiamata; non è stata verificata automaticamente da OffertaLogica.';
     root.querySelector('[data-result-signal-title]').textContent=resultSignalTitle(diagnosis);
     root.querySelector('[data-result-signals]').textContent=diagnosis.signalText;
+    renderOlNumberLookup();
     root.querySelector('[data-recommendation-text]').textContent=recommendationCopy(diagnosis,sourceAssessment);
     const pending=root.querySelector('[data-verification-pending]');
     if(pending){const pendingText=verificationPendingCopy(diagnosis,sourceAssessment);pending.textContent=pendingText;pending.hidden=!pendingText;}
@@ -314,6 +406,7 @@
         if(!parsed.ok){error.textContent=parsed.error;error.hidden=false;const phoneInput=root.querySelector('#security-phone');phoneInput.setAttribute('aria-invalid','true');phoneInput.focus();track('error',{outcome:'invalid_phone'});return;}
         error.hidden=true;root.querySelector('#security-phone').setAttribute('aria-invalid','false');
         normalizedPhone=parsed.display;
+        lookupOlNumber(normalizedPhone);
         if(!hasTrackedStart){track('started',{context:'phone_valid'});hasTrackedStart=true;}
         showStep('identity');
         track('step_completed',{outcome:'phone'});
@@ -351,6 +444,8 @@
       root.querySelector('#security-phone').value='';
       normalizedPhone='';
       currentDiagnosis=null;
+      olNumberLookup={status:'idle',authenticated:false,recognized:false,matches:[],requestMatch:null,error:''};
+      renderOlNumberLookup();
       resetSourceOutcomes();
       showStep('phone');
       track('restart',{outcome:'new_check'});
