@@ -7,6 +7,7 @@ import {
   protectionSignIn,
   protectionSignUp,
   protectionState,
+  protectionSetNewsletter,
   protectionUserFromAccessToken,
   protectionUserFromRequest,
   setProtectionSessionCookie,
@@ -45,6 +46,8 @@ async function protectionStatusPayload(auth) {
       phoneVerified: state.phoneVerified,
       phoneMasked: maskPhone(state.phone),
       phoneVerifiedAt: state.phoneVerifiedAt,
+      newsletterEnabled: state.newsletterEnabled,
+      newsletterUpdatedAt: state.newsletterUpdatedAt,
     },
   };
 }
@@ -158,6 +161,15 @@ async function handleProtection(req, res, body) {
       clearProtectionSessionCookie(res);
       return json(res, 400, { ok: false, error: "Conferma email non valida o scaduta" });
     }
+  }
+
+  if (action === "newsletter") {
+    const auth = await protectionUserFromRequest(req, res);
+    if (!auth) return json(res, 401, { ok: false, error: "Accedi per continuare" });
+    const state = await protectionState(auth.user.id);
+    if (!state.active) return json(res, 400, { ok: false, error: "Attiva prima Protezione OL" });
+    await protectionSetNewsletter({ userId: auth.user.id, enabled: body.enabled === true });
+    return json(res, 200, await protectionStatusPayload(auth));
   }
 
   if (action === "activate") {

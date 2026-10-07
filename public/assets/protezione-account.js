@@ -15,6 +15,8 @@
   const activateStep = root.querySelector("[data-protection-activate-step]");
   const activeStep = root.querySelector("[data-protection-active-step]");
   const activePhone = root.querySelector("[data-protection-active-phone]");
+  const newsletterStatus = root.querySelector("[data-protection-newsletter-status]");
+  const newsletterToggle = root.querySelector("[data-protection-newsletter-toggle]");
   const phoneInput = root.querySelector("[data-protection-phone]");
   const otpInput = root.querySelector("[data-protection-otp]");
   const activationConsent = root.querySelector("[data-protection-activation-consent]");
@@ -82,6 +84,7 @@
     const isAuthenticated = Boolean(payload?.authenticated);
     setHidden(guest, isAuthenticated);
     setHidden(authenticated, !isAuthenticated);
+    root.dataset.protectionState = isAuthenticated ? "authenticated" : "guest";
     if (!isAuthenticated) return;
 
     if (emailLabel) emailLabel.textContent = payload.email || "Account verificato";
@@ -95,8 +98,18 @@
     setHidden(activeStep, !active);
 
     if (active) {
+      root.dataset.protectionState = "active";
       setStatus(accountStatus, "Protezione OL attiva", "success");
       if (activePhone) activePhone.textContent = protection.phoneMasked || "Numero verificato";
+      const newsletterEnabled = Boolean(protection.newsletterEnabled);
+      if (newsletterStatus) {
+        newsletterStatus.textContent = newsletterEnabled ? "Attive" : "Non attive";
+        newsletterStatus.dataset.active = newsletterEnabled ? "true" : "false";
+      }
+      if (newsletterToggle) {
+        newsletterToggle.textContent = newsletterEnabled ? "Disattiva aggiornamenti" : "Attiva aggiornamenti";
+        newsletterToggle.dataset.enabled = newsletterEnabled ? "true" : "false";
+      }
     } else if (phoneVerified) {
       setStatus(accountStatus, "Numero verificato. Completa l’attivazione.", "warning");
     } else {
@@ -228,6 +241,26 @@
       setBusy(button, true, "Attivazione…");
       const data = await post("/api/lead", { mode: "protection", action: "activate", accepted: true });
       render(data);
+    } catch (error) {
+      setStatus(accountStatus, error.message, "error");
+    } finally {
+      setBusy(button, false);
+    }
+  });
+
+  newsletterToggle?.addEventListener("click", async (event) => {
+    const button = event.currentTarget;
+    const enabled = button.dataset.enabled === "true";
+    setStatus(accountStatus, "");
+    try {
+      setBusy(button, true, enabled ? "Disattivazione…" : "Attivazione…");
+      const data = await post("/api/lead", { mode: "protection", action: "newsletter", enabled: !enabled });
+      render(data);
+      setStatus(
+        accountStatus,
+        !enabled ? "Novità energia e risparmio attivate." : "Novità energia e risparmio disattivate.",
+        "success",
+      );
     } catch (error) {
       setStatus(accountStatus, error.message, "error");
     } finally {
