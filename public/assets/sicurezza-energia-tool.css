@@ -12,3 +12,54 @@
 .protection-account-intro{max-width:720px}.protection-main-cta{min-height:50px;font-size:16px}.protection-inline-info,.security-inline-info{margin-top:12px}.protection-inline-info summary,.security-inline-info summary,.protection-account-aside summary{display:flex;align-items:center;gap:7px;width:max-content;max-width:100%;color:#166534;font-size:13px;font-weight:850;cursor:pointer;list-style:none}.protection-inline-info summary::-webkit-details-marker,.security-inline-info summary::-webkit-details-marker,.protection-account-aside summary::-webkit-details-marker{display:none}.protection-info-dot{display:inline-grid;place-items:center;flex:0 0 20px;width:20px;height:20px;border:1px solid #86d6a1;border-radius:50%;background:#fff;color:#166534;font-family:Georgia,serif;font-size:13px;font-weight:900}.protection-inline-info p,.security-inline-info p{margin:8px 0 0;padding:10px 12px;border-radius:9px;background:#f8fafc;color:#475569;font-size:13px;line-height:1.5}.protection-success-head{display:flex;gap:11px;align-items:flex-start}.protection-success-icon{display:grid;place-items:center;flex:0 0 34px;width:34px;height:34px;border-radius:50%;background:#15803d;color:#fff;font-size:20px;font-weight:900}.protection-success-head strong{font-size:18px}.protection-success-head p{margin:2px 0 0}.protection-dashboard{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:14px}.protection-dashboard-card{padding:14px;border:1px solid #dbe3ea;border-radius:11px;background:#fff}.protection-dashboard-card h3{margin:4px 0 0;color:#0f172a;font-size:17px}.protection-dashboard-card p{margin:6px 0 0;color:#475569;font-size:13px;line-height:1.45}.protection-dashboard-rpo{grid-column:1/-1;border-color:#86d6a1;background:linear-gradient(135deg,#f0fdf4 0%,#fff 82%)}.protection-card-kicker{color:#166534;font-size:11px;font-weight:900;letter-spacing:.05em;text-transform:uppercase}.protection-dashboard-card .security-link-button{margin-top:11px}.protection-newsletter-row{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:11px}.protection-newsletter-row strong{color:#64748b;font-size:13px}.protection-newsletter-row strong[data-active="true"]{color:#166534}.protection-newsletter-row .security-secondary{margin:0;padding:9px 12px}.protection-logout{margin-top:12px}.protection-account-aside{display:block}.protection-account-aside summary{width:100%;color:#1e3a8a}.protection-account-aside[open] summary{margin-bottom:10px}.security-inline-info{margin-top:8px}.security-inline-info summary{color:#475569}.security-tool-head>p{margin-bottom:0}
 @media(max-width:820px){.protection-account{gap:10px}.protection-account-main h2{font-size:29px}.protection-account-intro{font-size:15px;line-height:1.5}.protection-benefits{display:flex;gap:7px;overflow-x:auto;padding-bottom:2px;scrollbar-width:none}.protection-benefits::-webkit-scrollbar{display:none}.protection-benefits span{flex:0 0 auto;padding:8px 10px;font-size:12px}.protection-account-aside{padding:12px 13px}.protection-account-aside ol{margin-top:10px;padding-left:4px}.protection-dashboard{grid-template-columns:1fr}.protection-dashboard-rpo{grid-column:auto}.protection-newsletter-row{align-items:flex-start;flex-direction:column}.protection-newsletter-row .security-secondary{width:100%}}
 @media(max-width:580px){.hero{padding-top:22px;padding-bottom:22px}.hero h1{font-size:clamp(30px,9vw,39px);line-height:1.08}.hero p{font-size:15px;line-height:1.5}.protection-account{margin-top:14px;padding:14px;border-radius:14px}.protection-account-badge{font-size:11px}.protection-account-main h2{font-size:28px}.protection-account-intro{margin-top:6px}.protection-benefits{margin-top:11px}.protection-account-actions{margin-top:12px;gap:8px}.protection-account-actions .security-primary{min-height:52px;font-size:16px}.protection-auth-form{padding:13px;margin-top:12px}.protection-active-card{padding:12px}.protection-dashboard{gap:8px;margin-top:12px}.protection-dashboard-card{padding:12px}.protection-dashboard-card h3{font-size:16px}.protection-dashboard-rpo .security-primary{width:100%;text-align:center}.security-tool{margin-top:16px}.security-tool-head h2{font-size:25px;line-height:1.15}.security-tool-head>p{font-size:14px}.security-field small{font-size:12px}.security-step>.security-primary[data-next="identity"]{width:100%;min-height:50px}.trust-strip{gap:8px}.trust-item{padding:12px}.trust-item span{font-size:12px;line-height:1.4}}
+
+/* OffertaLogica Protezione v0.10.55 — rifinitura mobile-first.
+ * Solo presentazione: SEO, breadcrumb, semantica e flussi restano invariati.
+ */
+@media(max-width:700px){
+  .hero{padding:7px 0 9px!important}
+  .hero>.breadcrumbs.shell{justify-content:center;flex-wrap:nowrap;white-space:nowrap;overflow-x:auto;scrollbar-width:none;width:calc(100% - 24px);margin:0 auto 6px!important;padding:5px 9px!important;border-radius:12px!important;font-size:12px;line-height:1.25;text-align:center}
+  .hero>.breadcrumbs.shell::-webkit-scrollbar{display:none}
+  .hero>div.shell{padding:13px 14px!important;border-radius:16px!important;text-align:center}
+  .hero .eyebrow{display:inline-flex;margin-bottom:6px!important;font-size:10.5px!important;line-height:1.25!important;text-align:center}
+  .hero h1{max-width:390px;margin:0 auto 7px!important;font-size:clamp(28px,8.4vw,35px)!important;line-height:1.04!important;letter-spacing:-.025em!important;text-wrap:balance}
+  .hero>div>p{max-width:350px;margin:0 auto!important;font-size:14px!important;line-height:1.38!important;text-wrap:pretty}
+
+  .protection-account{gap:7px;margin-top:9px!important;margin-bottom:14px;padding:13px!important;border-radius:14px}
+  .protection-account-main{text-align:center}
+  .protection-account-badge{margin:0 auto 7px;font-size:10.5px;line-height:1.2}
+  .protection-account-main h2{margin-inline:auto;font-size:27px!important;line-height:1.06;text-wrap:balance}
+  .protection-account-intro{max-width:350px;margin:5px auto 0!important;font-size:14px!important;line-height:1.38!important;text-wrap:pretty}
+  .protection-benefits{display:grid!important;grid-template-columns:repeat(3,minmax(0,1fr))!important;gap:6px!important;width:100%;margin-top:10px!important;padding:0!important;overflow:visible!important}
+  .protection-benefits span{display:flex;min-width:0;min-height:44px;align-items:center;justify-content:center;padding:6px 5px!important;text-align:center;white-space:normal;font-size:10.5px!important;line-height:1.18;border-radius:9px}
+  .protection-account-actions{display:grid!important;grid-template-columns:1fr!important;gap:7px!important;margin-top:10px!important}
+  .protection-account-actions .security-primary,.protection-account-actions .security-secondary{width:100%;min-height:48px;margin-top:0;padding:9px 12px;font-size:15px;line-height:1.2}
+  .protection-inline-info,.protection-account-aside{margin-top:8px}
+  .protection-inline-info summary,.protection-account-aside summary{justify-content:center;width:100%;font-size:12.5px;line-height:1.25}
+  .protection-inline-info p{margin-top:7px;text-align:left}
+  .protection-account-aside{padding:0!important;border:0!important;border-radius:0!important;background:transparent!important}
+  .protection-account-aside[open]{padding:10px!important;border:1px solid #dbeafe!important;border-radius:10px!important;background:#eff6ff!important}
+  .protection-account-aside[open] summary{margin-bottom:7px}
+  .protection-account-aside ol{margin:7px 0 0 18px!important;gap:5px!important;text-align:left;font-size:12.5px!important;line-height:1.4}
+  .protection-auth-form,.protection-authenticated{text-align:left}
+
+  .security-tool{margin-top:14px!important;margin-bottom:20px;padding:14px!important;border-radius:14px}
+  .security-tool-head{text-align:center}
+  .security-badge{margin-bottom:7px;font-size:10.5px;line-height:1.2}
+  .security-tool-head h2{max-width:350px;margin-inline:auto;font-size:24px!important;line-height:1.08!important;text-wrap:balance}
+  .security-tool-head>p{max-width:320px;margin:6px auto 0!important;font-size:13.5px!important;line-height:1.38!important}
+  .security-inline-info{margin-top:7px}
+  .security-inline-info summary{justify-content:center;width:100%;font-size:12.5px}
+  .security-inline-info p{text-align:left}
+  .security-progress{margin:15px auto!important}
+}
+
+@media(max-width:580px){
+  .hero h1{max-width:350px;font-size:clamp(27px,8.2vw,33px)!important}
+  .protection-account-main h2{font-size:26px!important}
+}
+
+@media(max-width:360px){
+  .hero h1{font-size:26px!important}
+  .protection-benefits span{font-size:10px!important;padding-inline:3px!important}
+}
