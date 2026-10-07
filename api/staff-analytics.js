@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.91";
+const VERSION = "0.12.94";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -76,6 +76,35 @@ const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
 const EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS = 2;
 const EDITORIAL_SOCIAL_IMAGE_SIZE = "1024x1024";
 const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
+
+const EDITORIAL_ARTICLE_IMAGE_PROFILES = Object.freeze({
+  auto: {
+    label: "Auto editoriale",
+    ui_hint: "Selezione automatica del profilo più adatto in base all'articolo.",
+    directive: "Choose the most suitable visual approach for the specific article. Prefer a believable editorial scene with one clear focal action, authentic context and a visible reason for the reader to open the article.",
+  },
+  warm_human: {
+    label: "Calda e umana",
+    ui_hint: "Scena reale con presenza umana, atmosfera calda e gesto chiaro.",
+    directive: "Prefer warm, human-centered editorial photography: one adult person in a real environment, a visible gesture or decision moment, soft natural or practical light, believable emotional tension, and contextual objects that support the story without dominating it.",
+  },
+  clean_context: {
+    label: "Pulita e contestuale",
+    ui_hint: "Composizione più pulita, contesto chiaro, documenti o strumenti secondari.",
+    directive: "Prefer a clean, highly legible editorial composition with minimal clutter, a clearly understandable context and a restrained number of supporting objects. The scene should feel informative and premium, not dramatic.",
+  },
+  objects_context: {
+    label: "Oggetti e contesto",
+    ui_hint: "Focus sugli oggetti rilevanti e sull'ambiente, con minima presenza umana.",
+    directive: "Prefer a context-and-objects driven editorial image. Use relevant objects and the real environment as the visual anchor. If people appear, they must remain secondary and natural, never posed as stock-advertising models.",
+  },
+  professional_context: {
+    label: "Professionale / attività",
+    ui_hint: "Per imprese, agricoltura o contesti di lavoro: scena reale, concreta e non pubblicitaria.",
+    directive: "Prefer a professional real-world setting relevant to the article, with believable work activity, tools or machinery when appropriate. Keep the image informative and trustworthy, not promotional.",
+  },
+});
+const EDITORIAL_ARTICLE_IMAGE_PROFILE_KEYS = new Set(Object.keys(EDITORIAL_ARTICLE_IMAGE_PROFILES));
 const EDITORIAL_PAGE_UPDATE_ACTIONS = new Set([
   "prepare-editorial-update",
   "review-editorial-update",
@@ -1414,6 +1443,12 @@ async function opportunitiesPayload() {
     `editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=${OPPORTUNITY_LIST_LIMIT}`,
   );
   const opportunities = (Array.isArray(rows) ? rows : []).filter((row) => !researchHintMeta(row));
+  const articleIds = [...new Set(opportunities.map((row) => String(row?.target_article_id || "")).filter(validUuid))];
+  let articleMap = new Map();
+  if (articleIds.length) {
+    const articleRows = await serviceFetch(`editorial_articles?select=id,title,status,slug,category,excerpt,content,sources,seo_title,seo_description,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+    articleMap = new Map((Array.isArray(articleRows) ? articleRows : []).map((article) => [String(article.id), article]));
+  }
   const needsContext = opportunities.some((row) => {
     const savedPages = row?.evidence?.page_urls;
     return (!Array.isArray(savedPages) || !savedPages.length) && row?.evidence?.topic_key;
@@ -1434,10 +1469,12 @@ async function opportunitiesPayload() {
       const livePages = liveSignal?.page_urls || [];
       const savedQueries = Array.isArray(row?.evidence?.query_examples) ? row.evidence.query_examples : [];
       const liveQueries = liveSignal?.query_examples || [];
+      const article = articleMap.get(String(row?.target_article_id || "")) || null;
       const enriched = {
         ...row,
         context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5),
         query_examples: (savedQueries.length ? savedQueries : liveQueries).slice(0, 5),
+        article_automation: articleAutomationUiState(row, article),
       };
       return { ...enriched, editorial_brief: opportunityEditorialBrief(enriched, liveSignal) };
     }),
@@ -2313,6 +2350,77 @@ function cleanEditorialStringList(values, limit = 6, maxLength = 180) {
     .slice(0, limit);
 }
 
+function normalizeArticleImageProfile(value) {
+  const key = String(value || "").trim();
+  return EDITORIAL_ARTICLE_IMAGE_PROFILE_KEYS.has(key) ? key : "auto";
+}
+
+function articleImageProfileByKey(value) {
+  const key = normalizeArticleImageProfile(value);
+  return { key, ...(EDITORIAL_ARTICLE_IMAGE_PROFILES[key] || EDITORIAL_ARTICLE_IMAGE_PROFILES.auto) };
+}
+
+function articleImageTopicSignals(article, opportunity) {
+  const combined = [
+    cleanEditorialText(article?.title, 300),
+    cleanEditorialText(article?.excerpt, 600),
+    cleanEditorialText(article?.category, 120),
+    cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800),
+  ].filter(Boolean).join(" ").toLowerCase();
+  return {
+    text: combined,
+    household: /(bollett|luce|gas|utenz|spesa|rincar|consum|fornitor|mercato liber|tutela|scheda sintetica|contratt|switch|cambiare)/.test(combined),
+    documents: /(bollett|scheda|contratt|fattur|document|lettura|controll|verifica|simulatore)/.test(combined),
+    professional: /(azienda|aziend|impres|business|agricol|allevament|stalla|capannone|fotovoltaico aziend|microclima)/.test(combined),
+    technical: /(pun|psv|spread|indice|tariff|prezzo fisso|variabile|fasce|kwh|smc|cmem)/.test(combined),
+    home_service: /(casa|domestic|pompa di calore|riscaldamento|raffrescamento|caldaia|climatizz)/.test(combined),
+  };
+}
+
+function inferArticleImageProfile(article, opportunity, requestedProfile = "auto") {
+  const requested = normalizeArticleImageProfile(requestedProfile);
+  if (requested !== "auto") return requested;
+  const signals = articleImageTopicSignals(article, opportunity);
+  if (signals.professional) return "professional_context";
+  if (signals.technical) return "clean_context";
+  if (signals.household || signals.home_service) return "warm_human";
+  return "clean_context";
+}
+
+function articleImageGlobalDirection(article, opportunity, effectiveProfile) {
+  const signals = articleImageTopicSignals(article, opportunity);
+  const lines = [
+    "The image must feel like a strong editorial photograph that makes the reader want to open the article, not like a generic stock illustration of the sector.",
+    "Prefer one main subject, one readable action or decision moment, and a believable real-world environment.",
+    "Use supporting objects only to clarify the context. They must never overwhelm the frame.",
+    "If papers, bills, contracts or printed materials appear, keep them secondary, partially visible, out of focus or unreadable. Never place fake documents front-and-center.",
+    "Avoid magnifying glasses, fake dashboards, readable paperwork, perfect staged smiles, exaggerated poses and any composition that feels like stock advertising.",
+    "The result must be visually authentic, emotionally credible and immediately understandable at a glance.",
+  ];
+  if (effectiveProfile === "warm_human") {
+    lines.push("Default preference: a warm domestic or everyday setting with a believable adult person and a clear gesture of checking, deciding, comparing or understanding something important.");
+  }
+  if (effectiveProfile === "clean_context") {
+    lines.push("Default preference: a cleaner composition, restrained styling, elegant editorial clarity and fewer visible elements.");
+  }
+  if (effectiveProfile === "objects_context") {
+    lines.push("Default preference: relevant objects and the environment should carry the story, while people remain absent or secondary.");
+  }
+  if (effectiveProfile === "professional_context") {
+    lines.push("Default preference: a real professional or operational context, with believable work tools or surroundings and no promotional tone.");
+  }
+  if (signals.documents) {
+    lines.push("For this topic, document-related elements may appear only as supporting context and must never look like invented forms or fake bills created just to illustrate the theme.");
+  }
+  if (signals.technical) {
+    lines.push("For this topic, translate the abstract concept into a real-life consequence or decision context instead of showing abstract numbers, charts or fake interfaces.");
+  }
+  if (signals.professional) {
+    lines.push("For this topic, prefer a concrete activity or operational scene over a static posed portrait.");
+  }
+  return lines.join(" ");
+}
+
 function editorialArticleVisualBriefSchema() {
   return {
     type: "object",
@@ -2329,16 +2437,21 @@ function editorialArticleVisualBriefSchema() {
   };
 }
 
-async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "") {
+async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "", requestedProfile = "auto") {
   const content = cleanEditorialText(article?.content, 5000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 1000);
   const extra = cleanEditorialText(guidance, 600);
+  const requested = articleImageProfileByKey(requestedProfile);
+  const effectiveProfile = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
   const input = [
     `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
     `Sommario: ${cleanEditorialText(article?.excerpt, 320)}.`,
     article?.category ? `Categoria: ${cleanEditorialText(article.category, 80)}.` : "",
     content ? `Contenuto: ${content}.` : "",
     notes ? `Note redazione: ${notes}.` : "",
+    `Profilo visivo richiesto: ${requested.label}.`,
+    `Profilo visivo effettivo da seguire: ${effectiveProfile.label}.`,
+    `Direzione visiva generale: ${articleImageGlobalDirection(article, opportunity, effectiveProfile.key)}.`,
     extra ? `Indicazioni di rigenerazione: ${extra}.` : "",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
@@ -2349,8 +2462,12 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
         "Sei un photo editor di una testata italiana di informazione al consumatore.",
         "Trasforma esclusivamente il contenuto fornito in un brief fotografico concreto e verificabile.",
         "Scegli un soggetto principale e una scena che rappresentino il nucleo specifico dell'articolo, non soltanto il settore generico.",
+        "Progetta una fotografia editoriale forte, realistica e click-worthy, con un motivo visivo chiaro per aprire l'articolo.",
+        "Preferisci azioni, gesti, decisioni o situazioni reali rispetto a pose neutre o scene stock generiche.",
         "I must_show devono essere elementi fisicamente visibili e coerenti con fatti o contesti presenti nel testo.",
         "Evita cliché pubblicitari, scene stock generiche, elementi non supportati dall'articolo, interfacce inventate, testo leggibile e loghi.",
+        "Se compaiono documenti o fogli, devono restare di supporto, non frontali né leggibili.",
+        "Evita lenti di ingrandimento, bollette palesemente finte, dashboard fasulle, moduli inventati e qualsiasi elemento che faccia percepire l'immagine come artificiale.",
         "Se il tema è astratto, usa una scena reale che renda visibile il problema concreto senza inventare dati o documenti.",
       ].join(" "),
       input,
@@ -2388,11 +2505,14 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
   return brief;
 }
 
-function articleImagePrompt(article, opportunity, visualBrief, guidance = "") {
+function articleImagePrompt(article, opportunity, visualBrief, guidance = "", requestedProfile = "auto") {
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
   const extra = cleanEditorialText(guidance, 600);
   const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
   const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180).join("; ");
+  const requested = articleImageProfileByKey(requestedProfile);
+  const effectiveProfile = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
+  const globalDirection = articleImageGlobalDirection(article, opportunity, effectiveProfile.key);
   return [
     "Create one entirely new, original high-resolution landscape editorial photograph from scratch for an Italian consumer-information article published by OffertaLogica.",
     "Use only the textual brief supplied here. Do not retrieve, reuse, trace, imitate, transform or derive from any existing web image, stock photograph, artwork, advertisement, brand campaign or third-party visual reference.",
@@ -2400,6 +2520,10 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "") {
     `Article title: ${cleanEditorialText(article?.title, 140)}.`,
     `Article summary: ${cleanEditorialText(article?.excerpt, 320)}.`,
     article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
+    `Requested visual profile: ${requested.label}.`,
+    `Effective visual profile to follow: ${effectiveProfile.label}.`,
+    `Profile direction: ${effectiveProfile.directive}.`,
+    `Global editorial direction: ${globalDirection}.`,
     `Primary visual subject: ${cleanEditorialText(visualBrief?.primary_subject, 300)}.`,
     `Environment: ${cleanEditorialText(visualBrief?.environment, 300)}.`,
     `Visual story: ${cleanEditorialText(visualBrief?.visual_story, 500)}.`,
@@ -2407,23 +2531,28 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "") {
     mustAvoid ? `Elements and interpretations to avoid: ${mustAvoid}.` : "",
     notes ? `Editorial notes: ${notes}.` : "",
     extra ? `Requested revision or visual direction from the editor: ${extra}.` : "",
-    "Visual direction: photorealistic, premium editorial-journalism photography, natural believable lighting, contemporary Italian/European context when relevant, visually clear but not advertising-like.",
-    "Composition: horizontal 3:2 hero image with an immediately understandable main subject. Give priority to the concrete visual anchors in the brief rather than a generic sector scene.",
+    "Visual direction: photorealistic, premium editorial-journalism photography, natural believable lighting, contemporary Italian/European context when relevant, visually clear, warm when appropriate, and never advertising-like.",
+    "Composition: horizontal 3:2 hero image with one immediately understandable focal point, a strong but natural crop and a scene that looks like a real photograph captured in the middle of a meaningful moment.",
+    "Keep any documents, bills, contracts or printed sheets secondary and unreadable. They can support the story, but must never become fake-looking props or the main focus of the frame.",
     "Do not add text, captions, letters, numbers, logos, brand marks, watermarks, fake interfaces, readable documents, price tags, charts or infographic elements.",
     "Do not invent a specific real person, company, event or document that the article does not establish.",
-    "The image must look like a real professional photograph, not an illustration, 3D render, collage or generic stock-ad composition.",
+    "The image must look like a real professional photograph, not an illustration, 3D render, collage, fake mockup or generic stock-ad composition.",
   ].filter(Boolean).join(" ");
 }
 function editorialImageQaSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["relevant", "clear", "misleading", "editorial_quality", "reason", "regeneration_guidance"],
+    required: ["relevant", "clear", "misleading", "editorial_quality", "authentic", "clickworthy", "generic_stock", "fake_document_risk", "reason", "regeneration_guidance"],
     properties: {
       relevant: { type: "boolean" },
       clear: { type: "boolean" },
       misleading: { type: "boolean" },
       editorial_quality: { type: "boolean" },
+      authentic: { type: "boolean" },
+      clickworthy: { type: "boolean" },
+      generic_stock: { type: "boolean" },
+      fake_document_risk: { type: "boolean" },
       reason: { type: "string" },
       regeneration_guidance: { type: "string" },
     },
@@ -2465,6 +2594,8 @@ async function evaluateEditorialArticleImage(article, candidate) {
     visualBrief?.visual_story ? `Scena richiesta: ${cleanEditorialText(visualBrief.visual_story, 500)}.` : "",
     mustShow ? `Elementi concreti attesi: ${mustShow}.` : "",
     "Criteri obbligatori: l'immagine deve essere chiaramente pertinente al tema specifico, rendere visibili gli elementi concreti richiesti, essere comprensibile a colpo d'occhio, non fuorviante e adatta a un articolo editoriale informativo.",
+    "Valuta anche se l'immagine appare autentica, se invoglia davvero ad aprire l'articolo, se evita l'effetto stock generico e se eventuali documenti/fogli sembrano solo supporto credibile anziché elementi finti o palesemente inventati.",
+    "generic_stock è vero se la scena sembra intercambiabile, pubblicitaria o troppo posata. fake_document_risk è vero se fogli, bollette o documenti risultano troppo centrali, leggibili in modo artificiale o palesemente finti.",
     "Non approvare una fotografia solo perché appartiene genericamente allo stesso settore dell'articolo.",
     "Non penalizzare l'assenza di testo nell'immagine: il testo sovrapposto è volutamente vietato.",
     "Se uno dei criteri fallisce, spiega in modo breve il problema e fornisci una direzione concreta per la rigenerazione. Se tutti passano, regeneration_guidance deve essere una stringa vuota.",
@@ -2507,7 +2638,11 @@ async function evaluateEditorialArticleImage(article, candidate) {
   const clear = parsed?.clear === true;
   const misleading = parsed?.misleading === true;
   const editorialQuality = parsed?.editorial_quality === true;
-  const passed = relevant && clear && !misleading && editorialQuality;
+  const authentic = parsed?.authentic === true;
+  const clickworthy = parsed?.clickworthy === true;
+  const genericStock = parsed?.generic_stock === true;
+  const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const passed = relevant && clear && !misleading && editorialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk;
   return {
     schema_version: 1,
     status: passed ? "passed" : "failed",
@@ -2517,18 +2652,24 @@ async function evaluateEditorialArticleImage(article, candidate) {
     clear,
     misleading,
     editorial_quality: editorialQuality,
+    authentic,
+    clickworthy,
+    generic_stock: genericStock,
+    fake_document_risk: fakeDocumentRisk,
     reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Immagine coerente con il tema e adatta alla pubblicazione editoriale." : "QA visiva non superata."),
     regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
     source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
   };
 }
 
-async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
+async function generateOpenAiArticleImage(article, opportunity, guidance = "", requestedProfile = "auto") {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
-  const visualBrief = await buildEditorialArticleVisualBrief(article, opportunity, guidance);
-  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance);
+  const visualBrief = await buildEditorialArticleVisualBrief(article, opportunity, guidance, requestedProfile);
+  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile);
+  const requested = articleImageProfileByKey(requestedProfile);
+  const effective = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
@@ -2580,7 +2721,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "") {
   }
   if (!buffer?.length) throw new Error("OpenAI non ha restituito un’immagine utilizzabile");
   if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine HD generata supera 5 MB: rigenera l’immagine");
-  return { model, prompt, buffer, visualBrief };
+  return { model, prompt, buffer, visualBrief, generationProfileRequested: requested.key, generationProfileEffective: effective.key };
 }
 
 async function saveArticleImageState(user, opportunity, state) {
@@ -2602,7 +2743,8 @@ async function generateEditorialArticleImage(user, payload = {}) {
   if (!String(context.article.title || "").trim() || !String(context.article.content || "").trim()) {
     throw new Error("Completa prima la bozza dell’articolo: titolo e contenuto sono necessari per generare l’immagine dedicata");
   }
-  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance);
+  const requestedProfile = normalizeArticleImageProfile(payload.generation_profile || payload.profile || "auto");
+  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance, requestedProfile);
   const objectPath = `autopilot/${context.article.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
   const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
   const now = new Date().toISOString();
@@ -2621,6 +2763,8 @@ async function generateEditorialArticleImage(user, payload = {}) {
     prompt: generated.prompt,
     visual_brief: generated.visualBrief,
     guidance: cleanEditorialText(payload.guidance, 600) || null,
+    generation_profile_requested: generated.generationProfileRequested || requestedProfile,
+    generation_profile_effective: generated.generationProfileEffective || inferArticleImageProfile(context.article, context.opportunity, requestedProfile),
     alt_text: defaultArticleImageAlt(context.article),
     created_at: now,
     created_by: user.id,
@@ -2800,6 +2944,53 @@ function articleEditorialFingerprint(article) {
     seo_description: String(article?.seo_description || ""),
   };
   return crypto.createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
+function articleAutomationHandoff(opportunity) {
+  const raw = opportunity?.evidence?.article_automation_handoff;
+  return raw && typeof raw === "object" ? raw : null;
+}
+
+function articleAutomationHandoffMatches(opportunity, article) {
+  const handoff = articleAutomationHandoff(opportunity);
+  if (!handoff || String(handoff.status || "") !== "armed") return false;
+  if (!validUuid(String(article?.id || "")) || String(handoff.article_id || "") !== String(article.id || "")) return false;
+  const expected = String(handoff.article_fingerprint_sha256 || "").trim();
+  if (!expected) return false;
+  return expected === articleEditorialFingerprint(article);
+}
+
+function articleAutomationUiState(opportunity, article) {
+  if (!article?.id) return { state: "unavailable", can_resume: false };
+  if (String(article.status || "") === "published") return { state: "published", can_resume: false };
+  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidence.article_generation_job;
+  if (job?.response_id && ["queued", "in_progress"].includes(String(job.status || ""))) {
+    return { state: "revision_in_progress", can_resume: false };
+  }
+  const handoff = articleAutomationHandoff(opportunity);
+  const currentFingerprint = articleEditorialFingerprint(article);
+  if (handoff) {
+    const handoffStatus = String(handoff.status || "");
+    const matches = String(handoff.article_id || "") === String(article.id || "")
+      && String(handoff.article_fingerprint_sha256 || "") === currentFingerprint;
+    if (handoffStatus === "armed" && matches) {
+      return { state: "armed", can_resume: false, armed_at: handoff.armed_at || null };
+    }
+    if (handoffStatus !== "armed") {
+      return { state: "manual_control", can_resume: true, armed_at: handoff.armed_at || null };
+    }
+    return { state: "manual_changes_after_handoff", can_resume: true, armed_at: handoff.armed_at || null };
+  }
+  const generation = evidence.article_generation;
+  const generatedFingerprint = String(generation?.article_fingerprint_sha256 || "").trim();
+  if (generatedFingerprint && generatedFingerprint === currentFingerprint) {
+    const manualJob = String(job?.source || "") === "manual_controlled_run" || generation?.revision_mode === true;
+    if (manualJob) return { state: "manual_control", can_resume: true };
+    return { state: "automatic", can_resume: false };
+  }
+  if (generation) return { state: "manual_control", can_resume: true };
+  return { state: "draft_pending", can_resume: false };
 }
 
 async function activeEditorialCategories() {
@@ -3255,8 +3446,22 @@ async function generateEditorialArticlePackage(user, payload = {}) {
       revision_notes: revisionNotes || null,
     };
     const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const previousHandoff = articleAutomationHandoff(opportunity);
+    const manualControlPatch = runSource === "manual_controlled_run" ? {
+      article_automation_handoff: {
+        ...(previousHandoff || {}),
+        schema_version: 1,
+        status: "suspended",
+        article_id: article.id,
+        article_fingerprint_sha256: null,
+        suspended_at: now,
+        suspended_by: user.id,
+        suspended_reason: manualRevision ? "manual_revision_started" : "manual_generation_started",
+      },
+    } : {};
     const evidence = {
       ...evidenceBase,
+      ...manualControlPatch,
       ...(manualRevision && previousGeneration ? {
         article_generation: {
           ...previousGeneration,
@@ -3290,6 +3495,107 @@ async function generateEditorialArticlePackage(user, payload = {}) {
     });
     throw error;
   }
+}
+
+async function resumeEditorialAutomaticCycle(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (String(opportunity.status || "") !== "selected" || String(opportunity.opportunity_type || "") !== "new_article") {
+    throw new Error("Il ripristino automatico è disponibile solo per l’articolo selezionato del ciclo corrente");
+  }
+  const articleId = String(opportunity.target_article_id || "");
+  if (!validUuid(articleId)) throw new Error("Bozza articolo non disponibile");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  const article = articleRows?.[0];
+  if (!article?.id) throw new Error("Articolo collegato non trovato");
+  if (String(article.status || "") === "published") {
+    return { resumed: false, already_published: true, article_id: article.id };
+  }
+  if (!["draft", "in_review", "approved"].includes(String(article.status || ""))) {
+    throw new Error("Lo stato attuale dell’articolo non consente di ripristinare il ciclo automatico");
+  }
+  const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidenceBase.article_generation_job;
+  if (job?.response_id && ["queued", "in_progress"].includes(String(job.status || ""))) {
+    throw new Error("La rigenerazione della bozza è ancora in corso: attendi il completamento prima di ripristinare l’automatico");
+  }
+  if (!evidenceBase.article_generation || String(evidenceBase.article_generation.status || "") !== "draft_ready_for_review") {
+    throw new Error("La bozza completa non è ancora pronta per essere riconsegnata all’Autopilota");
+  }
+
+  const now = new Date().toISOString();
+  const fingerprint = articleEditorialFingerprint(article);
+  const handoff = {
+    schema_version: 1,
+    status: "armed",
+    article_id: article.id,
+    article_fingerprint_sha256: fingerprint,
+    armed_at: now,
+    armed_by: user.id,
+    source_generation_response_id: evidenceBase.article_generation?.response_id || null,
+    source_generation_generated_at: evidenceBase.article_generation?.generated_at || null,
+  };
+  const nextEvidence = { ...evidenceBase, article_automation_handoff: handoff };
+  const savedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence: nextEvidence, updated_at: now, decided_by: user.id },
+  });
+  if (!savedRows?.[0]?.id) throw new Error("Ripristino automatico non salvato");
+
+  // Se lo slot di pubblicazione di oggi era già stato consumato soltanto perché il ciclo
+  // manuale non era ancora riconsegnato all'Autopilota, lo rendiamo nuovamente eseguibile.
+  // Non tocchiamo errori reali, pubblicazioni già eseguite o altri tipi di slot.
+  let releasedRuns = 0;
+  try {
+    const settings = await automationSchedulerSettings();
+    const local = schedulerLocalParts(settings?.timezone || "Europe/Rome");
+    const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
+    const publishSlot = (schedule || []).find((slot) => {
+      if (String(slot?.kind || "") !== "article_publish") return false;
+      if (Number(slot.weekday) !== Number(local.weekday)) return false;
+      const minutes = schedulerSlotMinutes(slot.time_local);
+      return minutes !== null && local.minutes >= minutes;
+    }) || null;
+    if (publishSlot?.id) {
+      const schedulerKey = `${local.date}:${publishSlot.id}`;
+      const runs = await automationSchedulerRuns(120);
+      const releasable = (runs || []).filter((run) =>
+        run?.details?.scheduler_key === schedulerKey
+        && String(run?.status || "") === "success"
+        && run?.details?.publication_performed !== true
+        && String(run?.details?.stage || "") === "skipped"
+        && String(run?.details?.reason || "") === "no_article_cycle"
+      );
+      for (const run of releasable) {
+        const details = { ...(run.details || {}) };
+        const releasedKey = details.scheduler_key;
+        delete details.scheduler_key;
+        details.released_scheduler_key = releasedKey;
+        details.handoff_released_at = now;
+        details.handoff_opportunity_id = id;
+        await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+          method: "PATCH",
+          prefer: "return=minimal",
+          body: { details },
+        });
+        releasedRuns += 1;
+      }
+    }
+  } catch {
+    // Il ripristino dell'handoff resta valido anche se non c'è uno slot odierno da riaprire.
+  }
+
+  return {
+    resumed: true,
+    article_id: article.id,
+    opportunity_id: id,
+    armed_at: now,
+    released_skipped_publish_runs: releasedRuns,
+  };
 }
 
 async function checkEditorialArticlePackage(user, payload = {}) {
@@ -5921,19 +6227,43 @@ function schedulerLatestArticleCycleRun(runs) {
 
 async function schedulerArticleCycleContext(runs) {
   const run = schedulerLatestArticleCycleRun(runs);
-  if (!run) return null;
-  const [articleRows, opportunityRows] = await Promise.all([
-    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(run.article_id)}&limit=1`),
-    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(run.opportunity_id)}&limit=1`),
-  ]);
-  const article = articleRows?.[0] || null;
-  const opportunity = opportunityRows?.[0] || null;
-  if (!article?.id || !opportunity?.id) return null;
-  if (String(opportunity.status || "") !== "selected" || String(opportunity.opportunity_type || "") !== "new_article") return null;
-  return { run, article, opportunity };
+  if (run) {
+    const [articleRows, opportunityRows] = await Promise.all([
+      serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(run.article_id)}&limit=1`),
+      serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(run.opportunity_id)}&limit=1`),
+    ]);
+    const article = articleRows?.[0] || null;
+    const opportunity = opportunityRows?.[0] || null;
+    if (article?.id && opportunity?.id
+      && String(opportunity.status || "") === "selected"
+      && String(opportunity.opportunity_type || "") === "new_article") {
+      return { run, article, opportunity };
+    }
+  }
+
+  // Un articolo preparato o revisionato manualmente può essere riconsegnato esplicitamente
+  // all'Autopilota. In quel caso l'handoff diventa il riferimento del ciclo anche se non esiste
+  // un vecchio run article_prepare schedulato associato alla stessa bozza.
+  const opportunityRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&target_article_id=not.is.null&order=updated_at.desc&limit=20`,
+  );
+  for (const opportunity of opportunityRows || []) {
+    const handoff = articleAutomationHandoff(opportunity);
+    if (!handoff || String(handoff.status || "") !== "armed") continue;
+    const articleId = String(opportunity.target_article_id || "");
+    if (!validUuid(articleId) || String(handoff.article_id || "") !== articleId) continue;
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+    if (!articleAutomationHandoffMatches(opportunity, article)) continue;
+    return { run: null, article, opportunity, handoff: true };
+  }
+  return null;
 }
 
 function schedulerGeneratedArticleIsUntouched(context) {
+  const handoff = articleAutomationHandoff(context?.opportunity);
+  if (handoff) return articleAutomationHandoffMatches(context.opportunity, context.article);
   const generation = context?.opportunity?.evidence?.article_generation;
   const expected = String(generation?.article_fingerprint_sha256 || "").trim();
   if (!expected) return false;
@@ -7805,6 +8135,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "check-editorial-article-package") {
       const result = await checkEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "resume-editorial-automatic-cycle") {
+      const result = await resumeEditorialAutomaticCycle(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

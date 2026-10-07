@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.90";
+  const VERSION = "0.12.94";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -18,6 +18,13 @@
   let socialChannels = [];
   let automationRuns = [];
   let automationRunsExpanded = false;
+  const ARTICLE_IMAGE_PROFILES = [
+    { value: "auto", label: "Auto editoriale (consigliata)", hint: "Sceglie automaticamente il profilo più adatto all'articolo." },
+    { value: "warm_human", label: "Calda e umana", hint: "Persona reale, atmosfera calda, gesto comprensibile." },
+    { value: "clean_context", label: "Pulita e contestuale", hint: "Scena più pulita, contesto chiaro, meno elementi." },
+    { value: "objects_context", label: "Oggetti e contesto", hint: "Focus su ambiente e oggetti, persone secondarie o assenti." },
+    { value: "professional_context", label: "Professionale / attività", hint: "Contesto di lavoro reale, adatto a imprese e attività." },
+  ];
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -41,6 +48,14 @@
 
   function numberIt(value) {
     return new Intl.NumberFormat("it-IT").format(Number(value || 0));
+  }
+
+  function articleImageProfileOptions(selected = "auto") {
+    return ARTICLE_IMAGE_PROFILES.map((profile) => `<option value="${esc(profile.value)}" ${profile.value === selected ? "selected" : ""}>${esc(profile.label)}</option>`).join("");
+  }
+
+  function articleImageProfileHint(value = "auto") {
+    return ARTICLE_IMAGE_PROFILES.find((profile) => profile.value === value)?.hint || ARTICLE_IMAGE_PROFILES[0].hint;
   }
 
   async function endpoint(action, { method = "GET", body } = {}) {
@@ -291,6 +306,7 @@
     });
     section.addEventListener("click", handleAnalysisNavigation);
     section.addEventListener("click", handleOpportunityAction);
+    section.addEventListener("change", handleOpportunityChange);
     statusLoaded = false;
     loadStatus(section);
     loadAnalysis(section, true);
@@ -927,6 +943,7 @@
     const candidate = imageState?.candidate && typeof imageState.candidate === "object" ? imageState.candidate : null;
     const current = imageState?.current && typeof imageState.current === "object" ? imageState.current : null;
     const candidateAlt = String(candidate?.alt_text || current?.alt_text || `Immagine editoriale dedicata a ${row.topic || "articolo OffertaLogica"}`).slice(0, 180);
+    const selectedProfile = String(candidate?.generation_profile_requested || current?.generation_profile_requested || "auto");
     const currentMarkup = current?.url
       ? `<div style="margin-top:8px"><small>Immagine approvata e collegata all’articolo.</small><div style="margin-top:6px"><img src="${esc(current.url)}" alt="${esc(current.alt_text || "Immagine articolo approvata")}" loading="lazy" style="display:block;max-width:520px;width:100%;height:auto;border-radius:10px"></div></div>`
       : '<small>Nessuna immagine approvata ancora.</small>';
@@ -944,10 +961,11 @@
       : "";
     return `<div class="ol-field" style="margin-top:12px" data-article-image-workflow="${esc(id)}">
       <label>Immagine dedicata articolo · HD fotografica</label>
-      <small>La master è orizzontale e senza testo sovrapposto, pensata anche per futuri crop del post statico. L’immagine attuale non cambia finché non approvi la nuova anteprima.</small>
+      <small>La master è orizzontale e senza testo sovrapposto. Il motore privilegia fotografie editoriali credibili: soggetto chiaro, contesto reale, scena non pubblicitaria e documenti solo secondari/non leggibili.</small>
       ${currentMarkup}
       ${candidateMarkup}
-      <div class="ol-field" style="margin-top:8px"><label>Indicazioni per generare o rigenerare <span class="ol-muted">(facoltative)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. più realistica, niente persone, inquadratura più pulita, focus su contatore e abitazione…"></textarea></div>
+      <div class="ol-field" style="margin-top:8px"><label>Impostazione visiva</label><select data-article-image-profile="${esc(id)}">${articleImageProfileOptions(selectedProfile)}</select><small data-article-image-profile-hint="${esc(id)}">${esc(articleImageProfileHint(selectedProfile))}</small></div>
+      <div class="ol-field" style="margin-top:8px"><label>Indicazioni per generare o rigenerare <span class="ol-muted">(facoltative)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="3" placeholder="Es. scena più calda e credibile, gesto più chiaro, niente fogli frontali, documenti solo secondari, più focus sulla decisione del lettore…"></textarea></div>
       <div class="ol-field" style="margin-top:8px"><label>Testo alternativo</label><input data-article-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(candidateAlt)}"></div>
       <div class="ol-field" style="margin-top:8px"><label>Sostituzione manuale</label><input data-article-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>JPG, PNG, WebP o AVIF, massimo 5 MB. Il file diventa prima una nuova anteprima e richiede comunque approvazione.</small></div>
       <div class="ol-toolbar-group" style="margin-top:8px">
@@ -990,6 +1008,30 @@
     return `${baseUrl}/storage/v1/object/public/editorial-images/${encodedPath}`;
   }
 
+  function articleAutomationMarkup(row) {
+    const id = String(row?.id || "");
+    const state = String(row?.article_automation?.state || "");
+    if (!id || state === "unavailable" || state === "draft_pending") return "";
+    if (state === "published") {
+      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Articolo già pubblicato.</strong> Il ciclo prosegue con le fasi successive.</div>`;
+    }
+    if (state === "revision_in_progress") {
+      return `<div class="ol-alert ol-alert-warning" style="margin-top:10px"><strong>Automatico sospeso durante la revisione.</strong> Quando la nuova bozza è pronta, controllala e premi “Ripristina automatico”.</div>`;
+    }
+    if (state === "armed") {
+      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Automatico ripristinato.</strong> Questa versione è stata riconsegnata all’Autopilota${row?.article_automation?.armed_at ? ` il ${esc(dateIt(row.article_automation.armed_at))}` : ""}. Se non modifichi più il testo, il prossimo slot utile proseguirà da qui.</div>`;
+    }
+    if (state === "automatic") {
+      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Automatico attivo.</strong> La bozza non risulta modificata manualmente: il ciclo può proseguire senza interventi.</div>`;
+    }
+    const changedAfterHandoff = state === "manual_changes_after_handoff";
+    return `<div class="ol-alert ol-alert-warning" style="margin-top:10px">
+      <strong>${changedAfterHandoff ? "Automatico sospeso: la bozza è cambiata dopo la consegna." : "Controllo manuale attivo."}</strong>
+      <div style="margin-top:4px">Quando hai finito con testo, revisione e immagine, premi il pulsante: l’Autopilota userà esattamente la versione corrente e riprenderà il ciclo dal prossimo passaggio dovuto.</div>
+      <div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-primary ol-button-small" type="button" data-resume-automatic-cycle="${esc(id)}">Ripristina automatico</button></div>
+    </div>`;
+  }
+
   function articleGenerationMarkup(row) {
     const id = String(row?.id || "");
     const generation = row?.evidence?.article_generation;
@@ -1014,6 +1056,7 @@
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
       ${summary}
+      ${articleAutomationMarkup(row)}
       ${articleImageWorkflowMarkup(row)}
     </div>`;
   }
@@ -1756,6 +1799,14 @@
     }
   }
 
+  function handleOpportunityChange(event) {
+    const profileSelect = event.target.closest("[data-article-image-profile]");
+    if (!profileSelect) return;
+    const id = profileSelect.dataset.articleImageProfile || "";
+    const hint = event.currentTarget.querySelector(`[data-article-image-profile-hint="${id}"]`);
+    if (hint) hint.textContent = articleImageProfileHint(profileSelect.value || "auto");
+  }
+
   async function handleOpportunityAction(event) {
     const section = event.currentTarget;
     const manualSaveButton = event.target.closest("[data-manual-idea-save]");
@@ -1767,6 +1818,7 @@
     const radarSelectButton = event.target.closest("[data-radar-select]");
     const discardDraftButton = event.target.closest("[data-opportunity-discard-draft]");
     const generateArticleButton = event.target.closest("[data-article-generate]");
+    const resumeAutomaticButton = event.target.closest("[data-resume-automatic-cycle]");
     const generateImageButton = event.target.closest("[data-article-image-generate]");
     const uploadImageButton = event.target.closest("[data-article-image-upload]");
     const approveImageButton = event.target.closest("[data-article-image-approve]");
@@ -1936,6 +1988,7 @@
       const id = generateImageButton.dataset.articleImageGenerate || "";
       const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
       const guidance = section.querySelector(`[data-article-image-guidance="${id}"]`)?.value || "";
+      const generationProfile = section.querySelector(`[data-article-image-profile="${id}"]`)?.value || "auto";
       const row = opportunityRows.find((item) => String(item.id || "") === id);
       const candidate = row?.evidence?.article_image?.candidate;
       if (!id || generateImageButton.disabled) return;
@@ -1943,7 +1996,7 @@
       generateImageButton.disabled = true;
       if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso… può richiedere alcuni minuti.";
       try {
-        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance } });
+        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance, generation_profile: generationProfile } });
         if (imageMessage) imageMessage.textContent = "Nuova anteprima pronta. Verificala, modifica se serve il testo alternativo e approvala solo se ti convince.";
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
       } catch (error) {
@@ -2015,6 +2068,26 @@
       } catch (error) {
         discardImageButton.disabled = false;
         if (imageMessage) imageMessage.textContent = `Anteprima non scartata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (resumeAutomaticButton) {
+      const id = resumeAutomaticButton.dataset.resumeAutomaticCycle || "";
+      if (!id || resumeAutomaticButton.disabled) return;
+      if (!window.confirm("Riconsegnare la versione corrente all’Autopilota? Da questo momento il ciclo automatico userà questa bozza. Se la modifichi di nuovo, dovrai ripristinare nuovamente l’automatico.")) return;
+      resumeAutomaticButton.disabled = true;
+      if (message) message.textContent = "Ripristino del ciclo automatico sulla versione corrente…";
+      try {
+        const payload = await endpoint("resume-editorial-automatic-cycle", { method: "POST", body: { id } });
+        const released = Number(payload?.result?.released_skipped_publish_runs || 0);
+        if (message) message.textContent = released > 0
+          ? "Automatico ripristinato. Lo slot di pubblicazione già saltato è stato riaperto: il prossimo tick può riprendere il ciclo."
+          : "Automatico ripristinato. Il prossimo passaggio previsto dal calendario userà questa versione.";
+        await Promise.all([loadOpportunities(section, true), loadAutomationRuns(section)]);
+      } catch (error) {
+        resumeAutomaticButton.disabled = false;
+        if (message) message.textContent = `Automatico non ripristinato: ${error.message}`;
       }
       return;
     }
