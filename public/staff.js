@@ -5,7 +5,7 @@
   const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl";
   const STORAGE_KEY = "offertalogica-premium-staff-auth";
   const ALLOWED_ROLES = new Set(["reviewer", "technician", "admin", "owner"]);
-  const VALID_TABS = new Set(["overview", "cases", "leads", "checks", "customers", "analytics", "usage", "collaborators", "pdf", "costs"]);
+  const VALID_TABS = new Set(["overview", "cases", "protection", "leads", "checks", "customers", "analytics", "usage", "collaborators", "pdf", "costs"]);
   const PREMIUM_APP_URL = "https://premium.offertalogica.it/app.html";
   const PREMIUM_STAFF_BILLING_URL = `${SUPABASE_URL}/functions/v1/premium-staff-billing`;
   const PREMIUM_STAFF_INVITE_URL = `${SUPABASE_URL}/functions/v1/premium-staff-invite`;
@@ -35,6 +35,8 @@
   const cache = {
     leads: [],
     leadSummary: {},
+    protection: [],
+    protectionTimeline: [],
     analytics: [],
     analyticsSummary: {},
     analyticsAggregationMode: "",
@@ -634,7 +636,7 @@
 
   function setTab(name, { updateHash = true, refresh = true } = {}) {
     const requested = VALID_TABS.has(name) ? name : "overview";
-    const target = requested === "collaborators" && !isOwner() ? "overview" : requested;
+    const target = (requested === "collaborators" && !isOwner()) || (requested === "protection" && !isAdmin()) ? "overview" : requested;
     activeTab = target;
     document.querySelectorAll("[data-staff-tab]").forEach(button => button.classList.toggle("active", button.dataset.staffTab === target));
     document.querySelectorAll("[data-staff-view]").forEach(view => view.classList.toggle("active", view.dataset.staffView === target));
@@ -648,6 +650,112 @@
   function ensureFrame(id) {
     const frame = byId(id);
     if (frame && !frame.getAttribute("src")) frame.src = frame.dataset.src;
+  }
+
+  function protectionSearchText(item) {
+    return [item?.email, item?.phone_e164, item?.user_id].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function filteredProtectionRows() {
+    const query = String(byId("protectionSearch")?.value || "").trim().toLowerCase();
+    if (!query) return cache.protection;
+    return cache.protection.filter(item => protectionSearchText(item).includes(query));
+  }
+
+  function renderProtectionMetrics() {
+    const rows = Array.isArray(cache.protection) ? cache.protection : [];
+    text(byId("protectionMetricActive"), rows.filter(item => item.protection_active === true).length);
+    text(byId("protectionMetricPhones"), rows.filter(item => Boolean(item.phone_verified_at)).length);
+    text(byId("protectionMetricNewsletter"), rows.filter(item => item.newsletter_enabled === true).length);
+    text(byId("protectionMetricPartners"), rows.reduce((sum, item) => sum + Number(item.active_partner_authorizations || 0), 0));
+    text(byId("navProtectionCount"), rows.filter(item => item.protection_active === true).length);
+  }
+
+  function renderProtection() {
+    renderProtectionMetrics();
+    const body = byId("protectionRows");
+    clear(body);
+    const rows = filteredProtectionRows();
+    if (!rows.length) {
+      body?.append(node("tr", {}, [node("td", { attrs: { colspan: "7" } }, [node("div", { className: "empty", text: "Nessun account Protezione corrispondente." })])]));
+      return;
+    }
+    rows.forEach(item => {
+      const details = node("button", { className: "button secondary compact", type: "button", text: "Timeline" });
+      details.addEventListener("click", () => loadProtectionTimeline(item).catch(error => setMessage("error", friendlyError(error))));
+      body.append(node("tr", {}, [
+        node("td", {}, [node("strong", { text: item.email || "Account" }), node("small", { text: item.user_id || "" })]),
+        node("td", {}, [badge(item.protection_active ? "Attiva" : "Non attiva", item.protection_active ? "ok" : "warn"), node("small", { text: item.protection_activated_at ? `Dal ${formatDate(item.protection_activated_at)}` : "Attivazione non completata" })]),
+        node("td", {}, [node("strong", { text: item.phone_e164 || "—" }), node("small", { text: item.phone_verified_at ? `Verificato ${formatDate(item.phone_verified_at)}` : "Non verificato" })]),
+        node("td", {}, [badge(item.newsletter_enabled ? "Attive" : "Non attive", item.newsletter_enabled ? "ok" : ""), node("small", { text: item.newsletter_updated_at ? formatDate(item.newsletter_updated_at) : "Nessuna scelta registrata" })]),
+        node("td", {}, [node("strong", { text: Number(item.active_partner_authorizations || 0) }), node("small", { text: `${Number(item.requested_offer_actions || 0)} richieste registrate` })]),
+        node("td", {}, [node("strong", { text: formatDate(item.last_activity_at) }), node("small", { text: item.last_offer_action_at ? `Ultima offerta ${formatDate(item.last_offer_action_at)}` : "Nessuna offerta" })]),
+        node("td", {}, [node("div", { className: "row-actions" }, [details])]),
+      ]));
+    });
+  }
+
+  function protectionTimelineDetail(item = {}) {
+    const detail = item?.detail && typeof item.detail === "object" ? item.detail : {};
+    if (item?.event_type === "phone_verified") return [detail.phone, detail.method].filter(Boolean).join(" · ");
+    if (String(item?.event_type || "").startsWith("consent_")) return [detail.action, detail.policy_version].filter(Boolean).join(" · ");
+    if (String(item?.event_type || "").startsWith("offer_")) return [detail.partner_name || detail.partner_id, detail.offer_id, detail.action].filter(Boolean).join(" · ");
+    if (item?.event_type === "account_created") return detail.email || "";
+    return "";
+  }
+
+  function renderProtectionTimeline(item) {
+    const panel = byId("protectionTimelinePanel");
+    const target = byId("protectionTimeline");
+    text(byId("protectionTimelineTitle"), `Timeline · ${item?.email || "account"}`);
+    clear(target);
+    const rows = Array.isArray(cache.protectionTimeline) ? cache.protectionTimeline : [];
+    if (!rows.length) {
+      target?.append(node("div", { className: "empty", text: "Nessun evento Protezione registrato." }));
+    } else {
+      rows.forEach(event => target?.append(node("div", { className: "rank-row" }, [
+        node("div", {}, [node("strong", { text: event.event_label || event.event_type || "Evento" }), node("small", { text: protectionTimelineDetail(event) })]),
+        node("span", { text: formatDate(event.event_at) }),
+      ])));
+    }
+    if (panel) panel.hidden = false;
+    panel?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function loadProtectionTimeline(item) {
+    if (!isAdmin()) return;
+    const { data, error } = await client.rpc("staff_protection_timeline", {
+      p_user_id: item?.user_id || null,
+      p_limit: 200,
+    });
+    if (error) throw error;
+    cache.protectionTimeline = Array.isArray(data) ? data : [];
+    renderProtectionTimeline(item);
+  }
+
+  async function loadProtection({ silent = false } = {}) {
+    const restricted = !isAdmin();
+    byId("protectionRestricted").hidden = !restricted;
+    byId("protectionContent").hidden = restricted;
+    if (restricted) {
+      cache.protection = [];
+      cache.protectionTimeline = [];
+      renderProtectionMetrics();
+      return;
+    }
+    if (!silent) setMessage("info", "Aggiornamento Protezione OL…");
+    const limit = Math.max(1, Math.min(500, Number(byId("protectionLimit")?.value || 250)));
+    const search = String(byId("protectionSearch")?.value || "").trim();
+    const { data, error } = await client.rpc("staff_protection_accounts", {
+      p_search: search,
+      p_limit: limit,
+    });
+    if (error) throw error;
+    cache.protection = Array.isArray(data) ? data : [];
+    cache.protectionTimeline = [];
+    if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true;
+    renderProtection();
+    if (!silent) setMessage("success", "Protezione OL aggiornata.");
   }
 
   function leadSearchText(lead) {
@@ -5287,7 +5395,12 @@
     if (!silent) setMessage("info", "Aggiornamento riepilogo…");
     const tasks = [loadChecks({ silent: true }), loadCustomers({ silent: true }), loadAnalyticsSummary(), loadCosts({ silent: true }), loadSupportRequests({ silent: true })];
     const taskNames = ["bollette e verifiche", "clienti e utenze", "funnel e traffico", "costi e tempi", "richieste di supporto"];
-    if (isAdmin()) { tasks.push(loadLeads({ silent: true })); taskNames.push("lead e attivazioni"); }
+    if (isAdmin()) {
+      tasks.push(loadProtection({ silent: true }));
+      taskNames.push("Protezione OL");
+      tasks.push(loadLeads({ silent: true }));
+      taskNames.push("lead e attivazioni");
+    }
     if (isOwner()) tasks.push(loadCollaborators({ silent: true }));
     if (isOwner()) taskNames.push("collaboratori");
     const results = await Promise.allSettled(tasks);
@@ -5308,6 +5421,7 @@
     if (!currentStaff || busy) return;
     if (tab === "overview") return loadOverview({ silent });
     if (tab === "cases") return loadCases({ silent });
+    if (tab === "protection") return loadProtection({ silent });
     if (tab === "leads") return loadLeads({ silent });
     if (tab === "checks") return loadChecks({ silent });
     if (tab === "customers") return loadCustomers({ silent });
@@ -5422,6 +5536,7 @@
       text(byId("staffIdentity"), `${roleLabel(currentStaff.role)} · ${session.user.email || "account staff"}`);
 
       const ownerOnlyVisible = isOwner();
+      setHidden(byId("staffProtectionTab"), !isAdmin());
       setHidden(byId("staffManagementGroup"), !ownerOnlyVisible);
       setHidden(byId("staffCollaboratorsTab"), !ownerOnlyVisible);
       [
@@ -5430,7 +5545,7 @@
 
       setView("app");
       const requestedTab = VALID_TABS.has(location.hash.slice(1)) ? location.hash.slice(1) : "overview";
-      const nextTab = requestedTab === "collaborators" && !isOwner() ? "overview" : requestedTab;
+      const nextTab = (requestedTab === "collaborators" && !isOwner()) || (requestedTab === "protection" && !isAdmin()) ? "overview" : requestedTab;
       if (activeTab !== nextTab || contextChanged || !appAlreadyVisible) {
         activeTab = nextTab;
         setTab(activeTab, { updateHash: false, refresh: false });
@@ -5511,6 +5626,12 @@
     byId("caseType").addEventListener("change", renderCases);
     byId("casePriority").addEventListener("change", renderCases);
     byId("caseApplyFilters").addEventListener("click", renderCases);
+    byId("protectionRefresh")?.addEventListener("click", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
+    byId("protectionApply")?.addEventListener("click", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
+    byId("protectionSearch")?.addEventListener("input", renderProtection);
+    byId("protectionSearch")?.addEventListener("keydown", event => { if (event.key === "Enter") loadProtection().catch(error => setMessage("error", friendlyError(error))); });
+    byId("protectionLimit")?.addEventListener("change", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
+    byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
     byId("leadRefresh").addEventListener("click", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
     byId("leadSearch").addEventListener("input", renderLeads);
     byId("leadLimit").addEventListener("change", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
