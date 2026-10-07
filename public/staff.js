@@ -37,6 +37,7 @@
     leadSummary: {},
     protection: [],
     protectionTimeline: [],
+    supplierNumbers: [],
     analytics: [],
     analyticsSummary: {},
     analyticsAggregationMode: "",
@@ -741,7 +742,9 @@
     if (restricted) {
       cache.protection = [];
       cache.protectionTimeline = [];
+      cache.supplierNumbers = [];
       renderProtectionMetrics();
+      renderSupplierNumbers();
       return;
     }
     if (!silent) setMessage("info", "Aggiornamento Protezione OL…");
@@ -756,7 +759,260 @@
     cache.protectionTimeline = [];
     if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true;
     renderProtection();
+    await loadSupplierNumbers({ silent: true });
     if (!silent) setMessage("success", "Protezione OL aggiornata.");
+  }
+
+
+  function supplierNumberTypeLabel(value) {
+    return ({
+      commercial: "Commerciale",
+      outbound: "Outbound",
+      customer_service: "Assistenza clienti",
+      call_center: "Call center",
+      toll_free: "Numero verde",
+      unknown: "Non classificato",
+    })[String(value || "").trim().toLowerCase()] || String(value || "—");
+  }
+
+  function supplierNumberSourceLabel(value) {
+    return ({
+      official_published: "Fonte ufficiale",
+      partner_declared: "Dichiarato dal partner",
+      ol_verified: "Verificato da OL",
+    })[String(value || "").trim().toLowerCase()] || String(value || "—");
+  }
+
+  function supplierNumberStatusLabel(value) {
+    return ({ verified: "Verificato", pending: "Da verificare", rejected: "Scartato" })[String(value || "").trim().toLowerCase()] || String(value || "—");
+  }
+
+  function supplierNumberStatusKind(value) {
+    const status = String(value || "").trim().toLowerCase();
+    if (status === "verified") return "ok";
+    if (status === "pending") return "warn";
+    if (status === "rejected") return "danger";
+    return "";
+  }
+
+  function toLocalDateTimeInput(value) {
+    if (!value) return "";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return "";
+    const shifted = new Date(date.getTime() - date.getTimezoneOffset() * 60000);
+    return shifted.toISOString().slice(0, 16);
+  }
+
+  function toRpcTimestamp(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return null;
+    const date = new Date(raw);
+    if (Number.isNaN(date.getTime())) throw new Error("Data o ora non valida.");
+    return date.toISOString();
+  }
+
+  function supplierSourceNode(value) {
+    const raw = String(value || "").trim();
+    if (!raw) return node("small", { text: "Nessun riferimento" });
+    try {
+      const url = new URL(raw);
+      if (["http:", "https:"].includes(url.protocol)) {
+        return node("a", { className: "supplier-source-link", text: "Apri fonte", attrs: { href: url.href, target: "_blank", rel: "noopener noreferrer", title: raw } });
+      }
+    } catch {}
+    return node("small", { text: raw });
+  }
+
+  function renderSupplierNumberMetrics() {
+    const rows = Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [];
+    text(byId("supplierMetricActive"), rows.filter(item => item.active === true).length);
+    text(byId("supplierMetricVerified"), rows.filter(item => item.active === true && item.verification_status === "verified").length);
+    text(byId("supplierMetricPending"), rows.filter(item => item.verification_status === "pending").length);
+    text(byId("supplierMetricRejected"), rows.filter(item => item.verification_status === "rejected").length);
+  }
+
+  function renderSupplierNumbers() {
+    renderSupplierNumberMetrics();
+    const body = byId("supplierNumberRows");
+    clear(body);
+    const rows = Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [];
+    if (!rows.length) {
+      body?.append(node("tr", {}, [node("td", { attrs: { colspan: "7" } }, [node("div", { className: "empty", text: "Nessun numero fornitore corrispondente." })])]));
+      return;
+    }
+    rows.forEach(item => {
+      const actions = [];
+      if (isOwner()) {
+        const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica" });
+        edit.addEventListener("click", () => openSupplierNumberEditor(item));
+        actions.push(edit);
+
+        const status = String(item.verification_status || "").toLowerCase();
+        if (status === "pending") {
+          const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
+          verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
+          const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
+          reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
+          actions.push(verify, reject);
+        } else {
+          const reopen = node("button", { className: "button secondary compact", type: "button", text: status === "rejected" ? "Ripristina" : "Riapri verifica" });
+          reopen.addEventListener("click", () => setSupplierNumberStatus(item, "pending").catch(error => setMessage("error", friendlyError(error))));
+          actions.push(reopen);
+        }
+
+        const active = node("button", { className: `button ${item.active ? "danger" : "secondary"} compact`, type: "button", text: item.active ? "Disattiva" : "Riattiva" });
+        active.addEventListener("click", () => setSupplierNumberActive(item, !item.active).catch(error => setMessage("error", friendlyError(error))));
+        actions.push(active);
+      } else {
+        actions.push(node("small", { text: "Sola lettura" }));
+      }
+
+      const validity = [];
+      if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
+      if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
+      validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
+
+      body?.append(node("tr", { className: item.active === false ? "supplier-row-muted" : "" }, [
+        node("td", {}, [node("strong", { text: item.supplier_name || "—" }), node("small", { text: item.supplier_key || "" })]),
+        node("td", {}, [node("strong", { text: item.phone_e164 || "—" }), node("small", { text: item.phone_label || "Nessuna etichetta" })]),
+        node("td", {}, [node("strong", { text: supplierNumberTypeLabel(item.number_type) })]),
+        node("td", {}, [node("strong", { text: supplierNumberSourceLabel(item.source_type) }), supplierSourceNode(item.source_reference)]),
+        node("td", {}, [badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)), item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok")]),
+        node("td", {}, validity),
+        node("td", {}, [node("div", { className: "row-actions" }, actions)]),
+      ]));
+    });
+  }
+
+  function closeSupplierNumberEditor() {
+    const panel = byId("supplierNumberEditor");
+    if (panel) panel.hidden = true;
+    byId("supplierNumberForm")?.reset();
+    if (byId("supplierNumberId")) byId("supplierNumberId").value = "";
+  }
+
+  function openSupplierNumberEditor(item = null) {
+    if (!isOwner()) {
+      setMessage("error", "La gestione dell’archivio numeri è riservata al Proprietario con MFA.");
+      return;
+    }
+    const panel = byId("supplierNumberEditor");
+    if (!panel) return;
+    text(byId("supplierNumberEditorTitle"), item ? `Modifica · ${item.supplier_name || item.phone_e164 || "numero"}` : "Nuovo numero fornitore");
+    byId("supplierNumberId").value = item?.id || "";
+    byId("supplierNumberKey").value = item?.supplier_key || "";
+    byId("supplierNumberName").value = item?.supplier_name || "";
+    byId("supplierNumberPhone").value = item?.phone_e164 || "";
+    byId("supplierNumberLabel").value = item?.phone_label || "";
+    byId("supplierNumberType").value = item?.number_type || "unknown";
+    byId("supplierNumberSourceType").value = item?.source_type || "official_published";
+    byId("supplierNumberSourceReference").value = item?.source_reference || "";
+    byId("supplierNumberValidFrom").value = toLocalDateTimeInput(item?.valid_from);
+    byId("supplierNumberValidUntil").value = toLocalDateTimeInput(item?.valid_until);
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    window.setTimeout(() => byId("supplierNumberKey")?.focus(), 0);
+  }
+
+  async function saveSupplierNumber(event) {
+    event?.preventDefault();
+    if (!isOwner() || busy) return;
+    const id = String(byId("supplierNumberId")?.value || "").trim() || null;
+    const supplierKey = String(byId("supplierNumberKey")?.value || "").trim().toLowerCase();
+    const supplierName = String(byId("supplierNumberName")?.value || "").trim();
+    const phone = String(byId("supplierNumberPhone")?.value || "").trim();
+    const sourceReference = String(byId("supplierNumberSourceReference")?.value || "").trim();
+    if (!supplierKey || !supplierName || !/^\+[1-9][0-9]{7,14}$/.test(phone) || !sourceReference) {
+      setMessage("error", "Compila fornitore, numero in formato E.164 e fonte/riferimento.");
+      return;
+    }
+    setBusy(true);
+    setMessage("info", id ? "Aggiornamento numero…" : "Inserimento numero…");
+    try {
+      const { error } = await client.rpc("owner_supplier_number_upsert", {
+        p_id: id,
+        p_supplier_key: supplierKey,
+        p_supplier_name: supplierName,
+        p_phone_e164: phone,
+        p_phone_label: String(byId("supplierNumberLabel")?.value || "").trim() || null,
+        p_number_type: String(byId("supplierNumberType")?.value || "unknown"),
+        p_source_type: String(byId("supplierNumberSourceType")?.value || "official_published"),
+        p_source_reference: sourceReference,
+        p_valid_from: toRpcTimestamp(byId("supplierNumberValidFrom")?.value),
+        p_valid_until: toRpcTimestamp(byId("supplierNumberValidUntil")?.value),
+      });
+      if (error) throw error;
+      closeSupplierNumberEditor();
+      await loadSupplierNumbers({ silent: true });
+      setMessage("success", id ? "Numero aggiornato e rimesso in verifica." : "Numero inserito come da verificare.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setSupplierNumberStatus(item, nextStatus) {
+    if (!isOwner() || busy) return;
+    const status = String(nextStatus || "").trim().toLowerCase();
+    const reason = status === "verified"
+      ? "Fonte verificata dal Proprietario"
+      : status === "pending"
+        ? "Nuova verifica richiesta dal Proprietario"
+        : "Numero scartato dal Proprietario nel Control Center";
+    const confirmed = await confirmAction({
+      title: status === "verified" ? "Conferma verifica numero" : status === "rejected" ? "Scarta numero" : "Riapri verifica",
+      message: `${item?.supplier_name || "Fornitore"} · ${item?.phone_e164 || "numero"}. Stato: ${supplierNumberStatusLabel(status)}.`,
+      confirmLabel: status === "verified" ? "VERIFICA" : status === "rejected" ? "SCARTA" : "CONFERMA",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("owner_supplier_number_set_status", { p_id: item?.id || null, p_status: status, p_reason: reason });
+      if (error) throw error;
+      await loadSupplierNumbers({ silent: true });
+      setMessage("success", `Stato numero aggiornato: ${supplierNumberStatusLabel(status)}.`);
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function setSupplierNumberActive(item, nextActive) {
+    if (!isOwner() || busy) return;
+    const reason = nextActive
+      ? "Riattivazione manuale dal Control Center"
+      : "Disattivazione manuale dal Control Center";
+    const confirmed = await confirmAction({
+      title: nextActive ? "Riattiva numero" : "Disattiva numero",
+      message: `${item?.supplier_name || "Fornitore"} · ${item?.phone_e164 || "numero"}.`,
+      confirmLabel: nextActive ? "RIATTIVA" : "DISATTIVA",
+    });
+    if (!confirmed) return;
+    setBusy(true);
+    try {
+      const { error } = await client.rpc("owner_supplier_number_set_active", { p_id: item?.id || null, p_active: Boolean(nextActive), p_reason: reason });
+      if (error) throw error;
+      await loadSupplierNumbers({ silent: true });
+      setMessage("success", nextActive ? "Numero riattivato." : "Numero disattivato.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadSupplierNumbers({ silent = false } = {}) {
+    if (!isAdmin()) {
+      cache.supplierNumbers = [];
+      renderSupplierNumbers();
+      return;
+    }
+    setHidden(byId("supplierNumberNew"), !isOwner());
+    setHidden(byId("supplierNumberEditor"), !isOwner() || byId("supplierNumberEditor")?.hidden !== false);
+    if (!silent) setMessage("info", "Aggiornamento archivio numeri…");
+    const limit = Math.max(1, Math.min(500, Number(byId("supplierNumberLimit")?.value || 250)));
+    const search = String(byId("supplierNumberSearch")?.value || "").trim();
+    const { data, error } = await client.rpc("staff_supplier_numbers", { p_search: search, p_limit: limit });
+    if (error) throw error;
+    cache.supplierNumbers = Array.isArray(data) ? data : [];
+    renderSupplierNumbers();
+    if (!silent) setMessage("success", "Archivio numeri aggiornato.");
   }
 
   function leadSearchText(lead) {
@@ -5633,6 +5889,14 @@
     byId("protectionSearch")?.addEventListener("keydown", event => { if (event.key === "Enter") loadProtection().catch(error => setMessage("error", friendlyError(error))); });
     byId("protectionLimit")?.addEventListener("change", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
     byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
+    byId("supplierNumberRefresh")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierNumberApply")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierNumberSearch")?.addEventListener("keydown", event => { if (event.key === "Enter") loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))); });
+    byId("supplierNumberLimit")?.addEventListener("change", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierNumberNew")?.addEventListener("click", () => openSupplierNumberEditor());
+    byId("supplierNumberEditorClose")?.addEventListener("click", closeSupplierNumberEditor);
+    byId("supplierNumberCancel")?.addEventListener("click", closeSupplierNumberEditor);
+    byId("supplierNumberForm")?.addEventListener("submit", event => saveSupplierNumber(event).catch(error => setMessage("error", friendlyError(error))));
     byId("leadRefresh").addEventListener("click", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
     byId("leadSearch").addEventListener("input", renderLeads);
     byId("leadLimit").addEventListener("change", () => loadLeads().catch(error => setMessage("error", friendlyError(error))));
