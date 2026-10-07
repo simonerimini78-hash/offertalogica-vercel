@@ -855,8 +855,7 @@
         name: String(items[0]?.supplier_name || key || "Fornitore"),
         count: items.length,
       }))
-      .filter(item => !raw || item.name.toLowerCase().includes(raw) || item.key.includes(raw))
-      .slice(0, 8);
+      .filter(item => !raw || item.name.toLowerCase().includes(raw) || item.key.includes(raw));
   }
 
   function closeSupplierPickerResults() {
@@ -876,7 +875,7 @@
     if (!group) return;
     selectedSupplierKey = key;
     const picker = byId("supplierNumberSupplierPicker");
-    if (picker) picker.value = String(group[1][0]?.supplier_name || key);
+    if (picker) picker.value = "";
     closeSupplierPickerResults();
     renderSupplierNumbers();
   }
@@ -942,7 +941,7 @@
 
   function updateSupplierPickerHint() {
     const groups = supplierNumberGroups();
-    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore disponibile" : "fornitori disponibili"}. Cerca per nome e seleziona un risultato.`);
+    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore disponibile" : "fornitori disponibili"}. Apri il campo per sfogliarli tutti oppure scrivi per filtrare.`);
     if (selectedSupplierKey && !groups.some(([key]) => key === selectedSupplierKey)) selectedSupplierKey = "";
   }
 
@@ -1032,7 +1031,7 @@
 
     const [key, items] = group;
     const supplierName = String(items[0]?.supplier_name || key || "Fornitore");
-    if (picker && document.activeElement !== picker) picker.value = supplierName;
+    if (picker && document.activeElement !== picker && picker.value.trim()) picker.value = "";
     if (selectedPanel) selectedPanel.hidden = false;
     if (empty) empty.hidden = true;
     if (clearButton) clearButton.hidden = false;
