@@ -4,6 +4,7 @@ import {
   clearProtectionSessionCookie,
   maskPhone,
   protectionActivate,
+  protectionLookupUserId,
   protectionSignIn,
   protectionSignUp,
   protectionState,
@@ -93,6 +94,29 @@ async function handleProtection(req, res, body) {
     }))) return;
 
     try {
+      const existingUserId = await protectionLookupUserId(email);
+      if (existingUserId) {
+        try {
+          const session = await protectionSignIn({ email, password });
+          if (session?.access_token && session?.refresh_token) {
+            const user = session.user?.id ? session.user : await protectionUserFromAccessToken(session.access_token);
+            setProtectionSessionCookie(res, session);
+            return json(res, 200, {
+              ...(await protectionStatusPayload({ user, accessToken: session.access_token })),
+              existingAccount: true,
+              message: "Account Offerta Logica riconosciuto. Protezione OL verra aggiunta allo stesso account.",
+            });
+          }
+        } catch {}
+        return json(res, 200, {
+          ok: true,
+          authenticated: false,
+          existingAccount: true,
+          useLogin: true,
+          message: "Questa email e gia collegata a Offerta Logica. Accedi con lo stesso account per aggiungere Protezione OL.",
+        });
+      }
+
       const signup = await protectionSignUp({ email, password });
       if (signup?.existingAccount) {
         try {
