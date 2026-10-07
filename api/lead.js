@@ -9,6 +9,7 @@ import {
   protectionSignUp,
   protectionState,
   protectionSetNewsletter,
+  protectionRevokeContactRequest,
   protectionUserFromAccessToken,
   protectionUserFromRequest,
   setProtectionSessionCookie,
@@ -49,6 +50,8 @@ async function protectionStatusPayload(auth) {
       phoneVerifiedAt: state.phoneVerifiedAt,
       newsletterEnabled: state.newsletterEnabled,
       newsletterUpdatedAt: state.newsletterUpdatedAt,
+      activeContactRequests: state.activeContactRequests,
+      contactRequests: state.contactRequests,
     },
   };
 }
@@ -233,6 +236,24 @@ async function handleProtection(req, res, body) {
       });
       clearProtectionSessionCookie(res);
       return json(res, 400, { ok: false, error: "Conferma email non valida o scaduta" });
+    }
+  }
+
+  if (action === "revoke-contact") {
+    const auth = await protectionUserFromRequest(req, res);
+    if (!auth) return json(res, 401, { ok: false, error: "Accedi per gestire le richieste" });
+    const requestId = String(body?.requestId || "").trim();
+    if (!/^[0-9a-f-]{36}$/i.test(requestId)) {
+      return json(res, 400, { ok: false, error: "Richiesta non valida" });
+    }
+    try {
+      await protectionRevokeContactRequest(auth.accessToken, requestId);
+      return json(res, 200, await protectionStatusPayload(auth));
+    } catch (error) {
+      console.warn("protection_contact_revoke_failed", {
+        message: String(error?.message || "revoke_failed").slice(0, 240),
+      });
+      return json(res, 400, { ok: false, error: "Impossibile revocare la richiesta. Riprova." });
     }
   }
 

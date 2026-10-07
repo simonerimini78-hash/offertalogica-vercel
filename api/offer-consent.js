@@ -1,6 +1,12 @@
 import { readFile } from "node:fs/promises";
 import { json, method, readJson, requireAllowedBrowserOrigin, requireLeadSession } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
+import {
+  protectionFindPartnerByProvider,
+  protectionIsActive,
+  protectionRecordContactRequest,
+  protectionUserFromRequest,
+} from "../lib/protectionAuth.js";
 import { notifyLeadVerified } from "../lib/notify.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { getJson, setJson } from "../lib/store.js";
@@ -343,6 +349,45 @@ function validateSelectedOffer(offer, config = switchoServerConfig()) {
   return { ok: true, redirectUrl: resolveOfferRedirectUrl(offer, config) };
 }
 
+
+function protectionPartnerKey(provider) {
+  return String(provider || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120) || "partner";
+}
+
+async function recordProtectionOfferRequest(req, res, { leadId, selectedOffer }) {
+  try {
+    const auth = await protectionUserFromRequest(req, res);
+    if (!auth?.user?.id) return false;
+    if (!(await protectionIsActive(auth.user.id))) return false;
+
+    const provider = String(selectedOffer?.provider || "Fornitore").trim() || "Fornitore";
+    const directPartner = await protectionFindPartnerByProvider(provider);
+    await protectionRecordContactRequest({
+      userId: auth.user.id,
+      requestType: "offer",
+      serviceKey: "energy_offer",
+      serviceName: `${provider} · ${String(selectedOffer?.name || "Offerta energia").trim() || "Offerta energia"}`.slice(0, 180),
+      source: "offer_consent",
+      sourceReference: `${leadId}:${String(selectedOffer?.id || "offer").slice(0, 120)}`,
+      contactActor: directPartner ? "offertalogica_or_partner" : "partner",
+      partnerKey: directPartner?.partner_key || protectionPartnerKey(provider),
+      partnerName: directPartner?.partner_name || provider,
+    });
+    return true;
+  } catch (error) {
+    console.warn("protection_offer_contact_request_failed", {
+      message: String(error?.message || "record_failed").slice(0, 240),
+    });
+    return false;
+  }
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedBrowserOrigin(req, res)) return;
@@ -463,6 +508,9 @@ export default async function handler(req, res) {
     const customerDb = await persistLeadSnapshot(updatedLead, requiresPartnerConsent ? "offer_partner_consent" : "offer_affiliate_redirect");
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_offer_partner_consent_failed", customerDb.error);
+    }
+    if (requiresPartnerConsent) {
+      await recordProtectionOfferRequest(req, res, { leadId, selectedOffer });
     }
     json(res, 200, {
       ok: true,

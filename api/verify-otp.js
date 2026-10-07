@@ -1,10 +1,98 @@
 import { createLeadSessionToken, json, method, readJson, requireAllowedBrowserOrigin, setLeadSessionCookie } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
-import { maskPhone, protectionActivate, protectionRecordVerifiedPhone, protectionUserFromRequest } from "../lib/protectionAuth.js";
+import {
+  maskPhone,
+  protectionActivate,
+  protectionRecordContactRequest,
+  protectionRecordVerifiedPhone,
+  protectionIsActive,
+  protectionUserFromRequest,
+} from "../lib/protectionAuth.js";
 import { checkTwilioVerify, otpHashMatches } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
+
+async function recordOlContactRequestIfActive(req, res, payload) {
+  try {
+    const auth = await protectionUserFromRequest(req, res);
+    if (!auth?.user?.id) return false;
+    if (!(await protectionIsActive(auth.user.id))) return false;
+    await protectionRecordContactRequest({ userId: auth.user.id, ...payload });
+    return true;
+  } catch (error) {
+    console.warn("protection_contact_request_record_failed", {
+      source: String(payload?.source || "").slice(0, 80),
+      message: String(error?.message || "record_failed").slice(0, 240),
+    });
+    return false;
+  }
+}
+
+function protectionContactRequestFromVerifiedLead(lead, leadId) {
+  const requestType = String(lead?.calculation?.requestType || "").trim().toLowerCase();
+  const customerType = String(lead?.calculation?.customerType || "").trim().toLowerCase();
+  const assistanceReason = String(lead?.calculation?.assistanceReason || "").trim();
+
+  if (requestType === "photovoltaic_consulting") {
+    return {
+      requestType: "photovoltaic",
+      serviceKey: "fotovoltaico",
+      serviceName: "Fotovoltaico",
+      source: "photovoltaic_consulting",
+      sourceReference: leadId,
+      contactActor: "offertalogica",
+    };
+  }
+
+  if (requestType !== "assistance_callback") return null;
+
+  if (assistanceReason === "business_general_consulting") {
+    return {
+      requestType: "consultant",
+      serviceKey: "business_energy_consulting",
+      serviceName: "Consulenza energia business",
+      source: "business_consulting",
+      sourceReference: leadId,
+      contactActor: "offertalogica",
+    };
+  }
+
+  if (/^Business\s*\|/i.test(assistanceReason)) {
+    const parts = assistanceReason.split("|").map((value) => value.trim()).filter(Boolean);
+    const provider = parts[1] || "fornitore";
+    const offerName = parts[2] || "offerta selezionata";
+    return {
+      requestType: "consultant",
+      serviceKey: "business_offer_consulting",
+      serviceName: `Consulenza business · ${provider} · ${offerName}`.slice(0, 180),
+      source: "business_offer_consulting",
+      sourceReference: leadId,
+      contactActor: "offertalogica",
+    };
+  }
+
+  if (/^Offerta:/i.test(assistanceReason)) {
+    const readable = assistanceReason.replace(/^Offerta:\s*/i, "").trim();
+    return {
+      requestType: "assistance",
+      serviceKey: "offer_support",
+      serviceName: `Assistenza Offerta Logica · ${readable || "offerta selezionata"}`.slice(0, 180),
+      source: "offer_support",
+      sourceReference: leadId,
+      contactActor: "offertalogica",
+    };
+  }
+
+  return {
+    requestType: customerType === "business" ? "consultant" : "assistance",
+    serviceKey: customerType === "business" ? "business_energy_consulting" : "offertalogica_assistance",
+    serviceName: customerType === "business" ? "Consulenza energia business" : "Assistenza Offerta Logica",
+    source: customerType === "business" ? "business_consulting" : "assistance_callback",
+    sourceReference: leadId,
+    contactActor: "offertalogica",
+  };
+}
 
 async function handleProtectionVerifyOtp(req, res, body) {
   if (!(await enforceRateLimit(req, res, {
@@ -150,6 +238,11 @@ export default async function handler(req, res) {
         ok: false,
         error: "Recapito verificato, ma l'invio della richiesta non e' riuscito. Premi di nuovo Verifica tra poco.",
       });
+    }
+
+    const protectionContactRequest = protectionContactRequestFromVerifiedLead(updatedLead, normalizedLeadId);
+    if (protectionContactRequest) {
+      await recordOlContactRequestIfActive(req, res, protectionContactRequest);
     }
 
     await del(`otp:${normalizedLeadId}`);

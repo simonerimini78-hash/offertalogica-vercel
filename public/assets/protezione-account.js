@@ -17,6 +17,9 @@
   const activePhone = root.querySelector("[data-protection-active-phone]");
   const newsletterStatus = root.querySelector("[data-protection-newsletter-status]");
   const newsletterToggle = root.querySelector("[data-protection-newsletter-toggle]");
+  const contactCount = root.querySelector("[data-protection-contact-count]");
+  const contactEmpty = root.querySelector("[data-protection-contact-empty]");
+  const contactList = root.querySelector("[data-protection-contact-list]");
   const phoneInput = root.querySelector("[data-protection-phone]");
   const otpInput = root.querySelector("[data-protection-otp]");
   const activationConsent = root.querySelector("[data-protection-activation-consent]");
@@ -70,6 +73,72 @@
     }
   }
 
+  function formatDateTime(value) {
+    const date = new Date(value || "");
+    if (Number.isNaN(date.getTime())) return "";
+    return new Intl.DateTimeFormat("it-IT", { dateStyle: "medium", timeStyle: "short" }).format(date);
+  }
+
+  function contactActorLabel(item) {
+    const partner = String(item?.partner_name || "").trim();
+    if (item?.contact_actor === "offertalogica_or_partner" && partner) {
+      return `Canale diretto Offerta Logica: la richiesta può essere gestita da Offerta Logica o da ${partner} / un suo incaricato dedicato.`;
+    }
+    if (item?.contact_actor === "partner" && partner) {
+      return `Hai richiesto tramite Offerta Logica di proseguire con ${partner}. Questa voce riguarda solo la richiesta effettuata qui.`;
+    }
+    if (partner) return `Richiesta registrata tramite Offerta Logica per ${partner}.`;
+    return "Hai richiesto questo contatto tramite Offerta Logica.";
+  }
+
+  function renderContactRequests(protection = {}) {
+    if (!contactCount || !contactList || !contactEmpty) return;
+    const requests = Array.isArray(protection.contactRequests) ? protection.contactRequests : [];
+    const active = requests.filter((item) => item?.status === "active");
+    const activeCount = Number(protection.activeContactRequests ?? active.length) || 0;
+    contactCount.textContent = `${activeCount} ${activeCount === 1 ? "richiesta attiva" : "richieste attive"}`;
+    contactEmpty.hidden = activeCount > 0;
+    contactList.replaceChildren();
+    if (!requests.length) {
+      contactList.hidden = true;
+      return;
+    }
+
+    requests.slice(0, 8).forEach((item) => {
+      const article = document.createElement("article");
+      article.className = "protection-contact-item";
+      article.dataset.status = String(item?.status || "");
+
+      const head = document.createElement("div");
+      head.className = "protection-contact-item-head";
+      const title = document.createElement("strong");
+      title.textContent = item?.service_name || "Richiesta Offerta Logica";
+      const status = document.createElement("span");
+      const statusLabel = item?.status === "active" ? "Attiva" : item?.status === "revoked" ? "Revocata" : "Conclusa";
+      status.textContent = statusLabel;
+      status.dataset.status = String(item?.status || "");
+      head.append(title, status);
+
+      const detail = document.createElement("p");
+      detail.textContent = contactActorLabel(item);
+      const meta = document.createElement("small");
+      const requestedAt = formatDateTime(item?.requested_at);
+      meta.textContent = requestedAt ? `Richiesta il ${requestedAt}` : "Richiesta registrata";
+
+      article.append(head, detail, meta);
+      if (item?.status === "active" && item?.id) {
+        const revoke = document.createElement("button");
+        revoke.type = "button";
+        revoke.className = "protection-contact-revoke";
+        revoke.dataset.protectionRevokeContact = String(item.id);
+        revoke.textContent = "Revoca richiesta";
+        article.append(revoke);
+      }
+      contactList.append(article);
+    });
+    contactList.hidden = false;
+  }
+
   function openAuth(kind) {
     setHidden(signupForm, kind !== "signup");
     setHidden(loginForm, kind !== "login");
@@ -110,6 +179,7 @@
         newsletterToggle.textContent = newsletterEnabled ? "Disattiva aggiornamenti" : "Attiva aggiornamenti";
         newsletterToggle.dataset.enabled = newsletterEnabled ? "true" : "false";
       }
+      renderContactRequests(protection);
     } else if (phoneVerified) {
       setStatus(accountStatus, "Numero verificato. Completa l’attivazione.", "warning");
     } else {
@@ -275,6 +345,23 @@
     } catch (error) {
       setStatus(accountStatus, error.message, "error");
     } finally {
+      setBusy(button, false);
+    }
+  });
+
+  contactList?.addEventListener("click", async (event) => {
+    const button = event.target.closest("[data-protection-revoke-contact]");
+    if (!button) return;
+    const requestId = button.dataset.protectionRevokeContact || "";
+    if (!requestId) return;
+    setStatus(accountStatus, "");
+    try {
+      setBusy(button, true, "Revoca…");
+      const data = await post("/api/lead", { mode: "protection", action: "revoke-contact", requestId });
+      render(data);
+      setStatus(accountStatus, "Richiesta di contatto revocata.", "success");
+    } catch (error) {
+      setStatus(accountStatus, error.message, "error");
       setBusy(button, false);
     }
   });
