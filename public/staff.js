@@ -31,6 +31,7 @@
   let analyticsLoadSequence = 0;
   let analyticsSummarySequence = 0;
   let analyticsSessionRows = [];
+  let selectedSupplierKey = "";
 
   const cache = {
     leads: [],
@@ -831,117 +832,171 @@
     text(byId("supplierMetricRejected"), rows.filter(item => item.verification_status === "rejected").length);
   }
 
-  function renderSupplierNumbers() {
-    renderSupplierNumberMetrics();
-    const body = byId("supplierNumberRows");
-    clear(body);
-    const rows = Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [];
-    if (!rows.length) {
-      body?.append(node("div", { className: "supplier-number-empty", text: "Nessun numero fornitore corrispondente." }));
-      return;
-    }
-
+  function supplierNumberGroups() {
     const grouped = new Map();
-    rows.forEach(item => {
+    (Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : []).forEach(item => {
       const key = String(item?.supplier_key || item?.supplier_name || "senza-chiave").trim().toLowerCase();
       if (!grouped.has(key)) grouped.set(key, []);
       grouped.get(key).push(item);
     });
-    const groups = [...grouped.entries()].sort((a, b) => {
+    return [...grouped.entries()].sort((a, b) => {
       const an = String(a[1][0]?.supplier_name || a[0]);
       const bn = String(b[1][0]?.supplier_name || b[0]);
       return an.localeCompare(bn, "it", { sensitivity: "base" });
     });
+  }
 
-    groups.forEach(([key, items]) => {
-      const supplierName = String(items[0]?.supplier_name || key || "Fornitore");
-      const activeItems = items.filter(item => item.active === true);
-      const verified = activeItems.filter(item => item.verification_status === "verified").length;
-      const pending = activeItems.filter(item => item.verification_status === "pending").length;
-      const rejected = activeItems.filter(item => item.verification_status === "rejected").length;
-      const inactive = items.filter(item => item.active === false).length;
-
-      const meta = node("div", { className: "supplier-group-meta" });
-      if (verified) meta.append(badge(`${verified} verificat${verified === 1 ? "o" : "i"}`, "ok"));
-      if (pending) meta.append(badge(`${pending} da verificare`, "warn"));
-      if (rejected) meta.append(badge(`${rejected} scartat${rejected === 1 ? "o" : "i"}`, "danger"));
-      if (inactive) meta.append(badge(`${inactive} disattivat${inactive === 1 ? "o" : "i"}`, "danger"));
-      meta.append(node("span", { className: "supplier-group-count", text: `${items.length} ${items.length === 1 ? "numero" : "numeri"}` }));
-
-      const summary = node("summary", {}, [
-        node("div", { className: "supplier-group-title" }, [
-          node("strong", { text: supplierName }),
-          node("small", { text: key }),
-        ]),
-        meta,
-      ]);
-      const groupBody = node("div", { className: "supplier-group-body" });
-
-      items
-        .slice()
-        .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")))
-        .forEach(item => {
-          const actions = [];
-          if (isOwner()) {
-            const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica" });
-            edit.addEventListener("click", () => openSupplierNumberEditor(item));
-            actions.push(edit);
-
-            const status = String(item.verification_status || "").toLowerCase();
-            if (status === "pending") {
-              const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
-              verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
-              const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
-              reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
-              actions.push(verify, reject);
-            } else {
-              const reopen = node("button", { className: "button secondary compact", type: "button", text: status === "rejected" ? "Ripristina" : "Riapri verifica" });
-              reopen.addEventListener("click", () => setSupplierNumberStatus(item, "pending").catch(error => setMessage("error", friendlyError(error))));
-              actions.push(reopen);
-            }
-
-            const active = node("button", { className: `button ${item.active ? "danger" : "secondary"} compact`, type: "button", text: item.active ? "Disattiva" : "Riattiva" });
-            active.addEventListener("click", () => setSupplierNumberActive(item, !item.active).catch(error => setMessage("error", friendlyError(error))));
-            actions.push(active);
-          } else {
-            actions.push(node("small", { text: "Sola lettura" }));
-          }
-
-          const validity = [];
-          if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
-          if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
-          validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
-
-          const source = node("div", {}, [
-            node("span", { text: "Fonte" }),
-            node("strong", { text: supplierNumberSourceLabel(item.source_type) }),
-            supplierSourceNode(item.source_reference),
-          ]);
-          const card = node("article", { className: `supplier-number-card${item.active === false ? " supplier-row-muted" : ""}` }, [
-            node("div", { className: "supplier-number-card-head" }, [
-              node("div", {}, [
-                node("strong", { text: item.phone_e164 || "—" }),
-                node("small", { text: item.phone_label || "Nessuna etichetta" }),
-              ]),
-              node("div", { className: "supplier-number-card-status" }, [
-                badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)),
-                item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok"),
-              ]),
-            ]),
-            node("div", { className: "supplier-number-card-grid" }, [
-              node("div", {}, [node("span", { text: "Tipo" }), node("strong", { text: supplierNumberTypeLabel(item.number_type) })]),
-              source,
-              node("div", {}, [node("span", { text: "Validità / controllo" }), ...validity]),
-            ]),
-            node("div", { className: "supplier-number-card-actions" }, actions),
-          ]);
-          groupBody.append(card);
-        });
-
-      const details = node("details", { className: "supplier-group" }, [summary, groupBody]);
-      if (groups.length === 1) details.open = true;
-      body?.append(details);
+  function findSupplierKeyFromPicker(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return "";
+    const groups = supplierNumberGroups();
+    const exact = groups.find(([key, items]) => {
+      const name = String(items[0]?.supplier_name || "").trim().toLowerCase();
+      return raw === key || raw === name || raw === `${name} · ${key}`;
     });
+    if (exact) return exact[0];
+    const matches = groups.filter(([key, items]) => {
+      const name = String(items[0]?.supplier_name || "").trim().toLowerCase();
+      return key.includes(raw) || name.includes(raw);
+    });
+    return matches.length === 1 ? matches[0][0] : "";
+  }
+
+  function populateSupplierPicker() {
+    const options = byId("supplierNumberSupplierOptions");
+    clear(options);
+    const groups = supplierNumberGroups();
+    groups.forEach(([key, items]) => {
+      const name = String(items[0]?.supplier_name || key || "Fornitore");
+      options?.append(node("option", { attrs: { value: name }, text: key }));
+    });
+    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore disponibile" : "fornitori disponibili"}. Scrivi il nome per trovarlo rapidamente.`);
+    if (selectedSupplierKey && !groups.some(([key]) => key === selectedSupplierKey)) selectedSupplierKey = "";
+  }
+
+  function buildSupplierNumberCard(item) {
+    const actions = [];
+    if (isOwner()) {
+      const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica" });
+      edit.addEventListener("click", () => openSupplierNumberEditor(item));
+      actions.push(edit);
+
+      const status = String(item.verification_status || "").toLowerCase();
+      if (status === "pending") {
+        const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
+        verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
+        const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
+        reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
+        actions.push(verify, reject);
+      } else {
+        const reopen = node("button", { className: "button secondary compact", type: "button", text: status === "rejected" ? "Ripristina" : "Riapri verifica" });
+        reopen.addEventListener("click", () => setSupplierNumberStatus(item, "pending").catch(error => setMessage("error", friendlyError(error))));
+        actions.push(reopen);
+      }
+
+      const active = node("button", { className: `button ${item.active ? "danger" : "secondary"} compact`, type: "button", text: item.active ? "Disattiva" : "Riattiva" });
+      active.addEventListener("click", () => setSupplierNumberActive(item, !item.active).catch(error => setMessage("error", friendlyError(error))));
+      actions.push(active);
+    } else {
+      actions.push(node("small", { text: "Sola lettura" }));
+    }
+
+    const validity = [];
+    if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
+    if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
+    validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
+
+    const source = node("div", {}, [
+      node("span", { text: "Fonte" }),
+      node("strong", { text: supplierNumberSourceLabel(item.source_type) }),
+      supplierSourceNode(item.source_reference),
+    ]);
+    return node("article", { className: `supplier-number-card${item.active === false ? " supplier-row-muted" : ""}` }, [
+      node("div", { className: "supplier-number-card-head" }, [
+        node("div", {}, [
+          node("strong", { text: item.phone_e164 || "—" }),
+          node("small", { text: item.phone_label || "Nessuna etichetta" }),
+        ]),
+        node("div", { className: "supplier-number-card-status" }, [
+          badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)),
+          item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok"),
+        ]),
+      ]),
+      node("div", { className: "supplier-number-card-grid" }, [
+        node("div", {}, [node("span", { text: "Tipo" }), node("strong", { text: supplierNumberTypeLabel(item.number_type) })]),
+        source,
+        node("div", {}, [node("span", { text: "Validità / controllo" }), ...validity]),
+      ]),
+      node("div", { className: "supplier-number-card-actions" }, actions),
+    ]);
+  }
+
+  function renderSupplierNumbers() {
+    renderSupplierNumberMetrics();
+    populateSupplierPicker();
+    const body = byId("supplierNumberRows");
+    clear(body);
+    const selectedPanel = byId("supplierNumberSelected");
+    const empty = byId("supplierNumberEmpty");
+    const clearButton = byId("supplierNumberClearSelection");
+    const picker = byId("supplierNumberSupplierPicker");
+    const groups = supplierNumberGroups();
+
+    if (!selectedSupplierKey) {
+      if (selectedPanel) selectedPanel.hidden = true;
+      if (empty) empty.hidden = false;
+      if (clearButton) clearButton.hidden = true;
+      return;
+    }
+
+    const group = groups.find(([key]) => key === selectedSupplierKey);
+    if (!group) {
+      selectedSupplierKey = "";
+      if (selectedPanel) selectedPanel.hidden = true;
+      if (empty) empty.hidden = false;
+      if (clearButton) clearButton.hidden = true;
+      return;
+    }
+
+    const [key, items] = group;
+    const supplierName = String(items[0]?.supplier_name || key || "Fornitore");
+    if (picker && document.activeElement !== picker) picker.value = supplierName;
+    if (selectedPanel) selectedPanel.hidden = false;
+    if (empty) empty.hidden = true;
+    if (clearButton) clearButton.hidden = false;
+    text(byId("supplierNumberSelectedName"), supplierName);
+    text(byId("supplierNumberSelectedKey"), key);
+
+    const meta = byId("supplierNumberSelectedMeta");
+    clear(meta);
+    const activeItems = items.filter(item => item.active === true);
+    const verified = activeItems.filter(item => item.verification_status === "verified").length;
+    const pending = activeItems.filter(item => item.verification_status === "pending").length;
+    const rejected = activeItems.filter(item => item.verification_status === "rejected").length;
+    const inactive = items.filter(item => item.active === false).length;
+    if (verified) meta?.append(badge(`${verified} verificat${verified === 1 ? "o" : "i"}`, "ok"));
+    if (pending) meta?.append(badge(`${pending} da verificare`, "warn"));
+    if (rejected) meta?.append(badge(`${rejected} scartat${rejected === 1 ? "o" : "i"}`, "danger"));
+    if (inactive) meta?.append(badge(`${inactive} disattivat${inactive === 1 ? "o" : "i"}`, "danger"));
+    meta?.append(node("span", { className: "supplier-group-count", text: `${items.length} ${items.length === 1 ? "numero" : "numeri"}` }));
+
+    items
+      .slice()
+      .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")))
+      .forEach(item => body?.append(buildSupplierNumberCard(item)));
+  }
+
+  function selectSupplierFromPicker() {
+    const picker = byId("supplierNumberSupplierPicker");
+    const nextKey = findSupplierKeyFromPicker(picker?.value || "");
+    if (!nextKey) {
+      selectedSupplierKey = "";
+      renderSupplierNumbers();
+      if (picker?.value?.trim()) text(byId("supplierNumberPickerHint"), "Seleziona un fornitore dall’elenco suggerito.");
+      return;
+    }
+    selectedSupplierKey = nextKey;
+    renderSupplierNumbers();
   }
 
   function closeSupplierNumberEditor() {
@@ -960,8 +1015,9 @@
     if (!panel) return;
     text(byId("supplierNumberEditorTitle"), item ? `Modifica · ${item.supplier_name || item.phone_e164 || "numero"}` : "Nuovo numero fornitore");
     byId("supplierNumberId").value = item?.id || "";
-    byId("supplierNumberKey").value = item?.supplier_key || "";
-    byId("supplierNumberName").value = item?.supplier_name || "";
+    const selectedGroup = !item && selectedSupplierKey ? supplierNumberGroups().find(([key]) => key === selectedSupplierKey) : null;
+    byId("supplierNumberKey").value = item?.supplier_key || selectedGroup?.[0] || "";
+    byId("supplierNumberName").value = item?.supplier_name || selectedGroup?.[1]?.[0]?.supplier_name || "";
     byId("supplierNumberPhone").value = item?.phone_e164 || "";
     byId("supplierNumberLabel").value = item?.phone_label || "";
     byId("supplierNumberType").value = item?.number_type || "unknown";
@@ -1066,9 +1122,7 @@
     setHidden(byId("supplierNumberNew"), !isOwner());
     setHidden(byId("supplierNumberEditor"), !isOwner() || byId("supplierNumberEditor")?.hidden !== false);
     if (!silent) setMessage("info", "Aggiornamento archivio numeri…");
-    const limit = Math.max(1, Math.min(500, Number(byId("supplierNumberLimit")?.value || 250)));
-    const search = String(byId("supplierNumberSearch")?.value || "").trim();
-    const { data, error } = await client.rpc("staff_supplier_numbers", { p_search: search, p_limit: limit });
+    const { data, error } = await client.rpc("staff_supplier_numbers", { p_search: "", p_limit: 500 });
     if (error) throw error;
     cache.supplierNumbers = Array.isArray(data) ? data : [];
     renderSupplierNumbers();
@@ -5950,9 +6004,13 @@
     byId("protectionLimit")?.addEventListener("change", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
     byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
     byId("supplierNumberRefresh")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
-    byId("supplierNumberApply")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
-    byId("supplierNumberSearch")?.addEventListener("keydown", event => { if (event.key === "Enter") loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))); });
-    byId("supplierNumberLimit")?.addEventListener("change", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierNumberSupplierPicker")?.addEventListener("change", selectSupplierFromPicker);
+    byId("supplierNumberSupplierPicker")?.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); selectSupplierFromPicker(); } });
+    byId("supplierNumberClearSelection")?.addEventListener("click", () => {
+      selectedSupplierKey = "";
+      if (byId("supplierNumberSupplierPicker")) byId("supplierNumberSupplierPicker").value = "";
+      renderSupplierNumbers();
+    });
     byId("supplierNumberNew")?.addEventListener("click", () => openSupplierNumberEditor());
     byId("supplierNumberEditorClose")?.addEventListener("click", closeSupplierNumberEditor);
     byId("supplierNumberCancel")?.addEventListener("click", closeSupplierNumberEditor);
