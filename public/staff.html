@@ -60,7 +60,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.42</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.43</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -125,7 +125,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.42</div>
+      <div class="version">Control Center Staff v0.37.43</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -139,24 +139,24 @@
     </section>
 
     <section class="view" data-staff-view="protection">
-      <div class="view-head"><div><h2>Protezione OL</h2><p>Account protetti, numeri verificati, aggiornamenti energia e autorizzazioni alle offerte. Vista amministrativa in sola lettura.</p></div><div class="view-actions"><button class="button secondary" id="protectionRefresh" type="button">Aggiorna</button></div></div>
+      <div class="view-head"><div><h2>Protezione OL</h2><p>Account protetti, numeri verificati, aggiornamenti energia e richieste di contatto nate tramite Offerta Logica. Vista amministrativa in sola lettura.</p></div><div class="view-actions"><button class="button secondary" id="protectionRefresh" type="button">Aggiorna</button></div></div>
       <div id="protectionRestricted" class="restricted" hidden>Questo modulo contiene dati di contatto ed è riservato agli amministratori.</div>
       <div id="protectionContent">
         <div class="metrics">
           <article class="metric priority"><span>Protezioni attive</span><strong id="protectionMetricActive">0</strong><small>Profili Protezione OL attivi</small></article>
           <article class="metric"><span>Numeri verificati</span><strong id="protectionMetricPhones">0</strong><small>Verifica telefono completata</small></article>
           <article class="metric"><span>Novità energia</span><strong id="protectionMetricNewsletter">0</strong><small>Consenso attualmente attivo</small></article>
-          <article class="metric"><span>Autorizzazioni partner</span><strong id="protectionMetricPartners">0</strong><small>Richieste offerta attive</small></article>
+          <article class="metric"><span>Richieste OL attive</span><strong id="protectionMetricContacts">0</strong><small>Contatti richiesti tramite Offerta Logica</small></article>
         </div>
         <section class="panel">
           <div class="toolbar"><input id="protectionSearch" type="search" placeholder="Cerca email o telefono"><select id="protectionLimit"><option value="100">100 account</option><option value="250" selected>250 account</option><option value="500">500 account</option></select><button class="button primary" id="protectionApply" type="button">Cerca</button></div>
-          <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th>Protezione</th><th>Numero</th><th>Novità energia</th><th>Partner</th><th>Ultima attività</th><th>Azioni</th></tr></thead><tbody id="protectionRows"></tbody></table></div>
+          <div class="table-wrap"><table class="data-table"><thead><tr><th>Account</th><th>Protezione</th><th>Numero</th><th>Novità energia</th><th>Richieste OL</th><th>Ultima attività</th><th>Azioni</th></tr></thead><tbody id="protectionRows"></tbody></table></div>
         </section>
         <section class="panel" id="protectionTimelinePanel" style="margin-top:14px" hidden>
           <div class="panel-head"><div><h3 id="protectionTimelineTitle">Timeline Protezione</h3><small>Eventi registrati per l'account selezionato</small></div><button class="button secondary compact" id="protectionTimelineClose" type="button">Chiudi</button></div>
           <div class="panel-body"><div class="rank-list" id="protectionTimeline"></div></div>
         </section>
-        <div class="side-note" style="margin-top:14px">Il Registro Pubblico delle Opposizioni non è verificato automaticamente da OffertaLogica: questa schermata mostra soltanto eventi e autorizzazioni effettivamente registrati da Protezione OL.</div>
+        <div class="side-note" style="margin-top:14px">Il Registro Pubblico delle Opposizioni non è verificato automaticamente da OffertaLogica: questa schermata mostra soltanto eventi e richieste effettivamente registrati da Protezione OL.</div>
       </div>
     </section>
 
@@ -412,7 +412,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.42"></script>
+<script src="/staff.js?v=0.37.43"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -517,7 +517,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.42";
+    const CURRENT_RELEASE="0.37.43";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

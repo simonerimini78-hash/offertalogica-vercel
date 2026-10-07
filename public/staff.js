@@ -667,7 +667,7 @@
     text(byId("protectionMetricActive"), rows.filter(item => item.protection_active === true).length);
     text(byId("protectionMetricPhones"), rows.filter(item => Boolean(item.phone_verified_at)).length);
     text(byId("protectionMetricNewsletter"), rows.filter(item => item.newsletter_enabled === true).length);
-    text(byId("protectionMetricPartners"), rows.reduce((sum, item) => sum + Number(item.active_partner_authorizations || 0), 0));
+    text(byId("protectionMetricContacts"), rows.reduce((sum, item) => sum + Number(item.active_contact_requests || 0), 0));
     text(byId("navProtectionCount"), rows.filter(item => item.protection_active === true).length);
   }
 
@@ -688,8 +688,8 @@
         node("td", {}, [badge(item.protection_active ? "Attiva" : "Non attiva", item.protection_active ? "ok" : "warn"), node("small", { text: item.protection_activated_at ? `Dal ${formatDate(item.protection_activated_at)}` : "Attivazione non completata" })]),
         node("td", {}, [node("strong", { text: item.phone_e164 || "—" }), node("small", { text: item.phone_verified_at ? `Verificato ${formatDate(item.phone_verified_at)}` : "Non verificato" })]),
         node("td", {}, [badge(item.newsletter_enabled ? "Attive" : "Non attive", item.newsletter_enabled ? "ok" : ""), node("small", { text: item.newsletter_updated_at ? formatDate(item.newsletter_updated_at) : "Nessuna scelta registrata" })]),
-        node("td", {}, [node("strong", { text: Number(item.active_partner_authorizations || 0) }), node("small", { text: `${Number(item.requested_offer_actions || 0)} richieste registrate` })]),
-        node("td", {}, [node("strong", { text: formatDate(item.last_activity_at) }), node("small", { text: item.last_offer_action_at ? `Ultima offerta ${formatDate(item.last_offer_action_at)}` : "Nessuna offerta" })]),
+        node("td", {}, [node("strong", { text: Number(item.active_contact_requests || 0) }), node("small", { text: `${Number(item.total_contact_requests || 0)} richieste OL registrate` })]),
+        node("td", {}, [node("strong", { text: formatDate(item.last_activity_at) }), node("small", { text: item.last_contact_request_at ? `Ultimo contatto ${formatDate(item.last_contact_request_at)}` : "Nessuna richiesta OL" })]),
         node("td", {}, [node("div", { className: "row-actions" }, [details])]),
       ]));
     });
@@ -700,6 +700,7 @@
     if (item?.event_type === "phone_verified") return [detail.phone, detail.method].filter(Boolean).join(" · ");
     if (String(item?.event_type || "").startsWith("consent_")) return [detail.action, detail.policy_version].filter(Boolean).join(" · ");
     if (String(item?.event_type || "").startsWith("offer_")) return [detail.partner_name || detail.partner_id, detail.offer_id, detail.action].filter(Boolean).join(" · ");
+    if (String(item?.event_type || "").startsWith("contact_request_")) return [detail.service_name, detail.partner_name, detail.status].filter(Boolean).join(" · ");
     if (item?.event_type === "account_created") return detail.email || "";
     return "";
   }
