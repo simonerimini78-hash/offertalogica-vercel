@@ -1,17 +1,189 @@
 import { createId } from "@paralleldrive/cuid2";
 import { clientIp, json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
+import {
+  clearProtectionSessionCookie,
+  maskPhone,
+  protectionActivate,
+  protectionSignIn,
+  protectionSignUp,
+  protectionState,
+  protectionUserFromAccessToken,
+  protectionUserFromRequest,
+  setProtectionSessionCookie,
+} from "../lib/protectionAuth.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { setJson } from "../lib/store.js";
-import { sanitizeLead, sanitizeLeadCalculation } from "../lib/validation.js";
+import { sanitizeLead, sanitizeLeadCalculation, validEmail } from "../lib/validation.js";
+
+function protectionRegistrationEnabled() {
+  return String(process.env.PROTECTION_REGISTRATION_ENABLED || "true").trim().toLowerCase() !== "false";
+}
+
+function normalizeProtectionEmail(value) {
+  return String(value || "").trim().toLowerCase().slice(0, 160);
+}
+
+function normalizeProtectionPassword(value) {
+  return String(value || "");
+}
+
+function protectionAuthErrorStatus(error) {
+  const status = Number(error?.status || 0);
+  return status >= 400 && status < 500 ? status : 400;
+}
+
+async function protectionStatusPayload(auth) {
+  const state = await protectionState(auth.user.id);
+  return {
+    ok: true,
+    authenticated: true,
+    email: String(auth.user.email || "").slice(0, 160),
+    protection: {
+      active: state.active,
+      activatedAt: state.activatedAt,
+      phoneVerified: state.phoneVerified,
+      phoneMasked: maskPhone(state.phone),
+      phoneVerifiedAt: state.phoneVerifiedAt,
+    },
+  };
+}
+
+async function protectionStatusResponse(req, res) {
+  const auth = await protectionUserFromRequest(req, res);
+  if (!auth) return json(res, 200, { ok: true, authenticated: false });
+  return json(res, 200, await protectionStatusPayload(auth));
+}
+
+async function handleProtection(req, res, body) {
+  if (!protectionRegistrationEnabled()) {
+    return json(res, 503, { ok: false, error: "Registrazione Protezione temporaneamente non disponibile" });
+  }
+
+  const action = String(body?.action || "").trim().toLowerCase();
+  if (!(await enforceRateLimit(req, res, {
+    label: `protection-${action || "unknown"}`,
+    ...rateLimitConfig("PROTECTION_AUTH", 60, 3600),
+  }))) return;
+
+  if (action === "status") return protectionStatusResponse(req, res);
+
+  if (action === "logout") {
+    clearProtectionSessionCookie(res);
+    return json(res, 200, { ok: true, authenticated: false });
+  }
+
+  if (action === "signup") {
+    const email = normalizeProtectionEmail(body.email);
+    const password = normalizeProtectionPassword(body.password);
+    if (!validEmail(email)) return json(res, 400, { ok: false, error: "Inserisci un indirizzo email valido" });
+    if (password.length < 8 || password.length > 128) {
+      return json(res, 400, { ok: false, error: "La password deve contenere almeno 8 caratteri" });
+    }
+    if (body.accepted !== true) {
+      return json(res, 400, { ok: false, error: "Conferma la richiesta di registrazione" });
+    }
+    if (!(await enforceRateLimit(req, res, {
+      label: "protection-signup-email",
+      identifier: email,
+      ...rateLimitConfig("PROTECTION_SIGNUP", 6, 3600),
+    }))) return;
+
+    try {
+      const signup = await protectionSignUp({ email, password });
+      if (signup?.access_token && signup?.refresh_token) {
+        setProtectionSessionCookie(res, signup);
+        return json(res, 200, { ok: true, authenticated: true, emailConfirmationRequired: false });
+      }
+      return json(res, 200, {
+        ok: true,
+        authenticated: false,
+        emailConfirmationRequired: true,
+        message: "Controlla la tua email e conferma la registrazione.",
+      });
+    } catch (error) {
+      console.warn("protection_signup_failed", {
+        status: Number(error?.status || 0) || null,
+        message: String(error?.message || "signup_error").slice(0, 180),
+      });
+      return json(res, protectionAuthErrorStatus(error), {
+        ok: false,
+        error: "Registrazione non riuscita. Se hai gia un account, prova ad accedere.",
+      });
+    }
+  }
+
+  if (action === "login") {
+    const email = normalizeProtectionEmail(body.email);
+    const password = normalizeProtectionPassword(body.password);
+    if (!validEmail(email) || !password) return json(res, 400, { ok: false, error: "Email o password non corretti" });
+    if (!(await enforceRateLimit(req, res, {
+      label: "protection-login-email",
+      identifier: email,
+      ...rateLimitConfig("PROTECTION_LOGIN", 12, 3600),
+    }))) return;
+
+    try {
+      const session = await protectionSignIn({ email, password });
+      if (!session?.access_token || !session?.refresh_token) throw new Error("protection_login_session_missing");
+      const user = session.user?.id ? session.user : await protectionUserFromAccessToken(session.access_token);
+      setProtectionSessionCookie(res, session);
+      return json(res, 200, await protectionStatusPayload({ user, accessToken: session.access_token }));
+    } catch (error) {
+      console.warn("protection_login_failed", {
+        status: Number(error?.status || 0) || null,
+        message: String(error?.message || "login_error").slice(0, 180),
+      });
+      return json(res, 400, { ok: false, error: "Email o password non corretti, oppure email non ancora confermata" });
+    }
+  }
+
+  if (action === "session") {
+    const accessToken = String(body.accessToken || "").trim();
+    const refreshToken = String(body.refreshToken || "").trim();
+    if (!accessToken || !refreshToken) return json(res, 400, { ok: false, error: "Sessione di conferma non valida" });
+    try {
+      const user = await protectionUserFromAccessToken(accessToken);
+      setProtectionSessionCookie(res, {
+        accessToken,
+        refreshToken,
+        expiresIn: body.expiresIn,
+        expiresAt: body.expiresAt,
+      });
+      return json(res, 200, { ok: true, authenticated: true, email: String(user.email || "").slice(0, 160) });
+    } catch (error) {
+      console.warn("protection_confirmation_session_failed", {
+        message: String(error?.message || "confirmation_session_error").slice(0, 180),
+      });
+      clearProtectionSessionCookie(res);
+      return json(res, 400, { ok: false, error: "Conferma email non valida o scaduta" });
+    }
+  }
+
+  if (action === "activate") {
+    if (body.accepted !== true) return json(res, 400, { ok: false, error: "Conferma l'attivazione di Protezione OL" });
+    const auth = await protectionUserFromRequest(req, res);
+    if (!auth) return json(res, 401, { ok: false, error: "Accedi per continuare" });
+    const state = await protectionState(auth.user.id);
+    if (!state.phoneVerified) return json(res, 400, { ok: false, error: "Verifica prima il tuo numero di telefono" });
+    await protectionActivate(auth.accessToken);
+    return json(res, 200, await protectionStatusPayload(auth));
+  }
+
+  return json(res, 400, { ok: false, error: "Operazione Protezione non valida" });
+}
 
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedBrowserOrigin(req, res)) return;
-  if (!(await enforceRateLimit(req, res, { label: "lead", ...rateLimitConfig("LEAD", 30) }))) return;
 
   try {
     const body = await readJson(req);
+    if (String(body?.mode || "").trim().toLowerCase() === "protection") {
+      return await handleProtection(req, res, body);
+    }
+
+    if (!(await enforceRateLimit(req, res, { label: "lead", ...rateLimitConfig("LEAD", 30) }))) return;
     const lead = sanitizeLead(body);
     const calculation = sanitizeLeadCalculation(body.calculation);
     if (calculation?.requestType === "photovoltaic_consulting") {

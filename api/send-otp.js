@@ -1,7 +1,9 @@
 import { json, method, readJson, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { createOtp, hashOtp, otpExpiresAt, otpTtlSeconds, sendOtpEmail, sendOtpSms } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
+import { protectionUserFromRequest } from "../lib/protectionAuth.js";
 import { del, getJson, setJson } from "../lib/store.js";
+import { normalizePhone } from "../lib/validation.js";
 
 function positiveInteger(value, fallback, { min = 1, max = 86400 } = {}) {
   const parsed = Number(value);
@@ -21,18 +23,102 @@ function secondsSince(value) {
 
 const ALLOWED_OTP_PROVIDERS = new Set(["aruba-sms", "twilio-verify", "twilio", "resend-email", "demo"]);
 
+async function handleProtectionSendOtp(req, res, body) {
+  if (!(await enforceRateLimit(req, res, {
+    label: "send-protection-otp-ip",
+    ...rateLimitConfig("PROTECTION_SEND_OTP_IP", 8, 3600),
+  }))) return;
+
+  const auth = await protectionUserFromRequest(req, res);
+  if (!auth) return json(res, 401, { ok: false, error: "Accedi per verificare il numero" });
+
+  const phone = normalizePhone(body.phone || "");
+  if (!/^\+[1-9][0-9]{7,14}$/.test(phone)) {
+    return json(res, 400, { ok: false, error: "Numero di telefono non valido" });
+  }
+
+  if (!(await enforceRateLimit(req, res, {
+    label: "send-protection-otp-user",
+    identifier: auth.user.id,
+    ...rateLimitConfig("PROTECTION_SEND_OTP_USER", 5, 3600),
+  }))) return;
+  if (!(await enforceRateLimit(req, res, {
+    label: "send-protection-otp-phone",
+    identifier: phone,
+    ...rateLimitConfig("PROTECTION_SEND_OTP_PHONE", 5, 3600),
+  }))) return;
+
+  const otpKey = `protection:otp:${auth.user.id}`;
+  const existingOtp = await getJson(otpKey);
+  const cooldownSeconds = resendCooldownSeconds();
+  const elapsedSeconds = secondsSince(existingOtp?.createdAt);
+  if (elapsedSeconds < cooldownSeconds) {
+    const retryAfter = Math.max(1, cooldownSeconds - elapsedSeconds);
+    res.setHeader("Retry-After", String(retryAfter));
+    return json(res, 429, {
+      ok: false,
+      error: "Codice gia inviato. Attendi prima di richiederne un altro.",
+      retryAfter,
+    });
+  }
+
+  const code = createOtp();
+  const otp = {
+    userId: auth.user.id,
+    phone,
+    hash: hashOtp(phone, code),
+    attempts: 0,
+    expiresAt: otpExpiresAt(),
+    createdAt: new Date().toISOString(),
+    channel: "sms",
+  };
+  await setJson(otpKey, otp, otpTtlSeconds());
+
+  try {
+    const sent = await sendOtpSms(phone, code);
+    const provider = String(sent?.provider || "").trim();
+    if (!ALLOWED_OTP_PROVIDERS.has(provider) || provider === "resend-email") {
+      throw new Error("Provider OTP non riconosciuto");
+    }
+    if (provider === "demo" && process.env.NODE_ENV === "production") {
+      throw new Error("Modalita OTP demo non consentita in produzione");
+    }
+    await setJson(otpKey, { ...otp, provider }, otpTtlSeconds());
+    return json(res, 200, {
+      ok: true,
+      sent: Boolean(sent?.sent),
+      provider,
+      channel: "sms",
+      ...(process.env.NODE_ENV !== "production" && sent?.demoCode ? { demoCode: sent.demoCode } : {}),
+    });
+  } catch (error) {
+    try {
+      await del(otpKey);
+    } catch {
+      // Manteniamo l'errore originale del provider.
+    }
+    throw error;
+  }
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedBrowserOrigin(req, res)) return;
-  if (!(await enforceRateLimit(req, res, {
-    label: "send-otp-ip",
-    ...rateLimitConfig("SEND_OTP_IP", 12, 3600),
-  }))) return;
 
   let otpKey = "";
 
   try {
-    const { leadId } = await readJson(req);
+    const body = await readJson(req);
+    if (String(body?.mode || "").trim().toLowerCase() === "protection") {
+      return await handleProtectionSendOtp(req, res, body);
+    }
+
+    if (!(await enforceRateLimit(req, res, {
+      label: "send-otp-ip",
+      ...rateLimitConfig("SEND_OTP_IP", 12, 3600),
+    }))) return;
+
+    const { leadId } = body;
     const normalizedLeadId = String(leadId || "").trim().slice(0, 100);
     if (!normalizedLeadId || !/^[A-Za-z0-9_-]+$/.test(normalizedLeadId)) {
       return json(res, 400, { ok: false, error: "Richiesta OTP non valida" });

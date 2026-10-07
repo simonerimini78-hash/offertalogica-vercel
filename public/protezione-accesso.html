@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <title>Conferma accesso | OffertaLogica</title>
+  <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
+  <style>
+    *{box-sizing:border-box}body{margin:0;min-height:100vh;display:grid;place-items:center;padding:24px;background:#f1f5f9;color:#0f172a;font-family:"Segoe UI",Tahoma,Geneva,Verdana,sans-serif}.box{width:min(520px,100%);padding:26px;border:1px solid #cbd5e1;border-radius:14px;background:#fff;box-shadow:0 16px 40px rgba(15,23,42,.1)}img{display:block;width:170px;max-width:60%;margin-bottom:20px}h1{margin:0;color:#14532d;font-size:28px;line-height:1.15}p{margin:10px 0 0;color:#64748b;line-height:1.55}.status{margin-top:18px;padding:12px 14px;border-radius:9px;background:#f8fafc;color:#334155;font-weight:700}.status.error{background:#fef2f2;color:#b91c1c}a{display:inline-flex;margin-top:18px;padding:11px 16px;border-radius:9px;background:#15803d;color:#fff;text-decoration:none;font-weight:850}
+  </style>
+</head>
+<body>
+  <main class="box">
+    <img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica.it">
+    <h1>Conferma account Protezione OL</h1>
+    <p>Stiamo completando la conferma del tuo account. Al termine tornerai alla pagina Protezione.</p>
+    <div id="status" class="status" role="status" aria-live="polite">Verifica in corso…</div>
+    <a id="back" href="/truffe-telefoniche-luce-gas.html#protezione-ol" hidden>Torna a Protezione OL</a>
+  </main>
+  <script>
+  (async()=>{
+    const status=document.getElementById('status');
+    const back=document.getElementById('back');
+    const query=new URLSearchParams(location.search);
+    const hash=new URLSearchParams(location.hash.replace(/^#/,''));
+    const error=hash.get('error_description')||hash.get('error')||query.get('error_description')||query.get('error');
+    if(error){status.textContent='Conferma non riuscita o link scaduto. Puoi tornare alla pagina Protezione e accedere di nuovo.';status.classList.add('error');back.hidden=false;history.replaceState(null,'',location.pathname);return;}
+    const accessToken=hash.get('access_token');
+    const refreshToken=hash.get('refresh_token');
+    if(!accessToken||!refreshToken){status.textContent='Conferma completata. Torna alla pagina Protezione e accedi con la tua email.';back.hidden=false;history.replaceState(null,'',location.pathname);return;}
+    try{
+      const response=await fetch('/api/lead',{method:'POST',credentials:'same-origin',headers:{'Content-Type':'application/json'},body:JSON.stringify({mode:'protection',action:'session',accessToken,refreshToken,expiresIn:hash.get('expires_in'),expiresAt:hash.get('expires_at')})});
+      const data=await response.json().catch(()=>({}));
+      if(!response.ok||data.ok===false)throw new Error(data.error||'Sessione non valida');
+      history.replaceState(null,'',location.pathname);
+      location.replace('/truffe-telefoniche-luce-gas.html?protection=confirmed#protezione-ol');
+    }catch(e){status.textContent=e.message||'Conferma non riuscita. Riprova dalla pagina Protezione.';status.classList.add('error');back.hidden=false;history.replaceState(null,'',location.pathname);}
+  })();
+  </script>
+</body>
+</html>

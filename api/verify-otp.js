@@ -1,17 +1,77 @@
 import { createLeadSessionToken, json, method, readJson, requireAllowedBrowserOrigin, setLeadSessionCookie } from "../lib/http.js";
 import { persistLeadSnapshot } from "../lib/customerDb.js";
 import { notifyLeadVerified } from "../lib/notify.js";
+import { maskPhone, protectionActivate, protectionRecordVerifiedPhone, protectionUserFromRequest } from "../lib/protectionAuth.js";
 import { checkTwilioVerify, otpHashMatches } from "../lib/otp.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { del, getJson, setJson } from "../lib/store.js";
 
+async function handleProtectionVerifyOtp(req, res, body) {
+  if (!(await enforceRateLimit(req, res, {
+    label: "verify-protection-otp",
+    ...rateLimitConfig("PROTECTION_VERIFY_OTP", 30, 3600),
+  }))) return;
+
+  const auth = await protectionUserFromRequest(req, res);
+  if (!auth) return json(res, 401, { ok: false, error: "Accedi per verificare il numero" });
+  if (body.accepted !== true) {
+    return json(res, 400, { ok: false, error: "Conferma l'attivazione di Protezione OL" });
+  }
+
+  const normalizedCode = String(body.code || "").trim();
+  if (!/^\d{4,10}$/.test(normalizedCode)) {
+    return json(res, 400, { ok: false, error: "Codice non corretto" });
+  }
+
+  const otpKey = `protection:otp:${auth.user.id}`;
+  const otp = await getJson(otpKey);
+  if (!otp || otp.userId !== auth.user.id) return json(res, 404, { ok: false, error: "Codice scaduto" });
+  if (otp.expiresAt < Date.now()) return json(res, 400, { ok: false, error: "Codice scaduto" });
+  if (otp.attempts >= 5) return json(res, 429, { ok: false, error: "Troppi tentativi" });
+
+  let valid = Boolean(otp.phoneRecordedAt);
+  if (!valid && otp.provider === "twilio-verify") {
+    const twilioResult = await checkTwilioVerify(otp.phone, normalizedCode);
+    valid = twilioResult.approved;
+  } else if (!valid) {
+    valid = otpHashMatches(otp.phone, normalizedCode, otp.hash);
+  }
+
+  if (!valid) {
+    await setJson(otpKey, { ...otp, attempts: Number(otp.attempts || 0) + 1 }, 300);
+    return json(res, 400, { ok: false, error: "Codice non corretto" });
+  }
+
+  let currentOtp = otp;
+  if (!otp.phoneRecordedAt) {
+    await protectionRecordVerifiedPhone({ userId: auth.user.id, phone: otp.phone, method: "otp" });
+    currentOtp = { ...otp, phoneRecordedAt: new Date().toISOString() };
+    await setJson(otpKey, currentOtp, 300);
+  }
+
+  await protectionActivate(auth.accessToken);
+  await del(otpKey);
+  return json(res, 200, {
+    ok: true,
+    status: "active",
+    protectionActive: true,
+    phoneVerified: true,
+    phoneMasked: maskPhone(currentOtp.phone),
+  });
+}
+
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedBrowserOrigin(req, res)) return;
-  if (!(await enforceRateLimit(req, res, { label: "verify-otp", ...rateLimitConfig("VERIFY_OTP", 60) }))) return;
 
   try {
-    const { leadId, code } = await readJson(req);
+    const body = await readJson(req);
+    if (String(body?.mode || "").trim().toLowerCase() === "protection") {
+      return await handleProtectionVerifyOtp(req, res, body);
+    }
+
+    if (!(await enforceRateLimit(req, res, { label: "verify-otp", ...rateLimitConfig("VERIFY_OTP", 60) }))) return;
+    const { leadId, code } = body;
     const normalizedLeadId = String(leadId || "").trim().slice(0, 100);
     const normalizedCode = String(code || "").trim();
     if (!normalizedLeadId || !/^[A-Za-z0-9_-]+$/.test(normalizedLeadId) || !/^\d{4,10}$/.test(normalizedCode)) {
