@@ -837,50 +837,110 @@
     clear(body);
     const rows = Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [];
     if (!rows.length) {
-      body?.append(node("tr", {}, [node("td", { attrs: { colspan: "7" } }, [node("div", { className: "empty", text: "Nessun numero fornitore corrispondente." })])]));
+      body?.append(node("div", { className: "supplier-number-empty", text: "Nessun numero fornitore corrispondente." }));
       return;
     }
+
+    const grouped = new Map();
     rows.forEach(item => {
-      const actions = [];
-      if (isOwner()) {
-        const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica" });
-        edit.addEventListener("click", () => openSupplierNumberEditor(item));
-        actions.push(edit);
+      const key = String(item?.supplier_key || item?.supplier_name || "senza-chiave").trim().toLowerCase();
+      if (!grouped.has(key)) grouped.set(key, []);
+      grouped.get(key).push(item);
+    });
+    const groups = [...grouped.entries()].sort((a, b) => {
+      const an = String(a[1][0]?.supplier_name || a[0]);
+      const bn = String(b[1][0]?.supplier_name || b[0]);
+      return an.localeCompare(bn, "it", { sensitivity: "base" });
+    });
 
-        const status = String(item.verification_status || "").toLowerCase();
-        if (status === "pending") {
-          const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
-          verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
-          const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
-          reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
-          actions.push(verify, reject);
-        } else {
-          const reopen = node("button", { className: "button secondary compact", type: "button", text: status === "rejected" ? "Ripristina" : "Riapri verifica" });
-          reopen.addEventListener("click", () => setSupplierNumberStatus(item, "pending").catch(error => setMessage("error", friendlyError(error))));
-          actions.push(reopen);
-        }
+    groups.forEach(([key, items]) => {
+      const supplierName = String(items[0]?.supplier_name || key || "Fornitore");
+      const activeItems = items.filter(item => item.active === true);
+      const verified = activeItems.filter(item => item.verification_status === "verified").length;
+      const pending = activeItems.filter(item => item.verification_status === "pending").length;
+      const rejected = activeItems.filter(item => item.verification_status === "rejected").length;
+      const inactive = items.filter(item => item.active === false).length;
 
-        const active = node("button", { className: `button ${item.active ? "danger" : "secondary"} compact`, type: "button", text: item.active ? "Disattiva" : "Riattiva" });
-        active.addEventListener("click", () => setSupplierNumberActive(item, !item.active).catch(error => setMessage("error", friendlyError(error))));
-        actions.push(active);
-      } else {
-        actions.push(node("small", { text: "Sola lettura" }));
-      }
+      const meta = node("div", { className: "supplier-group-meta" });
+      if (verified) meta.append(badge(`${verified} verificat${verified === 1 ? "o" : "i"}`, "ok"));
+      if (pending) meta.append(badge(`${pending} da verificare`, "warn"));
+      if (rejected) meta.append(badge(`${rejected} scartat${rejected === 1 ? "o" : "i"}`, "danger"));
+      if (inactive) meta.append(badge(`${inactive} disattivat${inactive === 1 ? "o" : "i"}`, "danger"));
+      meta.append(node("span", { className: "supplier-group-count", text: `${items.length} ${items.length === 1 ? "numero" : "numeri"}` }));
 
-      const validity = [];
-      if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
-      if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
-      validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
+      const summary = node("summary", {}, [
+        node("div", { className: "supplier-group-title" }, [
+          node("strong", { text: supplierName }),
+          node("small", { text: key }),
+        ]),
+        meta,
+      ]);
+      const groupBody = node("div", { className: "supplier-group-body" });
 
-      body?.append(node("tr", { className: item.active === false ? "supplier-row-muted" : "" }, [
-        node("td", {}, [node("strong", { text: item.supplier_name || "—" }), node("small", { text: item.supplier_key || "" })]),
-        node("td", {}, [node("strong", { text: item.phone_e164 || "—" }), node("small", { text: item.phone_label || "Nessuna etichetta" })]),
-        node("td", {}, [node("strong", { text: supplierNumberTypeLabel(item.number_type) })]),
-        node("td", {}, [node("strong", { text: supplierNumberSourceLabel(item.source_type) }), supplierSourceNode(item.source_reference)]),
-        node("td", {}, [badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)), item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok")]),
-        node("td", {}, validity),
-        node("td", {}, [node("div", { className: "row-actions" }, actions)]),
-      ]));
+      items
+        .slice()
+        .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")))
+        .forEach(item => {
+          const actions = [];
+          if (isOwner()) {
+            const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica" });
+            edit.addEventListener("click", () => openSupplierNumberEditor(item));
+            actions.push(edit);
+
+            const status = String(item.verification_status || "").toLowerCase();
+            if (status === "pending") {
+              const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
+              verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
+              const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
+              reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
+              actions.push(verify, reject);
+            } else {
+              const reopen = node("button", { className: "button secondary compact", type: "button", text: status === "rejected" ? "Ripristina" : "Riapri verifica" });
+              reopen.addEventListener("click", () => setSupplierNumberStatus(item, "pending").catch(error => setMessage("error", friendlyError(error))));
+              actions.push(reopen);
+            }
+
+            const active = node("button", { className: `button ${item.active ? "danger" : "secondary"} compact`, type: "button", text: item.active ? "Disattiva" : "Riattiva" });
+            active.addEventListener("click", () => setSupplierNumberActive(item, !item.active).catch(error => setMessage("error", friendlyError(error))));
+            actions.push(active);
+          } else {
+            actions.push(node("small", { text: "Sola lettura" }));
+          }
+
+          const validity = [];
+          if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
+          if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
+          validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
+
+          const source = node("div", {}, [
+            node("span", { text: "Fonte" }),
+            node("strong", { text: supplierNumberSourceLabel(item.source_type) }),
+            supplierSourceNode(item.source_reference),
+          ]);
+          const card = node("article", { className: `supplier-number-card${item.active === false ? " supplier-row-muted" : ""}` }, [
+            node("div", { className: "supplier-number-card-head" }, [
+              node("div", {}, [
+                node("strong", { text: item.phone_e164 || "—" }),
+                node("small", { text: item.phone_label || "Nessuna etichetta" }),
+              ]),
+              node("div", { className: "supplier-number-card-status" }, [
+                badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)),
+                item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok"),
+              ]),
+            ]),
+            node("div", { className: "supplier-number-card-grid" }, [
+              node("div", {}, [node("span", { text: "Tipo" }), node("strong", { text: supplierNumberTypeLabel(item.number_type) })]),
+              source,
+              node("div", {}, [node("span", { text: "Validità / controllo" }), ...validity]),
+            ]),
+            node("div", { className: "supplier-number-card-actions" }, actions),
+          ]);
+          groupBody.append(card);
+        });
+
+      const details = node("details", { className: "supplier-group" }, [summary, groupBody]);
+      if (groups.length === 1) details.open = true;
+      body?.append(details);
     });
   }
 
