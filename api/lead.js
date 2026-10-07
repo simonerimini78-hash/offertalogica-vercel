@@ -94,6 +94,27 @@ async function handleProtection(req, res, body) {
 
     try {
       const signup = await protectionSignUp({ email, password });
+      if (signup?.existingAccount) {
+        try {
+          const session = await protectionSignIn({ email, password });
+          if (session?.access_token && session?.refresh_token) {
+            const user = session.user?.id ? session.user : await protectionUserFromAccessToken(session.access_token);
+            setProtectionSessionCookie(res, session);
+            return json(res, 200, {
+              ...(await protectionStatusPayload({ user, accessToken: session.access_token })),
+              existingAccount: true,
+              message: "Account Offerta Logica riconosciuto. Protezione OL verra aggiunta allo stesso account.",
+            });
+          }
+        } catch {}
+        return json(res, 200, {
+          ok: true,
+          authenticated: false,
+          existingAccount: true,
+          useLogin: true,
+          message: "Questa email e gia collegata a Offerta Logica. Accedi con lo stesso account per aggiungere Protezione OL.",
+        });
+      }
       if (signup?.access_token && signup?.refresh_token) {
         setProtectionSessionCookie(res, signup);
         return json(res, 200, { ok: true, authenticated: true, emailConfirmationRequired: false });
@@ -105,13 +126,41 @@ async function handleProtection(req, res, body) {
         message: "Controlla la tua email e conferma la registrazione.",
       });
     } catch (error) {
+      const errorMessage = String(error?.message || "").toLowerCase();
+      const errorCode = String(error?.code || "").toLowerCase();
+      const existingAccount = errorCode === "email_exists"
+        || errorCode === "user_already_exists"
+        || errorMessage.includes("user already registered")
+        || errorMessage.includes("email already")
+        || errorMessage.includes("already registered");
+      if (existingAccount) {
+        try {
+          const session = await protectionSignIn({ email, password });
+          if (session?.access_token && session?.refresh_token) {
+            const user = session.user?.id ? session.user : await protectionUserFromAccessToken(session.access_token);
+            setProtectionSessionCookie(res, session);
+            return json(res, 200, {
+              ...(await protectionStatusPayload({ user, accessToken: session.access_token })),
+              existingAccount: true,
+              message: "Account Offerta Logica riconosciuto. Protezione OL verra aggiunta allo stesso account.",
+            });
+          }
+        } catch {}
+        return json(res, 200, {
+          ok: true,
+          authenticated: false,
+          existingAccount: true,
+          useLogin: true,
+          message: "Questa email e gia collegata a Offerta Logica. Accedi con lo stesso account per aggiungere Protezione OL.",
+        });
+      }
       console.warn("protection_signup_failed", {
         status: Number(error?.status || 0) || null,
         message: String(error?.message || "signup_error").slice(0, 180),
       });
       return json(res, protectionAuthErrorStatus(error), {
         ok: false,
-        error: "Registrazione non riuscita. Se hai gia un account, prova ad accedere.",
+        error: "Registrazione non riuscita. Riprova tra poco.",
       });
     }
   }

@@ -158,7 +158,18 @@
       });
       if (data.authenticated) {
         await refreshStatus({ silent: true });
-        setStatus(accountStatus, "Account creato. Ora verifica il tuo numero.", "success");
+        setStatus(
+          accountStatus,
+          data.existingAccount
+            ? "Account Offerta Logica riconosciuto. Ora verifica il tuo numero per aggiungere Protezione OL."
+            : "Account creato. Ora verifica il tuo numero.",
+          "success",
+        );
+      } else if (data.useLogin) {
+        openAuth("login");
+        const loginEmail = loginForm?.querySelector('[name="email"]');
+        if (loginEmail) loginEmail.value = email;
+        setStatus(loginStatus, data.message || "Accedi con il tuo account Offerta Logica per continuare.", "info");
       } else {
         setStatus(signupStatus, data.message || "Controlla la tua email e conferma la registrazione.", "success");
         signupForm.querySelectorAll("input").forEach((input) => {
