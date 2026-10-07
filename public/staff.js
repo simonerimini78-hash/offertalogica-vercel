@@ -32,6 +32,7 @@
   let analyticsSummarySequence = 0;
   let analyticsSessionRows = [];
   let selectedSupplierKey = "";
+  let supplierPickerActiveIndex = -1;
 
   const cache = {
     leads: [],
@@ -846,31 +847,102 @@
     });
   }
 
-  function findSupplierKeyFromPicker(value) {
-    const raw = String(value || "").trim().toLowerCase();
-    if (!raw) return "";
-    const groups = supplierNumberGroups();
-    const exact = groups.find(([key, items]) => {
-      const name = String(items[0]?.supplier_name || "").trim().toLowerCase();
-      return raw === key || raw === name || raw === `${name} · ${key}`;
-    });
-    if (exact) return exact[0];
-    const matches = groups.filter(([key, items]) => {
-      const name = String(items[0]?.supplier_name || "").trim().toLowerCase();
-      return key.includes(raw) || name.includes(raw);
-    });
-    return matches.length === 1 ? matches[0][0] : "";
+  function supplierPickerItems(query = "") {
+    const raw = String(query || "").trim().toLowerCase();
+    return supplierNumberGroups()
+      .map(([key, items]) => ({
+        key,
+        name: String(items[0]?.supplier_name || key || "Fornitore"),
+        count: items.length,
+      }))
+      .filter(item => !raw || item.name.toLowerCase().includes(raw) || item.key.includes(raw))
+      .slice(0, 8);
   }
 
-  function populateSupplierPicker() {
-    const options = byId("supplierNumberSupplierOptions");
-    clear(options);
+  function closeSupplierPickerResults() {
+    const picker = byId("supplierNumberSupplierPicker");
+    const results = byId("supplierNumberSupplierResults");
+    supplierPickerActiveIndex = -1;
+    if (results) {
+      results.hidden = true;
+      clear(results);
+    }
+    picker?.setAttribute("aria-expanded", "false");
+    picker?.removeAttribute("aria-activedescendant");
+  }
+
+  function selectSupplierKey(key) {
+    const group = supplierNumberGroups().find(([groupKey]) => groupKey === key);
+    if (!group) return;
+    selectedSupplierKey = key;
+    const picker = byId("supplierNumberSupplierPicker");
+    if (picker) picker.value = String(group[1][0]?.supplier_name || key);
+    closeSupplierPickerResults();
+    renderSupplierNumbers();
+  }
+
+  function renderSupplierPickerResults() {
+    const picker = byId("supplierNumberSupplierPicker");
+    const results = byId("supplierNumberSupplierResults");
+    if (!picker || !results) return;
+    const matches = supplierPickerItems(picker.value);
+    clear(results);
+    supplierPickerActiveIndex = Math.min(supplierPickerActiveIndex, matches.length - 1);
+    if (!matches.length) {
+      results.append(node("div", { className: "supplier-combobox-empty", text: "Nessun fornitore trovato." }));
+    } else {
+      matches.forEach((item, index) => {
+        const option = node("button", {
+          className: `supplier-combobox-option${index === supplierPickerActiveIndex ? " is-active" : ""}`,
+          type: "button",
+          attrs: {
+            role: "option",
+            id: `supplierNumberSupplierOption-${index}`,
+            "aria-selected": index === supplierPickerActiveIndex ? "true" : "false",
+          },
+        }, [
+          node("strong", { text: item.name }),
+          node("small", { text: `${item.count} ${item.count === 1 ? "numero" : "numeri"}` }),
+        ]);
+        option.addEventListener("mousedown", event => event.preventDefault());
+        option.addEventListener("click", () => selectSupplierKey(item.key));
+        results.append(option);
+      });
+    }
+    results.hidden = false;
+    picker.setAttribute("aria-expanded", "true");
+    if (supplierPickerActiveIndex >= 0 && matches[supplierPickerActiveIndex]) {
+      picker.setAttribute("aria-activedescendant", `supplierNumberSupplierOption-${supplierPickerActiveIndex}`);
+    } else {
+      picker.removeAttribute("aria-activedescendant");
+    }
+  }
+
+  function moveSupplierPickerActive(delta) {
+    const picker = byId("supplierNumberSupplierPicker");
+    if (!picker) return;
+    const matches = supplierPickerItems(picker.value);
+    if (!matches.length) return;
+    supplierPickerActiveIndex = supplierPickerActiveIndex < 0
+      ? (delta > 0 ? 0 : matches.length - 1)
+      : (supplierPickerActiveIndex + delta + matches.length) % matches.length;
+    renderSupplierPickerResults();
+    byId(`supplierNumberSupplierOption-${supplierPickerActiveIndex}`)?.scrollIntoView({ block: "nearest" });
+  }
+
+  function chooseSupplierPickerActive() {
+    const picker = byId("supplierNumberSupplierPicker");
+    const matches = supplierPickerItems(picker?.value || "");
+    if (!matches.length) return false;
+    const index = supplierPickerActiveIndex >= 0 ? supplierPickerActiveIndex : (matches.length === 1 ? 0 : -1);
+    if (index < 0) return false;
+    selectSupplierKey(matches[index].key);
+    return true;
+  }
+
+  function updateSupplierPickerHint() {
     const groups = supplierNumberGroups();
-    groups.forEach(([key, items]) => {
-      const name = String(items[0]?.supplier_name || key || "Fornitore");
-      options?.append(node("option", { attrs: { value: name }, text: key }));
-    });
-    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore disponibile" : "fornitori disponibili"}. Scrivi il nome per trovarlo rapidamente.`);
+    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore disponibile" : "fornitori disponibili"}. Cerca per nome e seleziona un risultato.`);
     if (selectedSupplierKey && !groups.some(([key]) => key === selectedSupplierKey)) selectedSupplierKey = "";
   }
 
@@ -933,7 +1005,7 @@
 
   function renderSupplierNumbers() {
     renderSupplierNumberMetrics();
-    populateSupplierPicker();
+    updateSupplierPickerHint();
     const body = byId("supplierNumberRows");
     clear(body);
     const selectedPanel = byId("supplierNumberSelected");
@@ -984,19 +1056,6 @@
       .slice()
       .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")))
       .forEach(item => body?.append(buildSupplierNumberCard(item)));
-  }
-
-  function selectSupplierFromPicker() {
-    const picker = byId("supplierNumberSupplierPicker");
-    const nextKey = findSupplierKeyFromPicker(picker?.value || "");
-    if (!nextKey) {
-      selectedSupplierKey = "";
-      renderSupplierNumbers();
-      if (picker?.value?.trim()) text(byId("supplierNumberPickerHint"), "Seleziona un fornitore dall’elenco suggerito.");
-      return;
-    }
-    selectedSupplierKey = nextKey;
-    renderSupplierNumbers();
   }
 
   function closeSupplierNumberEditor() {
@@ -6004,12 +6063,23 @@
     byId("protectionLimit")?.addEventListener("change", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
     byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
     byId("supplierNumberRefresh")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
-    byId("supplierNumberSupplierPicker")?.addEventListener("change", selectSupplierFromPicker);
-    byId("supplierNumberSupplierPicker")?.addEventListener("keydown", event => { if (event.key === "Enter") { event.preventDefault(); selectSupplierFromPicker(); } });
+    byId("supplierNumberSupplierPicker")?.addEventListener("focus", renderSupplierPickerResults);
+    byId("supplierNumberSupplierPicker")?.addEventListener("input", () => { supplierPickerActiveIndex = -1; renderSupplierPickerResults(); });
+    byId("supplierNumberSupplierPicker")?.addEventListener("keydown", event => {
+      if (event.key === "ArrowDown") { event.preventDefault(); moveSupplierPickerActive(1); }
+      else if (event.key === "ArrowUp") { event.preventDefault(); moveSupplierPickerActive(-1); }
+      else if (event.key === "Enter") { if (chooseSupplierPickerActive()) event.preventDefault(); }
+      else if (event.key === "Escape") { closeSupplierPickerResults(); }
+    });
     byId("supplierNumberClearSelection")?.addEventListener("click", () => {
       selectedSupplierKey = "";
       if (byId("supplierNumberSupplierPicker")) byId("supplierNumberSupplierPicker").value = "";
+      closeSupplierPickerResults();
       renderSupplierNumbers();
+    });
+    document.addEventListener("click", event => {
+      const wrap = event.target?.closest?.(".supplier-combobox");
+      if (!wrap) closeSupplierPickerResults();
     });
     byId("supplierNumberNew")?.addEventListener("click", () => openSupplierNumberEditor());
     byId("supplierNumberEditorClose")?.addEventListener("click", closeSupplierNumberEditor);
