@@ -1,8 +1,8 @@
 {
-  "versioneDati": "partner-menu-2026-09-29-v1",
+  "versioneDati": "partner-menu-2026-10-06-v1",
   "schemaVersion": 1,
-  "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; ranking economico indipendente dal canale commerciale.",
-  "aggiornatoIl": "2026-09-29",
+  "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; le offerte con condizioni economiche incomplete sono pubblicate separatamente e restano escluse dal ranking.",
+  "aggiornatoIl": "2026-10-06",
   "offerte": [
     {
       "providerKey": "greenius",
@@ -112,7 +112,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.825448,
+      "prezzo": 0.899,
       "quotaFissaAnnua": 168.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -154,7 +154,7 @@
         "sourceHash": "319f5b1c0b566b7f066ab03d9e5d78b45a1ab5b6b0216eef35a82e661d0c62f9",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.139,
           "annualFixedFee": 168.0,
@@ -212,7 +212,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.856448,
+      "prezzo": 1.013182,
       "quotaFissaAnnua": 90.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -254,7 +254,7 @@
         "sourceHash": "91189e7387c53ca91ad2e255a3a0c3816c833a8e5c6a8dda0a9581d520cc3e3e",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.17,
           "annualFixedFee": 90.0,
@@ -312,7 +312,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.806448,
+      "prezzo": 0.963182,
       "quotaFissaAnnua": 156.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -354,7 +354,7 @@
         "sourceHash": "588a772b616a73f071313b74099c1a5accc649088a8266191bf7df2bd4ec4cad",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.12,
           "annualFixedFee": 156.0,
@@ -412,7 +412,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.826448,
+      "prezzo": 0.983182,
       "quotaFissaAnnua": 180.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -454,7 +454,7 @@
         "sourceHash": "748df0b65a83f4ed50bdb4667f1f61aa3733583ba9bc2243772b59fccb58d92c",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.14,
           "annualFixedFee": 180.0,
@@ -512,7 +512,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.826448,
+      "prezzo": 0.983182,
       "quotaFissaAnnua": 132.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -554,7 +554,7 @@
         "sourceHash": "af4289aacae6058bd3e2872f634928a618e9686bc43f051c1f6dfd9f8ad29f40",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.14,
           "annualFixedFee": 132.0,
@@ -612,7 +612,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.786448,
+      "prezzo": 0.943182,
       "quotaFissaAnnua": 180.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -654,7 +654,7 @@
         "sourceHash": "247c34f0997c8e0842a10e4567ccb54e2783a0813c52c25b4556331c9b9fc3d9",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.1,
           "annualFixedFee": 180.0,
@@ -712,7 +712,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.786448,
+      "prezzo": 0.943182,
       "quotaFissaAnnua": 132.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -754,7 +754,7 @@
         "sourceHash": "ef0c9ccc987a07d79875d199ed9a4a52a1027ec7e072e7784668353001dfe873",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.1,
           "annualFixedFee": 132.0,
@@ -946,7 +946,7 @@
         "sourceHash": "29fe73556a8e612546acaece6f2b0a83e1716e2c8f29292b144951899b9759d8",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.0259,
           "annualFixedFee": 168.0,
@@ -1004,7 +1004,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.211999,
+      "prezzo": 0.239542,
       "quotaFissaAnnua": 90.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1046,7 +1046,7 @@
         "sourceHash": "e0e22c12f10d7c7725c365e5ca71325448a8f11535cd0eb12523caeea4798c8d",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.032,
           "annualFixedFee": 90.0,
@@ -1104,7 +1104,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.201999,
+      "prezzo": 0.229542,
       "quotaFissaAnnua": 156.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1146,7 +1146,7 @@
         "sourceHash": "c22a6c798bd85edbda953ef7fc5c8d2e60668d35e693e42778f07ee2f8c818f9",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.022,
           "annualFixedFee": 156.0,
@@ -1204,7 +1204,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.211999,
+      "prezzo": 0.239542,
       "quotaFissaAnnua": 180.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1246,7 +1246,7 @@
         "sourceHash": "2909a26ca45f5d81a07503749919ee79e7f650503ac4fd4b03f5e137e4a7afad",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.032,
           "annualFixedFee": 180.0,
@@ -1304,7 +1304,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.211999,
+      "prezzo": 0.239542,
       "quotaFissaAnnua": 132.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1346,7 +1346,7 @@
         "sourceHash": "ebf82ddf34e3ba0259fca6dfefc386f2b4d07d178b7ce584bb109d09186cd847",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.032,
           "annualFixedFee": 132.0,
@@ -1404,7 +1404,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.191999,
+      "prezzo": 0.219542,
       "quotaFissaAnnua": 180.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1446,7 +1446,7 @@
         "sourceHash": "83164e0f3f29369a6da22c8aa8307d625bdea3401fe45772621f5a1941ea21ef",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.012,
           "annualFixedFee": 180.0,
@@ -1504,7 +1504,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.179999,
+      "prezzo": 0.207542,
       "quotaFissaAnnua": 168.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1546,7 +1546,7 @@
         "sourceHash": "aee26cf94df7035afcb8406b6969f5889fedf7a6fd125e677559b29e18555e54",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.0,
           "annualFixedFee": 168.0,
@@ -1604,7 +1604,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.191999,
+      "prezzo": 0.219542,
       "quotaFissaAnnua": 132.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1646,7 +1646,7 @@
         "sourceHash": "1df0c58726652d5bf915f156261437bdab23fa09b815c9571d09b18eb7823e23",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.012,
           "annualFixedFee": 132.0,
@@ -1687,6 +1687,463 @@
       ],
       "commercialFamily": "casa smeraldo",
       "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ"
+    },
+    {
+      "providerKey": "liongreen",
+      "providerLabel": "Lion Green",
+      "fornitore": "Lion Green",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "FAMILY FORCE GAS_2026B",
+      "codice": "039840GTVML36XXFORCEPSV042026DOM",
+      "pivaVenditore": "04569010616",
+      "dataInizio": "",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 12,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.988182,
+      "quotaFissaAnnua": 108.0,
+      "url": "#",
+      "fonte": "CTE partner diretta LION_GREEN",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "FAMILY FORCE GAS_2026B.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "sourceDocument": "FAMILY FORCE GAS_2026B.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "partners": [
+          {
+            "partnerKey": "lion-green",
+            "partnerLabel": "LION_GREEN"
+          }
+        ],
+        "commercialFamily": "family force 2026b",
+        "canonicalKey": "04569010616|gas|039840GTVML36XXFORCEPSV042026DOM",
+        "sourceFile": "FAMILY FORCE GAS_2026B.pdf",
+        "sourceHash": "3278370630e12a12538804aaaa4a8f63009f4c07192c2c9b4d15bb51a2825e87",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.843182,
+          "fixedPrice": null,
+          "spread": 0.145,
+          "annualFixedFee": 108.0,
+          "economicCompleteness": "complete",
+          "knownPartialVariableAdder": null,
+          "unpricedComponents": [],
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [
+            {
+              "name": "Corrispettivo annuo CTE",
+              "value": 108.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": null,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": [
+            "Condizioni economiche valide per i primi 12 mesi dalla data di attivazione."
+          ]
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "lion-green",
+      "partnerKeys": [
+        "lion-green"
+      ],
+      "commercialFamily": "family force 2026b",
+      "canonicalKey": "04569010616|gas|039840GTVML36XXFORCEPSV042026DOM"
+    },
+    {
+      "providerKey": "liongreen",
+      "providerLabel": "Lion Green",
+      "fornitore": "Lion Green",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "FAMILY FORCE POWER_2026b",
+      "codice": "039840ETVFL26XXFORCTPUN042026DOM",
+      "pivaVenditore": "04569010616",
+      "dataInizio": "",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 12,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.226042,
+      "quotaFissaAnnua": 108.0,
+      "url": "#",
+      "fonte": "CTE partner diretta LION_GREEN",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "FAMILY FORCE POWER_2026b (1).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "sourceDocument": "FAMILY FORCE POWER_2026b (1).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "lion-green",
+        "partnerKeys": [
+          "lion-green"
+        ],
+        "partners": [
+          {
+            "partnerKey": "lion-green",
+            "partnerLabel": "LION_GREEN"
+          }
+        ],
+        "commercialFamily": "family force 2026b",
+        "canonicalKey": "04569010616|luce|039840ETVFL26XXFORCTPUN042026DOM",
+        "sourceFile": "FAMILY FORCE POWER_2026b (1).pdf",
+        "sourceHash": "187487e28c2d16dc195f45af3488723f2415ed66cb06b9b77aa33cda23d346a6",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.207542,
+          "fixedPrice": null,
+          "spread": 0.0185,
+          "annualFixedFee": 108.0,
+          "economicCompleteness": "complete",
+          "knownPartialVariableAdder": null,
+          "unpricedComponents": [],
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Spread CTE comprensivo perdite di rete",
+              "value": 0.02035,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only",
+              "note": "Normalizzato al netto delle perdite per coerenza con il motore, che applica separatamente il fattore perdite."
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Corrispettivo annuo CTE",
+              "value": 108.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": null,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": [
+            "Condizioni economiche valide per i primi 12 mesi dalla data di attivazione."
+          ]
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "lion-green",
+      "partnerKeys": [
+        "lion-green"
+      ],
+      "commercialFamily": "family force 2026b",
+      "canonicalKey": "04569010616|luce|039840ETVFL26XXFORCTPUN042026DOM"
+    },
+    {
+      "providerKey": "ovenergy",
+      "providerLabel": "OV Energy",
+      "fornitore": "OV Energy",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "PSV Domestici Flex",
+      "codice": "021889GNVML07XXYYYYPSVDFLEX12026",
+      "pivaVenditore": "12952081003",
+      "dataInizio": "2026-07-01",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 12,
+      "indiceRiferimento": "psv",
+      "prezzo": 1.003182,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta OVenergy",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "PSV Domestici Flex.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "sourceDocument": "PSV Domestici Flex.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "partners": [
+          {
+            "partnerKey": "ovenergy",
+            "partnerLabel": "OVenergy"
+          }
+        ],
+        "commercialFamily": "domestici flex",
+        "canonicalKey": "12952081003|gas|021889GNVML07XXYYYYPSVDFLEX12026",
+        "sourceFile": "PSV Domestici Flex.pdf",
+        "sourceHash": "bb83df7e55befe46716e4a6d15c5e3577cf425aa03d5cdd25fedf98415d55790",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.843182,
+          "fixedPrice": null,
+          "spread": 0.16,
+          "annualFixedFee": 132.0,
+          "economicCompleteness": "complete",
+          "knownPartialVariableAdder": null,
+          "unpricedComponents": [],
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "Spread dal 13° mese",
+              "value": 0.2,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Onere di programmazione",
+              "value": 60.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            },
+            {
+              "name": "Corrispettivo annuo fisso",
+              "value": 72.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": null,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": [
+            "Condizioni economiche riferite ai primi 12 mesi dalla data di attivazione."
+          ]
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "ovenergy",
+      "partnerKeys": [
+        "ovenergy"
+      ],
+      "commercialFamily": "domestici flex",
+      "canonicalKey": "12952081003|gas|021889GNVML07XXYYYYPSVDFLEX12026"
+    },
+    {
+      "providerKey": "ovenergy",
+      "providerLabel": "OV Energy",
+      "fornitore": "OV Energy",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "PUN Domestici Flex",
+      "codice": "021889ENVFL07XXYYYYYYPUNDFL12026",
+      "pivaVenditore": "12952081003",
+      "dataInizio": "2026-07-01",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 12,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.23026927,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta OVenergy",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "PUN Domestici Flex.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "sourceDocument": "PUN Domestici Flex.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ovenergy",
+        "partnerKeys": [
+          "ovenergy"
+        ],
+        "partners": [
+          {
+            "partnerKey": "ovenergy",
+            "partnerLabel": "OVenergy"
+          }
+        ],
+        "commercialFamily": "domestici flex",
+        "canonicalKey": "12952081003|luce|021889ENVFL07XXYYYYYYPUNDFL12026",
+        "sourceFile": "PUN Domestici Flex.pdf",
+        "sourceHash": "9dd8753a50633abe0c66835b1807b50b6d2c0743e7dcf33f57ff2f614627d3fc",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.207542,
+          "fixedPrice": null,
+          "spread": 0.02272727,
+          "annualFixedFee": 144.0,
+          "economicCompleteness": "complete",
+          "knownPartialVariableAdder": null,
+          "unpricedComponents": [],
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [
+            {
+              "name": "Spread CTE comprensivo perdite di rete",
+              "value": 0.025,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only",
+              "note": "Normalizzato al netto delle perdite per coerenza con il motore, che applica separatamente il fattore perdite."
+            },
+            {
+              "name": "Spread CTE dal 13° mese comprensivo perdite",
+              "value": 0.03,
+              "unit": "EUR/kWh",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Onere di programmazione",
+              "value": 72.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            },
+            {
+              "name": "Corrispettivo annuo fisso",
+              "value": 72.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": null,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": [
+            "Condizioni economiche riferite ai primi 12 mesi dalla data di attivazione."
+          ]
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "ovenergy",
+      "partnerKeys": [
+        "ovenergy"
+      ],
+      "commercialFamily": "domestici flex",
+      "canonicalKey": "12952081003|luce|021889ENVFL07XXYYYYYYPUNDFL12026"
     }
   ],
   "offerteBusiness": [
@@ -1706,7 +2163,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.834448,
+      "prezzo": 0.925,
       "quotaFissaAnnua": 240.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1748,7 +2205,7 @@
         "sourceHash": "8a152b9ff924b28cc97aeaa07eac5940960bec5093b3d8f53446bf3d661347d7",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.148,
           "annualFixedFee": 240.0,
@@ -1819,7 +2276,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.846448,
+      "prezzo": 1.003182,
       "quotaFissaAnnua": 264.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1861,7 +2318,7 @@
         "sourceHash": "06514e03d1066042f55cb721f6006d01defd3963ce7579b1d05f9405550c3343",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.16,
           "annualFixedFee": 264.0,
@@ -1932,7 +2389,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.926448,
+      "prezzo": 1.083182,
       "quotaFissaAnnua": 324.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -1974,7 +2431,7 @@
         "sourceHash": "c2179ed7a9b275ad5f7117699a42e1f2c7b73470cb303597e14fc4cde2c9c8f5",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.24,
           "annualFixedFee": 324.0,
@@ -2045,7 +2502,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.926448,
+      "prezzo": 1.083182,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2087,7 +2544,7 @@
         "sourceHash": "d862094e17712fba40847d083bc6ce91c61962c6685699ed13464c537b3bf40b",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.24,
           "annualFixedFee": 144.0,
@@ -2158,7 +2615,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.886448,
+      "prezzo": 1.043182,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2200,7 +2657,7 @@
         "sourceHash": "47bb7fea087bd3d60f9a75475742fabd7c9fc0906ff2bfba95e2d0329166e8a7",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.2,
           "annualFixedFee": 204.0,
@@ -2271,7 +2728,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.766448,
+      "prezzo": 0.923182,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2313,7 +2770,7 @@
         "sourceHash": "cb898d87094645a98dfafbe0260c19ec4acc808675763c9ff30763fbe8bae20c",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.08,
           "annualFixedFee": 204.0,
@@ -2397,7 +2854,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.806448,
+      "prezzo": 0.963182,
       "quotaFissaAnnua": 264.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2439,7 +2896,7 @@
         "sourceHash": "56f915687c1fd7f0cbb5882e6e149972ea6bb9a8913c271532a70926493eb038",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.12,
           "annualFixedFee": 264.0,
@@ -2523,7 +2980,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.846448,
+      "prezzo": 1.003182,
       "quotaFissaAnnua": 324.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2565,7 +3022,7 @@
         "sourceHash": "af62f8e9ec4ed1e611a4e2e8e0602f9c8454fc36a934507252fb090e7e4382b6",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.16,
           "annualFixedFee": 324.0,
@@ -2649,7 +3106,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.926448,
+      "prezzo": 1.083182,
       "quotaFissaAnnua": 384.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2691,7 +3148,7 @@
         "sourceHash": "cf005cd0c7da769c028594643d02e1929534006dcfd2ebee3c27bc166bbb1a2a",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.24,
           "annualFixedFee": 384.0,
@@ -2775,7 +3232,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.926448,
+      "prezzo": 1.083182,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2817,7 +3274,7 @@
         "sourceHash": "03a493522594705d7ad613f94096f35fc28c817e043468a238f70404e6d7116b",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.24,
           "annualFixedFee": 204.0,
@@ -2901,7 +3358,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.886448,
+      "prezzo": 1.043182,
       "quotaFissaAnnua": 264.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -2943,7 +3400,7 @@
         "sourceHash": "b66dae446f8dbe1bca58506d42a1fe222b260b9e2a0e6c81231c921a29a361cf",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.2,
           "annualFixedFee": 264.0,
@@ -3027,7 +3484,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.766448,
+      "prezzo": 0.923182,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3069,7 +3526,7 @@
         "sourceHash": "446a7cb5103759ffb40af048932cf72ed387517238f125a59b4cf07d35188376",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.08,
           "annualFixedFee": 144.0,
@@ -3140,7 +3597,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "psv",
-      "prezzo": 0.806448,
+      "prezzo": 0.963182,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3182,7 +3639,7 @@
         "sourceHash": "5b843a9c94cf9660a38cd1c1d82066ae252c8b79b2154f45a188c7587bd94bd5",
         "economics": {
           "indexName": "PSV",
-          "indexValueAtProjection": 0.686448,
+          "indexValueAtProjection": 0.843182,
           "fixedPrice": null,
           "spread": 0.12,
           "annualFixedFee": 204.0,
@@ -3295,7 +3752,7 @@
         "sourceHash": "ef120d48787031ffb0c2b61dd845797339b215a8491422df4ed50409ad92b9d8",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.0279,
           "annualFixedFee": 240.0,
@@ -3366,7 +3823,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.199999,
+      "prezzo": 0.227542,
       "quotaFissaAnnua": 264.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3408,7 +3865,7 @@
         "sourceHash": "21ce356985f1a58a0b622bce9218d83a7b69d7bc274596551a1f9f0df280d96b",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.02,
           "annualFixedFee": 264.0,
@@ -3473,7 +3930,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.209999,
+      "prezzo": 0.237542,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3515,7 +3972,7 @@
         "sourceHash": "7e2367fde9322edceade37b816b01297dca909daf35fffc5b06d6a3523ad8b81",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.03,
           "annualFixedFee": 144.0,
@@ -3580,7 +4037,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.204999,
+      "prezzo": 0.232542,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3622,7 +4079,7 @@
         "sourceHash": "e7d8ff90a4823f09908d7d1e8eb7b1794422a9d5f0f7cd679e64a18ceeb68b77",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.025,
           "annualFixedFee": 204.0,
@@ -3687,7 +4144,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.189999,
+      "prezzo": 0.217542,
       "quotaFissaAnnua": 324.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3729,7 +4186,7 @@
         "sourceHash": "ab50290b0c85b36b2638cb22597cb4635de42bda12e364bcf994eef9b494c440",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.01,
           "annualFixedFee": 324.0,
@@ -3794,7 +4251,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.189999,
+      "prezzo": 0.217542,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3836,7 +4293,7 @@
         "sourceHash": "fc5d3927749e94258281cfa13593a8be876b410624404bb9ba1f1a627769c7aa",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.01,
           "annualFixedFee": 144.0,
@@ -3907,7 +4364,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.194999,
+      "prezzo": 0.222542,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -3949,7 +4406,7 @@
         "sourceHash": "1123d5c28b36b35050ec84e00bf603f2fa724b2ba325d8ef3dda6cb03d64046a",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.015,
           "annualFixedFee": 204.0,
@@ -4020,7 +4477,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.199999,
+      "prezzo": 0.227542,
       "quotaFissaAnnua": 264.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4062,7 +4519,7 @@
         "sourceHash": "08b21f705b19d706330b80d8afd857e46cba4910593b04a167b6e025e817b037",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.02,
           "annualFixedFee": 264.0,
@@ -4133,7 +4590,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.209999,
+      "prezzo": 0.237542,
       "quotaFissaAnnua": 324.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4175,7 +4632,7 @@
         "sourceHash": "f99705c5e226a0e404af63de117bf16f1404800da815871a584d7e6c8030f6cc",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.03,
           "annualFixedFee": 324.0,
@@ -4246,7 +4703,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.209999,
+      "prezzo": 0.237542,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4288,7 +4745,7 @@
         "sourceHash": "6d45926a216d166d7f2d8ef83af41994e08bd049d1d929413a9c2a6805ef2d91",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.03,
           "annualFixedFee": 144.0,
@@ -4359,7 +4816,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.204999,
+      "prezzo": 0.232542,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4401,7 +4858,7 @@
         "sourceHash": "172ccaf71e24162fdffa59f8a4c08ff06cb61252192b6cdfb234f883d425b7a7",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.025,
           "annualFixedFee": 204.0,
@@ -4472,7 +4929,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.189999,
+      "prezzo": 0.217542,
       "quotaFissaAnnua": 324.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4514,7 +4971,7 @@
         "sourceHash": "6ed274ef4bd3b70d6d0c86cc97bf58abde1841d7576ed2485ccc69c106bffad1",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.01,
           "annualFixedFee": 324.0,
@@ -4585,7 +5042,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.189999,
+      "prezzo": 0.217542,
       "quotaFissaAnnua": 144.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4627,7 +5084,7 @@
         "sourceHash": "3e099658f5577c14b20e33a2d78dfe904813ba5409e673684329768e24c39c36",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.01,
           "annualFixedFee": 144.0,
@@ -4692,7 +5149,7 @@
       "tipoOffertaCodice": "PARTNER_DIRECT",
       "durataMesi": null,
       "indiceRiferimento": "pun",
-      "prezzo": 0.194999,
+      "prezzo": 0.222542,
       "quotaFissaAnnua": 204.0,
       "url": "#",
       "fonte": "CTE partner diretta GREENIUS",
@@ -4734,7 +5191,7 @@
         "sourceHash": "49e9ada0c16d4328498a8400110de93641992471a5864e01a73906a625ab5b7f",
         "economics": {
           "indexName": "PUN",
-          "indexValueAtProjection": 0.179999,
+          "indexValueAtProjection": 0.207542,
           "fixedPrice": null,
           "spread": 0.015,
           "annualFixedFee": 204.0,
@@ -4784,10 +5241,197 @@
       "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN2"
     }
   ],
+  "offerteParziali": [
+    {
+      "providerKey": "ovenergy",
+      "providerLabel": "OV Energy",
+      "fornitore": "OV Energy",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "PSV Flex Business",
+      "codice": "021889GNVML07XXYYYYYPSVFLEX12026",
+      "codiciAlternativi": [],
+      "pivaVenditore": "12952081003",
+      "dataInizio": "2026-07-01",
+      "dataFine": "2026-12-31",
+      "customerType": "business",
+      "eligible": false,
+      "economicCompleteness": "partial",
+      "prezzo": null,
+      "prezzoParziale": 1.023182,
+      "quotaFissaAnnua": 96.0,
+      "indiceRiferimento": "psv",
+      "maggiorazioneVariabileNota": 0.18,
+      "componentiNonValorizzate": [
+        "QTint",
+        "QTpsv",
+        "QOA"
+      ],
+      "componentiVariabiliNote": [
+        {
+          "name": "Spread energia CTE",
+          "value": 0.07,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "QTint",
+          "value": null,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only",
+          "note": "Componente richiamata dalla CTE senza valore unitario riportato."
+        },
+        {
+          "name": "QTpsv",
+          "value": null,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only",
+          "note": "Componente richiamata dalla CTE senza valore unitario riportato."
+        },
+        {
+          "name": "CPR sostitutiva",
+          "value": 0.07,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "CCR sostitutiva",
+          "value": 0.04,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "QOA",
+          "value": null,
+          "unit": "EUR/Smc",
+          "rankingTreatment": "detail_only",
+          "note": "Componente richiamata dalla CTE senza valore unitario riportato."
+        }
+      ],
+      "componentiFisseNote": [
+        {
+          "name": "Quota fissa contrattuale",
+          "value": 48.0,
+          "unit": "EUR/anno",
+          "rankingTreatment": "annual_fixed_fee"
+        },
+        {
+          "name": "Onere di programmazione",
+          "value": 48.0,
+          "unit": "EUR/anno",
+          "rankingTreatment": "annual_fixed_fee"
+        }
+      ],
+      "projectionRule": "indice corrente + sole componenti note (parziale)",
+      "exclusionReason": "CTE business normalizzata a fini documentali: QTint, QTpsv e QOA non hanno un valore unitario completo modellabile dal ranking partner corrente.",
+      "sourceType": "partner_direct",
+      "partnerKey": "ovenergy",
+      "partnerKeys": [
+        "ovenergy"
+      ],
+      "partners": [
+        {
+          "partnerKey": "ovenergy",
+          "partnerLabel": "OVenergy"
+        }
+      ],
+      "commercialFamily": "business flex",
+      "canonicalKey": "12952081003|gas|021889GNVML07XXYYYYYPSVFLEX12026",
+      "sourceFile": "PSV Business Flex.pdf",
+      "sourceHash": "e61b619fab75d8ebd8b6116c35889aa3d44cca0b0ef42a41b25db1d0dc7124d9"
+    },
+    {
+      "providerKey": "ovenergy",
+      "providerLabel": "OV Energy",
+      "fornitore": "OV Energy",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "PUN Business Flex",
+      "codice": "021889ENVFL07XXYYYYYYYFL1PUN2026",
+      "codiciAlternativi": [
+        "021889ENVOL07XXYYYYYYFL1IPEX2026"
+      ],
+      "pivaVenditore": "12952081003",
+      "dataInizio": "2026-07-01",
+      "dataFine": "2026-12-31",
+      "customerType": "business",
+      "eligible": false,
+      "economicCompleteness": "partial",
+      "prezzo": null,
+      "prezzoParziale": null,
+      "quotaFissaAnnua": 118.8,
+      "indiceRiferimento": "pun",
+      "maggiorazioneVariabileNota": null,
+      "componentiNonValorizzate": [
+        "Dispacciamento TIDE",
+        "Mercato capacità CMC"
+      ],
+      "componentiVariabiliNote": [
+        {
+          "name": "Spread energia CTE",
+          "value": 0.009,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "Spread CTE comprensivo perdite di rete",
+          "value": 0.0099,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "Commercializzazione e vendita variabile",
+          "value": 0.009,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only"
+        },
+        {
+          "name": "Dispacciamento TIDE",
+          "value": null,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Voce richiamata dalla CTE ma non valorizzata nella normalizzazione corrente."
+        },
+        {
+          "name": "Mercato capacità CMC",
+          "value": null,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Voce richiamata dalla CTE ma non valorizzata nella normalizzazione corrente."
+        }
+      ],
+      "componentiFisseNote": [
+        {
+          "name": "Onere di programmazione",
+          "value": 118.8,
+          "unit": "EUR/anno",
+          "rankingTreatment": "annual_fixed_fee"
+        }
+      ],
+      "projectionRule": "componenti note separate; totale parziale non aggregato",
+      "exclusionReason": "CTE business normalizzata a fini documentali: la struttura commerciale multi-componente e i due codici offerta non sono rappresentati integralmente dal ranking partner corrente.",
+      "sourceType": "partner_direct",
+      "partnerKey": "ovenergy",
+      "partnerKeys": [
+        "ovenergy"
+      ],
+      "partners": [
+        {
+          "partnerKey": "ovenergy",
+          "partnerLabel": "OVenergy"
+        }
+      ],
+      "commercialFamily": "business flex",
+      "canonicalKey": "12952081003|luce|021889ENVFL07XXYYYYYYYFL1PUN2026",
+      "sourceFile": "PUN Business Flex.pdf",
+      "sourceHash": "30f43d829c1842b7faa44fb2ec0eb51787bad935d772cd71572546064c2b0fbb"
+    }
+  ],
   "statistiche": {
-    "fileAttiviLetti": 44,
-    "offertePrivateAttive": 17,
+    "fileAttiviLetti": 50,
+    "offertePrivateAttive": 21,
     "offerteBusinessAttive": 27,
+    "offerteParzialiAttive": 2,
     "offerteScaduteEscluse": 0
   }
 }
