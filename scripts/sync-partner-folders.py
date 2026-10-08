@@ -13,6 +13,7 @@ from typing import Any
 
 DEFAULT_PARTNER_ROOT = Path.home() / "Desktop" / "Offerte-Partner"
 PARTNER_SUBDIRS = ("00_DA_VALIDARE", "10_NORMALIZZATE", "20_ATTIVE", "90_ARCHIVIO")
+PARTNER_METADATA_FILE = ".offertalogica-partner.json"
 FOLDER_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
 
 
@@ -118,6 +119,42 @@ def safe_folder_slug(value: Any) -> str:
     return slug
 
 
+def write_partner_metadata(partner_dir: Path, row: dict[str, Any], dry_run: bool = False) -> int:
+    """Mantiene un piccolo riferimento locale non sensibile all'anagrafica Staff.
+
+    Il file è nascosto nel Finder e serve al normalizzatore PDF generico per usare
+    il nome canonico del fornitore invece dello slug della cartella.
+    """
+    payload = {
+        "schemaVersion": 1,
+        "source": "protection_partner_folder_manifest",
+        "supplierId": row.get("supplier_id"),
+        "supplierKey": str(row.get("supplier_key") or "").strip() or None,
+        "supplierName": str(row.get("supplier_name") or "").strip() or None,
+        "partnerId": row.get("partner_id"),
+        "partnerKey": str(row.get("partner_key") or "").strip() or None,
+        "relationshipType": str(row.get("relationship_type") or "").strip() or None,
+        "folderSlug": str(row.get("folder_slug") or "").strip() or None,
+        "validFrom": row.get("valid_from"),
+        "validUntil": row.get("valid_until"),
+    }
+    target = partner_dir / PARTNER_METADATA_FILE
+    body = json.dumps(payload, ensure_ascii=False, indent=2, sort_keys=True) + "\n"
+    if target.is_file():
+        try:
+            if target.read_text(encoding="utf-8") == body:
+                return 0
+        except OSError:
+            pass
+    if dry_run:
+        return 1
+    temporary = target.with_suffix(target.suffix + ".tmp")
+    temporary.write_text(body, encoding="utf-8")
+    json.loads(temporary.read_text(encoding="utf-8"))
+    os.replace(temporary, target)
+    return 1
+
+
 def ensure_partner_folder(partner_root: Path, row: dict[str, Any], dry_run: bool = False) -> tuple[str, int]:
     slug = safe_folder_slug(row.get("folder_slug") or row.get("supplier_key") or row.get("partner_key"))
     supplier_name = str(row.get("supplier_name") or row.get("supplier_key") or slug).strip() or slug
@@ -137,6 +174,9 @@ def ensure_partner_folder(partner_root: Path, row: dict[str, Any], dry_run: bool
             if not path.exists():
                 path.mkdir(parents=True, exist_ok=True)
                 created += 1
+        created += write_partner_metadata(partner_dir, row, dry_run=False)
+    elif partner_dir.exists():
+        created += write_partner_metadata(partner_dir, row, dry_run=True)
     return supplier_name, created
 
 

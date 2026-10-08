@@ -15,7 +15,9 @@ from typing import Any
 
 SCHEMA_VERSION = 1
 PARTNER_CATALOG_VERSION = 1
+GENERIC_PARSER_VERSION = "generic-cte-v1"
 DEFAULT_PARTNER_ROOT = Path.home() / "Desktop" / "Offerte-Partner"
+PARTNER_METADATA_FILE = ".offertalogica-partner.json"
 ITALIAN_MONTHS = {
     "gennaio": 1,
     "febbraio": 2,
@@ -94,6 +96,28 @@ def extract_pdf_text(path: Path) -> str:
     pages: list[str] = []
     with pdfplumber.open(path) as pdf:
         for page in pdf.pages[:1]:
+            pages.append(page.extract_text() or "")
+    text = "\n".join(pages).strip()
+    if not text:
+        raise ValueError("PDF senza testo estraibile")
+    return text
+
+
+def extract_pdf_text_multi(path: Path, max_pages: int = 12) -> str:
+    """Estrae più pagine senza modificare il comportamento dei parser storici.
+
+    I parser dedicati continuano a leggere la prima pagina come prima. Il parser
+    generico usa invece fino a 12 pagine, perché validità e condizioni economiche
+    dei nuovi fornitori sono spesso distribuite nel documento.
+    """
+    try:
+        import pdfplumber  # type: ignore
+    except Exception as exc:  # pragma: no cover - runtime guard on Mac
+        raise RuntimeError("pdfplumber non disponibile") from exc
+
+    pages: list[str] = []
+    with pdfplumber.open(path) as pdf:
+        for page in pdf.pages[:max_pages]:
             pages.append(page.extract_text() or "")
     text = "\n".join(pages).strip()
     if not text:
@@ -893,6 +917,388 @@ def parse_ovenergy(path: Path, partner_key: str, partner_label: str, market_indi
     raise ValueError("CTE OV Energy non supportata")
 
 
+def load_partner_metadata(partner_dir: Path) -> dict[str, Any]:
+    path = partner_dir / PARTNER_METADATA_FILE
+    if not path.is_file():
+        return {}
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def generic_unique(values: list[Any], *, digits: int = 8) -> Any | None:
+    normalized: list[Any] = []
+    for value in values:
+        if value is None or value == "":
+            continue
+        item = round(float(value), digits) if isinstance(value, (int, float)) else str(value).strip()
+        if item not in normalized:
+            normalized.append(item)
+    return normalized[0] if len(normalized) == 1 else None
+
+
+def generic_provider_vat(text: str, provider_label: str) -> str | None:
+    matches: list[tuple[str, int]] = []
+    pattern = re.compile(
+        r"(?:partita\s+iva|p\.?\s*iva|piva|codice\s+fiscale\s+e\s+partita\s+iva)\s*(?:n\.?|numero)?\s*[:\-]?\s*([0-9][0-9 .]{9,16})",
+        re.I,
+    )
+    for match in pattern.finditer(text):
+        digits_value = re.sub(r"\D", "", match.group(1))
+        if len(digits_value) == 11:
+            matches.append((digits_value, match.start()))
+    unique = sorted({value for value, _ in matches})
+    if len(unique) == 1:
+        return unique[0]
+    if len(unique) <= 1:
+        return None
+
+    tokens = [token for token in re.findall(r"[a-z0-9]+", provider_label.lower()) if len(token) >= 4]
+    if not tokens:
+        return None
+    lower = text.lower()
+    provider_positions: list[int] = []
+    for token in tokens[:3]:
+        provider_positions.extend(match.start() for match in re.finditer(re.escape(token), lower))
+    if not provider_positions:
+        return None
+    scored = sorted(
+        ((min(abs(position - provider_position) for provider_position in provider_positions), value) for value, position in matches),
+        key=lambda item: item[0],
+    )
+    if len(scored) == 1 or (scored[0][0] + 250 < scored[1][0]):
+        return scored[0][1]
+    return None
+
+
+def generic_offer_code(text: str) -> str | None:
+    patterns = (
+        r"codice\s+(?:dell['’]\s*)?offerta(?:\s+arera)?\s*[:#\-]?\s*([A-Z0-9][A-Z0-9._/\-]{3,63})",
+        r"codice\s+(?:prodotto|commerciale)\s*[:#\-]?\s*([A-Z0-9][A-Z0-9._/\-]{3,63})",
+    )
+    values: list[str] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, text, re.I):
+            value = match.group(1).strip(" .,:;-_").upper()
+            if value and value not in values:
+                values.append(value)
+    return values[0] if len(values) == 1 else None
+
+
+def generic_offer_name(text: str) -> str | None:
+    normalized = normalize_space(text)
+    patterns = (
+        r"(?:nome|denominazione)\s+(?:dell['’]\s*)?offerta\s*[:\-]\s*([^|;]{3,120}?)(?=\s{2,}|\s+(?:codice|validit|fornitura|mercato)\b|$)",
+        r'condizioni\s+(?:tecnico\s+)?economiche\s+(?:dell[\'’]\s*)?offerta\s*[\"“]?([^\"”|;]{3,100})[\"”]?',
+        r'offerta\s+[\"“]([^\"”]{3,100})[\"”]',
+    )
+    candidates: list[str] = []
+    for pattern in patterns:
+        for match in re.finditer(pattern, normalized, re.I):
+            value = normalize_space(match.group(1)).strip(" -–—:.;")
+            if value and not re.search(r"\b(?:mercato libero|energia elettrica|gas naturale)\b$", value, re.I):
+                candidates.append(value)
+    unique: list[str] = []
+    for value in candidates:
+        if value.lower() not in {item.lower() for item in unique}:
+            unique.append(value)
+    return unique[0] if len(unique) == 1 else None
+
+
+def generic_date_after_labels(text: str, labels: tuple[str, ...]) -> str | None:
+    candidates: list[str] = []
+    for label in labels:
+        pattern = rf"{label}[^\n]{{0,90}}?((?:\d{{1,2}}[/-]\d{{1,2}}[/-]\d{{4}})|(?:\d{{1,2}}\s+[A-Za-zÀ-ÿ]+\s+\d{{4}}))"
+        for match in re.finditer(pattern, text, re.I):
+            parsed = parse_cte_date(match.group(1))
+            if parsed and parsed not in candidates:
+                candidates.append(parsed)
+    return candidates[0] if len(candidates) == 1 else None
+
+
+def generic_commodity(text: str) -> str | None:
+    head = normalize_space(text[:7000]).lower()
+    explicit_light = bool(re.search(r"(?:fornitura|condizioni[^.]{0,80})\s+(?:di\s+)?energia\s+elettrica", head))
+    explicit_gas = bool(re.search(r"(?:fornitura|condizioni[^.]{0,80})\s+(?:di\s+)?gas\s+naturale", head))
+    if explicit_light != explicit_gas:
+        return "luce" if explicit_light else "gas"
+    light = len(re.findall(r"\benergia\s+elettrica\b|\bkwh\b|\bpod\b", head))
+    gas = len(re.findall(r"\bgas\s+naturale\b|\bsmc\b|\bpdr\b", head))
+    if light >= max(2, gas * 2):
+        return "luce"
+    if gas >= max(2, light * 2):
+        return "gas"
+    return None
+
+
+def generic_customer_type(text: str) -> str | None:
+    head = normalize_space(text[:9000]).lower()
+    business = bool(re.search(r"\b(?:clienti?|forniture?)\s+non\s+domestic[iohe]\b|\bmicroimpres|\bpiccole\s+imprese\b|\bclienti?\s+business\b", head))
+    domestic = bool(re.search(r"\b(?:clienti?|forniture?|uso)\s+domestic[iohe]\b", head))
+    if business != domestic:
+        return "business" if business else "domestico"
+    return None
+
+
+def generic_price_type(text: str, commodity: str) -> str | None:
+    normalized = normalize_space(text).lower()
+    index_pattern = r"\bpun(?:\s+index\s+gme)?\b" if commodity == "luce" else r"\bpsv(?:\s+day\s+ahead)?\b"
+    variable = bool(re.search(index_pattern + r"[^.;]{0,120}?\+\s*[0-9]", normalized)) or bool(re.search(r"\bprezzo\s+(?:variabile|indicizzato)\b", normalized))
+    fixed = bool(re.search(r"\bprezzo\s+fisso\b|\bcorrispettivo\s+fisso\b", normalized))
+    if variable and not fixed:
+        return "variabile"
+    if fixed and not variable:
+        return "fisso"
+    return None
+
+
+def generic_money_candidates(text: str, keywords: str, commodity: str, *, fixed_fee: bool = False) -> list[tuple[float, str, str]]:
+    unit = r"(?:kWh|MWh)" if commodity == "luce" else r"(?:Smc|MWh)"
+    if fixed_fee:
+        unit = r"(?:(?:POD|PdR|PDR)\s*/\s*)?(?:mese|anno)|(?:POD|PdR|PDR)\s*/\s*(?:mese|anno)"
+    pattern = re.compile(
+        rf"({keywords})[^\n.;]{{0,150}}?([0-9]+(?:[.,][0-9]+)?)\s*(?:€|euro|eur)\s*/\s*({unit})",
+        re.I,
+    )
+    result: list[tuple[float, str, str]] = []
+    for match in pattern.finditer(text):
+        value = parse_number(match.group(2))
+        if value is None:
+            continue
+        result.append((float(value), normalize_space(match.group(1)), normalize_space(match.group(3))))
+    return result
+
+
+def generic_annual_fixed_fee(text: str, commodity: str) -> tuple[float | None, list[dict[str, Any]]]:
+    keywords = r"(?:quota\s+fissa(?:\s+di\s+vendita)?|corrispettivo\s+(?:annuo\s+)?fisso|commercializzazione\s+e\s+vendita|commercializzazione|\bCCV\b|\bPCV\b)"
+    candidates = generic_money_candidates(text, keywords, commodity, fixed_fee=True)
+    normalized: list[tuple[float, str]] = []
+    for value, label, unit in candidates:
+        unit_lower = unit.lower()
+        annual = value * 12 if "mese" in unit_lower else value
+        if annual < 0 or annual > 2000:
+            continue
+        normalized.append((round(annual, 8), label))
+    values = [value for value, _ in normalized]
+    selected = generic_unique(values)
+    if selected is None:
+        return None, []
+    return float(selected), [annual_fixed_component("Quota fissa vendita CTE", float(selected))]
+
+
+def generic_price_value(text: str, commodity: str, price_type: str, losses_factor: float) -> tuple[float | None, float | None, str | None, list[dict[str, Any]], str | None]:
+    unit_pattern = r"(?:kWh|MWh)" if commodity == "luce" else r"(?:Smc|MWh)"
+    variable_components: list[dict[str, Any]] = []
+    network_convention: str | None = None
+    if price_type == "variabile":
+        index_name = "PUN" if commodity == "luce" else "PSV"
+        index_pattern = r"PUN(?:\s+Index\s+GME)?" if commodity == "luce" else r"PSV(?:\s+Day\s+Ahead)?"
+        pattern = re.compile(
+            rf"({index_pattern})[^\n.;]{{0,90}}?\+\s*([0-9]+(?:[.,][0-9]+)?)\s*(?:€|euro|eur)\s*/\s*({unit_pattern})",
+            re.I,
+        )
+        found: list[tuple[float, str, str]] = []
+        for match in pattern.finditer(text):
+            raw = parse_number(match.group(2))
+            if raw is None:
+                continue
+            unit = match.group(3).lower()
+            value = float(raw) / 1000 if "mwh" in unit else float(raw)
+            context = normalize_space(text[max(0, match.start() - 140) : match.end() + 140]).lower()
+            found.append((round(value, 8), context, unit))
+        spread = generic_unique([item[0] for item in found])
+        if spread is None:
+            return None, None, index_name, [], None
+        matching = next(item for item in found if round(item[0], 8) == round(float(spread), 8))
+        if commodity == "luce":
+            context = matching[1]
+            if re.search(r"comprensiv[oa]\s+(?:delle\s+)?perdite|incluse?\s+(?:le\s+)?perdite", context):
+                gross = float(spread)
+                spread = round(gross / losses_factor, 8)
+                network_convention = "net"
+                variable_components.append(detail_component(
+                    "Spread CTE comprensivo perdite di rete",
+                    gross,
+                    "EUR/kWh",
+                    f"Normalizzato al netto usando il fattore perdite corrente {losses_factor}.",
+                ))
+            elif re.search(r"al\s+netto\s+(?:delle\s+)?perdite|perdite\s+(?:di\s+rete\s+)?escluse", context):
+                network_convention = "net"
+            else:
+                return None, None, index_name, [], None
+        return None, float(spread), index_name, variable_components, network_convention
+
+    keywords = r"(?:prezzo\s+fisso|prezzo\s+(?:energia|gas)|corrispettivo\s+(?:energia|gas)|componente\s+(?:energia|gas))"
+    candidates = generic_money_candidates(text, keywords, commodity, fixed_fee=False)
+    normalized_values: list[tuple[float, str]] = []
+    for value, label, unit in candidates:
+        converted = value / 1000 if "mwh" in unit.lower() else value
+        if 0 <= converted <= 5:
+            normalized_values.append((round(converted, 8), label))
+    fixed = generic_unique([item[0] for item in normalized_values])
+    if fixed is None:
+        return None, None, None, [], None
+    value_text = str(fixed).replace(".", "[.,]")
+    price_match = re.search(
+        rf"(?:prezzo\s+fisso|prezzo\s+(?:energia|gas)|corrispettivo\s+(?:energia|gas)|componente\s+(?:energia|gas))[^\n.;]{{0,160}}?{value_text}",
+        text,
+        re.I,
+    )
+    if commodity == "luce":
+        context = normalize_space(text[max(0, (price_match.start() if price_match else 0) - 120) : (price_match.end() if price_match else 0) + 160]).lower()
+        if re.search(r"comprensiv[oa]\s+(?:delle\s+)?perdite|incluse?\s+(?:le\s+)?perdite", context):
+            network_convention = "included"
+        elif re.search(r"al\s+netto\s+(?:delle\s+)?perdite|perdite\s+(?:di\s+rete\s+)?escluse", context):
+            fixed = round(float(fixed) * losses_factor, 8)
+            network_convention = "included"
+            variable_components.append(detail_component(
+                "Prezzo fisso CTE al netto delle perdite",
+                float(normalized_values[0][0]),
+                "EUR/kWh",
+                f"Convertito a prezzo comprensivo perdite usando il fattore corrente {losses_factor}.",
+            ))
+        else:
+            return None, None, None, [], None
+    return float(fixed), None, None, variable_components, network_convention
+
+
+def parse_generic_partner(path: Path, partner_key: str, partner_label: str, market_indices: dict[str, float]) -> ParseResult:
+    text = extract_pdf_text_multi(path)
+    partner_dir = path.parent.parent
+    metadata = load_partner_metadata(partner_dir)
+    provider_key = str(metadata.get("supplierKey") or partner_key).strip() or partner_key
+    provider_label = str(metadata.get("supplierName") or partner_label).strip() or partner_label
+
+    provider_vat = generic_provider_vat(text, provider_label)
+    offer_code = generic_offer_code(text)
+    offer_name = generic_offer_name(text)
+    commodity = generic_commodity(text)
+    customer_type = generic_customer_type(text)
+    sale_to = generic_date_after_labels(text, (
+        r"validit[aà]\s+(?:dell['’]\s*)?offerta(?:\s+fino\s+al)?",
+        r"offerta\s+valida\s+fino\s+al",
+        r"aderire\s+entro\s+il",
+        r"sottoscrizione\s+entro\s+il",
+        r"richiesta\s+(?:di\s+attivazione\s+)?(?:sia\s+effettuata\s+)?entro\s+il",
+    ))
+    sale_from = generic_date_after_labels(text, (
+        r"validit[aà]\s+(?:dell['’]\s*)?offerta\s+dal",
+        r"offerta\s+valida\s+dal",
+    ))
+
+    missing_identity = [
+        name for name, value in (
+            ("P.IVA venditore", provider_vat),
+            ("codice offerta", offer_code),
+            ("nome offerta", offer_name),
+            ("commodity", commodity),
+            ("tipo cliente", customer_type),
+            ("scadenza vendita", sale_to),
+        ) if not value
+    ]
+    if missing_identity:
+        raise ValueError("normalizzatore generico: dati identificativi non univoci/mancanti: " + ", ".join(missing_identity))
+
+    price_type = generic_price_type(text, str(commodity))
+    if not price_type:
+        raise ValueError("normalizzatore generico: prezzo fisso/indicizzato non determinabile in modo univoco")
+    annual_fixed_fee, fixed_components = generic_annual_fixed_fee(text, str(commodity))
+    if annual_fixed_fee is None:
+        raise ValueError("normalizzatore generico: quota fissa vendita annua non determinabile in modo univoco")
+
+    losses_factor = float(market_indices.get("electricity_losses") or 1.102)
+    fixed_price, spread, index_name, variable_components, loss_convention = generic_price_value(
+        text,
+        str(commodity),
+        price_type,
+        losses_factor,
+    )
+    if price_type == "fisso" and fixed_price is None:
+        raise ValueError("normalizzatore generico: prezzo fisso non leggibile o convenzione perdite luce non esplicita")
+    if price_type == "variabile" and (spread is None or index_name not in {"PUN", "PSV"}):
+        raise ValueError("normalizzatore generico: indice/spread non leggibile o convenzione perdite luce non esplicita")
+
+    index_value = market_indices.get(str(index_name or "").lower()) if index_name else None
+    if price_type == "variabile" and not isinstance(index_value, (int, float)):
+        raise ValueError(f"normalizzatore generico: indice corrente {index_name} non disponibile")
+    projected_price = float(fixed_price) if fixed_price is not None else round(float(index_value) + float(spread), 8)
+    source_hash = sha256_file(path)
+    now = datetime.now().astimezone().isoformat(timespec="seconds")
+
+    payload = {
+        "schemaVersion": SCHEMA_VERSION,
+        "sourceType": "partner_direct",
+        "partner": {
+            "partnerKey": str(metadata.get("partnerKey") or partner_key).strip() or partner_key,
+            "partnerLabel": provider_label,
+        },
+        "identity": {
+            "canonicalKey": f"{provider_vat}|{commodity}|{offer_code}",
+            "providerKey": provider_key,
+            "providerLabel": provider_label,
+            "providerVat": provider_vat,
+            "offerCode": offer_code,
+            "offerName": offer_name,
+            "commercialFamily": commercial_family(str(offer_name)),
+        },
+        "classification": {
+            "commodity": commodity,
+            "customerType": customer_type,
+            "priceType": price_type,
+        },
+        "validity": {
+            "saleFrom": sale_from,
+            "saleTo": sale_to,
+            "conditionsDurationMonths": None,
+        },
+        "economics": {
+            "indexName": index_name,
+            "indexValueAtProjection": index_value,
+            "fixedPrice": fixed_price,
+            "spread": spread,
+            "annualFixedFee": annual_fixed_fee,
+            "networkLosses": {
+                "rankingPriceConvention": loss_convention,
+            },
+            "variableComponents": variable_components,
+            "fixedComponents": fixed_components,
+            "cap": {"enabled": False, "value": None, "unit": None, "validForMonths": None, "rule": None},
+            "discounts": [],
+        },
+        "requirements": {
+            "sdd": True if re.search(r"\bSDD\b|domiciliazione\s+bancaria", text, re.I) else None,
+            "digitalInvoice": True if re.search(r"fattur[ae]\s+(?:digitale|elettronica)|bolletta\s+web", text, re.I) else None,
+            "powerConstraints": None,
+            "geographicConstraints": None,
+            "other": ["Normalizzazione automatica generica: attivata solo con campi economici e identificativi univoci."],
+        },
+        "activation": {"channel": None, "partnerDirect": True},
+        "rankingProjection": {
+            "eligible": True,
+            "price": projected_price,
+            "annualFixedFee": annual_fixed_fee,
+            "projectionRule": (
+                "prezzo fisso CTE comprensivo perdite" if price_type == "fisso" and commodity == "luce"
+                else "prezzo fisso CTE" if price_type == "fisso"
+                else "indice corrente + spread netto perdite" if commodity == "luce"
+                else "indice corrente + spread"
+            ),
+            "exclusionReason": None,
+        },
+        "source": {
+            "originalFile": path.name,
+            "fileHash": source_hash,
+            "normalizedAt": now,
+            "parser": GENERIC_PARSER_VERSION,
+            "extractionPagesMax": 12,
+        },
+        "status": "normalizzata",
+    }
+    return ParseResult(payload=payload, text=text)
+
+
 def partner_key_from_dir(path: Path) -> str:
     key = re.sub(r"[^a-z0-9]+", "-", path.name.lower()).strip("-")
     return key or "partner"
@@ -912,6 +1318,8 @@ def parser_for_partner(path: Path, text_hint: str | None = None):
         return parse_lion_green
     if text_hint and "OV ENERGY" in text_hint.upper():
         return parse_ovenergy
+    if text_hint:
+        return parse_generic_partner
     return None
 
 
@@ -926,6 +1334,19 @@ def load_market_indices(package_root: Path) -> dict[str, float]:
         value = indices.get(key)
         if isinstance(value, (int, float)) and value > 0:
             result[key] = float(value)
+    params_path = package_root / "data" / "calcolo-parametri.json"
+    if params_path.is_file():
+        try:
+            params = json.loads(params_path.read_text(encoding="utf-8"))
+            losses = (params.get("parametriCalcolo") or {}).get("perditeReteLuceVariabile")
+            if not isinstance(losses, (int, float)):
+                losses = (params.get("parametri") or {}).get("perditeReteLuceVariabile")
+            if not isinstance(losses, (int, float)):
+                losses = params.get("perditeReteLuceVariabile")
+            if isinstance(losses, (int, float)) and 1 <= float(losses) <= 1.3:
+                result["electricity_losses"] = float(losses)
+        except Exception:
+            pass
     return result
 
 
