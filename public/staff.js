@@ -830,6 +830,49 @@
       .sort((a, b) => String(a?.display_name || a?.supplier_key || "").localeCompare(String(b?.display_name || b?.supplier_key || ""), "it", { sensitivity: "base" }));
   }
 
+  function normalizeSupplierAlpha(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .trim()
+      .toLowerCase();
+  }
+
+  function jumpSupplierRegistry(prefix, { open = false } = {}) {
+    const query = normalizeSupplierAlpha(prefix);
+    if (!query) return false;
+
+    const filter = byId("supplierRegistrySearch");
+    if (filter && String(filter.value || "").trim()) {
+      filter.value = "";
+    }
+
+    const items = supplierRegistryItems();
+    if (!items.length) return false;
+
+    let index = items.findIndex(item =>
+      normalizeSupplierAlpha(item?.display_name || item?.supplier_key).startsWith(query)
+    );
+
+    if (index < 0) {
+      index = items.findIndex(item =>
+        normalizeSupplierAlpha(item?.display_name || item?.supplier_key)
+          .localeCompare(query, "it", { sensitivity: "base" }) >= 0
+      );
+    }
+    if (index < 0) index = items.length - 1;
+
+    supplierRegistryActiveIndex = index;
+    renderSupplierRegistryDirectory();
+    const option = byId(`supplierRegistryOption-${index}`);
+    option?.scrollIntoView({ block: "start" });
+
+    if (open && items[index]?.supplier_id) {
+      selectRegistrySupplier(items[index].supplier_id);
+    }
+    return true;
+  }
+
   function registrySupplierById(id = selectedRegistrySupplierId) {
     const key = String(id || "");
     return (Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : []).find(item => String(item?.supplier_id || "") === key) || null;
@@ -858,9 +901,12 @@
     if (supplierRegistryActiveIndex >= items.length) supplierRegistryActiveIndex = items.length - 1;
     items.forEach((item, index) => {
       const selected = String(item?.supplier_id || "") === selectedRegistrySupplierId;
+      const numbersCount = Number(item?.numbers_total || 0);
+      const coverageCount = Number(item?.coverage_records || 0);
+      const coverageText = coverageCount ? ` · ${coverageCount} ${coverageCount === 1 ? "copertura" : "coperture"}` : "";
       const meta = item?.partner_id
-        ? `${supplierRelationshipLabel(item.relationship_type)}${item.partner_active === false ? " · inattivo" : ""}`
-        : `Archivio nazionale · ${Number(item?.numbers_total || 0)} ${Number(item?.numbers_total || 0) === 1 ? "numero" : "numeri"}`;
+        ? `${supplierRelationshipLabel(item.relationship_type)}${item.partner_active === false ? " · inattivo" : ""}${coverageText}`
+        : `Archivio nazionale · ${numbersCount} ${numbersCount === 1 ? "numero" : "numeri"}${coverageText}`;
       const option = node("button", {
         className: `supplier-directory-option${index === supplierRegistryActiveIndex ? " is-active" : ""}`,
         type: "button",
@@ -6405,6 +6451,15 @@
     byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
     byId("supplierRegistryRefresh")?.addEventListener("click", () => loadProtectionSuppliers().catch(error => setMessage("error", friendlyError(error))));
     byId("supplierRegistryNew")?.addEventListener("click", () => openSupplierRegistryEditor());
+    byId("supplierRegistryJump")?.addEventListener("input", event => jumpSupplierRegistry(event.currentTarget.value));
+    byId("supplierRegistryJump")?.addEventListener("keydown", event => {
+      if (event.key === "Enter") {
+        if (jumpSupplierRegistry(event.currentTarget.value, { open: true })) event.preventDefault();
+      } else if (event.key === "Escape") {
+        event.currentTarget.value = "";
+        event.preventDefault();
+      }
+    });
     byId("supplierRegistrySearch")?.addEventListener("input", () => { supplierRegistryActiveIndex = 0; renderSupplierRegistry(); });
     byId("supplierRegistrySearch")?.addEventListener("keydown", event => { if (event.key === "Enter" && chooseSupplierRegistryActive()) event.preventDefault(); });
     byId("supplierRegistryResults")?.addEventListener("keydown", event => {
