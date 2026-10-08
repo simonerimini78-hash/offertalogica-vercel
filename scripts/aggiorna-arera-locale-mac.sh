@@ -101,6 +101,7 @@ sync_main_code() {
     scripts/aggiorna-arera-locale-mac.sh \
     scripts/update-arera-menu.py \
     scripts/update-partner-offers.py \
+    scripts/sync-partner-folders.py \
     scripts/update-arera-reference-data.py \
     scripts/update-regulated-parameters.py \
     scripts/update-energy-today.py \
@@ -736,6 +737,16 @@ else
   log "AVVISO: parametri regolati non aggiornabili. Mantengo l'ultima versione valida; offerte ed energia restano disponibili."
   restore_group "regulated" "${REGULATED_FILES[@]}"
   REGULATED_STATUS="mantenuti (controllo non superato)"
+fi
+
+# Prima della pipeline offerte, sincronizzo dal registro Protezione OL le cartelle
+# delle collaborazioni con pipeline attiva. La sincronizzazione crea soltanto
+# directory mancanti: non cancella e non rinomina mai cartelle o PDF esistenti.
+log "Sincronizzo le cartelle delle collaborazioni Offerta Logica."
+if python3 "$ROOT_DIR/scripts/sync-partner-folders.py" --package-root "$ROOT_DIR"; then
+  log "Cartelle partner sincronizzate."
+else
+  log "AVVISO: sincronizzazione cartelle partner non riuscita. Mantengo le cartelle esistenti e continuo."
 fi
 
 # Le offerte partner sono un gruppo indipendente. 00_DA_VALIDARE viene solo

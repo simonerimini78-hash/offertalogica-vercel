@@ -902,7 +902,7 @@ def parser_for_partner(path: Path, text_hint: str | None = None):
     key = partner_key_from_dir(path)
     if key == "greenius":
         return parse_greenius
-    if key == "lion-green":
+    if key in {"lion-green", "liongreen"}:
         return parse_lion_green
     if key == "ovenergy":
         return parse_ovenergy
