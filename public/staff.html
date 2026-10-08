@@ -84,13 +84,46 @@
     #supplierRegistryPanel .supplier-registry-empty-copy{font-size:13px;line-height:1.5;margin-top:5px}
     #supplierRegistryPanel .supplier-number-note{font-size:12px;line-height:1.5}
     @media(max-width:680px){#supplierRegistryPanel .supplier-registry-overview{grid-template-columns:1fr}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option{align-items:flex-start;flex-direction:column;gap:4px}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option small{max-width:100%;text-align:left}}
+    /* Protezione OL v0.37.56: scala tipografica e spazi coerenti nei due registri. */
+    #supplierRegistryPanel .supplier-browser,#supplierNumbersPanel .supplier-browser{padding:12px 14px}
+    #supplierRegistryPanel .panel-head h3,#supplierNumbersPanel .panel-head h3{font-size:19px;line-height:1.3}
+    #supplierRegistryPanel .panel-head small,#supplierNumbersPanel .panel-head small{font-size:13px;line-height:1.4;color:#495e55}
+    #supplierRegistryPanel .supplier-directory-head,#supplierNumbersPanel .supplier-directory-head{margin:7px 0 8px}
+    #supplierRegistryPanel .supplier-directory-head strong,#supplierNumbersPanel .supplier-directory-head strong{font-size:12px;letter-spacing:.025em}
+    #supplierRegistryPanel .supplier-picker-hint,#supplierNumbersPanel .supplier-picker-hint{font-size:12px}
+    #supplierRegistryPanel .supplier-directory,#supplierNumbersPanel .supplier-directory{height:310px;padding:3px}
+    #supplierRegistryPanel .supplier-directory .supplier-directory-option,#supplierNumbersPanel .supplier-directory .supplier-directory-option{min-height:52px;padding:10px 13px;gap:12px}
+    #supplierRegistryPanel .supplier-directory .supplier-directory-option strong,#supplierNumbersPanel .supplier-directory .supplier-directory-option strong{font-size:15px;line-height:1.3}
+    #supplierRegistryPanel .supplier-directory .supplier-directory-option small,#supplierNumbersPanel .supplier-directory .supplier-directory-option small{font-size:12px;line-height:1.4;white-space:normal;text-align:right;max-width:56%}
+    #supplierRegistryPanel .supplier-directory .supplier-directory-option[aria-selected="true"],#supplierNumbersPanel .supplier-directory .supplier-directory-option[aria-selected="true"]{box-shadow:inset 4px 0 0 #197457}
+    #supplierRegistryPanel .supplier-selected,#supplierNumbersPanel .supplier-selected{margin-top:10px}
+    #supplierRegistryPanel .supplier-selected-head,#supplierNumbersPanel .supplier-selected-head{padding:11px 13px}
+    #supplierRegistryPanel .supplier-selected-title strong,#supplierNumbersPanel .supplier-selected-title strong{font-size:18px}
+    #supplierRegistryPanel .supplier-selected-title small,#supplierNumbersPanel .supplier-selected-title small{font-size:12px}
+    #supplierRegistryPanel .supplier-number-note,#supplierNumbersPanel .supplier-number-note{font-size:12px;line-height:1.45;margin:9px 12px 11px}
+    #supplierRegistryPanel .supplier-registry-overview{margin-top:11px;gap:9px}
+    #supplierRegistryPanel .supplier-registry-overview>div{padding:12px 14px}
+    #supplierRegistryPanel .supplier-registry-overview strong{font-size:23px}
+    #supplierRegistryPanel .supplier-registry-empty-title{margin-top:10px}
+    #supplierNumbersPanel .supplier-number-metrics{margin:10px 12px 0;gap:9px}
+    #supplierNumbersPanel .supplier-number-metrics .metric{padding:11px 13px;min-height:0}
+    #supplierNumbersPanel .supplier-number-metrics .metric span{font-size:12px}
+    #supplierNumbersPanel .supplier-number-metrics .metric strong{font-size:24px;line-height:1.2}
+    #supplierNumbersPanel .supplier-number-metrics .metric small{font-size:11px;line-height:1.35}
+    #supplierNumbersPanel .supplier-number-empty{padding:13px 12px;color:#495e55;font-size:13px}
+    #supplierNumbersPanel .supplier-number-empty strong{font-size:15px}
+    #supplierNumbersPanel .supplier-number-card-head strong{font-size:14px}
+    #supplierNumbersPanel .supplier-number-card-head small{font-size:12px}
+    #supplierNumbersPanel .supplier-number-card-grid span{font-size:11px}
+    #supplierNumbersPanel .supplier-number-card-grid strong,#supplierNumbersPanel .supplier-number-card-grid small{font-size:12px}
+    @media(max-width:680px){#supplierRegistryPanel .supplier-browser,#supplierNumbersPanel .supplier-browser{padding:10px}#supplierRegistryPanel .supplier-directory,#supplierNumbersPanel .supplier-directory{height:300px}#supplierRegistryPanel .supplier-directory .supplier-directory-option,#supplierNumbersPanel .supplier-directory .supplier-directory-option{align-items:flex-start;flex-direction:column;gap:4px}#supplierRegistryPanel .supplier-directory .supplier-directory-option small,#supplierNumbersPanel .supplier-directory .supplier-directory-option small{max-width:100%;text-align:left}}
   </style>
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.55</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.56</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -155,7 +188,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.55</div>
+      <div class="version">Control Center Staff v0.37.56</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -567,7 +600,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.55"></script>
+<script src="/staff.js?v=0.37.56"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -672,7 +705,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.55";
+    const CURRENT_RELEASE="0.37.56";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
