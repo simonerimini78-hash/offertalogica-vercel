@@ -123,7 +123,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.58</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.59</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -188,7 +188,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.58</div>
+      <div class="version">Control Center Staff v0.37.59</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -245,13 +245,13 @@
               <div class="supplier-registry-overview" id="supplierRegistryOverview">
                 <div><strong id="supplierRegistryOverviewTotal">—</strong><span>Fornitori in anagrafica</span></div>
                 <div><strong id="supplierRegistryOverviewPartners">—</strong><span>Collaborazioni OL registrate</span></div>
-                <div><strong id="supplierRegistryOverviewNumbers">—</strong><span>Fornitori con numeri verificati</span></div>
+                <div><strong id="supplierRegistryOverviewNumbers">—</strong><span>Fornitori con fonti dei recapiti verificate</span></div>
               </div>
               <div class="supplier-registry-empty-title">Seleziona un fornitore dall’elenco</div>
               <div class="supplier-registry-empty-copy">Visualizza anagrafica, numeri e collaborazione OL senza creare duplicati.</div>
             </div>
           </div>
-          <div class="side-note supplier-number-note">La presenza nell’archivio nazionale Protezione non significa che il fornitore sia partner Offerta Logica. Numeri, coperture territoriali, offerte nel comparatore e collaborazione OL restano informazioni separate.</div>
+          <div class="side-note supplier-number-note">La presenza nell’archivio nazionale Protezione non significa che il fornitore sia partner OL. Un recapito censito o una fonte verificata non attestano l’identità di chi chiama: il numero visualizzato può essere falsificato (spoofing). La legittimità del contatto e l’eventuale autorizzazione OL vanno verificate separatamente.</div>
         </section>
 
         <section class="panel" id="supplierRegistryEditor" style="margin-top:14px" hidden>
@@ -307,8 +307,8 @@
           <div class="metrics supplier-number-metrics">
             <article class="metric"><span>Partner attivi</span><strong id="supplierMetricActive">0</strong><small>Collaborazioni OL attive</small></article>
             <article class="metric priority"><span>Pipeline offerte</span><strong id="supplierMetricVerified">0</strong><small>Partner con cartella offerte abilitata</small></article>
-            <article class="metric"><span>Numeri verificati</span><strong id="supplierMetricPending">0</strong><small>Numeri verificati dei partner OL</small></article>
-            <article class="metric"><span>Da verificare</span><strong id="supplierMetricRejected">0</strong><small>Numeri partner ancora in verifica</small></article>
+            <article class="metric"><span>Recapiti con fonte verificata</span><strong id="supplierMetricPending">0</strong><small>Verifica della fonte, non del chiamante</small></article>
+            <article class="metric"><span>Da verificare</span><strong id="supplierMetricRejected">0</strong><small>Fonti dei recapiti in verifica</small></article>
           </div>
           <div class="supplier-browser">
             <div class="supplier-directory-head">
@@ -325,10 +325,10 @@
             </section>
             <div class="supplier-number-empty" id="supplierNumberEmpty"><strong>Seleziona un partner OL</strong>Vedrai la collaborazione e i numeri associati al partner scelto.</div>
           </div>
-          <div class="side-note supplier-number-note">L’archivio nazionale e le collaborazioni Offerta Logica sono separati: un fornitore può essere presente nell’archivio senza essere partner. I numeri verificati identificano il numero o il canale, non certificano da soli il diritto a contattare uno specifico utente.</div>
+          <div class="side-note supplier-number-note">Le collaborazioni OL sono separate dall’archivio nazionale. “Fonte verificata” conferma la documentazione del recapito, non l’autenticità di una chiamata in arrivo, che può mostrare un numero falsificato (spoofing); non dimostra neppure l’autorizzazione a contattare l’utente.</div>
         </section>
         <section class="panel" id="supplierNumberEditor" style="margin-top:14px" hidden>
-          <div class="panel-head"><div><h3 id="supplierNumberEditorTitle">Nuovo numero fornitore</h3><small>Ogni inserimento o modifica viene registrato nell’audit. Una modifica riporta il numero in stato “da verificare”.</small></div><button class="button secondary compact" id="supplierNumberEditorClose" type="button">Chiudi</button></div>
+          <div class="panel-head"><div><h3 id="supplierNumberEditorTitle">Nuovo numero fornitore</h3><small>Ogni inserimento o modifica viene registrato nell’audit. Una modifica riporta il recapito in stato “da verificare”. La verifica riguarda la fonte, non l’identità di chi chiama.</small></div><button class="button secondary compact" id="supplierNumberEditorClose" type="button">Chiudi</button></div>
           <form class="panel-body" id="supplierNumberForm" novalidate>
             <input id="supplierNumberId" type="hidden">
             <div class="supplier-number-form-grid">
@@ -337,7 +337,7 @@
               <div class="field"><label for="supplierNumberPhone">Numero E.164</label><input id="supplierNumberPhone" inputmode="tel" autocomplete="off" placeholder="+390212345678" required></div>
               <div class="field"><label for="supplierNumberLabel">Etichetta</label><input id="supplierNumberLabel" autocomplete="off" placeholder="es. Call center commerciale"></div>
               <div class="field"><label for="supplierNumberType">Tipo numero</label><select id="supplierNumberType"><option value="unknown">Non classificato</option><option value="commercial">Commerciale</option><option value="outbound">Outbound</option><option value="customer_service">Assistenza clienti</option><option value="call_center">Call center</option><option value="toll_free">Numero verde</option></select></div>
-              <div class="field"><label for="supplierNumberSourceType">Tipo fonte</label><select id="supplierNumberSourceType"><option value="official_published">Pubblicato ufficialmente</option><option value="partner_declared">Dichiarato dal partner</option><option value="ol_verified">Verificato da Offerta Logica</option></select></div>
+              <div class="field"><label for="supplierNumberSourceType">Tipo fonte</label><select id="supplierNumberSourceType"><option value="official_published">Pubblicato ufficialmente</option><option value="partner_declared">Dichiarato dal partner</option><option value="ol_verified">Fonte controllata da Offerta Logica</option></select></div>
               <div class="field"><label for="supplierNumberSourceReference">Fonte / riferimento</label><input id="supplierNumberSourceReference" autocomplete="off" placeholder="URL ufficiale o riferimento accordo" required></div>
               <div class="field"><label for="supplierNumberValidFrom">Valido dal</label><input id="supplierNumberValidFrom" type="datetime-local"></div>
               <div class="field"><label for="supplierNumberValidUntil">Valido fino al</label><input id="supplierNumberValidUntil" type="datetime-local"></div>
@@ -601,7 +601,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.58"></script>
+<script src="/staff.js?v=0.37.59"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -706,7 +706,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.58";
+    const CURRENT_RELEASE="0.37.59";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

@@ -987,7 +987,7 @@
     if (item.partner_id) meta?.append(badge(item.partner_active === false ? "Collaborazione inattiva" : "Partner OL", item.partner_active === false ? "danger" : "ok"));
     else meta?.append(badge("Non partner OL", ""));
     if (item.offers_pipeline_enabled) meta?.append(badge("Pipeline offerte", "ok"));
-    if (Number(item.numbers_verified || 0)) meta?.append(badge(`${Number(item.numbers_verified || 0)} numeri verificati`, "ok"));
+    if (Number(item.numbers_verified || 0)) meta?.append(badge(`${Number(item.numbers_verified || 0)} recapiti con fonte verificata`, "ok"));
 
     const identity = node("div", {}, [
       node("span", { text: "Anagrafica" }),
@@ -1204,12 +1204,20 @@
     return ({
       official_published: "Fonte ufficiale",
       partner_declared: "Dichiarato dal partner",
-      ol_verified: "Verificato da OL",
+      ol_verified: "Fonte controllata da OL",
     })[String(value || "").trim().toLowerCase()] || String(value || "—");
   }
 
-  function supplierNumberStatusLabel(value) {
-    return ({ verified: "Verificato", pending: "Da verificare", rejected: "Scartato" })[String(value || "").trim().toLowerCase()] || String(value || "—");
+  function supplierNumberStatusLabel(value, sourceType = "") {
+    const status = String(value || "").trim().toLowerCase();
+    if (status === "verified") {
+      const source = String(sourceType || "").trim().toLowerCase();
+      if (source === "official_published") return "Fonte ufficiale verificata";
+      if (source === "partner_declared") return "Dichiarazione verificata";
+      if (source === "ol_verified") return "Fonte controllata da OL";
+      return "Fonte verificata";
+    }
+    return ({ pending: "Da verificare", rejected: "Scartato" })[status] || String(value || "—");
   }
 
   function supplierNumberStatusKind(value) {
@@ -1376,7 +1384,7 @@
 
       const status = String(item.verification_status || "").toLowerCase();
       if (status === "pending") {
-        const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica" });
+        const verify = node("button", { className: "button primary compact", type: "button", text: "Verifica fonte" });
         verify.addEventListener("click", () => setSupplierNumberStatus(item, "verified").catch(error => setMessage("error", friendlyError(error))));
         const reject = node("button", { className: "button danger compact", type: "button", text: "Scarta" });
         reject.addEventListener("click", () => setSupplierNumberStatus(item, "rejected").catch(error => setMessage("error", friendlyError(error))));
@@ -1397,7 +1405,7 @@
     const validity = [];
     if (item.valid_from) validity.push(node("small", { text: `Dal ${formatDate(item.valid_from)}` }));
     if (item.valid_until) validity.push(node("small", { text: `Fino al ${formatDate(item.valid_until)}` }));
-    validity.push(node("small", { text: item.last_verified_at ? `Ultima verifica ${formatDate(item.last_verified_at)}` : "Mai verificato" }));
+    validity.push(node("small", { text: item.last_verified_at ? `Ultimo controllo fonte ${formatDate(item.last_verified_at)}` : "Controllo fonte non registrato" }));
 
     const source = node("div", {}, [
       node("span", { text: "Fonte" }),
@@ -1411,7 +1419,7 @@
           node("small", { text: item.phone_label || "Nessuna etichetta" }),
         ]),
         node("div", { className: "supplier-number-card-status" }, [
-          badge(supplierNumberStatusLabel(item.verification_status), supplierNumberStatusKind(item.verification_status)),
+          badge(supplierNumberStatusLabel(item.verification_status, item.source_type), supplierNumberStatusKind(item.verification_status)),
           item.active === false ? badge("Disattivato", "danger") : badge("Attivo", "ok"),
         ]),
       ]),
@@ -1469,7 +1477,7 @@
     const pending = activeItems.filter(item => item.verification_status === "pending").length;
     const rejected = activeItems.filter(item => item.verification_status === "rejected").length;
     const inactive = numbers.filter(item => item.active === false).length;
-    if (verified) meta?.append(badge(`${verified} verificat${verified === 1 ? "o" : "i"}`, "ok"));
+    if (verified) meta?.append(badge(`${verified} con fonte verificata`, "ok"));
     if (pending) meta?.append(badge(`${pending} da verificare`, "warn"));
     if (rejected) meta?.append(badge(`${rejected} scartat${rejected === 1 ? "o" : "i"}`, "danger"));
     if (inactive) meta?.append(badge(`${inactive} disattivat${inactive === 1 ? "o" : "i"}`, "danger"));
@@ -1477,7 +1485,7 @@
     if (numbers.length) numbers.forEach(item => body?.append(buildSupplierNumberCard(item)));
     else body?.append(node("div", { className: "supplier-number-empty" }, [
       node("strong", { text: "Nessun numero partner registrato" }),
-      document.createTextNode("La collaborazione OL esiste; puoi aggiungere i numeri dichiarati o verificati quando disponibili."),
+      document.createTextNode("La collaborazione OL esiste; puoi aggiungere numeri con fonte dichiarata o verificabile quando disponibili."),
     ]));
   }
 
@@ -1568,9 +1576,9 @@
         ? "Nuova verifica richiesta dal Proprietario"
         : "Numero scartato dal Proprietario nel Control Center";
     const confirmed = await confirmAction({
-      title: status === "verified" ? "Conferma verifica numero" : status === "rejected" ? "Scarta numero" : "Riapri verifica",
-      message: `${item?.supplier_name || "Fornitore"} · ${item?.phone_e164 || "numero"}. Stato: ${supplierNumberStatusLabel(status)}.`,
-      confirmLabel: status === "verified" ? "VERIFICA" : status === "rejected" ? "SCARTA" : "CONFERMA",
+      title: status === "verified" ? "Conferma controllo della fonte" : status === "rejected" ? "Scarta numero" : "Riapri verifica",
+      message: `${item?.supplier_name || "Fornitore"} · ${item?.phone_e164 || "numero"}. Stato: ${supplierNumberStatusLabel(status, item?.source_type)}. Il controllo della fonte non autentica la chiamata.`,
+      confirmLabel: status === "verified" ? "CONFERMA FONTE" : status === "rejected" ? "SCARTA" : "CONFERMA",
     });
     if (!confirmed) return;
     setBusy(true);
@@ -1578,7 +1586,7 @@
       const { error } = await client.rpc("owner_supplier_number_set_status", { p_id: item?.id || null, p_status: status, p_reason: reason });
       if (error) throw error;
       await loadSupplierNumbers({ silent: true });
-      setMessage("success", `Stato numero aggiornato: ${supplierNumberStatusLabel(status)}.`);
+      setMessage("success", `Stato recapito aggiornato: ${supplierNumberStatusLabel(status, item?.source_type)}.`);
     } finally {
       setBusy(false);
     }
