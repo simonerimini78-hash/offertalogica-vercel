@@ -849,7 +849,7 @@
     if (!target) return;
     const items = supplierRegistryItems();
     clear(target);
-    text(byId("supplierRegistryHint"), `${items.length} ${items.length === 1 ? "fornitore" : "fornitori"}${String(byId("supplierRegistrySearch")?.value || "").trim() ? " trovati" : " in archivio"}`);
+    text(byId("supplierRegistryHint"), `${items.length} ${items.length === 1 ? "fornitore" : "fornitori"}${String(byId("supplierRegistrySearch")?.value || "").trim() ? " trovati" : " nell’archivio nazionale"}`);
     if (!items.length) {
       target.append(node("div", { className: "supplier-number-empty", text: "Nessun fornitore corrispondente." }));
       return;
@@ -860,7 +860,7 @@
       const selected = String(item?.supplier_id || "") === selectedRegistrySupplierId;
       const meta = item?.partner_id
         ? `${supplierRelationshipLabel(item.relationship_type)}${item.partner_active === false ? " · inattivo" : ""}`
-        : `${Number(item?.numbers_total || 0)} ${Number(item?.numbers_total || 0) === 1 ? "numero" : "numeri"}`;
+        : `Archivio nazionale · ${Number(item?.numbers_total || 0)} ${Number(item?.numbers_total || 0) === 1 ? "numero" : "numeri"}`;
       const option = node("button", {
         className: `supplier-directory-option${index === supplierRegistryActiveIndex ? " is-active" : ""}`,
         type: "button",
@@ -919,6 +919,7 @@
     text(byId("supplierRegistrySelectedName"), item.display_name || item.supplier_key || "Fornitore");
     text(byId("supplierRegistrySelectedKey"), item.supplier_key || "—");
 
+    meta?.append(badge("Archivio Protezione", item.supplier_active === false ? "danger" : "ok"));
     if (item.supplier_active === false) meta?.append(badge("Fornitore inattivo", "danger"));
     if (item.partner_id) meta?.append(badge(item.partner_active === false ? "Collaborazione inattiva" : "Partner OL", item.partner_active === false ? "danger" : "ok"));
     else meta?.append(badge("Non partner OL", ""));
