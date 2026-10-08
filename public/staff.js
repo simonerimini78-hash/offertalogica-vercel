@@ -904,9 +904,7 @@
       const numbersCount = Number(item?.numbers_total || 0);
       const coverageCount = Number(item?.coverage_records || 0);
       const coverageText = coverageCount ? ` · ${coverageCount} ${coverageCount === 1 ? "copertura" : "coperture"}` : "";
-      const meta = item?.partner_id
-        ? `${supplierRelationshipLabel(item.relationship_type)}${item.partner_active === false ? " · inattivo" : ""}${coverageText}`
-        : `Archivio nazionale · ${numbersCount} ${numbersCount === 1 ? "numero" : "numeri"}${coverageText}`;
+      const meta = `Archivio nazionale · ${numbersCount} ${numbersCount === 1 ? "numero" : "numeri"}${coverageText}`;
       const option = node("button", {
         className: `supplier-directory-option${index === supplierRegistryActiveIndex ? " is-active" : ""}`,
         type: "button",
@@ -951,13 +949,16 @@
     const detail = byId("supplierRegistryDetail");
     const meta = byId("supplierRegistrySelectedMeta");
     const actions = byId("supplierRegistryActions");
+    const registryNumbers = byId("supplierRegistryNumbers");
     clear(detail);
     clear(meta);
     clear(actions);
+    clear(registryNumbers);
 
     if (!item) {
       if (selected) selected.hidden = true;
       if (empty) empty.hidden = false;
+      text(byId("supplierRegistryNumbersHint"), "0 numeri");
       return;
     }
     if (selected) selected.hidden = false;
@@ -996,13 +997,13 @@
     ]);
     detail?.append(identity, web, ol, archive);
 
-    const openNumbers = node("button", { className: "button secondary compact", type: "button", text: "Apri numeri" });
-    openNumbers.addEventListener("click", () => {
-      selectedSupplierKey = String(item.supplier_key || "").toLowerCase();
-      renderSupplierNumbers();
-      byId("supplierNumbersPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
-    });
-    actions?.append(openNumbers);
+    const supplierKey = String(item.supplier_key || "").trim().toLowerCase();
+    const registryNumberItems = (Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [])
+      .filter(row => String(row?.supplier_key || row?.supplier_name || "").trim().toLowerCase() === supplierKey)
+      .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")));
+    text(byId("supplierRegistryNumbersHint"), `${registryNumberItems.length} ${registryNumberItems.length === 1 ? "numero" : "numeri"}`);
+    if (registryNumberItems.length) registryNumberItems.forEach(number => registryNumbers?.append(buildSupplierNumberCard(number)));
+    else registryNumbers?.append(node("div", { className: "supplier-number-empty", text: "Nessun numero registrato per questo fornitore." }));
 
     if (isOwner()) {
       const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica anagrafica" });
@@ -1010,10 +1011,7 @@
       const partner = node("button", { className: "button primary compact", type: "button", text: item.partner_id ? "Modifica collaborazione OL" : "Collega a Offerta Logica" });
       partner.addEventListener("click", () => openSupplierPartnerEditor(item));
       const addNumber = node("button", { className: "button secondary compact", type: "button", text: "Aggiungi numero" });
-      addNumber.addEventListener("click", () => {
-        selectedSupplierKey = String(item.supplier_key || "").toLowerCase();
-        openSupplierNumberEditor(null, item);
-      });
+      addNumber.addEventListener("click", () => openSupplierNumberEditor(null, item));
       actions?.append(edit, partner, addNumber);
     }
   }
@@ -1159,6 +1157,7 @@
     if (!isAdmin()) {
       cache.protectionSuppliers = [];
       renderSupplierRegistry();
+      renderSupplierNumbers();
       return;
     }
     setHidden(byId("supplierRegistryNew"), !isOwner());
@@ -1168,6 +1167,7 @@
     cache.protectionSuppliers = Array.isArray(data) ? data : [];
     if (selectedRegistrySupplierId && !registrySupplierById(selectedRegistrySupplierId)) selectedRegistrySupplierId = "";
     renderSupplierRegistry();
+    renderSupplierNumbers();
     if (!silent) setMessage("success", "Anagrafica fornitori aggiornata.");
   }
 
@@ -1231,12 +1231,11 @@
     return node("small", { text: raw });
   }
 
-  function renderSupplierNumberMetrics() {
-    const rows = Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : [];
-    text(byId("supplierMetricActive"), rows.filter(item => item.active === true).length);
-    text(byId("supplierMetricVerified"), rows.filter(item => item.active === true && item.verification_status === "verified").length);
-    text(byId("supplierMetricPending"), rows.filter(item => item.verification_status === "pending").length);
-    text(byId("supplierMetricRejected"), rows.filter(item => item.verification_status === "rejected").length);
+  function partnerSuppliers() {
+    return (Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : [])
+      .filter(item => Boolean(item?.partner_id))
+      .slice()
+      .sort((a, b) => String(a?.display_name || a?.supplier_key || "").localeCompare(String(b?.display_name || b?.supplier_key || ""), "it", { sensitivity: "base" }));
   }
 
   function supplierNumberGroups() {
@@ -1253,20 +1252,42 @@
     });
   }
 
+  function numbersForSupplierKey(key) {
+    const normalized = String(key || "").trim().toLowerCase();
+    if (!normalized) return [];
+    return (Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : []).filter(item => String(item?.supplier_key || item?.supplier_name || "").trim().toLowerCase() === normalized);
+  }
+
+  function renderSupplierNumberMetrics() {
+    const partners = partnerSuppliers();
+    const partnerKeys = new Set(partners.map(item => String(item?.supplier_key || "").trim().toLowerCase()).filter(Boolean));
+    const partnerNumbers = (Array.isArray(cache.supplierNumbers) ? cache.supplierNumbers : []).filter(item => partnerKeys.has(String(item?.supplier_key || item?.supplier_name || "").trim().toLowerCase()));
+    text(byId("supplierMetricActive"), partners.filter(item => item.partner_active !== false).length);
+    text(byId("supplierMetricVerified"), partners.filter(item => item.partner_active !== false && item.offers_pipeline_enabled === true).length);
+    text(byId("supplierMetricPending"), partnerNumbers.filter(item => item.active === true && item.verification_status === "verified").length);
+    text(byId("supplierMetricRejected"), partnerNumbers.filter(item => item.active === true && item.verification_status === "pending").length);
+  }
+
   function supplierDirectoryItems() {
-    return supplierNumberGroups().map(([key, items]) => ({
-      key,
-      name: String(items[0]?.supplier_name || key || "Fornitore"),
-      count: items.length,
-    }));
+    return partnerSuppliers().map(item => {
+      const key = String(item?.supplier_key || "").trim().toLowerCase();
+      return {
+        key,
+        name: String(item?.display_name || item?.supplier_key || "Partner"),
+        count: numbersForSupplierKey(key).length,
+        relationshipType: item?.relationship_type || "commercial_partner",
+        active: item?.partner_active !== false,
+        pipeline: item?.offers_pipeline_enabled === true,
+      };
+    });
   }
 
   function selectSupplierKey(key) {
-    const group = supplierNumberGroups().find(([groupKey]) => groupKey === key);
-    if (!group) return;
+    const item = supplierDirectoryItems().find(row => row.key === key);
+    if (!item) return;
     selectedSupplierKey = key;
     const items = supplierDirectoryItems();
-    supplierPickerActiveIndex = Math.max(0, items.findIndex(item => item.key === key));
+    supplierPickerActiveIndex = Math.max(0, items.findIndex(row => row.key === key));
     renderSupplierDirectory();
     renderSupplierNumbers();
   }
@@ -1277,11 +1298,13 @@
     const items = supplierDirectoryItems();
     clear(list);
     if (!items.length) {
-      list.append(node("div", { className: "supplier-number-empty", text: "Nessun fornitore disponibile." }));
+      list.append(node("div", { className: "supplier-number-empty", text: "Nessun partner Offerta Logica registrato." }));
       return;
     }
     items.forEach((item, index) => {
       const selected = item.key === selectedSupplierKey;
+      const relation = supplierRelationshipLabel(item.relationshipType);
+      const state = item.active ? "" : " · inattivo";
       const option = node("button", {
         className: `supplier-directory-option${index === supplierPickerActiveIndex ? " is-active" : ""}`,
         type: "button",
@@ -1292,7 +1315,7 @@
         },
       }, [
         node("strong", { text: item.name }),
-        node("small", { text: `${item.count} ${item.count === 1 ? "numero" : "numeri"}` }),
+        node("small", { text: `${relation}${state} · ${item.count} ${item.count === 1 ? "numero" : "numeri"}` }),
       ]);
       option.addEventListener("click", () => selectSupplierKey(item.key));
       list.append(option);
@@ -1319,10 +1342,9 @@
   }
 
   function updateSupplierPickerHint() {
-    const groups = supplierNumberGroups();
-    text(byId("supplierNumberPickerHint"), `${groups.length} ${groups.length === 1 ? "fornitore" : "fornitori"} · scorri l’elenco`);
-    if (selectedSupplierKey && !groups.some(([key]) => key === selectedSupplierKey)) selectedSupplierKey = "";
     const items = supplierDirectoryItems();
+    text(byId("supplierNumberPickerHint"), `${items.length} ${items.length === 1 ? "partner OL" : "partner OL"} · scorri l’elenco`);
+    if (selectedSupplierKey && !items.some(item => item.key === selectedSupplierKey)) selectedSupplierKey = "";
     if (supplierPickerActiveIndex < 0 && items.length) supplierPickerActiveIndex = 0;
     if (supplierPickerActiveIndex >= items.length) supplierPickerActiveIndex = Math.max(0, items.length - 1);
     renderSupplierDirectory();
@@ -1392,7 +1414,9 @@
     clear(body);
     const selectedPanel = byId("supplierNumberSelected");
     const empty = byId("supplierNumberEmpty");
-    const groups = supplierNumberGroups();
+    const items = supplierDirectoryItems();
+
+    setHidden(byId("supplierNumberNew"), !isOwner() || !selectedSupplierKey);
 
     if (!selectedSupplierKey) {
       if (selectedPanel) selectedPanel.hidden = true;
@@ -1400,38 +1424,44 @@
       return;
     }
 
-    const group = groups.find(([key]) => key === selectedSupplierKey);
-    if (!group) {
+    const directoryItem = items.find(item => item.key === selectedSupplierKey);
+    const partner = partnerSuppliers().find(item => String(item?.supplier_key || "").trim().toLowerCase() === selectedSupplierKey);
+    if (!directoryItem || !partner) {
       selectedSupplierKey = "";
       if (selectedPanel) selectedPanel.hidden = true;
       if (empty) empty.hidden = false;
+      setHidden(byId("supplierNumberNew"), true);
       return;
     }
 
-    const [key, items] = group;
-    const supplierName = String(items[0]?.supplier_name || key || "Fornitore");
+    const numbers = numbersForSupplierKey(selectedSupplierKey)
+      .slice()
+      .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")));
     if (selectedPanel) selectedPanel.hidden = false;
     if (empty) empty.hidden = true;
-    text(byId("supplierNumberSelectedName"), supplierName);
-    text(byId("supplierNumberSelectedKey"), key);
+    text(byId("supplierNumberSelectedName"), directoryItem.name);
+    text(byId("supplierNumberSelectedKey"), partner.supplier_key || selectedSupplierKey);
 
     const meta = byId("supplierNumberSelectedMeta");
     clear(meta);
-    const activeItems = items.filter(item => item.active === true);
+    meta?.append(badge(supplierRelationshipLabel(partner.relationship_type), partner.partner_active === false ? "danger" : "ok"));
+    meta?.append(badge(partner.partner_active === false ? "Collaborazione inattiva" : "Partner OL attivo", partner.partner_active === false ? "danger" : "ok"));
+    if (partner.offers_pipeline_enabled) meta?.append(badge("Pipeline offerte", "ok"));
+    const activeItems = numbers.filter(item => item.active === true);
     const verified = activeItems.filter(item => item.verification_status === "verified").length;
     const pending = activeItems.filter(item => item.verification_status === "pending").length;
     const rejected = activeItems.filter(item => item.verification_status === "rejected").length;
-    const inactive = items.filter(item => item.active === false).length;
+    const inactive = numbers.filter(item => item.active === false).length;
     if (verified) meta?.append(badge(`${verified} verificat${verified === 1 ? "o" : "i"}`, "ok"));
     if (pending) meta?.append(badge(`${pending} da verificare`, "warn"));
     if (rejected) meta?.append(badge(`${rejected} scartat${rejected === 1 ? "o" : "i"}`, "danger"));
     if (inactive) meta?.append(badge(`${inactive} disattivat${inactive === 1 ? "o" : "i"}`, "danger"));
-    meta?.append(node("span", { className: "supplier-group-count", text: `${items.length} ${items.length === 1 ? "numero" : "numeri"}` }));
 
-    items
-      .slice()
-      .sort((a, b) => String(a.phone_e164 || "").localeCompare(String(b.phone_e164 || "")))
-      .forEach(item => body?.append(buildSupplierNumberCard(item)));
+    if (numbers.length) numbers.forEach(item => body?.append(buildSupplierNumberCard(item)));
+    else body?.append(node("div", { className: "supplier-number-empty" }, [
+      node("strong", { text: "Nessun numero partner registrato" }),
+      document.createTextNode("La collaborazione OL esiste; puoi aggiungere i numeri dichiarati o verificati quando disponibili."),
+    ]));
   }
 
   function closeSupplierNumberEditor() {
@@ -1562,15 +1592,17 @@
   async function loadSupplierNumbers({ silent = false } = {}) {
     if (!isAdmin()) {
       cache.supplierNumbers = [];
+      renderSupplierRegistry();
       renderSupplierNumbers();
       return;
     }
-    setHidden(byId("supplierNumberNew"), !isOwner());
+    setHidden(byId("supplierNumberNew"), !isOwner() || !selectedSupplierKey);
     setHidden(byId("supplierNumberEditor"), !isOwner() || byId("supplierNumberEditor")?.hidden !== false);
     if (!silent) setMessage("info", "Aggiornamento archivio numeri…");
     const { data, error } = await client.rpc("staff_supplier_numbers", { p_search: "", p_limit: 500 });
     if (error) throw error;
     cache.supplierNumbers = Array.isArray(data) ? data : [];
+    renderSupplierRegistry();
     renderSupplierNumbers();
     if (!silent) setMessage("success", "Archivio numeri aggiornato.");
   }
