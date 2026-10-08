@@ -55,13 +55,42 @@
     .analytics-export-actions{align-items:center}.analytics-export-actions select{width:auto;min-width:150px;min-height:42px;padding:8px 30px 8px 10px;font-size:12px;font-weight:800}.config-grid{display:grid;grid-template-columns:repeat(4,minmax(150px,1fr));gap:8px;padding:14px}.config-card{border:1px solid var(--line);border-radius:11px;padding:11px;background:#fbfdfc}.config-card span{display:block;color:var(--muted);font-size:10px;font-weight:750}.config-card strong{display:block;margin-top:4px;font-size:13px;overflow-wrap:anywhere}.config-card small{display:block;margin-top:4px;color:var(--muted);font-size:10px;line-height:1.35}.request-note{margin-top:9px;padding:9px 10px;border:1px solid #fedf89;border-radius:10px;background:#fffaeb;color:#7a2e0e;font-size:11px;line-height:1.45}
     @media(max-width:680px){.switcho-toolbar{width:100%}.switcho-toolbar select,.switcho-toolbar button{width:100%}.topbar{position:static;align-items:flex-start;flex-direction:column;padding:12px}.top-actions{width:100%;justify-content:flex-start}.app-shell{min-height:0}.sidebar{top:0}.main{padding:10px}.view-head{flex-direction:column}.view-actions{justify-content:flex-start}.metrics,.grid-2,.grid-3{grid-template-columns:1fr 1fr}.toolbar,.toolbar.four{grid-template-columns:1fr}.funnel{grid-template-columns:1fr 1fr}.customer-meta{grid-template-columns:1fr 1fr}.config-grid{grid-template-columns:1fr 1fr}.module-frame{height:calc(100vh - 120px);min-height:600px}.brand p{display:none}.landing-path-panel .panel-head{align-items:flex-start;flex-direction:column}.landing-path-range{width:100%}.landing-path-compare{grid-template-columns:1fr}.analytics-export-actions{width:100%}.analytics-export-actions select,.analytics-export-actions button{width:100%}.analytics-funnel-actions{width:100%}.analytics-funnel-actions select{width:100%}.analytics-module-actions{width:100%}.analytics-module-actions select,.analytics-module-actions button{width:100%}.analytics-session-summary{grid-template-columns:1fr}.analytics-session-facts{grid-template-columns:1fr 1fr}.analytics-session-funnel{grid-template-columns:1fr 1fr}.analytics-session-event,.analytics-session-event.readable{grid-template-columns:1fr}.usage-controls{align-items:stretch}.usage-view-switch,.usage-filter-controls{width:100%}.usage-filter-controls label{min-width:0;flex:1 1 140px}.usage-filter-controls select{width:100%}}
   @media(max-width:760px){.analytics-event-filter-options{grid-template-columns:1fr}.analytics-event-filter-mode{grid-template-columns:1fr}.analytics-event-filter-menu{padding:7px}}
-</style>
+
+    /* Protezione OL: leggibilità anagrafica nazionale (solo #supplierRegistryPanel). */
+    #supplierRegistryPanel .panel-head h3{font-size:19px;line-height:1.3}
+    #supplierRegistryPanel .panel-head small{font-size:13px;line-height:1.5;color:#495e55}
+    #supplierRegistryPanel .supplier-browser{padding:16px}
+    #supplierRegistryPanel .supplier-registry-toolbar input{min-height:46px;font-size:14px}
+    #supplierRegistryPanel .supplier-directory-head{margin:12px 0 10px}
+    #supplierRegistryPanel .supplier-directory-head strong{font-size:12px;letter-spacing:.045em}
+    #supplierRegistryPanel .supplier-picker-hint{font-size:12px}
+    #supplierRegistryPanel .supplier-registry-directory{height:355px;padding:5px}
+    #supplierRegistryPanel .supplier-registry-directory .supplier-directory-option{min-height:62px;padding:12px 15px;gap:12px}
+    #supplierRegistryPanel .supplier-registry-directory .supplier-directory-option strong{font-size:16px;line-height:1.35}
+    #supplierRegistryPanel .supplier-registry-directory .supplier-directory-option small{font-size:12px;line-height:1.45;white-space:normal;text-align:right;max-width:56%}
+    #supplierRegistryPanel .supplier-registry-directory .supplier-directory-option[aria-selected="true"]{box-shadow:inset 5px 0 0 #197457}
+    #supplierRegistryPanel .supplier-registry-directory .supplier-directory-option:focus-visible{outline:2px solid #197457;outline-offset:-2px}
+    #supplierRegistryPanel .supplier-selected{margin-top:16px}
+    #supplierRegistryPanel .supplier-selected-title strong{font-size:19px}
+    #supplierRegistryPanel .supplier-selected-title small{font-size:12px}
+    #supplierRegistryPanel .supplier-registry-detail span{font-size:11px}
+    #supplierRegistryPanel .supplier-registry-detail strong{font-size:13px}
+    #supplierRegistryPanel .supplier-registry-detail small{font-size:12px}
+    #supplierRegistryPanel .supplier-registry-overview{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-top:16px;padding:0;text-align:left}
+    #supplierRegistryPanel .supplier-registry-overview>div{border:1px solid #dce9e2;border-radius:11px;background:#f5faf7;padding:15px}
+    #supplierRegistryPanel .supplier-registry-overview strong{display:block;font-size:24px;line-height:1.2;color:#164e3a}
+    #supplierRegistryPanel .supplier-registry-overview span{display:block;margin-top:5px;font-size:13px;line-height:1.4;color:#40584d}
+    #supplierRegistryPanel .supplier-registry-empty-title{font-size:16px;font-weight:800;color:var(--text);margin-top:14px}
+    #supplierRegistryPanel .supplier-registry-empty-copy{font-size:13px;line-height:1.5;margin-top:5px}
+    #supplierRegistryPanel .supplier-number-note{font-size:12px;line-height:1.5}
+    @media(max-width:680px){#supplierRegistryPanel .supplier-registry-overview{grid-template-columns:1fr}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option{align-items:flex-start;flex-direction:column;gap:4px}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option small{max-width:100%;text-align:left}}
+  </style>
 </head>
 <body>
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.53</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.55</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -126,7 +155,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.53</div>
+      <div class="version">Control Center Staff v0.37.55</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -178,7 +207,15 @@
               </div>
               <div class="supplier-registry-actions" id="supplierRegistryActions"></div>
             </section>
-            <div class="supplier-number-empty" id="supplierRegistryEmpty"><strong>Seleziona un fornitore</strong>Da qui puoi verificare l’anagrafica nazionale, aprire i numeri e collegare il fornitore a Offerta Logica senza duplicarlo.</div>
+            <div class="supplier-number-empty" id="supplierRegistryEmpty" aria-live="polite">
+              <div class="supplier-registry-overview" id="supplierRegistryOverview">
+                <div><strong id="supplierRegistryOverviewTotal">—</strong><span>Fornitori in anagrafica</span></div>
+                <div><strong id="supplierRegistryOverviewPartners">—</strong><span>Collaborazioni OL registrate</span></div>
+                <div><strong id="supplierRegistryOverviewNumbers">—</strong><span>Fornitori con numeri verificati</span></div>
+              </div>
+              <div class="supplier-registry-empty-title">Seleziona un fornitore dall’elenco</div>
+              <div class="supplier-registry-empty-copy">Visualizza anagrafica, numeri e collaborazione OL senza creare duplicati.</div>
+            </div>
           </div>
           <div class="side-note supplier-number-note">La presenza nell’archivio nazionale Protezione non significa che il fornitore sia partner Offerta Logica. Numeri, coperture territoriali, offerte nel comparatore e collaborazione OL restano informazioni separate.</div>
         </section>
@@ -530,7 +567,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.53"></script>
+<script src="/staff.js?v=0.37.55"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -635,7 +672,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.53";
+    const CURRENT_RELEASE="0.37.55";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};

@@ -904,7 +904,8 @@
       const numbersCount = Number(item?.numbers_total || 0);
       const coverageCount = Number(item?.coverage_records || 0);
       const coverageText = coverageCount ? ` · ${coverageCount} ${coverageCount === 1 ? "copertura" : "coperture"}` : "";
-      const meta = `Archivio nazionale · ${numbersCount} ${numbersCount === 1 ? "numero" : "numeri"}${coverageText}`;
+      const status = item?.partner_id && item?.partner_active !== false ? "Partner OL · " : "";
+      const meta = `${status}${numbersCount} ${numbersCount === 1 ? "numero" : "numeri"}${coverageText}`;
       const option = node("button", {
         className: `supplier-directory-option${index === supplierRegistryActiveIndex ? " is-active" : ""}`,
         type: "button",
@@ -943,6 +944,10 @@
 
   function renderSupplierRegistry() {
     renderSupplierRegistryDirectory();
+    const registryEntries = Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : [];
+    text(byId("supplierRegistryOverviewTotal"), String(registryEntries.length));
+    text(byId("supplierRegistryOverviewPartners"), String(registryEntries.filter(row => row?.partner_id && row?.partner_active !== false).length));
+    text(byId("supplierRegistryOverviewNumbers"), String(registryEntries.filter(row => Number(row?.numbers_verified || 0) > 0).length));
     const item = registrySupplierById();
     const selected = byId("supplierRegistrySelected");
     const empty = byId("supplierRegistryEmpty");
