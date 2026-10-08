@@ -1616,12 +1616,32 @@
     setHidden(byId("supplierNumberNew"), !isOwner() || !selectedSupplierKey);
     setHidden(byId("supplierNumberEditor"), !isOwner() || byId("supplierNumberEditor")?.hidden !== false);
     if (!silent) setMessage("info", "Aggiornamento archivio numeri…");
-    const { data, error } = await client.rpc("staff_supplier_numbers", { p_search: "", p_limit: 500 });
-    if (error) throw error;
-    cache.supplierNumbers = Array.isArray(data) ? data : [];
-    renderSupplierRegistry();
-    renderSupplierNumbers();
-    if (!silent) setMessage("success", "Archivio numeri aggiornato.");
+    // Protezione OL: acquisizione completa, con pagine stabili lato database.
+    // Aggiorna la cache solo dopo che tutte le pagine sono state lette con successo.
+    const pageSize = 400;
+    const rows = [];
+    const ids = new Set();
+    for (let page = 0; page < 100; page += 1) {
+      const { data, error } = await client.rpc("staff_supplier_numbers", {
+        p_search: "", p_limit: pageSize, p_offset: page * pageSize,
+      });
+      if (error) throw error;
+      const batch = Array.isArray(data) ? data : [];
+      for (const item of batch) {
+        const id = String(item?.id || "");
+        if (id && ids.has(id)) throw new Error("supplier_numbers_duplicate_page_record");
+        if (id) ids.add(id);
+        rows.push(item);
+      }
+      if (batch.length < pageSize) {
+        cache.supplierNumbers = rows;
+        renderSupplierRegistry();
+        renderSupplierNumbers();
+        if (!silent) setMessage("success", `Archivio numeri aggiornato: ${rows.length} recapiti.`);
+        return;
+      }
+    }
+    throw new Error("supplier_numbers_pagination_safety_limit");
   }
 
   function leadSearchText(lead) {
