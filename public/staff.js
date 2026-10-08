@@ -35,6 +35,8 @@
   let supplierPickerActiveIndex = -1;
   let selectedRegistrySupplierId = "";
   let supplierRegistryActiveIndex = -1;
+  let supplierRegistryVisibleCount = 120;
+  const SUPPLIER_REGISTRY_PAGE_SIZE = 120;
 
   const cache = {
     leads: [],
@@ -863,6 +865,7 @@
     if (index < 0) index = items.length - 1;
 
     supplierRegistryActiveIndex = index;
+    supplierRegistryVisibleCount = Math.max(supplierRegistryVisibleCount, index + 1);
     renderSupplierRegistryDirectory();
     const option = byId(`supplierRegistryOption-${index}`);
     option?.scrollIntoView({ block: "start" });
@@ -895,11 +898,12 @@
     text(byId("supplierRegistryHint"), `${items.length} ${items.length === 1 ? "fornitore" : "fornitori"}${String(byId("supplierRegistrySearch")?.value || "").trim() ? " trovati" : " nell’archivio nazionale"}`);
     if (!items.length) {
       target.append(node("div", { className: "supplier-number-empty", text: "Nessun fornitore corrispondente." }));
+      if (byId("supplierRegistryMore")) byId("supplierRegistryMore").hidden = true;
       return;
     }
     if (supplierRegistryActiveIndex < 0) supplierRegistryActiveIndex = 0;
     if (supplierRegistryActiveIndex >= items.length) supplierRegistryActiveIndex = items.length - 1;
-    items.forEach((item, index) => {
+    items.slice(0, supplierRegistryVisibleCount).forEach((item, index) => {
       const selected = String(item?.supplier_id || "") === selectedRegistrySupplierId;
       const numbersCount = Number(item?.numbers_total || 0);
       const coverageCount = Number(item?.coverage_records || 0);
@@ -921,6 +925,12 @@
       option.addEventListener("click", () => selectRegistrySupplier(item.supplier_id));
       target.append(option);
     });
+    const more = byId("supplierRegistryMore");
+    if (more) {
+      const remaining = Math.max(0, items.length - supplierRegistryVisibleCount);
+      more.hidden = remaining === 0;
+      more.textContent = `Mostra altri fornitori (${remaining} rimanenti)`;
+    }
   }
 
   function moveSupplierRegistryActive(delta) {
@@ -929,6 +939,7 @@
     supplierRegistryActiveIndex = supplierRegistryActiveIndex < 0
       ? (delta > 0 ? 0 : items.length - 1)
       : Math.max(0, Math.min(items.length - 1, supplierRegistryActiveIndex + delta));
+    supplierRegistryVisibleCount = Math.max(supplierRegistryVisibleCount, supplierRegistryActiveIndex + 1);
     renderSupplierRegistryDirectory();
     byId(`supplierRegistryOption-${supplierRegistryActiveIndex}`)?.scrollIntoView({ block: "nearest" });
   }
@@ -1171,6 +1182,7 @@
     if (error) throw error;
     cache.protectionSuppliers = Array.isArray(data) ? data : [];
     if (selectedRegistrySupplierId && !registrySupplierById(selectedRegistrySupplierId)) selectedRegistrySupplierId = "";
+    supplierRegistryVisibleCount = 120;
     renderSupplierRegistry();
     renderSupplierNumbers();
     if (!silent) setMessage("success", "Anagrafica fornitori aggiornata.");
@@ -6497,14 +6509,15 @@
         event.preventDefault();
       }
     });
-    byId("supplierRegistrySearch")?.addEventListener("input", () => { supplierRegistryActiveIndex = 0; renderSupplierRegistry(); });
+    byId("supplierRegistrySearch")?.addEventListener("input", () => { supplierRegistryActiveIndex = 0; supplierRegistryVisibleCount = SUPPLIER_REGISTRY_PAGE_SIZE; renderSupplierRegistry(); });
+    byId("supplierRegistryMore")?.addEventListener("click", () => { supplierRegistryVisibleCount += SUPPLIER_REGISTRY_PAGE_SIZE; renderSupplierRegistryDirectory(); });
     byId("supplierRegistrySearch")?.addEventListener("keydown", event => { if (event.key === "Enter" && chooseSupplierRegistryActive()) event.preventDefault(); });
     byId("supplierRegistryResults")?.addEventListener("keydown", event => {
       if (event.key === "ArrowDown") { event.preventDefault(); moveSupplierRegistryActive(1); }
       else if (event.key === "ArrowUp") { event.preventDefault(); moveSupplierRegistryActive(-1); }
       else if (event.key === "Enter" || event.key === " ") { if (chooseSupplierRegistryActive()) event.preventDefault(); }
       else if (event.key === "Home") { supplierRegistryActiveIndex = 0; renderSupplierRegistryDirectory(); byId("supplierRegistryOption-0")?.scrollIntoView({ block: "nearest" }); event.preventDefault(); }
-      else if (event.key === "End") { const items = supplierRegistryItems(); supplierRegistryActiveIndex = Math.max(0, items.length - 1); renderSupplierRegistryDirectory(); byId(`supplierRegistryOption-${supplierRegistryActiveIndex}`)?.scrollIntoView({ block: "nearest" }); event.preventDefault(); }
+      else if (event.key === "End") { const items = supplierRegistryItems(); supplierRegistryActiveIndex = Math.max(0, items.length - 1); supplierRegistryVisibleCount = Math.max(supplierRegistryVisibleCount, items.length); renderSupplierRegistryDirectory(); byId(`supplierRegistryOption-${supplierRegistryActiveIndex}`)?.scrollIntoView({ block: "nearest" }); event.preventDefault(); }
     });
     byId("supplierRegistryEditorClose")?.addEventListener("click", closeSupplierRegistryEditor);
     byId("supplierRegistryCancel")?.addEventListener("click", closeSupplierRegistryEditor);

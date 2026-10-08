@@ -84,7 +84,7 @@
     #supplierRegistryPanel .supplier-registry-empty-copy{font-size:13px;line-height:1.5;margin-top:5px}
     #supplierRegistryPanel .supplier-number-note{font-size:12px;line-height:1.5}
     @media(max-width:680px){#supplierRegistryPanel .supplier-registry-overview{grid-template-columns:1fr}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option{align-items:flex-start;flex-direction:column;gap:4px}#supplierRegistryPanel .supplier-registry-directory .supplier-directory-option small{max-width:100%;text-align:left}}
-    /* Protezione OL v0.37.56: scala tipografica e spazi coerenti nei due registri. */
+    /* Protezione OL v0.37.57: scala tipografica e spazi coerenti nei due registri. */
     #supplierRegistryPanel .supplier-browser,#supplierNumbersPanel .supplier-browser{padding:12px 14px}
     #supplierRegistryPanel .panel-head h3,#supplierNumbersPanel .panel-head h3{font-size:19px;line-height:1.3}
     #supplierRegistryPanel .panel-head small,#supplierNumbersPanel .panel-head small{font-size:13px;line-height:1.4;color:#495e55}
@@ -123,7 +123,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.56</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.57</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -188,7 +188,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.56</div>
+      <div class="version">Control Center Staff v0.37.57</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -228,6 +228,7 @@
             <div class="toolbar supplier-registry-toolbar"><input class="supplier-registry-jump" id="supplierRegistryJump" type="search" autocomplete="off" placeholder="Vai a… es. EN, MAG, VUS" aria-label="Vai rapidamente a un fornitore per iniziali"><input id="supplierRegistrySearch" type="search" placeholder="Filtra per nome, ragione sociale, P.IVA, dominio o alias" aria-label="Filtra fornitori nell'anagrafica nazionale"></div>
             <div class="supplier-directory-head"><strong>Fornitori in ordine alfabetico</strong><span class="supplier-picker-hint" id="supplierRegistryHint">Caricamento…</span></div>
             <div class="supplier-directory supplier-registry-directory" id="supplierRegistryResults" role="listbox" tabindex="0" aria-label="Anagrafica nazionale fornitori"></div>
+            <button class="button secondary compact" id="supplierRegistryMore" type="button" hidden style="margin-top:9px">Mostra altri fornitori</button>
             <section class="supplier-selected" id="supplierRegistrySelected" hidden>
               <div class="supplier-selected-head">
                 <div class="supplier-selected-title"><strong id="supplierRegistrySelectedName">Fornitore</strong><small id="supplierRegistrySelectedKey">—</small></div>
@@ -600,7 +601,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.56"></script>
+<script src="/staff.js?v=0.37.57"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -705,7 +706,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.56";
+    const CURRENT_RELEASE="0.37.57";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
