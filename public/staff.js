@@ -33,12 +33,15 @@
   let analyticsSessionRows = [];
   let selectedSupplierKey = "";
   let supplierPickerActiveIndex = -1;
+  let selectedRegistrySupplierId = "";
+  let supplierRegistryActiveIndex = -1;
 
   const cache = {
     leads: [],
     leadSummary: {},
     protection: [],
     protectionTimeline: [],
+    protectionSuppliers: [],
     supplierNumbers: [],
     analytics: [],
     analyticsSummary: {},
@@ -456,6 +459,14 @@
     if (message.includes("premium_staff_update_failed")) return "Aggiornamento collaboratore non riuscito.";
     if (message.includes("premium_staff_auth_user_exists")) return "Esiste già un account Auth con questa email. Usa “Aggiungi esistente”.";
     if (message.includes("premium_staff_invite_redirect_invalid")) return "Origine Staff non valida per il link di invito.";
+    if (message.includes("supplier_duplicate_vat")) return "Esiste già un fornitore con questa P.IVA.";
+    if (message.includes("supplier_duplicate_domain")) return "Esiste già un fornitore con questo dominio web.";
+    if (message.includes("supplier_duplicate_name")) return "Esiste già un fornitore con questo nome.";
+    if (message.includes("supplier_not_found_create_supplier_first")) return "Prima crea o seleziona il fornitore nell’anagrafica nazionale.";
+    if (message.includes("supplier_not_found")) return "Fornitore non trovato nell’anagrafica nazionale.";
+    if (message.includes("invalid_supplier_key")) return "Chiave fornitore non valida. Usa lettere minuscole, numeri e trattini.";
+    if (message.includes("supplier_service_required")) return "Indica almeno uno tra luce e gas.";
+    if (message.includes("invalid_relationship_type")) return "Tipo di collaborazione OL non valido.";
     if (message.includes("premium_staff_invite_failed")) return "Supabase non ha inviato l’invito. Controlla configurazione email e Redirect URLs.";
     if (message.includes("premium_staff_membership_create_failed")) return "Invito annullato: non è stato possibile creare il ruolo Staff.";
     if (message.includes("supabase_admin_configuration_missing")) return "La funzione inviti Staff non ha le credenziali backend Supabase.";
@@ -744,8 +755,10 @@
     if (restricted) {
       cache.protection = [];
       cache.protectionTimeline = [];
+      cache.protectionSuppliers = [];
       cache.supplierNumbers = [];
       renderProtectionMetrics();
+      renderSupplierRegistry();
       renderSupplierNumbers();
       return;
     }
@@ -761,8 +774,354 @@
     cache.protectionTimeline = [];
     if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true;
     renderProtection();
-    await loadSupplierNumbers({ silent: true });
+    await Promise.all([
+      loadProtectionSuppliers({ silent: true }),
+      loadSupplierNumbers({ silent: true }),
+    ]);
     if (!silent) setMessage("success", "Protezione OL aggiornata.");
+  }
+
+
+  function supplierRelationshipLabel(value) {
+    return ({
+      direct_affiliate: "Affiliato diretto",
+      commercial_partner: "Partner commerciale",
+      network_partner: "Partner di rete",
+    })[String(value || "").trim().toLowerCase()] || String(value || "—");
+  }
+
+  function normalizeSupplierKey(value) {
+    return String(value || "")
+      .normalize("NFKD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, "-")
+      .replace(/^-+|-+$/g, "")
+      .slice(0, 80);
+  }
+
+  function normalizeWebsiteDomain(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    if (!raw) return "";
+    try {
+      const url = new URL(raw.includes("://") ? raw : `https://${raw}`);
+      return url.hostname.replace(/^www\./, "").toLowerCase();
+    } catch {
+      return raw.replace(/^https?:\/\//, "").replace(/^www\./, "").split(/[/?#]/)[0].trim();
+    }
+  }
+
+  function supplierRegistrySearchText(item) {
+    return [
+      item?.display_name,
+      item?.legal_name,
+      item?.supplier_key,
+      item?.vat_number,
+      item?.website_domain,
+      ...(Array.isArray(item?.aliases) ? item.aliases : []),
+    ].filter(Boolean).join(" ").toLowerCase();
+  }
+
+  function supplierRegistryItems() {
+    const search = String(byId("supplierRegistrySearch")?.value || "").trim().toLowerCase();
+    return (Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : [])
+      .filter(item => !search || supplierRegistrySearchText(item).includes(search))
+      .slice()
+      .sort((a, b) => String(a?.display_name || a?.supplier_key || "").localeCompare(String(b?.display_name || b?.supplier_key || ""), "it", { sensitivity: "base" }));
+  }
+
+  function registrySupplierById(id = selectedRegistrySupplierId) {
+    const key = String(id || "");
+    return (Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : []).find(item => String(item?.supplier_id || "") === key) || null;
+  }
+
+  function selectRegistrySupplier(id) {
+    const item = registrySupplierById(id);
+    if (!item) return;
+    selectedRegistrySupplierId = String(item.supplier_id || "");
+    const items = supplierRegistryItems();
+    supplierRegistryActiveIndex = Math.max(0, items.findIndex(row => String(row?.supplier_id || "") === selectedRegistrySupplierId));
+    renderSupplierRegistry();
+  }
+
+  function renderSupplierRegistryDirectory() {
+    const target = byId("supplierRegistryResults");
+    if (!target) return;
+    const items = supplierRegistryItems();
+    clear(target);
+    text(byId("supplierRegistryHint"), `${items.length} ${items.length === 1 ? "fornitore" : "fornitori"}${String(byId("supplierRegistrySearch")?.value || "").trim() ? " trovati" : " in archivio"}`);
+    if (!items.length) {
+      target.append(node("div", { className: "supplier-number-empty", text: "Nessun fornitore corrispondente." }));
+      return;
+    }
+    if (supplierRegistryActiveIndex < 0) supplierRegistryActiveIndex = 0;
+    if (supplierRegistryActiveIndex >= items.length) supplierRegistryActiveIndex = items.length - 1;
+    items.forEach((item, index) => {
+      const selected = String(item?.supplier_id || "") === selectedRegistrySupplierId;
+      const meta = item?.partner_id
+        ? `${supplierRelationshipLabel(item.relationship_type)}${item.partner_active === false ? " · inattivo" : ""}`
+        : `${Number(item?.numbers_total || 0)} ${Number(item?.numbers_total || 0) === 1 ? "numero" : "numeri"}`;
+      const option = node("button", {
+        className: `supplier-directory-option${index === supplierRegistryActiveIndex ? " is-active" : ""}`,
+        type: "button",
+        attrs: {
+          role: "option",
+          id: `supplierRegistryOption-${index}`,
+          "aria-selected": selected ? "true" : "false",
+        },
+      }, [
+        node("strong", { text: item?.display_name || item?.supplier_key || "Fornitore" }),
+        node("small", { text: meta }),
+      ]);
+      option.addEventListener("click", () => selectRegistrySupplier(item.supplier_id));
+      target.append(option);
+    });
+  }
+
+  function moveSupplierRegistryActive(delta) {
+    const items = supplierRegistryItems();
+    if (!items.length) return;
+    supplierRegistryActiveIndex = supplierRegistryActiveIndex < 0
+      ? (delta > 0 ? 0 : items.length - 1)
+      : Math.max(0, Math.min(items.length - 1, supplierRegistryActiveIndex + delta));
+    renderSupplierRegistryDirectory();
+    byId(`supplierRegistryOption-${supplierRegistryActiveIndex}`)?.scrollIntoView({ block: "nearest" });
+  }
+
+  function chooseSupplierRegistryActive() {
+    const items = supplierRegistryItems();
+    if (!items.length) return false;
+    const index = supplierRegistryActiveIndex >= 0 ? supplierRegistryActiveIndex : 0;
+    if (!items[index]) return false;
+    selectRegistrySupplier(items[index].supplier_id);
+    return true;
+  }
+
+  function renderSupplierRegistry() {
+    renderSupplierRegistryDirectory();
+    const item = registrySupplierById();
+    const selected = byId("supplierRegistrySelected");
+    const empty = byId("supplierRegistryEmpty");
+    const detail = byId("supplierRegistryDetail");
+    const meta = byId("supplierRegistrySelectedMeta");
+    const actions = byId("supplierRegistryActions");
+    clear(detail);
+    clear(meta);
+    clear(actions);
+
+    if (!item) {
+      if (selected) selected.hidden = true;
+      if (empty) empty.hidden = false;
+      return;
+    }
+    if (selected) selected.hidden = false;
+    if (empty) empty.hidden = true;
+    text(byId("supplierRegistrySelectedName"), item.display_name || item.supplier_key || "Fornitore");
+    text(byId("supplierRegistrySelectedKey"), item.supplier_key || "—");
+
+    if (item.supplier_active === false) meta?.append(badge("Fornitore inattivo", "danger"));
+    if (item.partner_id) meta?.append(badge(item.partner_active === false ? "Collaborazione inattiva" : "Partner OL", item.partner_active === false ? "danger" : "ok"));
+    else meta?.append(badge("Non partner OL", ""));
+    if (item.offers_pipeline_enabled) meta?.append(badge("Pipeline offerte", "ok"));
+    if (Number(item.numbers_verified || 0)) meta?.append(badge(`${Number(item.numbers_verified || 0)} numeri verificati`, "ok"));
+
+    const identity = node("div", {}, [
+      node("span", { text: "Anagrafica" }),
+      node("strong", { text: item.legal_name || item.display_name || "—" }),
+      node("small", { text: item.vat_number ? `P.IVA ${item.vat_number}` : "P.IVA non registrata" }),
+    ]);
+    const web = node("div", {}, [
+      node("span", { text: "Sito / servizi" }),
+      node("strong", { text: item.website_domain || "Dominio non registrato" }),
+      node("small", { text: [item.electricity ? "Luce" : "", item.gas ? "Gas" : ""].filter(Boolean).join(" · ") || "Servizi non indicati" }),
+    ]);
+    const ol = node("div", {}, [
+      node("span", { text: "Offerta Logica" }),
+      node("strong", { text: item.partner_id ? supplierRelationshipLabel(item.relationship_type) : "Nessuna collaborazione" }),
+      node("small", { text: item.partner_id
+        ? (item.offers_pipeline_enabled ? `Cartella offerte: ${item.offers_folder_slug || item.supplier_key}` : "Pipeline offerte non attiva")
+        : "Può essere collegato senza duplicare il fornitore" }),
+    ]);
+    const archive = node("div", {}, [
+      node("span", { text: "Archivio Protezione" }),
+      node("strong", { text: `${Number(item.numbers_total || 0)} numeri · ${Number(item.coverage_records || 0)} coperture` }),
+      node("small", { text: item.supplier_last_verified_at ? `Ultima verifica ${formatDate(item.supplier_last_verified_at)}` : "Verifica anagrafica non registrata" }),
+    ]);
+    detail?.append(identity, web, ol, archive);
+
+    const openNumbers = node("button", { className: "button secondary compact", type: "button", text: "Apri numeri" });
+    openNumbers.addEventListener("click", () => {
+      selectedSupplierKey = String(item.supplier_key || "").toLowerCase();
+      renderSupplierNumbers();
+      byId("supplierNumbersPanel")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+    actions?.append(openNumbers);
+
+    if (isOwner()) {
+      const edit = node("button", { className: "button secondary compact", type: "button", text: "Modifica anagrafica" });
+      edit.addEventListener("click", () => openSupplierRegistryEditor(item));
+      const partner = node("button", { className: "button primary compact", type: "button", text: item.partner_id ? "Modifica collaborazione OL" : "Collega a Offerta Logica" });
+      partner.addEventListener("click", () => openSupplierPartnerEditor(item));
+      const addNumber = node("button", { className: "button secondary compact", type: "button", text: "Aggiungi numero" });
+      addNumber.addEventListener("click", () => {
+        selectedSupplierKey = String(item.supplier_key || "").toLowerCase();
+        openSupplierNumberEditor(null, item);
+      });
+      actions?.append(edit, partner, addNumber);
+    }
+  }
+
+  function closeSupplierRegistryEditor() {
+    if (byId("supplierRegistryEditor")) byId("supplierRegistryEditor").hidden = true;
+    byId("supplierRegistryForm")?.reset();
+    if (byId("supplierRegistryId")) byId("supplierRegistryId").value = "";
+  }
+
+  function openSupplierRegistryEditor(item = null) {
+    if (!isOwner()) {
+      setMessage("error", "La gestione dell’anagrafica fornitori è riservata al Proprietario con MFA.");
+      return;
+    }
+    const panel = byId("supplierRegistryEditor");
+    if (!panel) return;
+    text(byId("supplierRegistryEditorTitle"), item ? `Modifica · ${item.display_name || item.supplier_key}` : "Nuovo fornitore nazionale");
+    byId("supplierRegistryId").value = item?.supplier_id || "";
+    byId("supplierRegistryKey").value = item?.supplier_key || "";
+    byId("supplierRegistryKey").readOnly = Boolean(item?.supplier_id);
+    byId("supplierRegistryName").value = item?.display_name || "";
+    byId("supplierRegistryLegalName").value = item?.legal_name || "";
+    byId("supplierRegistryVat").value = item?.vat_number || "";
+    byId("supplierRegistryWebsite").value = item?.website_url || "";
+    byId("supplierRegistryDomain").value = item?.website_domain || "";
+    byId("supplierRegistryAliases").value = Array.isArray(item?.aliases) ? item.aliases.join(", ") : "";
+    byId("supplierRegistryElectricity").checked = item ? item.electricity !== false : true;
+    byId("supplierRegistryGas").checked = item ? item.gas !== false : true;
+    byId("supplierRegistryActive").checked = item ? item.supplier_active !== false : true;
+    byId("supplierRegistrySource").value = item?.source_reference || "";
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    window.setTimeout(() => byId("supplierRegistryName")?.focus(), 0);
+  }
+
+  async function saveSupplierRegistry(event) {
+    event?.preventDefault();
+    if (!isOwner() || busy) return;
+    const id = String(byId("supplierRegistryId")?.value || "").trim() || null;
+    const displayName = String(byId("supplierRegistryName")?.value || "").trim();
+    const keyInput = String(byId("supplierRegistryKey")?.value || "").trim();
+    const supplierKey = id ? keyInput : (keyInput || normalizeSupplierKey(displayName));
+    if (!displayName || !/^[a-z0-9][a-z0-9-]{1,79}$/.test(supplierKey)) {
+      setMessage("error", "Inserisci il nome del fornitore; la chiave deve contenere solo lettere minuscole, numeri e trattini.");
+      return;
+    }
+    const websiteUrl = String(byId("supplierRegistryWebsite")?.value || "").trim() || null;
+    const websiteDomain = normalizeWebsiteDomain(String(byId("supplierRegistryDomain")?.value || "").trim() || websiteUrl || "") || null;
+    const aliases = String(byId("supplierRegistryAliases")?.value || "")
+      .split(",")
+      .map(value => value.trim())
+      .filter(Boolean);
+    setBusy(true);
+    setMessage("info", id ? "Aggiornamento anagrafica fornitore…" : "Creazione fornitore…");
+    try {
+      const { data, error } = await client.rpc("owner_protection_supplier_upsert", {
+        p_id: id,
+        p_supplier_key: supplierKey,
+        p_display_name: displayName,
+        p_legal_name: String(byId("supplierRegistryLegalName")?.value || "").trim() || null,
+        p_vat_number: String(byId("supplierRegistryVat")?.value || "").trim() || null,
+        p_website_url: websiteUrl,
+        p_website_domain: websiteDomain,
+        p_aliases: aliases,
+        p_electricity: Boolean(byId("supplierRegistryElectricity")?.checked),
+        p_gas: Boolean(byId("supplierRegistryGas")?.checked),
+        p_source_reference: String(byId("supplierRegistrySource")?.value || "").trim() || null,
+        p_active: Boolean(byId("supplierRegistryActive")?.checked),
+      });
+      if (error) throw error;
+      selectedRegistrySupplierId = String(data || id || "");
+      closeSupplierRegistryEditor();
+      await Promise.all([loadProtectionSuppliers({ silent: true }), loadSupplierNumbers({ silent: true })]);
+      setMessage("success", id ? "Anagrafica fornitore aggiornata." : "Fornitore creato nell’anagrafica nazionale.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  function closeSupplierPartnerEditor() {
+    if (byId("supplierPartnerEditor")) byId("supplierPartnerEditor").hidden = true;
+    byId("supplierPartnerForm")?.reset();
+    if (byId("supplierPartnerSupplierId")) byId("supplierPartnerSupplierId").value = "";
+  }
+
+  function openSupplierPartnerEditor(item) {
+    if (!isOwner()) {
+      setMessage("error", "La gestione delle collaborazioni OL è riservata al Proprietario con MFA.");
+      return;
+    }
+    if (!item?.supplier_id) return;
+    const panel = byId("supplierPartnerEditor");
+    if (!panel) return;
+    text(byId("supplierPartnerEditorTitle"), item.partner_id ? `Collaborazione OL · ${item.display_name}` : `Collega a OL · ${item.display_name}`);
+    text(byId("supplierPartnerSupplierName"), item.display_name || item.supplier_key || "Fornitore");
+    byId("supplierPartnerSupplierId").value = item.supplier_id;
+    byId("supplierPartnerRelationship").value = item.relationship_type || "commercial_partner";
+    byId("supplierPartnerAgreement").value = item.agreement_reference || "";
+    byId("supplierPartnerLeadAllowed").checked = item.partner_id ? item.ol_lead_contact_allowed === true : true;
+    byId("supplierPartnerNumbersRequired").checked = item.partner_id ? item.declared_numbers_required !== false : true;
+    byId("supplierPartnerPipeline").checked = item.partner_id ? item.offers_pipeline_enabled === true : true;
+    byId("supplierPartnerValidFrom").value = toLocalDateTimeInput(item.partner_valid_from);
+    byId("supplierPartnerValidUntil").value = toLocalDateTimeInput(item.partner_valid_until);
+    byId("supplierPartnerActive").checked = item.partner_id ? item.partner_active !== false : true;
+    text(byId("supplierPartnerFolderPreview"), item.offers_folder_slug || item.supplier_key || "—");
+    panel.hidden = false;
+    panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
+  }
+
+  async function saveSupplierPartner(event) {
+    event?.preventDefault();
+    if (!isOwner() || busy) return;
+    const supplierId = String(byId("supplierPartnerSupplierId")?.value || "").trim();
+    if (!supplierId) {
+      setMessage("error", "Seleziona un fornitore dall’anagrafica.");
+      return;
+    }
+    setBusy(true);
+    setMessage("info", "Salvataggio collaborazione Offerta Logica…");
+    try {
+      const { error } = await client.rpc("owner_protection_partner_upsert", {
+        p_supplier_id: supplierId,
+        p_relationship_type: String(byId("supplierPartnerRelationship")?.value || "commercial_partner"),
+        p_agreement_reference: String(byId("supplierPartnerAgreement")?.value || "").trim() || null,
+        p_ol_lead_contact_allowed: Boolean(byId("supplierPartnerLeadAllowed")?.checked),
+        p_declared_numbers_required: Boolean(byId("supplierPartnerNumbersRequired")?.checked),
+        p_offers_pipeline_enabled: Boolean(byId("supplierPartnerPipeline")?.checked),
+        p_valid_from: toRpcTimestamp(byId("supplierPartnerValidFrom")?.value),
+        p_valid_until: toRpcTimestamp(byId("supplierPartnerValidUntil")?.value),
+        p_active: Boolean(byId("supplierPartnerActive")?.checked),
+      });
+      if (error) throw error;
+      closeSupplierPartnerEditor();
+      await loadProtectionSuppliers({ silent: true });
+      setMessage("success", "Collaborazione OL salvata. Se la pipeline offerte è attiva, il sincronizzatore Mac creerà la struttura del fornitore senza cancellare cartelle esistenti.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function loadProtectionSuppliers({ silent = false } = {}) {
+    if (!isAdmin()) {
+      cache.protectionSuppliers = [];
+      renderSupplierRegistry();
+      return;
+    }
+    setHidden(byId("supplierRegistryNew"), !isOwner());
+    if (!silent) setMessage("info", "Aggiornamento anagrafica fornitori…");
+    const { data, error } = await client.rpc("staff_protection_suppliers", { p_search: "", p_limit: 1000 });
+    if (error) throw error;
+    cache.protectionSuppliers = Array.isArray(data) ? data : [];
+    if (selectedRegistrySupplierId && !registrySupplierById(selectedRegistrySupplierId)) selectedRegistrySupplierId = "";
+    renderSupplierRegistry();
+    if (!silent) setMessage("success", "Anagrafica fornitori aggiornata.");
   }
 
 
@@ -1035,18 +1394,29 @@
     if (byId("supplierNumberId")) byId("supplierNumberId").value = "";
   }
 
-  function openSupplierNumberEditor(item = null) {
+  function openSupplierNumberEditor(item = null, supplierOverride = null) {
     if (!isOwner()) {
       setMessage("error", "La gestione dell’archivio numeri è riservata al Proprietario con MFA.");
       return;
     }
     const panel = byId("supplierNumberEditor");
     if (!panel) return;
-    text(byId("supplierNumberEditorTitle"), item ? `Modifica · ${item.supplier_name || item.phone_e164 || "numero"}` : "Nuovo numero fornitore");
-    byId("supplierNumberId").value = item?.id || "";
     const selectedGroup = !item && selectedSupplierKey ? supplierNumberGroups().find(([key]) => key === selectedSupplierKey) : null;
-    byId("supplierNumberKey").value = item?.supplier_key || selectedGroup?.[0] || "";
-    byId("supplierNumberName").value = item?.supplier_name || selectedGroup?.[1]?.[0]?.supplier_name || "";
+    const registrySupplier = supplierOverride || (!item && selectedSupplierKey
+      ? (Array.isArray(cache.protectionSuppliers) ? cache.protectionSuppliers : []).find(row => String(row?.supplier_key || "").toLowerCase() === selectedSupplierKey)
+      : null);
+    const supplierKey = item?.supplier_key || selectedGroup?.[0] || registrySupplier?.supplier_key || "";
+    const supplierName = item?.supplier_name || selectedGroup?.[1]?.[0]?.supplier_name || registrySupplier?.display_name || "";
+    if (!item && (!supplierKey || !supplierName)) {
+      setMessage("error", "Seleziona prima un fornitore dall’anagrafica nazionale o dall’archivio numeri.");
+      return;
+    }
+    text(byId("supplierNumberEditorTitle"), item ? `Modifica · ${supplierName || item.phone_e164 || "numero"}` : `Nuovo numero · ${supplierName}`);
+    byId("supplierNumberId").value = item?.id || "";
+    byId("supplierNumberKey").value = supplierKey;
+    byId("supplierNumberName").value = supplierName;
+    byId("supplierNumberKey").readOnly = true;
+    byId("supplierNumberName").readOnly = true;
     byId("supplierNumberPhone").value = item?.phone_e164 || "";
     byId("supplierNumberLabel").value = item?.phone_label || "";
     byId("supplierNumberType").value = item?.number_type || "unknown";
@@ -1056,7 +1426,7 @@
     byId("supplierNumberValidUntil").value = toLocalDateTimeInput(item?.valid_until);
     panel.hidden = false;
     panel.scrollIntoView({ behavior: "smooth", block: "nearest" });
-    window.setTimeout(() => byId("supplierNumberKey")?.focus(), 0);
+    window.setTimeout(() => byId("supplierNumberPhone")?.focus(), 0);
   }
 
   async function saveSupplierNumber(event) {
@@ -6032,6 +6402,23 @@
     byId("protectionSearch")?.addEventListener("keydown", event => { if (event.key === "Enter") loadProtection().catch(error => setMessage("error", friendlyError(error))); });
     byId("protectionLimit")?.addEventListener("change", () => loadProtection().catch(error => setMessage("error", friendlyError(error))));
     byId("protectionTimelineClose")?.addEventListener("click", () => { if (byId("protectionTimelinePanel")) byId("protectionTimelinePanel").hidden = true; });
+    byId("supplierRegistryRefresh")?.addEventListener("click", () => loadProtectionSuppliers().catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierRegistryNew")?.addEventListener("click", () => openSupplierRegistryEditor());
+    byId("supplierRegistrySearch")?.addEventListener("input", () => { supplierRegistryActiveIndex = 0; renderSupplierRegistry(); });
+    byId("supplierRegistrySearch")?.addEventListener("keydown", event => { if (event.key === "Enter" && chooseSupplierRegistryActive()) event.preventDefault(); });
+    byId("supplierRegistryResults")?.addEventListener("keydown", event => {
+      if (event.key === "ArrowDown") { event.preventDefault(); moveSupplierRegistryActive(1); }
+      else if (event.key === "ArrowUp") { event.preventDefault(); moveSupplierRegistryActive(-1); }
+      else if (event.key === "Enter" || event.key === " ") { if (chooseSupplierRegistryActive()) event.preventDefault(); }
+      else if (event.key === "Home") { supplierRegistryActiveIndex = 0; renderSupplierRegistryDirectory(); byId("supplierRegistryOption-0")?.scrollIntoView({ block: "nearest" }); event.preventDefault(); }
+      else if (event.key === "End") { const items = supplierRegistryItems(); supplierRegistryActiveIndex = Math.max(0, items.length - 1); renderSupplierRegistryDirectory(); byId(`supplierRegistryOption-${supplierRegistryActiveIndex}`)?.scrollIntoView({ block: "nearest" }); event.preventDefault(); }
+    });
+    byId("supplierRegistryEditorClose")?.addEventListener("click", closeSupplierRegistryEditor);
+    byId("supplierRegistryCancel")?.addEventListener("click", closeSupplierRegistryEditor);
+    byId("supplierRegistryForm")?.addEventListener("submit", event => saveSupplierRegistry(event).catch(error => setMessage("error", friendlyError(error))));
+    byId("supplierPartnerEditorClose")?.addEventListener("click", closeSupplierPartnerEditor);
+    byId("supplierPartnerCancel")?.addEventListener("click", closeSupplierPartnerEditor);
+    byId("supplierPartnerForm")?.addEventListener("submit", event => saveSupplierPartner(event).catch(error => setMessage("error", friendlyError(error))));
     byId("supplierNumberRefresh")?.addEventListener("click", () => loadSupplierNumbers().catch(error => setMessage("error", friendlyError(error))));
     byId("supplierNumberSupplierResults")?.addEventListener("keydown", event => {
       if (event.key === "ArrowDown") { event.preventDefault(); moveSupplierPickerActive(1); }
