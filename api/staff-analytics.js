@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.97";
+const VERSION = "0.12.98";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -5006,13 +5006,28 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
       ? String(regeneration.item_id)
       : "";
     if (String(opportunity.status || "") === "completed" && !regenerationItemId) continue;
-    if (evidence?.article_generation_job?.source !== "scheduler") continue;
     if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
     if (!validUuid(String(opportunity.target_article_id || ""))) continue;
 
     const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
     const article = articleRows?.[0] || null;
     if (!article?.id) continue;
+
+    // La preparazione social deve seguire lo stato attuale del ciclo, non soltanto
+    // l'origine storica dell'ultimo job di generazione articolo. Una revisione manuale
+    // riconsegnata all'Autopilota, un ciclo legacy gia' pubblicato e riconosciuto oppure
+    // una rigenerazione social richiesta esplicitamente devono continuare a essere
+    // lavorati dagli heartbeat anche se article_generation_job.source non e' "scheduler".
+    const schedulerGenerated = String(evidence?.article_generation_job?.source || "") === "scheduler";
+    const handedBackToAutopilot = articleAutomationHandoffMatches(opportunity, article);
+    const publishedLegacyCycle = Boolean(
+      String(opportunity.status || "") === "selected"
+      && String(article.status || "") === "published"
+      && String(opportunity.target_article_id || "") === String(article.id || "")
+      && String(evidence?.article_generation?.status || "") === "draft_ready_for_review"
+    );
+    const explicitSocialRegeneration = Boolean(regenerationItemId);
+    if (!schedulerGenerated && !handedBackToAutopilot && !publishedLegacyCycle && !explicitSocialRegeneration) continue;
     const articleImage = articleImageState(opportunity);
     const heroAsset = articleImage.current?.url
       ? articleImage.current
@@ -6116,8 +6131,15 @@ async function schedulerPrepareMissingImage(user) {
   const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
   for (const opportunity of rows || []) {
     const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
-    if (evidence?.article_generation_job?.source !== "scheduler") continue;
     if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+    const schedulerGenerated = String(evidence?.article_generation_job?.source || "") === "scheduler";
+    const handedBackToAutopilot = articleAutomationHandoffMatches(opportunity, article);
+    if (!schedulerGenerated && !handedBackToAutopilot) continue;
 
     const image = articleImageState(opportunity);
     if (image.current?.url) continue;
