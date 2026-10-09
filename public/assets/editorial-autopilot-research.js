@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.94";
+  const VERSION = "0.12.95";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1140,7 +1140,9 @@
     const status = String(run.status || "");
     if (status === "success") {
       const stage = String(run?.details?.stage || "");
-      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending", at };
+      const publicationRun = ["article_publish", "social_followup", "social_related"].includes(String(runType || ""));
+      if (publicationRun && run?.details?.publication_performed !== true) return { label: "in attesa", tone: "pending", at };
+      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending", at };
       return { label: "completato", tone: "success", at };
     }
     if (status === "failed") return { label: "errore", tone: "failed", at };
@@ -1242,6 +1244,8 @@
     const status = String(run.status || "");
     const stage = String(run?.details?.stage || "");
     if (status === "success") {
+      const publicationRun = ["article_publish", "social_followup", "social_related"].includes(String(run?.run_type || ""));
+      if (publicationRun && run?.details?.publication_performed !== true) return { label: "in attesa", tone: "pending" };
       if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
       return { label: "completato", tone: "success" };
     }
@@ -1542,8 +1546,16 @@
     return ({ research: "Ricerca", article_prepare: "Bozza articolo", article_publish: "Pubblicazione articolo", social_followup: "Follow-up", social_related: "Post OffertaLogica" })[type] || type || "Ciclo";
   }
 
-  function automationRunStatusLabel(status) {
-    return ({ success: "Completato", failed: "Errore", running: "In corso" })[status] || status || "—";
+  function automationRunStatusDisplay(run) {
+    const state = runStateLabelFromRun(run) || { label: "—", tone: "pending" };
+    const label = ({
+      "completato": "Completato",
+      "errore": "Errore",
+      "in corso": "In corso",
+      "in attesa": "In attesa",
+    })[state.label] || state.label || "—";
+    const cssStatus = state.tone === "success" ? "success" : state.tone === "failed" ? "failed" : "running";
+    return { label, cssStatus };
   }
 
   function renderAutomationRuns(section) {
@@ -1569,11 +1581,11 @@
       if (details.selection_fallback_below_threshold) diagnostic.push("fallback sotto soglia");
       if (run.opportunity_id) diagnostic.push(`opportunità ${run.opportunity_id}`);
       if (run.article_id) diagnostic.push(`articolo ${run.article_id}`);
-      const status = String(run.status || "unknown");
+      const displayStatus = automationRunStatusDisplay(run);
       return `<details class="ol-cycle-row">
         <summary class="ol-cycle-row-summary">
           <span><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><small>${esc(dateIt(run.started_at || run.created_at))}</small></span>
-          <span class="ol-cycle-status-badge ol-cycle-status-${esc(status)}">${esc(automationRunStatusLabel(status))}</span>
+          <span class="ol-cycle-status-badge ol-cycle-status-${esc(displayStatus.cssStatus)}">${esc(displayStatus.label)}</span>
         </summary>
         <div class="ol-cycle-row-body">
           ${run.finished_at ? `<small>Fine ${esc(dateIt(run.finished_at))}</small>` : ""}
@@ -2150,7 +2162,7 @@
       try {
         await endpoint("review-editorial-social-image", { method: "POST", body: { id, decision } });
         await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
-        if (socialMessage) socialMessage.textContent = "Immagine social validata e card OL Informa pronta.";
+        if (socialMessage) socialMessage.textContent = "Immagine social validata e card OL Informa pronta. Se lo slot era già passato senza pubblicazione, l’Autopilota riprende automaticamente al prossimo tick.";
       } catch (error) {
         if (socialMessage) socialMessage.textContent = `Immagine social non aggiornata: ${error.message}`;
         socialImageReviewButton.disabled = false;

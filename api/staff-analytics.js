@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.94";
+const VERSION = "0.12.95";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -6652,6 +6652,53 @@ function schedulerPlanAssetIsOlInforma(context, item) {
   );
 }
 
+
+async function schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local, schedule) {
+  if (String(settings?.execution_mode || "") !== "automatic") return null;
+  const slots = (Array.isArray(schedule) ? schedule : []).filter((slot) => {
+    if (!["social_followup", "social_related"].includes(String(slot?.kind || ""))) return false;
+    if (Number(slot?.weekday) !== Number(local?.weekday)) return false;
+    const minutes = schedulerSlotMinutes(slot?.time_local);
+    return minutes !== null && Number(local?.minutes) >= minutes;
+  });
+  if (!slots.length) return null;
+
+  const context = await schedulerArticleCycleContext(runs);
+  if (!context?.opportunity?.id || !context?.article?.id) return null;
+
+  for (const slot of slots) {
+    const schedulerKey = `${local.date}:${slot.id}`;
+    const matching = (runs || [])
+      .filter((run) => run?.details?.scheduler_key === schedulerKey)
+      .sort((left, right) => String(right?.created_at || right?.started_at || "").localeCompare(String(left?.created_at || left?.started_at || "")));
+    if (!matching.length) continue;
+    if (matching.some((run) => run?.details?.publication_performed === true)) continue;
+
+    const latestSuccess = matching.find((run) => String(run?.status || "") === "success") || null;
+    if (!latestSuccess || latestSuccess?.details?.publication_performed === true) continue;
+    const latestStage = String(latestSuccess?.details?.stage || "");
+    const latestReason = String(latestSuccess?.details?.reason || "");
+
+    // Recupera solo slot social già passati e non pubblicati quando la card è ora pronta.
+    // Esclude stati che richiedono una decisione umana o una verifica anti-duplicato.
+    if (["post_cancelled", "no_enabled_plan_channels", "no_enabled_social_channels", "draft_mode", "approval_mode", "no_article_cycle"].includes(latestReason)) continue;
+    if (["waiting_human_approval", "waiting_human_review", "manual_social_check_required", "skipped_draft_mode", "skipped"].includes(latestStage)) continue;
+
+    const item = await schedulerPlanItemForCycle(context, slot.kind);
+    if (!item?.id || ["cancelled", "published"].includes(String(item.status || ""))) continue;
+    if (!schedulerPlanAssetIsOlInforma(context, item)) continue;
+
+    const result = await schedulerProcessSlot(slot, user, settings, runs, local);
+    return {
+      ...result,
+      action: `${slot.kind}_recovered_after_asset_ready`,
+      recovery_reason: "missed_slot_asset_now_ready",
+      recovered_slot: { id: slot.id, kind: slot.kind, label: slot.label },
+    };
+  }
+  return null;
+}
+
 async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms) {
   const item = await schedulerPlanItemForCycle(context, slotKind);
   if (!item?.id) throw new Error(`Autopilota: post ${schedulerPlanPostType(slotKind)} non trovato`);
@@ -6936,6 +6983,11 @@ async function editorialAutopilotTick() {
   } catch (error) {
     socialAssetError = String(error?.message || error).slice(0, 1200);
     console.error("editorial_social_asset_prepare_failed", socialAssetError);
+  }
+
+  if (!due) {
+    const recoveredSocial = await schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local, schedule);
+    if (recoveredSocial) return { ok: true, version: VERSION, active: true, ...recoveredSocial, local };
   }
 
   let regenerationError = null;
