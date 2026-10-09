@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.95";
+  const VERSION = "0.12.96";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1265,9 +1265,9 @@
   }
 
   function articleStepState(record, runType) {
+    if (runType === "article_publish" && String(record?.article?.status || "") === "published") return { label: "completato", tone: "success" };
     const run = (record?.runs || []).find((row) => String(row?.run_type || "") === runType) || null;
     if (run) return runStateLabelFromRun(run);
-    if (runType === "article_publish" && String(record?.article?.status || "") === "published") return { label: "completato", tone: "success" };
     if (runType === "article_prepare" && record?.articleId) return { label: "completato", tone: "success" };
     if (runType === "social_followup") return articlePlanState(articleRelatedPlanItem(record, "article_followup"));
     if (runType === "social_related") return articlePlanState(articleRelatedPlanItem(record, "related"));
@@ -1547,6 +1547,13 @@
   }
 
   function automationRunStatusDisplay(run) {
+    if (String(run?.run_type || "") === "article_publish") {
+      const articleId = automationRunArticleId(run);
+      const record = articleId ? articleHistoryRecords().find((item) => item.articleId === articleId) : null;
+      if (String(record?.article?.status || "") === "published") {
+        return { label: "Pubblicato", cssStatus: "success" };
+      }
+    }
     const state = runStateLabelFromRun(run) || { label: "—", tone: "pending" };
     const label = ({
       "completato": "Completato",
