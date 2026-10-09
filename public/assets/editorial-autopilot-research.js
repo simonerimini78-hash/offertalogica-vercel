@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.96";
+  const VERSION = "0.12.97";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1547,6 +1547,11 @@
   }
 
   function automationRunStatusDisplay(run) {
+    const stage = String(run?.details?.stage || "");
+    const reason = String(run?.details?.reason || "");
+    if (stage === "skipped" && reason === "no_article_cycle") {
+      return { label: "Saltato", cssStatus: "running" };
+    }
     if (String(run?.run_type || "") === "article_publish") {
       const articleId = automationRunArticleId(run);
       const record = articleId ? articleHistoryRecords().find((item) => item.articleId === articleId) : null;

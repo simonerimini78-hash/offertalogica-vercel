@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.95";
+const VERSION = "0.12.97";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -6248,15 +6248,32 @@ async function schedulerArticleCycleContext(runs) {
     `editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&target_article_id=not.is.null&order=updated_at.desc&limit=20`,
   );
   for (const opportunity of opportunityRows || []) {
-    const handoff = articleAutomationHandoff(opportunity);
-    if (!handoff || String(handoff.status || "") !== "armed") continue;
     const articleId = String(opportunity.target_article_id || "");
-    if (!validUuid(articleId) || String(handoff.article_id || "") !== articleId) continue;
+    if (!validUuid(articleId)) continue;
     const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
     const article = articleRows?.[0] || null;
     if (!article?.id) continue;
-    if (!articleAutomationHandoffMatches(opportunity, article)) continue;
-    return { run: null, article, opportunity, handoff: true };
+
+    const handoff = articleAutomationHandoff(opportunity);
+    if (handoff && String(handoff.status || "") === "armed" && String(handoff.article_id || "") === articleId) {
+      if (articleAutomationHandoffMatches(opportunity, article)) {
+        return { run: null, article, opportunity, handoff: true };
+      }
+      if (String(article.status || "") !== "published") continue;
+    }
+
+    // Un articolo gia' pubblicato puo' continuare automaticamente con follow-up e post finale
+    // anche se la pubblicazione e' stata completata manualmente prima dell'introduzione dell'handoff.
+    // Limitiamo il fallback al ciclo selezionato, generato dall'Autopilota e con piano social collegato,
+    // cosi' una vecchia opportunita' o un articolo estraneo non possono diventare il ciclo corrente.
+    const generation = opportunity?.evidence?.article_generation;
+    if (String(article.status || "") !== "published") continue;
+    if (!generation || String(generation.status || "") !== "draft_ready_for_review") continue;
+    const planRows = await serviceFetch(
+      `editorial_social_plan_items?select=id,post_type,status&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&post_type=in.(article_followup,related)&order=created_at.asc&limit=10`,
+    );
+    if (!(planRows || []).some((row) => ["article_followup", "related"].includes(String(row?.post_type || "")))) continue;
+    return { run: null, article, opportunity, published_cycle_fallback: true };
   }
   return null;
 }
@@ -6673,6 +6690,8 @@ async function schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local
       .sort((left, right) => String(right?.created_at || right?.started_at || "").localeCompare(String(left?.created_at || left?.started_at || "")));
     if (!matching.length) continue;
     if (matching.some((run) => run?.details?.publication_performed === true)) continue;
+    const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+    if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) continue;
 
     const latestSuccess = matching.find((run) => String(run?.status || "") === "success") || null;
     if (!latestSuccess || latestSuccess?.details?.publication_performed === true) continue;
@@ -6681,8 +6700,9 @@ async function schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local
 
     // Recupera solo slot social già passati e non pubblicati quando la card è ora pronta.
     // Esclude stati che richiedono una decisione umana o una verifica anti-duplicato.
-    if (["post_cancelled", "no_enabled_plan_channels", "no_enabled_social_channels", "draft_mode", "approval_mode", "no_article_cycle"].includes(latestReason)) continue;
-    if (["waiting_human_approval", "waiting_human_review", "manual_social_check_required", "skipped_draft_mode", "skipped"].includes(latestStage)) continue;
+    if (["post_cancelled", "no_enabled_plan_channels", "no_enabled_social_channels", "draft_mode", "approval_mode"].includes(latestReason)) continue;
+    if (["waiting_human_approval", "waiting_human_review", "manual_social_check_required", "skipped_draft_mode"].includes(latestStage)) continue;
+    if (latestStage === "skipped" && latestReason !== "no_article_cycle") continue;
 
     const item = await schedulerPlanItemForCycle(context, slot.kind);
     if (!item?.id || ["cancelled", "published"].includes(String(item.status || ""))) continue;
