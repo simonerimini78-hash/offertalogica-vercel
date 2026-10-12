@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.98";
+const VERSION = "0.12.99";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -42,6 +42,7 @@ const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram", "linkedin"]
 const EDITORIAL_PLAN_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
 const EDITORIAL_SOCIAL_RUNTIME_VERSIONS = Object.freeze({ facebook: "0.12.87", instagram: "0.12.87", linkedin: "0.12.87" });
 const EDITORIAL_SOCIAL_CONTENT_VERSION = "social_content_v3";
+const EDITORIAL_SOCIAL_VISUAL_VERSION = "social_visual_v2";
 // Il renderer grafico delle card social e' caricato solo quando serve.
 // Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
 // nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
@@ -4158,6 +4159,151 @@ function editorialSocialAssetsState(opportunity) {
   return { ...safe, schema_version: 2, article_intro: articleIntro ? { ...articleIntro } : null, items: { ...items } };
 }
 
+function editorialMasterVisualContextSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["primary_subject", "environment", "visual_story", "human_presence", "action", "mood", "lighting", "composition", "authenticity_cues", "must_preserve", "must_avoid", "quality_rationale"],
+    properties: {
+      primary_subject: { type: "string" },
+      environment: { type: "string" },
+      visual_story: { type: "string" },
+      human_presence: { type: "string" },
+      action: { type: "string" },
+      mood: { type: "string" },
+      lighting: { type: "string" },
+      composition: { type: "string" },
+      authenticity_cues: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_preserve: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      quality_rationale: { type: "string" },
+    },
+  };
+}
+
+function normalizeEditorialMasterVisualContext(raw, fallback = {}) {
+  const context = raw && typeof raw === "object" ? raw : {};
+  return {
+    schema_version: 1,
+    visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    source: cleanEditorialText(context.source || fallback.source, 80) || "derived",
+    article_id: fallback.article_id || null,
+    article_image_url: fallback.article_image_url || null,
+    primary_subject: cleanEditorialText(context.primary_subject || fallback.primary_subject, 320),
+    environment: cleanEditorialText(context.environment || fallback.environment, 320),
+    visual_story: cleanEditorialText(context.visual_story || fallback.visual_story, 600),
+    human_presence: cleanEditorialText(context.human_presence || fallback.human_presence, 320),
+    action: cleanEditorialText(context.action || fallback.action, 320),
+    mood: cleanEditorialText(context.mood || fallback.mood, 240),
+    lighting: cleanEditorialText(context.lighting || fallback.lighting, 240),
+    composition: cleanEditorialText(context.composition || fallback.composition, 320),
+    authenticity_cues: cleanEditorialStringList(context.authenticity_cues || fallback.authenticity_cues, 6, 180),
+    must_preserve: cleanEditorialStringList(context.must_preserve || fallback.must_preserve, 6, 180),
+    must_avoid: cleanEditorialStringList(context.must_avoid || fallback.must_avoid, 8, 180),
+    quality_rationale: cleanEditorialText(context.quality_rationale || fallback.quality_rationale, 600),
+    created_at: fallback.created_at || new Date().toISOString(),
+  };
+}
+
+function editorialMasterVisualFallback(article, opportunity, heroAsset, articleImageUrl) {
+  const visualBrief = heroAsset?.visual_brief && typeof heroAsset.visual_brief === "object" ? heroAsset.visual_brief : null;
+  const effectiveProfileKey = inferArticleImageProfile(article, opportunity, heroAsset?.generation_profile_effective || heroAsset?.generation_profile_requested || "auto");
+  const profile = articleImageProfileByKey(effectiveProfileKey);
+  const mustPreserve = cleanEditorialStringList(visualBrief?.must_show, 6, 180);
+  const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180);
+  return normalizeEditorialMasterVisualContext({
+    source: visualBrief ? "article_visual_brief" : "article_context_fallback",
+    primary_subject: visualBrief?.primary_subject || cleanEditorialText(article?.title, 220),
+    environment: visualBrief?.environment || "A real-world environment directly connected to the article, without staged advertising cues.",
+    visual_story: visualBrief?.visual_story || "A believable moment in which a person, object or activity makes the concrete consequence of the article understandable at a glance.",
+    human_presence: effectiveProfileKey === "objects_context" ? "People may be absent or secondary." : "Use natural human presence only when it strengthens the real-world story; avoid posed models.",
+    action: "Show a concrete action, decision, check, comparison or operational activity rather than a static symbolic pose.",
+    mood: effectiveProfileKey === "warm_human" ? "Warm, credible and emotionally restrained." : "Credible, informative and visually calm.",
+    lighting: "Natural or practical believable light, with realistic contrast and no artificial glow effects.",
+    composition: "One clear focal point, natural perspective, strong editorial crop and restrained supporting objects.",
+    authenticity_cues: [
+      "realistic environment and materials",
+      "natural body language or believable object placement",
+      "supporting details that feel used rather than staged",
+      "no synthetic-looking documents or interfaces",
+    ],
+    must_preserve: mustPreserve.length >= 2 ? mustPreserve : [profile.directive, "one clear real-world visual action"],
+    must_avoid: [...mustAvoid, "generic stock-advertising pose", "front-facing readable or fake documents", "fake dashboards or interfaces"].slice(0, 8),
+    quality_rationale: "Maintain the approved article image's realism, visual clarity and editorial credibility even when the social post uses a different moment or crop.",
+  }, {
+    source: "article_context_fallback",
+    article_id: article?.id || null,
+    article_image_url: articleImageUrl,
+  });
+}
+
+function editorialMasterVisualContextCurrent(state, article, articleImageUrl) {
+  const context = state?.master_visual_context && typeof state.master_visual_context === "object" ? state.master_visual_context : null;
+  return Boolean(
+    context
+    && String(context.visual_version || "") === EDITORIAL_SOCIAL_VISUAL_VERSION
+    && String(context.article_id || "") === String(article?.id || "")
+    && String(context.article_image_url || "") === String(articleImageUrl || "")
+    && cleanEditorialText(context.primary_subject, 320)
+    && cleanEditorialText(context.visual_story, 600)
+    && Array.isArray(context.authenticity_cues)
+    && context.authenticity_cues.length >= 2
+  );
+}
+
+async function buildEditorialMasterVisualContext(article, opportunity, heroAsset, articleImageUrl) {
+  const fallback = editorialMasterVisualFallback(article, opportunity, heroAsset, articleImageUrl);
+  if (!/^https:\/\//i.test(String(articleImageUrl || ""))) return fallback;
+  const inheritedBrief = heroAsset?.visual_brief && typeof heroAsset.visual_brief === "object" ? heroAsset.visual_brief : null;
+  const content = cleanEditorialText(article?.content, 2600).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const inputText = [
+    "Analizza l'immagine approvata dell'articolo come riferimento visivo principale per le future varianti social OffertaLogica.",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 160)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 360)}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+    inheritedBrief?.primary_subject ? `Brief originale - soggetto: ${cleanEditorialText(inheritedBrief.primary_subject, 320)}.` : "",
+    inheritedBrief?.environment ? `Brief originale - ambiente: ${cleanEditorialText(inheritedBrief.environment, 320)}.` : "",
+    inheritedBrief?.visual_story ? `Brief originale - storia visiva: ${cleanEditorialText(inheritedBrief.visual_story, 600)}.` : "",
+    "Estrai ciò che rende la fotografia credibile, editoriale e pertinente. Non descrivere soltanto gli oggetti: identifica azione, atmosfera, luce, composizione e segnali di autenticità che devono guidare le immagini social.",
+    "Le future immagini social possono cambiare momento, inquadratura e soggetto secondario, ma non devono sacrificare realismo, attinenza o qualità solo per risultare diverse.",
+  ].filter(Boolean).join(" ");
+  try {
+    const response = await openAiResponseRequest("", {
+      method: "POST",
+      body: {
+        model: editorialAiModel(),
+        instructions: [
+          "Agisci come photo editor senior. Analizza la fotografia reale fornita e trasformala in una grammatica visiva riutilizzabile per lo stesso ciclo editoriale.",
+          "Sii concreto: privilegia scena, gesto, ambiente, luce, composizione e dettagli che rendono l'immagine autentica.",
+          "Non inventare persone, documenti, dati o fatti non visibili o non supportati dall'articolo.",
+          "Nei must_avoid includi sempre i rischi che renderebbero il risultato artificiale o stock, soprattutto documenti finti/frontali, interfacce inventate e pose pubblicitarie quando pertinenti.",
+        ].join(" "),
+        input: [{ role: "user", content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: articleImageUrl, detail: "high" },
+        ] }],
+        reasoning: { effort: "low" },
+        max_output_tokens: 1500,
+        store: false,
+        text: { format: { type: "json_schema", name: "offertalogica_master_visual_context", strict: true, schema: editorialMasterVisualContextSchema() } },
+      },
+      economics: { activity: "social_master_visual_context", articleId: article?.id || null, opportunityId: opportunity?.id || null },
+    });
+    const parsed = JSON.parse(responseOutputText(response));
+    const context = normalizeEditorialMasterVisualContext({ ...parsed, source: "approved_hero_analysis" }, {
+      ...fallback,
+      article_id: article?.id || null,
+      article_image_url: articleImageUrl,
+      created_at: new Date().toISOString(),
+    });
+    if (!context.primary_subject || !context.visual_story || context.authenticity_cues.length < 2 || context.must_preserve.length < 2) return fallback;
+    return context;
+  } catch (error) {
+    console.warn("editorial_master_visual_context_fallback", String(error?.message || error).slice(0, 500));
+    return fallback;
+  }
+}
+
 async function saveEditorialSocialAssetsState(user, opportunity, state) {
   const evidence = {
     ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
@@ -4497,7 +4643,7 @@ async function buildEditorialSocialCoverText(article, item, target, targetContex
   return cover;
 }
 
-async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null, qualityGuidance = "") {
+async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null, qualityGuidance = "", masterVisualContext = null) {
   const related = String(item?.post_type || "") === "related";
   const content = cleanEditorialText(article?.content, 7000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const destination = target
@@ -4517,6 +4663,16 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
     targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
     destinationContent ? `Contenuto reale della pagina di destinazione: ${destinationContent}.` : "",
+    masterVisualContext?.primary_subject ? `Riferimento visivo master - soggetto: ${cleanEditorialText(masterVisualContext.primary_subject, 320)}.` : "",
+    masterVisualContext?.environment ? `Riferimento visivo master - ambiente: ${cleanEditorialText(masterVisualContext.environment, 320)}.` : "",
+    masterVisualContext?.visual_story ? `Riferimento visivo master - storia visiva: ${cleanEditorialText(masterVisualContext.visual_story, 600)}.` : "",
+    masterVisualContext?.action ? `Riferimento visivo master - azione: ${cleanEditorialText(masterVisualContext.action, 320)}.` : "",
+    masterVisualContext?.mood ? `Riferimento visivo master - atmosfera: ${cleanEditorialText(masterVisualContext.mood, 240)}.` : "",
+    masterVisualContext?.lighting ? `Riferimento visivo master - luce: ${cleanEditorialText(masterVisualContext.lighting, 240)}.` : "",
+    masterVisualContext?.composition ? `Riferimento visivo master - composizione: ${cleanEditorialText(masterVisualContext.composition, 320)}.` : "",
+    Array.isArray(masterVisualContext?.authenticity_cues) ? `Segnali di autenticità da preservare: ${cleanEditorialStringList(masterVisualContext.authenticity_cues, 6, 180).join("; ")}.` : "",
+    Array.isArray(masterVisualContext?.must_preserve) ? `Elementi visivi da preservare nel linguaggio del ciclo: ${cleanEditorialStringList(masterVisualContext.must_preserve, 6, 180).join("; ")}.` : "",
+    Array.isArray(masterVisualContext?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(masterVisualContext.must_avoid, 8, 180).join("; ")}.` : "",
     qualityGuidance ? `Correzione obbligatoria richiesta dalla revisione precedente: ${cleanEditorialText(qualityGuidance, 900)}.` : "",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
@@ -4538,7 +4694,10 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "cover_title: 35-95 caratteri. Deve essere naturale, specifico e immediatamente comprensibile anche senza leggere la caption.",
         "cover_summary: 100-190 caratteri. Deve condensare il takeaway o, per related, il collegamento concreto alla funzione OffertaLogica senza slogan e senza ripetere il titolo.",
         "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi, formule promozionali generiche o dettagli non verificabili.",
-        "Il visuale deve essere una nuova fotografia quadrata 1:1, pronta per essere inserita nella cover social OffertaLogica, pertinente al tema specifico e chiaramente diversa per composizione e messaggio dalla hero dell'articolo.",
+        "Il visuale deve essere una nuova fotografia quadrata 1:1 pronta per la cover social OffertaLogica e deve appartenere allo stesso linguaggio visivo della hero approvata dell'articolo: autenticità, concretezza, luce credibile e scena leggibile.",
+        "Non cercare la diversità a tutti i costi. Puoi cambiare momento, inquadratura, gesto o soggetto secondario, ma una variante social simile alla hero è preferibile a una fotografia diversa ma più debole, generica o artificiale.",
+        "visual_subject e visual_scene devono tradurre il significato del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi del settore.",
+        "Se compaiono documenti, fogli, bollette o contratti devono restare secondari, non leggibili e credibili: mai frontali, mai costruiti come mockup, mai protagonisti se l'articolo non lo richiede davvero.",
         "Per related il visuale deve rappresentare il problema o l'attività concreta del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
       ].join(" "),
       input,
@@ -4575,6 +4734,8 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
     must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
     alt_text: cleanEditorialText(parsed?.alt_text, 180),
+    visual_pipeline_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    master_visual_context: masterVisualContext && typeof masterVisualContext === "object" ? masterVisualContext : null,
   };
   const foundationReady = brief.article_takeaway.length >= 180
     && (!related || brief.destination_solution.length >= 180);
@@ -4708,26 +4869,43 @@ async function evaluateEditorialSocialCopy(article, item, target, targetContext,
 function editorialSocialImagePrompt(article, item, target, brief, guidance = "") {
   const mustShow = cleanEditorialStringList(brief?.must_show, 6, 180).join("; ");
   const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
+  const master = brief?.master_visual_context && typeof brief.master_visual_context === "object" ? brief.master_visual_context : null;
+  const masterAuthenticity = cleanEditorialStringList(master?.authenticity_cues, 6, 180).join("; ");
+  const masterPreserve = cleanEditorialStringList(master?.must_preserve, 6, 180).join("; ");
+  const masterAvoid = cleanEditorialStringList(master?.must_avoid, 8, 180).join("; ");
   const extra = cleanEditorialText(guidance, 600);
   return [
     "Create one entirely new, original high-resolution square editorial photograph from scratch for a static social post by OffertaLogica.it.",
-    "The image must be based only on the supplied editorial context and must not copy, trace, imitate or transform an existing image.",
+    "The image must be based only on the supplied editorial context. Do not trace or reproduce the approved article hero, but use its visual language as a quality benchmark when the master context below is provided.",
     `Post type: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Article topic: ${cleanEditorialText(article?.title, 140)}.`,
     target ? `OffertaLogica destination context: ${cleanEditorialText(target.label, 180)}.` : "",
-    `Primary visual subject: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
-    `Visual scene: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
-    mustShow ? `Elements that must be visible: ${mustShow}.` : "",
-    mustAvoid ? `Elements to avoid: ${mustAvoid}.` : "",
+    `Primary visual subject for this post: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
+    `Visual scene for this post: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
+    master?.primary_subject ? `Approved-cycle visual reference - main subject: ${cleanEditorialText(master.primary_subject, 320)}.` : "",
+    master?.environment ? `Approved-cycle visual reference - environment: ${cleanEditorialText(master.environment, 320)}.` : "",
+    master?.visual_story ? `Approved-cycle visual reference - visual story: ${cleanEditorialText(master.visual_story, 600)}.` : "",
+    master?.human_presence ? `Approved-cycle visual reference - human presence: ${cleanEditorialText(master.human_presence, 320)}.` : "",
+    master?.action ? `Approved-cycle visual reference - action: ${cleanEditorialText(master.action, 320)}.` : "",
+    master?.mood ? `Approved-cycle visual reference - mood: ${cleanEditorialText(master.mood, 240)}.` : "",
+    master?.lighting ? `Approved-cycle visual reference - lighting: ${cleanEditorialText(master.lighting, 240)}.` : "",
+    master?.composition ? `Approved-cycle visual reference - composition: ${cleanEditorialText(master.composition, 320)}.` : "",
+    masterAuthenticity ? `Authenticity cues to preserve: ${masterAuthenticity}.` : "",
+    masterPreserve ? `Visual qualities to preserve across the cycle: ${masterPreserve}.` : "",
+    masterAvoid ? `Master visual risks to avoid: ${masterAvoid}.` : "",
+    mustShow ? `Elements that must be visible for this post: ${mustShow}.` : "",
+    mustAvoid ? `Elements to avoid for this post: ${mustAvoid}.` : "",
     extra ? `Regeneration guidance: ${extra}.` : "",
-    "Composition: square 1:1 social-feed image, one clear focal point, strong crop, natural believable lighting, professional Italian/European editorial photography.",
-    "Make the composition and visual emphasis clearly different from a generic article hero image. It must work as a standalone social visual, not as a second copy of the article cover or as a generic advertising image.",
-    "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays. When the subject is a bill, contract or structured document, non-readable rows, boxes, sections, tabs and tiny blurred chart-like shapes are allowed only to make the document type visually recognizable.",
+    "Composition: square 1:1 social-feed image with one immediately understandable focal point, a strong but natural crop, believable perspective and natural or practical lighting.",
+    "Translate the meaning of the post into a real situation, action or decision. Do not merely illustrate obvious keywords from the article.",
+    "A coherent variant of the approved article visual language is preferred over forced novelty. Change the moment, crop or secondary details only when this preserves or improves authenticity, relevance and editorial impact.",
+    "If people appear, use natural body language and a believable activity; avoid posed stock-advertising expressions, artificial concern gestures or generic lifestyle staging.",
+    "If papers, bills, contracts or structured documents appear, keep them secondary, partially visible and unreadable. Never make a fake-looking document the main subject and never create front-facing mockups full of invented fields.",
+    "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays.",
     "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
-    "Prefer a believable real-world editorial scene tied to the actual activity, equipment or environment described by the article; one clear subject, natural perspective, no staged advertising pose.",
     "Do not use thermal-camera or infrared effects, heat-map overlays, glowing energy effects, abstract energy beams, oversized utility meters or generic visual metaphors unless the supplied context explicitly requires them.",
     "For related posts, visualize the concrete problem or activity from the article, not an abstract 'OffertaLogica solution'; the card text provides the editorial connection.",
-    "The result must look like a real photograph, not an illustration, collage, 3D render or generic stock advertisement.",
+    "The result must look like a credible professional editorial photograph, not an illustration, collage, 3D render, synthetic mockup or interchangeable stock advertisement.",
   ].filter(Boolean).join(" ");
 }
 
@@ -4790,14 +4968,35 @@ function editorialSocialImageQaSchema() {
   return {
     type: "object",
     additionalProperties: false,
-    required: ["relevant_to_article", "relevant_to_destination", "distinct_from_article_image", "clear", "misleading", "social_quality", "reason", "regeneration_guidance"],
+    required: [
+      "relevant_to_article",
+      "relevant_to_destination",
+      "coherent_with_master_visual",
+      "clear",
+      "misleading",
+      "social_quality",
+      "authentic",
+      "clickworthy",
+      "generic_stock",
+      "fake_document_risk",
+      "quality_not_materially_worse_than_article_image",
+      "distinct_from_article_image",
+      "reason",
+      "regeneration_guidance",
+    ],
     properties: {
       relevant_to_article: { type: "boolean" },
       relevant_to_destination: { type: "boolean" },
-      distinct_from_article_image: { type: "boolean" },
+      coherent_with_master_visual: { type: "boolean" },
       clear: { type: "boolean" },
       misleading: { type: "boolean" },
       social_quality: { type: "boolean" },
+      authentic: { type: "boolean" },
+      clickworthy: { type: "boolean" },
+      generic_stock: { type: "boolean" },
+      fake_document_risk: { type: "boolean" },
+      quality_not_materially_worse_than_article_image: { type: "boolean" },
+      distinct_from_article_image: { type: "boolean" },
       reason: { type: "string" },
       regeneration_guidance: { type: "string" },
     },
@@ -4808,8 +5007,9 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
   const imageUrl = String(image?.url || "").trim();
   const heroUrl = String(articleImageUrl || "").trim();
   if (!/^https:\/\//i.test(imageUrl) || !/^https:\/\//i.test(heroUrl)) throw new Error("QA immagine social: URL non valido");
+  const master = brief?.master_visual_context && typeof brief.master_visual_context === "object" ? brief.master_visual_context : null;
   const inputText = [
-    "Valuta la prima immagine come visuale quadrato 1:1 di un post social OffertaLogica. La seconda immagine è la hero dell'articolo e serve solo per verificare che il post social non sia un doppione visivo.",
+    "Valuta la prima immagine come visuale quadrato 1:1 di un post social OffertaLogica. La seconda immagine è la hero approvata dell'articolo e rappresenta il benchmark di qualità, autenticità e linguaggio visivo del ciclo.",
     `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
     `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Tema post: ${cleanEditorialText(item?.theme, 240)}.`,
@@ -4817,15 +5017,29 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
     `Soggetto richiesto: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
     `Scena richiesta: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
     `Elementi attesi: ${cleanEditorialStringList(brief?.must_show, 6, 180).join("; ")}.`,
-    "Criteri obbligatori: pertinenza specifica all'articolo, pertinenza all'angolo/destinazione del post, chiarezza a colpo d'occhio, qualità da feed social, assenza di elementi fuorvianti e differenza visiva sostanziale rispetto alla hero dell'articolo.",
-    "distinct_from_article_image è vero solo se soggetto, inquadratura o messaggio visivo cambiano abbastanza da non apparire come la stessa foto/copia nella griglia social.",
-    "Se un criterio fallisce, fornisci una direzione concreta per rigenerare; altrimenti regeneration_guidance deve essere vuoto.",
+    master?.visual_story ? `Storia visiva master: ${cleanEditorialText(master.visual_story, 600)}.` : "",
+    master?.action ? `Azione master: ${cleanEditorialText(master.action, 320)}.` : "",
+    master?.mood ? `Atmosfera master: ${cleanEditorialText(master.mood, 240)}.` : "",
+    master?.lighting ? `Luce master: ${cleanEditorialText(master.lighting, 240)}.` : "",
+    Array.isArray(master?.authenticity_cues) ? `Segnali di autenticità master: ${cleanEditorialStringList(master.authenticity_cues, 6, 180).join("; ")}.` : "",
+    Array.isArray(master?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(master.must_avoid, 8, 180).join("; ")}.` : "",
+    "Criteri obbligatori: pertinenza specifica all'articolo e al post, scena comprensibile a colpo d'occhio, autenticità fotografica, qualità editoriale da feed, capacità di attirare l'attenzione senza sembrare pubblicità, assenza di elementi fuorvianti o palesemente sintetici.",
+    "coherent_with_master_visual è vero se la nuova immagine appartiene allo stesso linguaggio editoriale della hero per realismo, concretezza, luce, gesto/scena e credibilità, anche quando soggetto secondario o inquadratura cambiano.",
+    "generic_stock è vero se la scena è intercambiabile con molti altri articoli, troppo posata, pubblicitaria o costruita attorno a cliché generici.",
+    "fake_document_risk è vero se bollette, contratti, moduli o fogli risultano centrali, frontali, artificialmente leggibili o palesemente inventati. Se i documenti sono secondari, parziali e non leggibili, non penalizzarli.",
+    "quality_not_materially_worse_than_article_image è vero solo se la prima immagine non mostra un calo evidente di realismo, composizione, credibilità o forza editoriale rispetto alla seconda.",
+    "distinct_from_article_image è solo informativo: indica se la variante è visivamente diversa, ma NON è un requisito per l'approvazione. Non bocciare mai un'immagine soltanto perché è simile alla hero.",
+    "Se un criterio obbligatorio fallisce, regeneration_guidance deve spiegare concretamente come recuperare qualità e attinenza usando il linguaggio della hero; altrimenti deve essere vuoto.",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
     method: "POST",
     body: {
       model: editorialAiModel(),
-      instructions: "Agisci come revisore social visuale severo. Non approvare immagini genericamente pertinenti o troppo simili alla hero dell'articolo.",
+      instructions: [
+        "Agisci come photo editor social senior e severo. La priorità è qualità editoriale e attinenza, non la novità a tutti i costi.",
+        "Usa la hero approvata come benchmark visivo. Una variante molto diversa ma più debole deve essere bocciata; una variante coerente e simile può essere approvata.",
+        "Non approvare immagini genericamente pertinenti, stock, artificiali o con documenti sintetici protagonisti.",
+      ].join(" "),
       input: [{
         role: "user",
         content: [
@@ -4835,7 +5049,7 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
         ],
       }],
       reasoning: { effort: "low" },
-      max_output_tokens: 1400,
+      max_output_tokens: 1600,
       store: false,
       text: {
         format: {
@@ -4856,24 +5070,47 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
   }
   const relevantArticle = parsed?.relevant_to_article === true;
   const relevantDestination = parsed?.relevant_to_destination === true;
-  const distinct = parsed?.distinct_from_article_image === true;
+  const coherentWithMaster = parsed?.coherent_with_master_visual === true;
   const clear = parsed?.clear === true;
   const misleading = parsed?.misleading === true;
   const socialQuality = parsed?.social_quality === true;
-  const passed = relevantArticle && relevantDestination && distinct && clear && !misleading && socialQuality;
+  const authentic = parsed?.authentic === true;
+  const clickworthy = parsed?.clickworthy === true;
+  const genericStock = parsed?.generic_stock === true;
+  const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const qualityNotWorse = parsed?.quality_not_materially_worse_than_article_image === true;
+  const distinct = parsed?.distinct_from_article_image === true;
+  const passed = relevantArticle
+    && relevantDestination
+    && coherentWithMaster
+    && clear
+    && !misleading
+    && socialQuality
+    && authentic
+    && clickworthy
+    && !genericStock
+    && !fakeDocumentRisk
+    && qualityNotWorse;
   return {
-    schema_version: 1,
+    schema_version: 2,
+    visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
     status: passed ? "passed" : "failed",
     evaluated_at: new Date().toISOString(),
     model: editorialAiModel(),
     relevant_to_article: relevantArticle,
     relevant_to_destination: relevantDestination,
-    distinct_from_article_image: distinct,
+    coherent_with_master_visual: coherentWithMaster,
     clear,
     misleading,
     social_quality: socialQuality,
-    reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Visuale social coerente, distinta e pronta." : "QA visuale social non superata."),
-    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
+    authentic,
+    clickworthy,
+    generic_stock: genericStock,
+    fake_document_risk: fakeDocumentRisk,
+    quality_not_materially_worse_than_article_image: qualityNotWorse,
+    distinct_from_article_image: distinct,
+    reason: cleanEditorialText(parsed?.reason, 700) || (passed ? "Visuale social coerente con la qualità e il linguaggio visivo della hero approvata." : "QA visuale social non superata."),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 700),
   };
 }
 
@@ -5132,6 +5369,21 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
     const items = await serviceFetch(
       `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&status=in.(draft,approved,failed)&order=created_at.asc&limit=20`,
     );
+    let masterVisualContext = editorialMasterVisualContextCurrent(state, article, articleImageUrl)
+      ? state.master_visual_context
+      : null;
+    if ((items || []).some((item) => ["article_followup", "related"].includes(String(item?.post_type || ""))) && !masterVisualContext) {
+      masterVisualContext = await buildEditorialMasterVisualContext(article, opportunity, heroAsset, articleImageUrl);
+      state.master_visual_context = masterVisualContext;
+      await saveEditorialSocialAssetsState(user, opportunity, state);
+      return {
+        action: "social_master_visual_context_ready",
+        opportunity_id: opportunity.id,
+        article_id: article.id,
+        visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+        source: masterVisualContext.source || null,
+      };
+    }
     for (const item of items || []) {
       if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
       if (targetPostType && String(item.post_type || "") !== targetPostType) continue;
@@ -5167,12 +5419,12 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         if (String(item.post_type || "") === "related" && !cleanEditorialText([targetContext?.title, targetContext?.h1, targetContext?.description, targetContext?.content].filter(Boolean).join(" "), 1200)) {
           throw new Error("Asset social related: pagina OffertaLogica di destinazione non verificabile; pubblicazione bloccata");
         }
-        let brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext);
+        let brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, "", masterVisualContext);
         let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
         let copyRewriteAttempts = 0;
         if (copyQa.status !== "passed") {
           const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi con un angolo più concreto, naturale e specifico.";
-          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance);
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance, masterVisualContext);
           copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
           copyRewriteAttempts = 1;
         }
@@ -5205,7 +5457,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
           : 1;
         if (copyQa.status !== "passed" && copyRewriteAttempts < 3) {
           const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi eliminando ogni affermazione non esplicitamente supportata dall'articolo.";
-          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance);
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance, masterVisualContext);
           copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
           copyRewriteAttempts += 1;
         }
@@ -5319,7 +5571,7 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
         const attempt = Math.max(1, Number(asset.image?.attempt) || 1);
         if (attempt < EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS) {
           const guidance = cleanEditorialText(asset.image?.qa?.regeneration_guidance, 600)
-            || "Rendi il visuale più specifico rispetto al tema del post e chiaramente diverso dalla hero dell'articolo.";
+            || "Rendi il visuale più specifico e credibile, coerente con il linguaggio della hero approvata e senza sacrificare autenticità o qualità per essere diverso.";
           const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance);
           const objectPath = `autopilot/${article.id}/social/${item.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
           const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
@@ -5375,16 +5627,23 @@ async function schedulerPrepareMissingSocialAsset(user, options = {}) {
             alt_text: cleanEditorialText(article.featured_image_alt, 180) || defaultArticleImageAlt(article),
             attempt,
             qa: {
-              schema_version: 1,
+              schema_version: 2,
+              visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
               status: "passed",
               evaluated_at: now,
               model: null,
               relevant_to_article: true,
               relevant_to_destination: true,
+              coherent_with_master_visual: true,
               distinct_from_article_image: false,
               clear: true,
               misleading: false,
               social_quality: true,
+              authentic: true,
+              clickworthy: true,
+              generic_stock: false,
+              fake_document_risk: false,
+              quality_not_materially_worse_than_article_image: true,
               reason: "Fallback automatico: riuso dell'immagine già approvata e pubblicata con l'articolo dopo due QA social fallite.",
               regeneration_guidance: "",
               approval_mode: "article_image_fallback",
@@ -5585,7 +5844,8 @@ async function reviewEditorialSocialImage(user, payload = {}) {
         ...asset.image,
         qa: {
           ...(asset.image?.qa && typeof asset.image.qa === "object" ? asset.image.qa : {}),
-          schema_version: 1,
+          schema_version: 2,
+          visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
           status: "passed",
           evaluated_at: now,
           reason: "Immagine approvata manualmente dalla Redazione.",
@@ -5629,16 +5889,23 @@ async function reviewEditorialSocialImage(user, payload = {}) {
         alt_text: cleanEditorialText(article.featured_image_alt, 180) || defaultArticleImageAlt(article),
         attempt: Math.max(1, Number(asset.image?.attempt) || 1),
         qa: {
-          schema_version: 1,
+          schema_version: 2,
+          visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
           status: "passed",
           evaluated_at: now,
           model: null,
           relevant_to_article: true,
           relevant_to_destination: true,
+          coherent_with_master_visual: true,
           distinct_from_article_image: false,
           clear: true,
           misleading: false,
           social_quality: true,
+          authentic: true,
+          clickworthy: true,
+          generic_stock: false,
+          fake_document_risk: false,
+          quality_not_materially_worse_than_article_image: true,
           reason: "Immagine dell'articolo selezionata manualmente dalla Redazione come fallback social.",
           regeneration_guidance: "",
           approval_mode: "manual_article_image_fallback",
