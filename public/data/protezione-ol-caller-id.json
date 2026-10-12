@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 3,
+  "catalogVersion": 4,
   "publishedOn": "2026-10-12",
   "records": [
     {
@@ -379,6 +379,108 @@
       "number": "+39029997020211",
       "label": "Numero associato a Optima Italia (Optima Italia S.p.A.)",
       "sourceURL": "https://www.optimaitalia.com/numeri-ufficiali-optima-italia",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390755743900",
+      "label": "Numero associato a Gesenu Energia (Gesenu Energia S.r.l.)",
+      "sourceURL": "https://www.gesenuenergia.it/domande-frequenti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3904211680100",
+      "label": "Numero associato a Tua Energia (Tua Energia S.r.l.)",
+      "sourceURL": "https://www.tua-energia.it/news-eventi/telefonate-sospette-ecco-come-riconoscerle-e-come-agire",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390299222722",
+      "label": "Numero associato a E.ON Energia (ricontatto richiesto)",
+      "sourceURL": "https://www.eon-energia.com/luce/partite-iva-e-professionisti/eon-placet-luce/funnel-micro-luce.html",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3903411790055",
+      "label": "Numero associato ad Acinque Energia (ricontatto)",
+      "sourceURL": "https://www.acinque.it/servizipiu/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390302338609",
+      "label": "Numero associato a VIVI energia (ricontatto efficienza)",
+      "sourceURL": "https://www.vivienergia.it/efficienza/fotovoltaicocasa",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905410661",
+      "label": "Numero associato a SGR Luce e Gas",
+      "sourceURL": "https://www.sgrlucegas.com/occhio-alle-truffe-ma-non-solo/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390302338602",
+      "label": "Numero associato a VIVI energia (ricontatto depuratore)",
+      "sourceURL": "https://www.vivienergia.it/efficienza/depuratore",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390302330143",
+      "label": "Numero associato a VIVI energia (ricontatto richiesto)",
+      "sourceURL": "https://www.vivienergia.it/thankyou-page-tutelati",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+390574200907",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+393516187033",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+39800196881",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+39800932688",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905741540047",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905741980131",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905741980132",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905741980004",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
+      "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+3905741980128",
+      "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
+      "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
       "expiresAt": "2027-01-12T00:00:00+01:00"
     }
   ]
