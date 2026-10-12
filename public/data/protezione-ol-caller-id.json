@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 1,
+  "catalogVersion": 2,
   "publishedOn": "2026-10-12",
   "records": [
     {
       "number": "+390282953222",
-      "label": "Numero associato a NeN",
+      "label": "Numero associato a NeN Energia (YADA Energia S.r.l.)",
       "sourceURL": "https://nen.it/faq/domande/chiamate-call-center-eravate-voi",
       "expiresAt": null
     },
     {
       "number": "+390654570111",
-      "label": "Numero associato a Poste Energia",
+      "label": "Numero associato a Poste Energia (PostePay S.p.A.)",
       "sourceURL": "https://www.poste.it/poste-energia-servizi-e-informazioni-online",
       "expiresAt": null
     },
     {
       "number": "+390685960012",
-      "label": "Numero pubblicato da Pulsee (promo)",
+      "label": "Numero pubblicato da Pulsee Luce e Gas (Pulsee S.r.l., promo)",
       "sourceURL": "https://pulsee.it/s/faq/come-contattare-servizio-clienti",
       "expiresAt": "2027-02-01T00:00:00+01:00"
     }
