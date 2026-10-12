@@ -1,0 +1,25 @@
+{
+  "schemaVersion": 1,
+  "catalogVersion": 1,
+  "publishedOn": "2026-10-12",
+  "records": [
+    {
+      "number": "+390282953222",
+      "label": "Numero associato a NeN",
+      "sourceURL": "https://nen.it/faq/domande/chiamate-call-center-eravate-voi",
+      "expiresAt": null
+    },
+    {
+      "number": "+390654570111",
+      "label": "Numero associato a Poste Energia",
+      "sourceURL": "https://www.poste.it/poste-energia-servizi-e-informazioni-online",
+      "expiresAt": null
+    },
+    {
+      "number": "+390685960012",
+      "label": "Numero pubblicato da Pulsee (promo)",
+      "sourceURL": "https://pulsee.it/s/faq/come-contattare-servizio-clienti",
+      "expiresAt": "2027-02-01T00:00:00+01:00"
+    }
+  ]
+}
