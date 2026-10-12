@@ -6965,6 +6965,7 @@ const LEAD_STATE = {
   businessProfile: null,
   selectedOffer: null,
   partnerConsent: false,
+  partnerConsentOfferKey: "",
   pdfData: null,
   pdfDocuments: [],
   pdfAutofill: { previewedAt: "", appliedFields: [], skippedFields: [] },
@@ -13955,13 +13956,13 @@ function creaProvaConsenso(consents) {
 }
 
 function completaLeadVerificato() {
+  const selectedOfferSnapshot = LEAD_STATE.selectedOffer ? { ...LEAD_STATE.selectedOffer } : null;
   chiudiLeadModal();
   if (LEAD_STATE.leadSource === "assistance_callback") {
     trackEvent("assistance_callback_verified", { reason: LEAD_STATE.assistance?.reason || "manual" });
     mostraConfermaRichiestaAssistenza();
     return;
   }
-  const selectedOfferId = String(LEAD_STATE.selectedOffer?.id || "");
   LEAD_STATE.verified = true;
   trackEvent("offers_unlocked", { leadSource: LEAD_STATE.leadSource });
   if (LEAD_STATE.customerType === "business" && LEAD_STATE.leadSource === "offer_selection" && LEAD_STATE.selectedOffer?.businessPartner) {
@@ -13991,13 +13992,13 @@ function completaLeadVerificato() {
     }
     return;
   }
-  window.avviaComparazioneDati();
-  if (selectedOfferId) {
-    const selectedOffer = OFFERTE_PROPOSTE.find((item) => String(item?.id || "") === selectedOfferId);
-    if (selectedOffer) {
-      window.setTimeout(() => window.apriConsensoOfferta?.(selectedOffer), 0);
-    }
+  // Se l'OTP nasce dal clic su una card, riprende esattamente quella selezione:
+  // non ricalcola prima il ranking e non prova a ricostruire la card dal solo catalogo statico.
+  if (LEAD_STATE.leadSource === "offer_selection" && selectedOfferSnapshot?.id) {
+    window.setTimeout(() => window.apriConsensoOfferta?.(selectedOfferSnapshot), 0);
+    return;
   }
+  window.avviaComparazioneDati();
 }
 
 async function inviaOtp() {
@@ -14465,12 +14466,13 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
   if (label) label.style.display = richiedeConsenso ? "flex" : "none";
   if (note) note.style.display = richiedeConsenso ? "block" : "none";
   if (confirm) confirm.style.display = "inline-block";
-  if (close) close.innerText = "Annulla";
+  if (close) close.innerText = "Torna alle offerte";
 }
 
 window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   LEAD_STATE.selectedOffer = {
     id: String(offerta?.id || ""),
+    commercialOfferId: String(offerta?.commercialOfferId || offerta?.certificazione?.partnerOriginalId || offerta?.id || ""),
     name: offerta?.nome || offerta?.name || "",
     link: offerta?.link || "",
     officialUrl: offerta?.officialUrl || ((offerta?.destinationType === "arera" || offerta?.destinationStatus === "solo_confronto") ? (offerta?.link || "") : ""),
@@ -14482,6 +14484,11 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     componentiSeparate: offerta?.componentiSeparate || null,
     rankingContext: OFFER_RENDER_CONTEXTS.get(String(offerta?.id || "")) || offerta?.rankingContext || null,
   };
+
+  // Il consenso commerciale e' specifico per la card selezionata: scegliere una
+  // nuova offerta non riutilizza automaticamente il consenso dato a una precedente.
+  const consentKey = String(LEAD_STATE.selectedOffer.id || LEAD_STATE.selectedOffer.commercialOfferId || "");
+  LEAD_STATE.partnerConsent = Boolean(consentKey && LEAD_STATE.partnerConsentOfferKey === consentKey);
 
   const cardClickTracking = LEAD_STATE.selectedOffer.rankingContext || {};
   trackEvent("offer_card_clicked", {
@@ -14565,7 +14572,10 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
   const name = document.getElementById("offer-consent-offer-name");
   const intro = document.getElementById("offer-consent-intro");
   const checkbox = document.getElementById("offer-consent-checkbox");
+  const consentText = document.querySelector("#offer-consent-label span");
   const note = document.getElementById("offer-consent-note");
+  const confirmButton = document.getElementById("offer-consent-confirm");
+  const redirectDiretto = offertaConRedirectAttivo(LEAD_STATE.selectedOffer);
   if (name) name.innerText = LEAD_STATE.selectedOffer.name || "offerta selezionata";
   if (intro) {
     const nomeOfferta = testoHtmlSicuro(LEAD_STATE.selectedOffer.name || "questa offerta");
@@ -14575,15 +14585,23 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
       const gasProvider = testoHtmlSicuro(componenti?.gas?.providerLabel || "fornitore gas");
       intro.innerHTML = `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>: luce con <strong>${luceProvider}</strong> e gas con <strong>${gasProvider}</strong>. Per continuare serve una verifica consulenziale, perche si tratta di due forniture separate e potrebbero essere necessari due percorsi di attivazione distinti.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dai fornitori: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
     } else {
-      intro.innerHTML = offertaConRedirectAttivo(LEAD_STATE.selectedOffer)
-      ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare apriremo il funnel ufficiale del fornitore o del partner commerciale collegato all'offerta.`
+      intro.innerHTML = redirectDiretto
+      ? `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Conferma e ti porteremo subito al percorso ufficiale del fornitore o del partner collegato all'offerta.`
       : `Hai scelto <strong id="offer-consent-offer-name">${nomeOfferta}</strong>. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.<br><br>Le condizioni finali dovranno essere confermate dal consulente o dal fornitore: eventuali costi accessori, servizi aggiuntivi, vincoli o promozioni non rilevati dal calcolatore potrebbero modificare la convenienza stimata.`;
     }
   }
   if (checkbox) checkbox.checked = false;
-  if (note) {
-    note.innerText = "Senza questo consenso puoi vedere il confronto, ma non possiamo inoltrare la richiesta di attivazione o ricontatto ai partner incaricati.";
+  if (consentText) {
+    consentText.innerText = redirectDiretto
+      ? "Confermo di voler proseguire verso il percorso del fornitore o partner per l'offerta selezionata."
+      : "Autorizzo OffertaLogica a trasmettere i miei dati e i dati della fornitura al fornitore o partner collegato all'offerta scelta, per gestire la mia richiesta.";
   }
+  if (note) {
+    note.innerText = redirectDiretto
+      ? "OffertaLogica registra la scelta. I dati della bolletta non vengono inviati automaticamente al fornitore: li inserirai solo se richiesti nel suo percorso."
+      : "Senza questa autorizzazione puoi continuare a vedere il confronto, ma non possiamo inoltrare la richiesta al partner incaricato.";
+  }
+  if (confirmButton) confirmButton.innerText = redirectDiretto ? "Conferma e apri il fornitore" : "Conferma e procedi";
   configuraPopupConsensoOfferta(!LEAD_STATE.partnerConsent);
   if (modal) {
     modal.style.display = "flex";
@@ -14869,6 +14887,31 @@ function apriAssistentePrimaDelRedirect(url, offer, source = "partner_redirect")
   return true;
 }
 
+function apriFunnelPartnerDiretto(url, offer, source = "partner_redirect") {
+  const target = String(url || "").trim();
+  if (!/^https:\/\//i.test(target)) return false;
+  chiudiConsensoOfferta();
+  trackEvent("partner_funnel_opened", {
+    source,
+    offerId: offer?.id || "",
+    offerName: offer?.name || "",
+    provider: offer?.provider || "",
+    assisted: false,
+  });
+  trackEvent("offer_redirect", {
+    route: "offertalogica_partner",
+    channel: source,
+    offerId: offer?.id || "",
+    offerName: offer?.name || "",
+    provider: offer?.provider || "",
+    destinationType: offer?.destinationType || "",
+    destinationStatus: offer?.destinationStatus || "",
+    redirect: true,
+  });
+  window.location.assign(target);
+  return true;
+}
+
 async function confermaConsensoOfferta() {
   const checkbox = document.getElementById("offer-consent-checkbox");
   if (!LEAD_STATE.partnerConsent && !checkbox?.checked) {
@@ -14882,6 +14925,7 @@ async function confermaConsensoOfferta() {
   }
 
   LEAD_STATE.partnerConsent = true;
+  LEAD_STATE.partnerConsentOfferKey = String(LEAD_STATE.selectedOffer?.id || LEAD_STATE.selectedOffer?.commercialOfferId || "");
   trackEvent("offer_partner_consent_confirmed", {
     offerId: LEAD_STATE.selectedOffer?.id || "",
     offerName: LEAD_STATE.selectedOffer?.name || "",
@@ -15029,8 +15073,7 @@ async function registraRichiestaOfferta() {
     const safeLink = linkStaffSenzaTracking(offer.link);
     if (offertaConRedirectAttivo(offer) && safeLink && safeLink !== "#") {
       offerConsentStatus("Apro la pagina dell'offerta scelta.");
-      if (apriAssistentePrimaDelRedirect(safeLink, offer, "staff_redirect")) return;
-      window.location.href = safeLink;
+      apriFunnelPartnerDiretto(safeLink, offer, "staff_redirect");
     } else {
       offerConsentStatus("Richiesta registrata. Per continuare dobbiamo trasmettere i tuoi dati al fornitore o a un partner commerciale incaricato di gestire la richiesta.");
     }
@@ -15061,19 +15104,10 @@ async function registraRichiestaOfferta() {
     const payload = await response.json();
     if (!payload.ok) throw new Error(payload.error || "Errore consenso offerta");
     if (payload.redirectUrl) {
-      offerConsentStatus("Richiesta registrata. Ti portiamo alla pagina dell'offerta scelta.");
-      if (apriAssistentePrimaDelRedirect(payload.redirectUrl, offer, "partner_redirect")) return;
-      trackEvent("offer_redirect", {
-        route: "offertalogica_partner",
-        channel: "partner_redirect",
-        offerId: offer.id || "",
-        offerName: offer.name || "",
-        provider: offer.provider || "",
-        destinationType: offer.destinationType || "",
-        destinationStatus: offer.destinationStatus || "",
-        redirect: true,
-      });
-      window.location.href = payload.redirectUrl;
+      offerConsentStatus("Richiesta registrata. Apro il percorso dell'offerta scelta.");
+      if (!apriFunnelPartnerDiretto(payload.redirectUrl, offer, "partner_redirect")) {
+        throw new Error("Link di attivazione non valido");
+      }
       return;
     }
     trackEvent("offer_request_recorded", {
@@ -15317,6 +15351,7 @@ function offertaAttivazionePerSimulatore(offerta) {
   if (!offerta || typeof offerta !== "object") return null;
   return {
     id: String(offerta?.id || offerta?.codice || ""),
+    commercialOfferId: String(offerta?.commercialOfferId || offerta?.certificazione?.partnerOriginalId || offerta?.id || offerta?.codice || ""),
     name: String(offerta?.nome || offerta?.name || titoloOffertaVisibile(offerta) || ""),
     link: String(offerta?.link || ""),
     officialUrl: String(offerta?.officialUrl || ""),
@@ -18666,6 +18701,7 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   LEAD_STATE.leadSource = "manual";
   LEAD_STATE.selectedOffer = null;
   LEAD_STATE.partnerConsent = false;
+  LEAD_STATE.partnerConsentOfferKey = "";
   LEAD_STATE.activationAssistant = { pendingUrl: "", offer: null };
   LEAD_STATE.businessProfile = null;
   NUOVA_OFFERTA_AUTOMATICA = null;

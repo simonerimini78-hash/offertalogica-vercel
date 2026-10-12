@@ -102,6 +102,7 @@ function sanitizeRankingContext(input = {}) {
 function sanitizeOffer(input = {}) {
   return {
     id: String(input.id || "").slice(0, 80),
+    commercialOfferId: String(input.commercialOfferId || "").slice(0, 80),
     name: String(input.name || "").slice(0, 160),
     link: String(input.link || "").slice(0, 500),
     provider: String(input.provider || "").slice(0, 120),
@@ -148,8 +149,10 @@ function canonicalCatalogOffer(input = {}, submitted = {}) {
   };
 }
 
-function sameCanonicalCommercialFields(submitted, canonical) {
-  const fields = ["id", "name", "link", "provider", "destinationType", "destinationStatus"];
+function sameCanonicalCommercialFields(submitted, canonical, { displayAlias = false } = {}) {
+  const fields = displayAlias
+    ? ["link", "provider", "destinationType", "destinationStatus"]
+    : ["id", "name", "link", "provider", "destinationType", "destinationStatus"];
   for (const field of fields) {
     if (String(submitted?.[field] ?? "") !== String(canonical?.[field] ?? "")) return false;
   }
@@ -178,15 +181,20 @@ async function loadOfferCatalog() {
 }
 
 function resolveCanonicalOffer(submittedOffer, catalog, config = switchoServerConfig()) {
+  const requestedCommercialId = String(submittedOffer?.commercialOfferId || submittedOffer?.id || "");
   const source = Array.isArray(catalog)
-    ? catalog.find((item) => String(item?.id ?? "") === String(submittedOffer?.id ?? ""))
+    ? catalog.find((item) => String(item?.id ?? "") === requestedCommercialId)
     : null;
   if (!source) {
     return { ok: false, status: 409, error: "Offerta non presente nel catalogo server" };
   }
 
   const canonical = canonicalCatalogOffer(source, submittedOffer);
-  if (!sameCanonicalCommercialFields(submittedOffer, canonical)) {
+  const displayAlias = Boolean(
+    submittedOffer?.commercialOfferId
+    && String(submittedOffer.commercialOfferId) !== String(submittedOffer?.id || "")
+  );
+  if (!sameCanonicalCommercialFields(submittedOffer, canonical, { displayAlias })) {
     return { ok: false, status: 409, error: "Offerta non coerente con il catalogo server" };
   }
 
