@@ -14563,6 +14563,16 @@ window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
     return;
   }
 
+  // Per le affiliazioni attive la verifica email e' l'ultimo passaggio interno:
+  // non trasmettiamo i dati della bolletta al fornitore, quindi non mostriamo un
+  // secondo consenso. Registriamo lato server la scelta e apriamo subito il funnel.
+  if (offertaConRedirectAttivo(LEAD_STATE.selectedOffer)) {
+    registraRichiestaOfferta();
+    return;
+  }
+
+  // Il consenso separato resta solo nei percorsi in cui OffertaLogica deve davvero
+  // inoltrare dati o una richiesta a un partner/consulente.
   if (LEAD_STATE.partnerConsent) {
     registraRichiestaOfferta();
     return;
@@ -15091,7 +15101,10 @@ async function registraRichiestaOfferta() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
         leadId: LEAD_STATE.leadId,
-        accepted: true,
+        // Nei redirect affiliati non viene trasferito alcun dato al fornitore: il
+        // consenso partner non e' richiesto. Per i lead inoltrati, invece, arriva
+        // qui solo dopo la conferma esplicita dell'utente.
+        accepted: Boolean(LEAD_STATE.partnerConsent),
         offer,
         tracking: {
           source: "offer_click",

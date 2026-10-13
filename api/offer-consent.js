@@ -190,11 +190,19 @@ function resolveCanonicalOffer(submittedOffer, catalog, config = switchoServerCo
   }
 
   const canonical = canonicalCatalogOffer(source, submittedOffer);
+  const hasCanonicalCommercialId = Boolean(String(submittedOffer?.commercialOfferId || "").trim());
   const displayAlias = Boolean(
-    submittedOffer?.commercialOfferId
+    hasCanonicalCommercialId
     && String(submittedOffer.commercialOfferId) !== String(submittedOffer?.id || "")
   );
-  if (!sameCanonicalCommercialFields(submittedOffer, canonical, { displayAlias })) {
+
+  // I dati commerciali affidabili arrivano sempre dal catalogo server. Il browser
+  // invia commercialOfferId proprio per collegare card derivate (solo luce/gas,
+  // ARERA arricchita, ecc.) alla relativa offerta commerciale canonica. In questi
+  // casi non blocchiamo il percorso per differenze di copy, alias o metadati rimasti
+  // in cache: link, provider, stato e monetizzazione usati sotto sono quelli server.
+  // Manteniamo il controllo stretto soltanto per i client legacy senza ID canonico.
+  if (!hasCanonicalCommercialId && !sameCanonicalCommercialFields(submittedOffer, canonical, { displayAlias })) {
     return { ok: false, status: 409, error: "Offerta non coerente con il catalogo server" };
   }
 
