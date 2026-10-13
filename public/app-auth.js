@@ -42,6 +42,20 @@
     });
   }
 
+  // Only the Android WebMessageListener registered for the Premium HTTPS origin
+  // receives this event. Never expose the Supabase refresh token to native code.
+  function notifyNativeCallerId(event, session) {
+    try {
+      const bridge = globalThis.OLNativeCallerId;
+      if (!bridge || typeof bridge.postMessage !== "function") return;
+      if (event === "SIGNED_OUT" || (event === "INITIAL_SESSION" && !session?.access_token)) {
+        bridge.postMessage(JSON.stringify({ type: "signed_out" }));
+      } else if (["INITIAL_SESSION", "SIGNED_IN", "TOKEN_REFRESHED", "USER_UPDATED"].includes(event) && session?.access_token) {
+        bridge.postMessage(JSON.stringify({ type: "session", accessToken: session.access_token, userId: session.user?.id || "" }));
+      }
+    } catch { /* Browser/PWA: no native bridge available. */ }
+  }
+
   function dispatchPremiumAccessChanged() {
     window.dispatchEvent(new CustomEvent("offertalogica:premium-access-changed", {
       detail: premiumContext()
@@ -1498,6 +1512,7 @@
     });
 
     authSubscription = client.auth.onAuthStateChange((event, session) => {
+      notifyNativeCallerId(event, session);
       window.setTimeout(() => {
         if (event === "PASSWORD_RECOVERY") {
           currentSession = session || null;

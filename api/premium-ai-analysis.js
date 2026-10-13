@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
+import { json, method, readJson, requireAllowedOrigin, clientIp } from "../lib/http.js";
 import { normalizePdfFileHeader } from "../lib/pdfFileValidation.js";
 import { extractPdfPureAi } from "../lib/pdfPureAiReader.js";
 import { checkStore, persistentStoreConfigured, takeRateLimit } from "../lib/store.js";
@@ -50,6 +50,7 @@ import {
   readBearerToken,
   sanitizePremiumAnalysisData,
   verifyPremiumCustomer,
+  verifyPremiumCustomerForDevice,
   verifyPremiumStaff,
 } from "../lib/premiumAiBackend.js";
 
@@ -608,6 +609,51 @@ function offerMatchWarning(offerMatch) {
   return "";
 }
 
+// Device grants are authenticated capabilities, not Supabase refresh tokens.
+// An installation identifier is a correlation field, not device attestation.
+const CALLER_ID_DEVICE_ID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+const CALLER_ID_GRANT_LIFETIME_MS = 14 * 24 * 60 * 60 * 1000;
+const CALLER_ID_OFFLINE_LIFETIME_MS = 6 * 60 * 60 * 1000;
+
+function callerIdSecret(env) {
+  const secret = String(env.CALLER_ID_DEVICE_SECRET || "");
+  if (Buffer.byteLength(secret, "utf8") < 32) throw new Error("premium_caller_id_not_configured");
+  return secret;
+}
+
+function createCallerIdGrant({ secret, userId, deviceId, currentTime }) {
+  const payload = Buffer.from(JSON.stringify({ v: 1, uid: userId, did: deviceId,
+    exp: currentTime + CALLER_ID_GRANT_LIFETIME_MS }), "utf8").toString("base64url");
+  const mac = crypto.createHmac("sha256", secret).update(`v1.${payload}`).digest("base64url");
+  return `v1.${payload}.${mac}`;
+}
+
+function verifyCallerIdGrant({ secret, token, deviceId, currentTime }) {
+  if (typeof token !== "string" || token.length > 1024) throw new Error("premium_caller_id_grant_invalid");
+  const parts = token.split(".");
+  if (parts.length !== 3 || parts[0] !== "v1" || !/^[A-Za-z0-9_-]+$/.test(parts[1]) ||
+      !/^[A-Za-z0-9_-]+$/.test(parts[2])) throw new Error("premium_caller_id_grant_invalid");
+  const mac = crypto.createHmac("sha256", secret).update(`${parts[0]}.${parts[1]}`).digest();
+  const supplied = Buffer.from(parts[2], "base64url");
+  if (supplied.toString("base64url") !== parts[2] ||
+      Buffer.from(parts[1], "base64url").toString("base64url") !== parts[1]) {
+    throw new Error("premium_caller_id_grant_invalid");
+  }
+  if (mac.length !== supplied.length || !crypto.timingSafeEqual(mac, supplied)) throw new Error("premium_caller_id_grant_invalid");
+  const grant = JSON.parse(Buffer.from(parts[1], "base64url").toString("utf8"));
+  if (grant?.v !== 1 || grant.did !== deviceId || !CALLER_ID_DEVICE_ID.test(String(grant.uid || "")) ||
+      !Number.isSafeInteger(grant.exp) || grant.exp <= currentTime ||
+      grant.exp > currentTime + CALLER_ID_GRANT_LIFETIME_MS) throw new Error("premium_caller_id_grant_invalid");
+  return grant.uid;
+}
+
+function callerIdLease({ subscription, currentTime }) {
+  const limit = subscription?.current_period_end ? Date.parse(subscription.current_period_end) : Infinity;
+  const expiresAt = Math.min(currentTime + CALLER_ID_OFFLINE_LIFETIME_MS, limit);
+  if (!(expiresAt > currentTime)) throw new Error("premium_service_access_required");
+  return expiresAt;
+}
+
 export function createPremiumAiAnalysisHandler({
   env = process.env,
   fetchImpl = fetch,
@@ -630,6 +676,7 @@ export function createPremiumAiAnalysisHandler({
     let temporaryFilePath = "";
     let meter = null;
     let pricingSnapshot = null;
+    let callerIdRequest = false;
 
     try {
       const body = await readJson(req);
@@ -639,6 +686,43 @@ export function createPremiumAiAnalysisHandler({
         : body?.action === "reject_offer"
           ? "reject"
           : "";
+
+      if (body?.action === "caller_id_register" || body?.action === "caller_id_refresh") {
+        callerIdRequest = true;
+        if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
+        const secret = callerIdSecret(env);
+        const deviceId = String(body?.deviceId || "");
+        if (!CALLER_ID_DEVICE_ID.test(deviceId)) throw new Error("premium_caller_id_device_invalid");
+        // Rate-limit before hitting authentication / subscription tables. In production
+        // the existing persistent Supabase RPC fallback is mandatory when KV is absent.
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env, backend, fetchImpl, label: "premium-caller-id-ip",
+          identifier: clientIp(req) || "unknown", limit: 60, windowSeconds: 3600,
+        }))) return;
+        const currentTime = now();
+        let userId;
+        let subscription;
+        if (body.action === "caller_id_register") {
+          const customer = await verifyPremiumCustomer({ config: backend, accessToken, fetchImpl });
+          userId = customer.user.id;
+          subscription = customer.subscription;
+        } else {
+          userId = verifyCallerIdGrant({ secret, token: body?.deviceGrant, deviceId, currentTime });
+          const customer = await verifyPremiumCustomerForDevice({ config: backend, userId, fetchImpl });
+          subscription = customer.subscription;
+        }
+        if (!(await enforcePremiumRateLimit(req, res, {
+          env, backend, fetchImpl, label: "premium-caller-id-user",
+          identifier: userId, limit: 36, windowSeconds: 3600,
+        }))) return;
+        return json(res, 200, {
+          ok: true,
+          mode: "caller_id_entitlement",
+          userId,
+          entitlementExpiresAt: callerIdLease({ subscription, currentTime }),
+          deviceGrant: createCallerIdGrant({ secret, userId, deviceId, currentTime }),
+        });
+      }
 
       if (body?.action === "config_status") {
         if (!backend.supabaseUrl || !backend.serviceKey) throw new Error("premium_supabase_not_configured");
@@ -1324,6 +1408,15 @@ export function createPremiumAiAnalysisHandler({
         offerMatch: customerMode ? offerMatch?.publicSummary || null : null,
       });
     } catch (error) {
+      if (callerIdRequest) {
+        const code = String(error?.message || "");
+        const denied = /premium_(?:auth_required|invalid_session|invalid_user|service_access_required|legal_acceptance_required|caller_id_grant_invalid|caller_id_device_invalid)/.test(code);
+        return json(res, denied ? 403 : 503, {
+          ok: false,
+          code: denied ? "CALLER_ID_NOT_AUTHORIZED" : "CALLER_ID_TEMPORARILY_UNAVAILABLE",
+          error: denied ? "Diritto Caller ID Premium non valido." : "Verifica Caller ID temporaneamente non disponibile.",
+        });
+      }
       const completedAt = new Date().toISOString();
       const errorMessage = String(error?.message || error || "");
       let failedAccounting = null;
