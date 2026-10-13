@@ -324,6 +324,14 @@ export default async function handler(req, res) {
     if (!(await enforceRateLimit(req, res, { label: "lead", ...rateLimitConfig("LEAD", 30) }))) return;
     const lead = sanitizeLead(body);
     const calculation = sanitizeLeadCalculation(body.calculation);
+    const proofSource = String(body?.consentProof?.source || "").trim().toLowerCase();
+    const isAlternative = calculation?.requestType === "alternative_offer";
+    if (isAlternative && (proofSource !== "alternative_offer_request"
+      || !calculation.requestedOffer?.id || !calculation.requestedOffer?.name
+      || !calculation.requestedOffer?.provider || !lead.email
+      || lead.consentPartners || lead.consentMarketing)) {
+      throw new Error("Richiesta alternativa non valida");
+    }
     if (calculation?.requestType === "photovoltaic_consulting") {
       if (!lead.consentPartners) throw new Error("Comunicazione al consulente tecnico esterno non autorizzata");
       if (!calculation.photovoltaicProfile?.timeframe) throw new Error("Tempistica progetto obbligatoria");
@@ -341,6 +349,12 @@ export default async function handler(req, res) {
       ...lead,
       status: "pending_otp",
       calculation,
+      // Per una richiesta di alternativa la card originale è un riferimento di
+      // confronto, non un'offerta che OffertaLogica può attivare.
+      ...(isAlternative ? { selectedOffer: {
+        ...calculation.requestedOffer,
+        destinationStatus: "solo_confronto",
+      } } : {}),
       consents: {
         service: lead.consentService,
         marketing: lead.consentMarketing,

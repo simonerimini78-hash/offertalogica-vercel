@@ -134,7 +134,7 @@ export default async function handler(req, res) {
     if (!lead) return json(res, 404, { ok: false, error: "Lead non trovato" });
 
     const leadSource = String(lead.consents?.proof?.source || "").trim().toLowerCase();
-    const useEmailOtp = leadSource === "offer_selection";
+    const useEmailOtp = ["offer_selection", "alternative_offer_request"].includes(leadSource);
     const verificationChannel = useEmailOtp ? "email" : "sms";
     const otpIdentifier = String(useEmailOtp ? lead.email : lead.phone || "").trim().toLowerCase();
     if (!otpIdentifier) {

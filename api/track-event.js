@@ -38,6 +38,8 @@ const ALLOWED_EVENT_TYPES = new Set([
   "activation_data_copied",
   "activation_assistant_opened",
   "offer_card_clicked",
+  "alternative_offer_request_started",
+  "alternative_offer_request_verified",
   "offer_click_locked",
   "offer_consent_opened",
   "offer_partner_consent_missing",
@@ -116,6 +118,7 @@ const ALLOWED_EVENT_TYPES = new Set([
 // accepted only when the submitted lead exists server-side and has completed OTP.
 const VERIFIED_LEAD_EVENT_TYPES = new Set([
   "otp_verified",
+  "alternative_offer_request_verified",
   "offers_unlocked",
   "offer_consent_opened",
   "offer_partner_consent_confirmed",
@@ -127,9 +130,11 @@ const VERIFIED_LEAD_EVENT_TYPES = new Set([
   "assistance_callback_verified",
 ]);
 
-// At these stages /api/offer-consent has already written the authoritative
-// selected offer into the server-side lead. Cross-check client analytics against it.
+// At these stages the server has already recorded the selected offer
+// (/api/offer-consent or /api/lead for alternative requests).
+// Cross-check client analytics against that authoritative record.
 const SERVER_OFFER_MATCH_EVENT_TYPES = new Set([
+  "alternative_offer_request_verified",
   "offer_request_recorded",
   "offer_redirect",
   "partner_funnel_opened",

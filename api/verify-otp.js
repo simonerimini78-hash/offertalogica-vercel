@@ -200,7 +200,9 @@ export default async function handler(req, res) {
       verifiedAt: lead.verifiedAt || new Date().toISOString(),
       verificationChannel,
     };
-    const notificationEvent = updatedLead.calculation?.requestType === "photovoltaic_consulting"
+    const notificationEvent = updatedLead.calculation?.requestType === "alternative_offer"
+      ? "alternative_offer_request"
+      : updatedLead.calculation?.requestType === "photovoltaic_consulting"
       ? "photovoltaic_consulting_request"
       : updatedLead.calculation?.customerType === "business"
         ? "business_consulting_request"
@@ -231,6 +233,17 @@ export default async function handler(req, res) {
     const customerDb = await persistLeadSnapshot(updatedLead, "lead_verified");
     if (!customerDb.ok && !customerDb.skipped) {
       console.warn("customer_db_lead_verified_failed", customerDb.error);
+    }
+
+    if (notificationEvent === "alternative_offer_request"
+      && (customerDb.skipped || !customerDb.ok)
+      && !updatedLead.notification?.emailSent && !updatedLead.notification?.webhookSent) {
+      // Non confermiamo una richiesta manuale che non sia arrivata né al CRM
+      // né a un recapito operativo. Il codice resta riutilizzabile per il retry.
+      return json(res, 503, {
+        ok: false,
+        error: "Email verificata, ma non siamo riusciti a registrare la richiesta. Riprova tra poco.",
+      });
     }
 
     if (notificationEvent === "photovoltaic_consulting_request" && notificationFailed) {
