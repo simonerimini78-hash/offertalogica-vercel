@@ -1,5 +1,5 @@
 // premium-analysis-info-ux-v03651-business-ranking-p3 + premium-business-account-segment-v03671 + premium-business-billing-p5 + premium-direct-compare-p6 + premium-direct-tab-p7 + premium-camera-direct-v03632 + premium-compare-ready-v03633 + premium-calculator-entry-v03634 + premium-offer-controls-v03635 + premium-camera-compact-v03636 + premium-profile-responsive-v03637
-const CACHE = "offertalogica-premium-v03637-profile-responsive-v1";
+const CACHE = "offertalogica-premium-v03638-protezione-ol-v5";
 const APP_SHELL = [
   "/app.html",
   "/app-dialog.js",
@@ -20,7 +20,8 @@ const APP_SHELL = [
   "/termini-condizioni.html",
   "/privacy-premium.html",
   "/offerte-luce-gas-aggiornate.html",
-  "/premium-ai-validation.js"
+  "/premium-ai-validation.js",
+  "/data/protezione-ol-caller-id.json"
 ];
 
 self.addEventListener("install", event => {
@@ -82,7 +83,8 @@ self.addEventListener("fetch", event => {
   const premiumSecurityLivePath =
     url.pathname === "/app.html"
     || ["/app-auth.js", "/app-support.js", "/app-utilities.js", "/app-premium-bills.js", "/premium-ai-validation.js"].includes(url.pathname)
-    || url.pathname.startsWith("/staff");
+    || url.pathname.startsWith("/staff")
+    || url.pathname === "/data/protezione-ol-caller-id.json";
 
   if (premiumSecurityLivePath || liveMainPaths.has(url.pathname) || url.pathname.startsWith("/fornitori/")) {
     event.respondWith(fetch(request, { cache: "no-store" }));

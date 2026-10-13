@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
-  "catalogVersion": 4,
-  "publishedOn": "2026-10-12",
+  "catalogVersion": 5,
+  "publishedOn": "2026-10-13",
   "records": [
     {
       "number": "+390282953222",
@@ -482,6 +482,594 @@
       "label": "Numero associato a Energygas Italia (Energygas Italia S.r.l.)",
       "sourceURL": "https://www.energygasitalia.it/verifica-contatti/",
       "expiresAt": "2027-01-12T00:00:00+01:00"
+    },
+    {
+      "number": "+39011022033",
+      "label": "Iren Luce Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.irenlucegas.it/assistenza/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3901119235801",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3901751953004",
+      "label": "eVISO · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://eviso.it/contattaci/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39017544648",
+      "label": "eVISO · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://eviso.it/truffe/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3902395688",
+      "label": "ENGIE Italia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.engie.it/casa/magazine/condizioni-mercato-libero/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3902444141",
+      "label": "Eni Plenitude · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://eniplenitude.com/info/potenza-contatore-elettrico",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390255187372",
+      "label": "CIP Energia · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://www.cipenergia.com/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39028270",
+      "label": "Estra Energie · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://corporate.estra.it/posts/bulletin/comunicato-emesse-a-marzo-fatture-gas-errate-per-un-problema-tecnico",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390282900192",
+      "label": "Gritti Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.grittienergia.it/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390282900194",
+      "label": "Simecom · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.simecom.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390282900196",
+      "label": "Enercom · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.enercom.it/contatti-servizio-clienti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390282941162",
+      "label": "Wekiwi · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://xwww.wekiwi.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390294340099",
+      "label": "Gritti Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.grittienergia.it/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390299256872",
+      "label": "SG Energia · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://www.sgenergia.it/occhio-alle-truffe-ma-non-solo/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390331354554",
+      "label": "Erreci Luce & Gas · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://erreci.info/news/truffe-telefoniche-come-difendersi/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390398551035",
+      "label": "Lion Green · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://portaleantitruffa.it/liongreen/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390516008066",
+      "label": "Illumia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.illumia.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390516008080",
+      "label": "Illumia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.illumia.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390547483848",
+      "label": "Greenius · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://greenius.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390550351147",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390550357109",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3905641830208",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+3905641830452",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390645698205",
+      "label": "Acea Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://my.acea.it/visualizzaDocumento/?if=g9oW7AMg2cwiCYyH9sRHDk7ee2ZJ%2F%2FZvldAlC3Z7hRk%3D",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390810513000",
+      "label": "Fontel · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://www.fontel.it/stop-alle-truffe/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390859910000",
+      "label": "Società Energia Italia · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://www.societaenergiaitalia.com/stop-alle-truffe-telefoniche-con-societa-energia-italia/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840003",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840008",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840017",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840020",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840021",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840024",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840026",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840027",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840028",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840029",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840030",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840031",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840033",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840034",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840043",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840099",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840222",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390892840252",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421601",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421606",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421610",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421611",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421613",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421618",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421619",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+390898421620",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+393758252036",
+      "label": "Lion Green · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://portaleantitruffa.it/liongreen/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800012144",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800012436",
+      "label": "Eni Plenitude · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://eniplenitude.com/offerta/casa/gas-e-luce/gpl",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800038083",
+      "label": "Sinergas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.sinergas.it/reclami-e-richiesta-di-informazioni/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800046640",
+      "label": "Illumia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.illumia.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800098727",
+      "label": "Gritti Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.grittienergia.it/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800110055",
+      "label": "Alperia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.alperia.eu/offerta/alperia-smile-easy-alperia-gas-smile-clear/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800112077",
+      "label": "Atena Trading / Atena Luce Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.atenalucegas.it/assistenza/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800128128",
+      "label": "Estra Energie · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://corporate.estra.it/posts/bulletin/comunicato-servizio-clienti-estra-cambiano-gli-orari",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800128484",
+      "label": "Metamer · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.metamer.it/faq-e-informazioni-utili/verifica-antifrode-telefonica/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800178584",
+      "label": "Wekiwi · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://xwww.wekiwi.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800184775",
+      "label": "CIP Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.cipenergia.com/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800188525",
+      "label": "NeN Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://nen.it/supporto",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800199979",
+      "label": "Axpo Italia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.axpo.com/it/it/dichiarazione-accessibilita.html",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800222955",
+      "label": "Magis Energia (ex AGSM AIM) · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.magisenergia.it/it/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800383838",
+      "label": "Acea Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://my.acea.it/visualizzaDocumento/?if=g9oW7AMg2cwiCYyH9sRHDk7ee2ZJ%2F%2FZvldAlC3Z7hRk%3D",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800422040",
+      "label": "Simecom · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.simecom.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800422422",
+      "label": "ENGIE Italia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.engie.it/home",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800478538",
+      "label": "Gelsia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.gelsia.it/tutela/chiamate-sospette",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800490266",
+      "label": "Enercom · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.enercom.it/contatti-servizio-clienti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800552866",
+      "label": "Magis Energia (ex AGSM AIM) · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.magisenergia.it/it/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800589773",
+      "label": "Società Energia Italia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.societaenergiaitalia.com/stop-alle-truffe-telefoniche-con-societa-energia-italia/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800606060",
+      "label": "Illumia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.illumia.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800608014",
+      "label": "SEV Iren · numero autorizzato (identità non certificata)",
+      "sourceURL": "https://www.seviren.it/verifica-contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800608047",
+      "label": "Iren Luce Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.irenlucegas.it/assistenza/gestisci-il-tuo-contratto/telefonate-sospette-cosa-fare",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800699961",
+      "label": "SG Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.sgenergia.it/occhio-alle-truffe-ma-non-solo/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800808880",
+      "label": "Illumia · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://www.illumia.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800865684",
+      "label": "Oenergy · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.oenergy.it/contatti/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800894689",
+      "label": "eVISO · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://eviso.it/contattaci/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800900147",
+      "label": "SGR Luce e Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.sgrlucegas.com/occhio-alle-truffe-ma-non-solo/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800900700",
+      "label": "Eni Plenitude · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://eniplenitude.com/info/potenza-contatore-elettrico",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800901199",
+      "label": "ENGIE Italia · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://www.engie.it/home",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800903900",
+      "label": "Repower · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.repower.com/it/consulenza/servizio-clienti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800909668",
+      "label": "Iren Luce Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.irenlucegas.it/assistenza/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800912121",
+      "label": "Gritti Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.grittienergia.it/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800913838",
+      "label": "Optima Italia · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://www.optimaitalia.com/offerta-tutela-vulnerabilita-gas",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800913892",
+      "label": "Optima Italia · contatto commerciale (identità non certificata)",
+      "sourceURL": "https://www.optimaitalia.com/offerta-tutela-vulnerabilita-gas",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800920092",
+      "label": "Fontel · chiamante dichiarato (identità non certificata)",
+      "sourceURL": "https://www.fontel.it/stop-alle-truffe/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800920960",
+      "label": "Sorgenia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.sorgenia.it/privacy-policy",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800939300",
+      "label": "Duferco Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://attivazioneonline.dufercoenergia.com/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800950005",
+      "label": "uBroker · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://ubroker.it/assistenza/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800969696",
+      "label": "Iren Luce Gas · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.irenlucegas.it/assistenza/contatti",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800978912",
+      "label": "Estra Energie · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.estra.it/tutele-graduali/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800990110",
+      "label": "Sherden Energia · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.sherdenenergia.it/uffici-sul-territorio/",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800999500",
+      "label": "Hera Comm · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://heracomm.gruppohera.it/documents/83408/0/Condizioni%2Bgenerali%2Bdi%2Bcontratto_clienti%2Bdomestici%2Bnon%2Bvulnerabili%2B%281%29.pdf/1467a207-562f-beda-d758-a6d761684a0e?t=1711441730051",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+39800999700",
+      "label": "Hera Comm · assistenza ufficiale (identità non certificata)",
+      "sourceURL": "https://www.gruppohera.it/-/apertura-giovedi-di-ottobre-sportello-s-pietro-in-vincoli-a-ravenna",
+      "expiresAt": "2027-01-13T00:00:00+01:00"
     }
   ]
 }

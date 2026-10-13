@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.37">
+  <meta name="offertalogica-app-version" content="APP v0.36.38">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -510,6 +510,18 @@
     @keyframes install-entry-attention{0%,100%{transform:scale(1);box-shadow:0 16px 34px rgba(24,168,75,.30),0 0 0 0 rgba(24,168,75,.18)}50%{transform:scale(1.018);box-shadow:0 18px 38px rgba(24,168,75,.38),0 0 0 8px rgba(24,168,75,.10)}}
     @media(prefers-reduced-motion:reduce){.install-entry:not([hidden]) .install-entry-primary{animation:none}}
 
+
+    /* Protezione OL: consultazione informativa, separata dalla verifica telefonica nativa. */
+    .protection-ol-section{margin:18px 0;padding:21px;border:1.5px solid rgba(255,255,255,.96);border-radius:var(--glass-radius,25px);background:var(--silver-panel,#f6f8f7);box-shadow:0 12px 30px rgba(13,45,61,.09)}
+    .protection-ol-section h2{margin:0 0 9px;color:var(--navy,#19384a);font-size:21px}
+    .protection-ol-section p{margin:8px 0;line-height:1.55;color:#334155;font-size:13px}
+    .protection-ol-section .protection-ol-form{display:flex;flex-wrap:wrap;align-items:flex-end;gap:10px;margin-top:15px}
+    .protection-ol-section label{display:block;flex:1 1 190px;font-size:12px;font-weight:800;color:#1f4b39}
+    .protection-ol-section input{display:block;width:100%;min-height:45px;margin-top:7px;padding:10px 12px;border:1px solid #a4bcb2;border-radius:12px;background:white;color:#1e293b;font:inherit}
+    .protection-ol-section button,.protection-ol-section .protection-ol-action{display:inline-flex;justify-content:center;align-items:center;min-height:45px;padding:10px 14px;border:1px solid #16804b;border-radius:12px;background:#087f3a;color:white;font-weight:800;font-size:13px;text-decoration:none;cursor:pointer}
+    .protection-ol-section .protection-ol-action{background:#f0faf3;color:#146c3c}
+    .protection-ol-section .protection-ol-status{margin:12px 0 0;padding:11px 12px;border:1px solid #b6cbc0;border-radius:12px;background:#fff;overflow-wrap:anywhere}
+    .protection-ol-section .protection-ol-note{font-size:12px;color:#475569}
 </style>
 </head>
 <body>
@@ -565,6 +577,11 @@
           <strong>Offerte aggiornate</strong><small>Confronta le migliori di oggi.</small>
           <span class="home-action-arrow" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></span>
         </a>
+      </section>
+      <section class="home-premium-strip" aria-label="Protezione OL">
+        <div class="home-premium-icon" aria-hidden="true"><svg class="icon" viewBox="0 0 24 24"><path d="M12 3 4 7v5c0 5 3.4 8.5 8 10 4.6-1.5 8-5 8-10V7l-8-4Z"/><path d="m9 12 2 2 4-5"/></svg></div>
+        <div class="home-premium-copy"><span class="home-premium-label">Protezione OL</span><strong class="home-premium-title">Verifica i numeri dei fornitori</strong><p>Consulta il catalogo e raggiungi il servizio gratuito di Protezione OL.</p></div>
+        <button class="home-premium-link" type="button" data-open-tab="profile" data-scroll-target="protezioneOlPanel">Controlla un numero</button>
       </section>
     </section>
 
@@ -789,6 +806,20 @@
         </button>
       </section>
 
+      <section id="protezioneOlPanel" class="protection-ol-section" aria-labelledby="protezioneOlTitle">
+        <h2 id="protezioneOlTitle">Protezione OL</h2>
+        <p>Consulta i numeri ufficialmente associati ai fornitori di energia. Il catalogo distingue numeri chiamanti dichiarati, recapiti di assistenza e contatti commerciali.</p>
+        <form id="protezioneOlForm" class="protection-ol-form" autocomplete="off">
+          <label for="protezioneOlNumber">Numero da verificare
+            <input id="protezioneOlNumber" name="numero" type="tel" inputmode="tel" placeholder="Es. 0547 483848" maxlength="24" required>
+          </label>
+          <button type="submit">Verifica nel catalogo</button>
+        </form>
+        <p id="protezioneOlResult" class="protection-ol-status" role="status" aria-live="polite" hidden></p>
+        <p class="protection-ol-note">L'associazione di un numero non certifica chi sta chiamando. Il Caller ID automatico richiede una componente nativa iPhone o Android: questa PWA esegue soltanto una ricerca manuale.</p>
+        <a class="protection-ol-action" href="https://offertalogica.it/truffe-telefoniche-luce-gas.html#protezione-ol" target="_blank" rel="noopener noreferrer">Apri Protezione OL gratuita e verifica il tuo numero</a>
+      </section>
+
       <div class="section-title"><h2>Gestione e assistenza</h2></div>
       <div class="list">
         <button id="premiumSupportOpen" class="list-item list-item-button" type="button"><div class="list-icon"><svg class="icon" viewBox="0 0 24 24"><path d="M21 15a4 4 0 0 1-4 4H8l-5 3V7a4 4 0 0 1 4-4h10a4 4 0 0 1 4 4z"/><path d="M8 9h8M8 13h5"/></svg></div><div class="list-copy"><strong>Richiedi assistenza</strong><small>Invia allo staff un problema su account, pagamenti, utenze o app.</small></div><svg class="icon chev" viewBox="0 0 24 24"><path d="m9 18 6-6-6-6"/></svg></button>
@@ -800,7 +831,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.37</span>
+      <span class="version-badge">APP Premium v0.36.38</span>
     </section>
   </main>
 
@@ -929,6 +960,33 @@
       premiumInfoLayer?.addEventListener('click',event=>{if(event.target===premiumInfoLayer)closePremiumInfo()});
       document.addEventListener('keydown',event=>{if(event.key==='Escape'&&!premiumInfoLayer?.hidden)closePremiumInfo()});
 
+      // Solo consultazione locale del catalogo pubblico; nessuna attivazione di screening telefonico.
+      (()=>{
+        const form=document.getElementById('protezioneOlForm');
+        const input=document.getElementById('protezioneOlNumber');
+        const result=document.getElementById('protezioneOlResult');
+        if(!form||!input||!result)return;
+        const show=(message)=>{result.textContent=message;result.hidden=false;};
+        form.addEventListener('submit',async(event)=>{
+          event.preventDefault();
+          const entered=input.value.trim();
+          const digits=entered.replace(/\D/g,'');
+          const italian=digits.startsWith('0039')?digits.slice(2):digits.startsWith('39')?digits:'39'+digits;
+          if(!/^39\d{6,12}$/.test(italian)){show('Inserisci un numero italiano valido, con o senza prefisso +39.');return;}
+          show('Consultazione del catalogo in corso…');
+          try{
+            const response=await fetch('/data/protezione-ol-caller-id.json',{cache:'no-store',credentials:'omit'});
+            if(!response.ok)throw new Error('Catalogo non disponibile');
+            const catalog=await response.json();
+            if(!Array.isArray(catalog.records))throw new Error('Formato non valido');
+            const found=catalog.records.find(item=>item.number==='+'+italian);
+            const active=found&&(!found.expiresAt||Date.parse(found.expiresAt)>Date.now());
+            const version=catalog.catalogVersion?`v${catalog.catalogVersion}`:'corrente';
+            if(active)show(`Catalogo ${version}: ${found.label}. Il numero può essere falsificato: l'identità del chiamante NON è verificata.`);
+            else show(`Numero non presente fra quelli validi nel catalogo ${version}. L'assenza non dimostra che la chiamata sia fraudolenta.`);
+          }catch(_){show('Non è stato possibile consultare il catalogo. Nessuna verifica è stata effettuata.');}
+        });
+      })();
       const views=[...document.querySelectorAll('[data-view]')];
       const tabs=[...document.querySelectorAll('[data-tab]')];
       const openTab=name=>{
@@ -1023,7 +1081,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.37";
+      const CURRENT_RELEASE="0.36.38";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();
