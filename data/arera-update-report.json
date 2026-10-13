@@ -1,33 +1,33 @@
 {
-  "versioneDati": "arera-menu-2026-10-12",
-  "aggiornatoIl": "2026-10-12",
+  "versioneDati": "arera-menu-2026-10-13",
+  "aggiornatoIl": "2026-10-13",
   "pubblicazioneAutorizzata": true,
   "statistiche": {
-    "totaleRighe": 974,
-    "fileLuce": "PO_Offerte_E_MLIBERO_20261012.xml",
-    "fileGas": "PO_Offerte_G_MLIBERO_20261012.xml",
-    "fileDual": "PO_Offerte_D_MLIBERO_20261012.xml",
-    "offerteConSconti": 252,
-    "scontiTotali": 405,
+    "totaleRighe": 965,
+    "fileLuce": "PO_Offerte_E_MLIBERO_20261013.xml",
+    "fileGas": "PO_Offerte_G_MLIBERO_20261013.xml",
+    "fileDual": "PO_Offerte_D_MLIBERO_20261013.xml",
+    "offerteConSconti": 247,
+    "scontiTotali": 396,
     "offerteDualConSconti": 2,
     "scontiDualTotali": 2,
-    "scontiFonteLuce": 177,
-    "scontiFonteGas": 228,
+    "scontiFonteLuce": 173,
+    "scontiFonteGas": 223,
     "scontiFonteDual": 2,
-    "scontiConPrezzoSupportatoFonte": 407,
-    "offerteConCondizioniRecesso": 35,
-    "condizioniRecessoTotali": 35,
+    "scontiConPrezzoSupportatoFonte": 398,
+    "offerteConCondizioniRecesso": 37,
+    "condizioniRecessoTotali": 37,
     "offerteDualConCondizioniRecesso": 0,
     "condizioniRecessoDualTotali": 0,
-    "condizioniRecessoFonteLuce": 32,
+    "condizioniRecessoFonteLuce": 34,
     "condizioniRecessoFonteGas": 3,
     "condizioniRecessoFonteDual": 0,
-    "offertePrivati": 645,
-    "offerteBusiness": 307,
+    "offertePrivati": 640,
+    "offerteBusiness": 303,
     "offerteDualPrivati": 20,
     "offerteDualBusiness": 2,
-    "inQuarantena": 492,
-    "scartate": 169
+    "inQuarantena": 484,
+    "scartate": 166
   },
   "quarantena": [
     {
@@ -99,7 +99,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294GSVML01XXSmartCas261033998",
+      "codiceOfferta": "000294GSVML01XXSmartCas261033984",
       "commodity": "gas",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -116,7 +116,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294GSVML01XXSmartCas261033984",
+      "codiceOfferta": "000294GSVML01XXSmartCas261033998",
       "commodity": "gas",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -235,7 +235,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVML01XXSmartCas261033981",
+      "codiceOfferta": "000294ESVFL01XXSmartCas261033995",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -252,7 +252,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVFL01XXSmartCas261033995",
+      "codiceOfferta": "000294ESVML01XXSmartCas261033981",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -286,7 +286,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVFL01XXSmartCas261033983",
+      "codiceOfferta": "000294ESVML01XXSmartCas261033983",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -320,7 +320,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVML01XXSmartCas261033983",
+      "codiceOfferta": "000294ESVFL01XXSmartCas261033983",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -757,91 +757,6 @@
         "tipo": "variabile",
         "customerType": "privato",
         "durataMesi": -1,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767GSVML01XXXXXGASDOMVWEB0926",
-      "commodity": "gas",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.80644800->0.96318200"
-      ],
-      "candidato": {
-        "prezzo": 0.963182,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXEEDOMVVAC0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.24379900->0.27134200"
-      ],
-      "candidato": {
-        "prezzo": 0.271342,
-        "quotaFissaAnnua": 15.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXXXXEEDOMV0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.20199900->0.22954200"
-      ],
-      "candidato": {
-        "prezzo": 0.229542,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXEEDOMVFLEX0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.19979900->0.22734200"
-      ],
-      "candidato": {
-        "prezzo": 0.227342,
-        "quotaFissaAnnua": 159.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXEEDOMVWEB0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.21299900->0.24054200"
-      ],
-      "candidato": {
-        "prezzo": 0.240542,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": 12,
         "qualitaPrezzo": "indice_piu_spread_semantico"
       },
       "ultimoValidoConservato": true
@@ -3992,7 +3907,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "036868DSVFL01XXMYHOMESTARTEE0NEW",
+      "codiceOfferta": "036868ESVFL01XXMYHOMESTARTEE0NEW",
       "commodity": "luce",
       "fornitore": "Elit Energia",
       "motivi": [
@@ -4009,7 +3924,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "036868ESVFL01XXMYHOMESTARTEE0NEW",
+      "codiceOfferta": "036868DSVFL01XXMYHOMESTARTEE0NEW",
       "commodity": "luce",
       "fornitore": "Elit Energia",
       "motivi": [
@@ -4944,6 +4859,23 @@
       "ultimoValidoConservato": true
     },
     {
+      "codiceOfferta": "000129GSVML21XXXXXXXOCTOFLEXGv21",
+      "commodity": "gas",
+      "fornitore": "Octopus Energy",
+      "motivi": [
+        "prezzo_variato_oltre_soglia:0.66661200->0.90318200"
+      ],
+      "candidato": {
+        "prezzo": 0.903182,
+        "quotaFissaAnnua": 84.0,
+        "tipo": "variabile",
+        "customerType": "privato",
+        "durataMesi": -1,
+        "qualitaPrezzo": "indice_piu_spread_semantico"
+      },
+      "ultimoValidoConservato": true
+    },
+    {
       "codiceOfferta": "000129GSVML24XXXXXXXOCTOFLEXGv24",
       "commodity": "gas",
       "fornitore": "Octopus Energy",
@@ -4979,23 +4911,6 @@
     },
     {
       "codiceOfferta": "000129GSVML22XXXXXXXOCTOFLEXGv22",
-      "commodity": "gas",
-      "fornitore": "Octopus Energy",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.66661200->0.90318200"
-      ],
-      "candidato": {
-        "prezzo": 0.903182,
-        "quotaFissaAnnua": 84.0,
-        "tipo": "variabile",
-        "customerType": "privato",
-        "durataMesi": -1,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "000129GSVML21XXXXXXXOCTOFLEXGv21",
       "commodity": "gas",
       "fornitore": "Octopus Energy",
       "motivi": [
@@ -5165,7 +5080,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVFL01XXSmartBuP261033977",
+      "codiceOfferta": "000294ESVML01XXSmartBuP261033977",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -5182,7 +5097,7 @@
       "ultimoValidoConservato": true
     },
     {
-      "codiceOfferta": "000294ESVML01XXSmartBuP261033977",
+      "codiceOfferta": "000294ESVFL01XXSmartBuP261033977",
       "commodity": "luce",
       "fornitore": "A2A Energia",
       "motivi": [
@@ -5449,57 +5364,6 @@
         "tipo": "variabile",
         "customerType": "business",
         "durataMesi": -1,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767GSVML01XXXXXGASBUSVWEB0926",
-      "commodity": "gas",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.73644800->0.89318200"
-      ],
-      "candidato": {
-        "prezzo": 0.893182,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "business",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXEEBUSVWEB0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.19649900->0.22404200"
-      ],
-      "candidato": {
-        "prezzo": 0.224042,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "business",
-        "durataMesi": 12,
-        "qualitaPrezzo": "indice_piu_spread_semantico"
-      },
-      "ultimoValidoConservato": true
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXXXXEEBUSV0926T",
-      "commodity": "luce",
-      "fornitore": "Argos",
-      "motivi": [
-        "prezzo_variato_oltre_soglia:0.19869900->0.22624200"
-      ],
-      "candidato": {
-        "prezzo": 0.226242,
-        "quotaFissaAnnua": 144.0,
-        "tipo": "variabile",
-        "customerType": "business",
-        "durataMesi": 12,
         "qualitaPrezzo": "indice_piu_spread_semantico"
       },
       "ultimoValidoConservato": true
@@ -8397,12 +8261,12 @@
   ],
   "scarti": [
     {
-      "codiceOfferta": "000294ESFFL01XXA2AReady261033973",
+      "codiceOfferta": "000294ESFFL01XXA2AClick261034028",
       "fornitore": "A2A Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000294ESFFL01XXA2AStart261033967",
@@ -8410,15 +8274,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000294ESFFL01XXA2AClick261034028",
+      "codiceOfferta": "000294ESFFL01XXA2AReady261033973",
       "fornitore": "A2A Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000294ESFFL01XXA2AFullD261033965",
@@ -8426,23 +8290,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000294ESFFL01XXPSicuroB261033963",
-      "fornitore": "A2A Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000294ESFFL01XXEsclBusL261033959",
-      "fornitore": "A2A Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000294ESFFL01XXA2AClick261033957",
@@ -8450,7 +8298,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000294ESFFL01XXEsclDomE261033956",
@@ -8458,7 +8306,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000294ESFFL01XXA2AFullB261033969",
@@ -8466,15 +8314,23 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "023912ESFFL01XXY2610ECOLOGK24BIM",
-      "fornitore": "Accendi Luce e Gas",
+      "codiceOfferta": "000294ESFFL01XXEsclBusL261033959",
+      "fornitore": "A2A Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000294ESFFL01XXPSicuroB261033963",
+      "fornitore": "A2A Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "023912DSFFL01XXY2610ECOLOGK24BID",
@@ -8482,7 +8338,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "023912ESFFL01XXY2610ECOLOGK24BIM",
+      "fornitore": "Accendi Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000368ESFFL01XX5005671X261011XVE",
@@ -8490,15 +8354,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "025767ESFFL01XXXXXEEBUSFWEB0926T",
-      "fornitore": "Argos",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "025767ESVFL01XXXXXEEDOMFWEB1026T",
@@ -8506,7 +8362,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "025767ESFFL01XXXXXXXXEEDOMF1026T",
@@ -8514,7 +8370,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "025767ESFFL01XXXXXEEBUSFWEB1026T",
@@ -8522,23 +8378,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "025767ESVFL01XXXXXEEDOMFWEB0926T",
-      "fornitore": "Argos",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "025767ESFFL01XXXXXXXXEEDOMF0926T",
-      "fornitore": "Argos",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000502ESFFL01XXPCFCL160926020000",
@@ -8546,7 +8386,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000774ESVFL01XXRT3E4028490000000",
@@ -8554,7 +8394,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000774ESVML01XXRT3E4028490000000",
@@ -8562,39 +8402,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22482610",
-      "fornitore": "Axpo Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22422610",
-      "fornitore": "Axpo Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22432610",
-      "fornitore": "Axpo Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22472610",
-      "fornitore": "Axpo Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22412610",
@@ -8602,7 +8410,39 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22472610",
+      "fornitore": "Axpo Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22482610",
+      "fornitore": "Axpo Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22432610",
+      "fornitore": "Axpo Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22422610",
+      "fornitore": "Axpo Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000099ESFFL10XXAXPOIXFIX22512610",
@@ -8610,7 +8450,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000139ESVFL01XXW78065WR000000000",
@@ -8618,87 +8458,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFFL01XXW78224WB000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESVFL01XXW78066WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFFL01XXW78222WB000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFML01XXW78207WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFML01XXW78200WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFFL01XXW78202WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFML01XXW78193WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFML01XXW78203WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESVFL01XXW78068WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFFL01XXW78221WB000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000139ESFML01XXW78195WR000000000",
@@ -8706,15 +8466,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139ESFML01XXW78196WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000139ESFML01XXW78198WR000000000",
@@ -8722,7 +8474,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFFL01XXW78202WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000139ESFFL01XXW78206WR000000000",
@@ -8730,23 +8490,87 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000362ESFFL01XXLS26W0D000000A000",
-      "fornitore": "E.ON",
+      "codiceOfferta": "000139ESFFL01XXW78221WB000000000",
+      "fornitore": "Dolomiti Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000362ESVFL01XXZY36W0DDS0000A000",
-      "fornitore": "E.ON",
+      "codiceOfferta": "000139ESVFL01XXW78068WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFML01XXW78200WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFML01XXW78196WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFML01XXW78193WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFFL01XXW78222WB000000000",
+      "fornitore": "Dolomiti Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFML01XXW78207WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFFL01XXW78224WB000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESVFL01XXW78066WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139ESFML01XXW78203WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000362ESFFL01XXLS26W0DACR000E000",
@@ -8754,7 +8578,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000362ESVFL01XXZY36W0DDS0000A000",
+      "fornitore": "E.ON",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000362ESFFL01XXZL26W0DACREF0C000",
@@ -8762,7 +8594,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000362ESFFL01XXZL26W0DEF0000B000",
@@ -8770,7 +8602,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000362ESFFL01XXLS26W0D000000A000",
+      "fornitore": "E.ON",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000362ESFFL01XXL626W0D000000A000",
@@ -8778,7 +8618,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000732ESFFL01XXRFED2609AXXXXXXXX",
@@ -8786,7 +8626,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000732ESFFL01XXEFEB2609AXXXXXXXX",
@@ -8794,7 +8634,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "001714ESFFL07XXTIME0000700000000",
@@ -8802,23 +8642,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "001714ESFFL28XXPUFD0002800000000",
-      "fornitore": "Engie",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "001714ESFFL07XXFSOL0000700000000",
-      "fornitore": "Engie",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "001714ESFFL08XXRRIS0000800000000",
@@ -8826,7 +8650,23 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "001714ESFFL07XXFSOL0000700000000",
+      "fornitore": "Engie",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "001714ESFFL28XXPUFD0002800000000",
+      "fornitore": "Engie",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "001155ESFFL01XXPCFCL160926020000",
@@ -8834,119 +8674,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESFFL34XXLECHOX001X34XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL13XXLEFLXX002X13XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVML09XXLEESPX001X9XXXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL18XXLEWD1X001X18XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESFFL35XXLEEAFX001X35XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESFFL00XX1XSRKVVAX100XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL08XXLEESPX002X8XXXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL19XXLEWD1X002X19XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVML23XXLEWD2X001X23XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVML18XXLEWD1X001X18XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL23XXLEWD2X001X23XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVML17XXLESPEX001X17XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL17XXLESPEX001X17XXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190ESVFL09XXLEESPX001X9XXXXX5",
-      "fornitore": "Edison",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000190ESVFL16XXLESPEX002X16XXXX5",
@@ -8954,7 +8682,55 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVML09XXLEESPX001X9XXXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL18XXLEWD1X001X18XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVML23XXLEWD2X001X23XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL23XXLEWD2X001X23XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL08XXLEESPX002X8XXXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESFFL00XX1XSRKVVAX100XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000190ESFFL04XXLE5XTEX001X4XXXX5",
@@ -8962,15 +8738,71 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142ESFFL01XXBusECAn0000118978",
-      "fornitore": "Enel Energia",
+      "codiceOfferta": "000190ESVFL17XXLESPEX001X17XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL09XXLEESPX001X9XXXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL13XXLEFLXX002X13XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVML17XXLESPEX001X17XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVFL19XXLEWD1X002X19XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESFFL34XXLECHOX001X34XXXX5",
+      "fornitore": "Edison",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESFFL35XXLEEAFX001X35XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000190ESVML18XXLEWD1X001X18XXXX5",
+      "fornitore": "Edison",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000142ESVFL01XXResECAn0000118859",
@@ -8978,31 +8810,23 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142ESFFL01XXBusECAn0000118979",
+      "codiceOfferta": "000142ESFFL01XXBusECAn0000119078",
       "fornitore": "Enel Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "026160ESVFL45XX000TNDVLBAS160926",
-      "fornitore": "Eni Plenitude",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "026160ESFFL55XXLFIXA24VFIB021026",
-      "fornitore": "Eni Plenitude",
+      "codiceOfferta": "000142ESFFL01XXBusECAn0000119077",
+      "fornitore": "Enel Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "026160ESFFL55XXLFIXA24VSMA011026",
@@ -9010,7 +8834,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "026160ESFFL55XXLFIXA24VBAS011026",
@@ -9018,23 +8842,23 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "026160ESFFL54XX00LPERTVBAS160926",
+      "codiceOfferta": "026160ESFFL55XXLFIXA24VFIB021026",
       "fornitore": "Eni Plenitude",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "026160ESVML45XX000TNDVLBAS160926",
+      "codiceOfferta": "026160ESVFL45XX000TNDVLBAS160926",
       "fornitore": "Eni Plenitude",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "026160ESFFL55XXLFIXATIVBAS011026",
@@ -9042,15 +8866,23 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000265ESFFL01XX000FLTEVECDSLXV51",
-      "fornitore": "Hera Comm",
+      "codiceOfferta": "026160ESFFL54XX00LPERTVBAS160926",
+      "fornitore": "Eni Plenitude",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "026160ESVML45XX000TNDVLBAS160926",
+      "fornitore": "Eni Plenitude",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000265ESVOL01XX000ACTV2GELAVXV24",
@@ -9058,31 +8890,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000265ESFFL01XX000FLT2GECXSLXV50",
-      "fornitore": "Hera Comm",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000265ESFFL01XX000FLTEVECXSLXV51",
-      "fornitore": "Hera Comm",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000265ESFFL01XX000FLT2GEL123XV50",
-      "fornitore": "Hera Comm",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000265ESVOL01XX000ACTV2GELXWXV24",
@@ -9090,47 +8898,39 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000415ESVOL01XX000ACTV2GELAVXV24",
-      "fornitore": "Hera Comm",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000415ESFFL01XX000FLTEVECDSLXV51",
+      "codiceOfferta": "000265ESFFL01XX000FLTEVECDSLXV51",
       "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000415ESFFL01XX000FLTEVECXSLXV51",
+      "codiceOfferta": "000265ESFFL01XX000FLTEVECXSLXV51",
       "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000415ESFFL01XX000FLT2GECXSLXV50",
+      "codiceOfferta": "000265ESFFL01XX000FLT2GECXSLXV50",
       "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000415ESVOL01XX000ACTV2GELXWXV24",
+      "codiceOfferta": "000265ESFFL01XX000FLT2GEL123XV50",
       "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000415ESFFL01XX000FLT2GEL123XV50",
@@ -9138,63 +8938,47 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000155ESFFL07XXZZ05056Z261011E03",
-      "fornitore": "Illumia",
+      "codiceOfferta": "000415ESFFL01XX000FLT2GECXSLXV50",
+      "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000155DSFFL07XXZZ05103Z261011E03",
-      "fornitore": "Illumia",
+      "codiceOfferta": "000415ESVOL01XX000ACTV2GELXWXV24",
+      "fornitore": "Hera Comm",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000415ESVOL01XX000ACTV2GELAVXV24",
+      "fornitore": "Hera Comm",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000415ESFFL01XX000FLTEVECXSLXV51",
+      "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000155ESFFL07XXZZ04000Z261011E03",
-      "fornitore": "Illumia",
+      "codiceOfferta": "000415ESFFL01XX000FLTEVECDSLXV51",
+      "fornitore": "Hera Comm",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000155ESFFL08XXZZ03954Z261011E03",
-      "fornitore": "Illumia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000155ESFFL06XXZZ05991Z261011E03",
-      "fornitore": "Illumia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000155ESFFL08XXZZ03780Z261011E03",
-      "fornitore": "Illumia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000155ESFFL01XXZZ06922Z261011E03",
-      "fornitore": "Illumia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000155ESFFL04XXZZ06751Z261011E03",
@@ -9202,15 +8986,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000155ESFFL08XXZZ03963Z261011E03",
+      "codiceOfferta": "000155ESFFL07XXZZ05056Z261011E03",
       "fornitore": "Illumia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000155ESFFL09XXZZ03839Z261011E03",
@@ -9218,7 +9002,63 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL08XXZZ03963Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL08XXZZ03954Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155DSFFL07XXZZ05103Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL01XXZZ06922Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL08XXZZ03780Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL06XXZZ05991Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000155ESFFL07XXZZ04000Z261011E03",
+      "fornitore": "Illumia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000155ESFFL04XXZZ06755Z261011E03",
@@ -9226,15 +9066,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000592ESFFL01XXBAX1026XPROXIFIXP",
-      "fornitore": "Magis Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000592ESFFL01XXBMX1026XPROXIFIXB",
@@ -9242,7 +9074,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000592ESFFL01XXBBX1026XPRXFIXSMA",
@@ -9250,47 +9082,15 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22842610",
-      "fornitore": "Pulsee Luce e Gas",
+      "codiceOfferta": "000592ESFFL01XXBAX1026XPROXIFIXP",
+      "fornitore": "Magis Energia",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22802610",
-      "fornitore": "Pulsee Luce e Gas",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23092610",
-      "fornitore": "Pulsee Luce e Gas",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23112610",
-      "fornitore": "Pulsee Luce e Gas",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23132610",
-      "fornitore": "Pulsee Luce e Gas",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "040505ESFFL10XXPULSEEFIX22912610",
@@ -9298,7 +9098,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "040505ESFFL10XXPULSEEFIX22882610",
@@ -9306,23 +9106,31 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22872610",
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23132610",
       "fornitore": "Pulsee Luce e Gas",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23142610",
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22842610",
       "fornitore": "Pulsee Luce e Gas",
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22802610",
+      "fornitore": "Pulsee Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "040505ESFFL10XXPULSEEFIX23152610",
@@ -9330,7 +9138,39 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23112610",
+      "fornitore": "Pulsee Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23092610",
+      "fornitore": "Pulsee Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX22872610",
+      "fornitore": "Pulsee Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "040505ESFFL10XXPULSEEFIX23142610",
+      "fornitore": "Pulsee Luce e Gas",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "044176ESVFL01XXVIVIGREENXX202605",
@@ -9338,103 +9178,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL62XXOVVPLANEFIX081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL61XXVVPLANEREAL081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL38XXVVPLANDRE24081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL38XXVVPLANEFX24081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL42XXVIVICONSADF081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL61XXVVPLANDREAL081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL37XXVVPLANERE24081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL06XXVIVIATTDFFX081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL06XXVIVIATTEEFX081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL62XXOVVPLANDFIX081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL38XXVVPLANDFX24081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000652ESFFL42XXVIVICONSAEF081026",
-      "fornitore": "Vivi Energia",
-      "commodity": "luce",
-      "stato": "scartato",
-      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000652ESFFL29XXVIVICLEARDF081026",
@@ -9442,7 +9186,31 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL06XXVIVIATTEEFX081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL42XXVIVICONSAEF081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL38XXVVPLANDFX24081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000652ESFFL30XXVIVICLEAREE081026",
@@ -9450,7 +9218,79 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "prezzo_multifascia_senza_sintesi_verificata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL37XXVVPLANERE24081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL06XXVIVIATTDFFX081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL62XXOVVPLANDFIX081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL61XXVVPLANDREAL081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL42XXVIVICONSADF081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL62XXOVVPLANEFIX081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL38XXVVPLANEFX24081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL38XXVVPLANDRE24081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000652ESFFL61XXVVPLANEREAL081026",
+      "fornitore": "Vivi Energia",
+      "commodity": "luce",
+      "stato": "scartato",
+      "motivo": "prezzo_multifascia_senza_sintesi_verificata",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "029748ESVML01XX261007LDSURF00000",
@@ -9458,7 +9298,7 @@
       "commodity": "luce",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_E_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000368GSVML01XX5805766X261011XVE",
@@ -9466,7 +9306,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "tipo_cliente_non_riconosciuto",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000774GSVML01XXRT3G4028510000000",
@@ -9474,31 +9314,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139GSFML01XXW78216WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139GSFML01XXW78213WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000139GSFML01XXW78218WR000000000",
-      "fornitore": "Dolomiti Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000139GSFML01XXW78215WR000000000",
@@ -9506,23 +9322,31 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000190GSVML05XXLGESPX002X5XXXXX5",
-      "fornitore": "Edison",
+      "codiceOfferta": "000139GSFML01XXW78213WR000000000",
+      "fornitore": "Dolomiti Energia",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000190GSVML11XXLGWD1X002X11XXXX5",
-      "fornitore": "Edison",
+      "codiceOfferta": "000139GSFML01XXW78218WR000000000",
+      "fornitore": "Dolomiti Energia",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000139GSFML01XXW78216WR000000000",
+      "fornitore": "Dolomiti Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000190GSVML10XXLGFLXX002X10XXXX5",
@@ -9530,23 +9354,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190GSVML23XXLGWD2X001X23XXXX5",
-      "fornitore": "Edison",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000190GSVML18XXLGWD1X001X18XXXX5",
-      "fornitore": "Edison",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000190GSVML13XXLGSPGX001X14XXXX5",
@@ -9554,15 +9362,15 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000190GSVML09XXLGESPX001X9XXXXX5",
+      "codiceOfferta": "000190GSVML11XXLGWD1X002X11XXXX5",
       "fornitore": "Edison",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000190GSVML14XXLGSPGX002X14XXXX5",
@@ -9570,63 +9378,39 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142GSVML01XXBusECAn0000119037",
-      "fornitore": "Enel Energia",
+      "codiceOfferta": "000190GSVML09XXLGESPX001X9XXXXX5",
+      "fornitore": "Edison",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142GSFML01XXBusECAn0000118967",
-      "fornitore": "Enel Energia",
+      "codiceOfferta": "000190GSVML18XXLGWD1X001X18XXXX5",
+      "fornitore": "Edison",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142GSVML01XXBusECAn0000118751",
-      "fornitore": "Enel Energia",
+      "codiceOfferta": "000190GSVML05XXLGESPX002X5XXXXX5",
+      "fornitore": "Edison",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
-      "codiceOfferta": "000142GSVML01XXBusECAn0000118924",
-      "fornitore": "Enel Energia",
+      "codiceOfferta": "000190GSVML23XXLGWD2X001X23XXXX5",
+      "fornitore": "Edison",
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000142GSVML01XXBusECAn0000118741",
-      "fornitore": "Enel Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000142GSVML01XXResECAn0000119050",
-      "fornitore": "Enel Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
-    },
-    {
-      "codiceOfferta": "000142GSVML01XXResECAn0000118860",
-      "fornitore": "Enel Energia",
-      "commodity": "gas",
-      "stato": "scartato",
-      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000142GSVML01XXBusECAn0000118929",
@@ -9634,7 +9418,15 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXBusECAn0000118924",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000142GSVML01XXBusECAn0000118930",
@@ -9642,7 +9434,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "000142GSVML01XXBusECAn0000118925",
@@ -9650,7 +9442,55 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXResECAn0000119050",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXResECAn0000118860",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXBusECAn0000118741",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXBusECAn0000118751",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSVML01XXBusECAn0000119037",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
+    },
+    {
+      "codiceOfferta": "000142GSFML01XXBusECAn0000119066",
+      "fornitore": "Enel Energia",
+      "commodity": "gas",
+      "stato": "scartato",
+      "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "026160GSVML45XX0000TNDGBAS160926",
@@ -9658,7 +9498,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "002626GSVML01XX2345X5792OOOOOOOO",
@@ -9666,7 +9506,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "codiceOfferta": "036327GSFML13XX261009REPENGXXXXX",
@@ -9674,7 +9514,7 @@
       "commodity": "gas",
       "stato": "scartato",
       "motivo": "nessun_prezzo_principale_semanticamente_compatibile",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_G_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9684,7 +9524,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9694,7 +9534,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9704,7 +9544,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9714,7 +9554,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9724,7 +9564,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9734,7 +9574,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9744,7 +9584,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9754,7 +9594,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     },
     {
       "recordType": "dual",
@@ -9764,7 +9604,7 @@
       "commodity": "dual",
       "stato": "scartato",
       "motivo": "componente_dual_non_validata",
-      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261012.xml"
+      "sorgente": "Portale Offerte ARERA/Acquirente Unico Open Data - PO_Offerte_D_MLIBERO_20261013.xml"
     }
   ]
 }
