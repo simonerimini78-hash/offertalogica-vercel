@@ -7,7 +7,7 @@
   <meta name="apple-mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="default">
   <meta name="apple-mobile-web-app-title" content="OffertaLogica Premium">
-  <meta name="offertalogica-app-version" content="APP v0.36.38">
+  <meta name="offertalogica-app-version" content="APP v0.36.39">
   <title>OffertaLogica Premium</title>
   <link rel="manifest" href="/manifest.webmanifest">
   <link rel="icon" href="/assets/logo-offertalogica-icon.png?v=19">
@@ -417,6 +417,8 @@
     }
     .home-premium-strip{margin-bottom:16px}
     .home-action-grid{align-items:stretch;grid-auto-rows:1fr}
+    /* Mantieni tra le schede della Home e Protezione OL lo stesso gap di 14px della griglia. */
+    #view-home .home-action-grid + .home-premium-strip{margin-top:14px}
     .home-action{height:auto}
 
     /* Testate delle pagine: stessa gerarchia e simmetria della Home. */
@@ -831,7 +833,7 @@
 
       <section id="premiumSupportPanel" class="account-manage" aria-label="Richiesta assistenza" hidden></section>
 
-      <span class="version-badge">APP Premium v0.36.38</span>
+      <span class="version-badge">APP Premium v0.36.39</span>
     </section>
   </main>
 
@@ -1081,7 +1083,7 @@
       globalThis.OffertaLogicaPremiumBills?.init();
 
       if(!('serviceWorker' in navigator))return;
-      const CURRENT_RELEASE="0.36.38";
+      const CURRENT_RELEASE="0.36.39";
       let refreshing=false;let activationRequested=false;let registration=null;let pendingWorker=null;let manifestReloadPending=false;let controlledAtStart=Boolean(navigator.serviceWorker.controller);
       const boundRegistrations=new WeakSet();
       let updateCheckInFlight=null;let updateTimer=null;let retryTimer=null;let lastInteractionAt=Date.now();
