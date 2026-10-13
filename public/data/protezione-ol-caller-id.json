@@ -1070,6 +1070,20 @@
       "label": "Hera Comm · assistenza ufficiale (identità non certificata)",
       "sourceURL": "https://www.gruppohera.it/-/apertura-giovedi-di-ottobre-sportello-s-pietro-in-vincoli-a-ravenna",
       "expiresAt": "2027-01-13T00:00:00+01:00"
+    },
+    {
+      "number": "+393299786242",
+      "label": "Offertalogica",
+      "sourceURL": "https://offertalogica.it/termini-condizioni.html",
+      "expiresAt": null,
+      "verificationMethod": "official_site_whatsapp_contact"
+    },
+    {
+      "number": "+393384400028",
+      "label": "Consulente Offerta Logica",
+      "sourceURL": "https://offertalogica.it/",
+      "expiresAt": null,
+      "verificationMethod": "direct_project_owner_confirmation"
     }
   ]
 }
