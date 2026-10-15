@@ -1,4 +1,4 @@
-/* OffertaLogica mobile journey v1.4.0 */
+/* OffertaLogica mobile journey v0.10.68 */
 (function () {
   'use strict';
 
@@ -317,7 +317,26 @@
     }
   }
 
+  function moveAppAccessToFooter() {
+    var bar = document.querySelector('.ol-app-access-bar');
+    var footer = document.querySelector('footer');
+    if (!bar || !footer) return;
+    /* Non duplicare link esistenti. Le pagine con solo il banner li recuperano nel footer. */
+    if (!footer.querySelector('.ol-app-access-footer')) {
+      var links = bar.querySelectorAll('.ol-app-access-link');
+      if (links.length) {
+        var group = document.createElement('div');
+        group.className = 'ol-app-access-footer';
+        group.setAttribute('aria-label', 'Accessi alle app OffertaLogica');
+        Array.prototype.forEach.call(links, function (link) { group.appendChild(link); });
+        footer.insertBefore(group, footer.firstChild);
+      }
+    }
+    bar.remove();
+  }
+
   function init() {
+    moveAppAccessToFooter();
     buildMenu();
     normalizeCalculatorCtas();
     enhanceFastEntries();

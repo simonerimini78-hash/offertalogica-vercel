@@ -1,4 +1,4 @@
-/* OffertaLogica mobile journey v1.3.1
+/* OffertaLogica mobile journey v0.10.68
  * Solo presentazione mobile e navigazione del sito pubblico.
  * Non modifica breadcrumb, metadati SEO/IA, logica del calcolatore o contenuti tecnici.
  */
@@ -18,11 +18,26 @@
     touch-action: none;
   }
 
-  /* Il controllo privacy resta raggiungibile ma non copre CTA o contenuti. */
+  /* Solo il pulsante permanente Preferenze privacy: mai nascondere il banner dei consensi. */
   .iubenda-tp-btn.iubenda-cs-preferences-link {
-    transform: scale(.72) !important;
-    transform-origin: left bottom !important;
-    opacity: .68 !important;
+    position: fixed !important;
+    left: auto !important;
+    right: max(8px, env(safe-area-inset-right)) !important;
+    bottom: max(8px, env(safe-area-inset-bottom)) !important;
+    top: auto !important;
+    transform: none !important;
+    transform-origin: center !important;
+    opacity: .88 !important;
+    width: auto !important;
+    min-width: 0 !important;
+    max-width: 108px !important;
+    max-height: 42px !important;
+    padding: 7px 9px !important;
+    font-size: 11px !important;
+    line-height: 1.2 !important;
+    overflow: hidden !important;
+    white-space: normal !important;
+    border-radius: 10px !important;
   }
 
   body.ol-mobile-journey-ready .ol-mobile-menu-host {
@@ -44,8 +59,8 @@
 
   body.ol-mobile-journey-ready .topbar .brand img,
   body.ol-mobile-journey-ready .ol-topbar .ol-brand img {
-    width: 132px !important;
-    max-width: 46vw !important;
+    width: 118px !important;
+    max-width: 44vw !important;
   }
 
   body.ol-mobile-journey-ready .page-shell > header.ol-mobile-menu-host,
@@ -70,12 +85,12 @@
     display: none !important;
   }
 
-  /* App gratuita e Premium restano sempre visibili fuori dall'hamburger, in una riga compatta. */
+  /* Accessi App/Premium nel solo footer: non occupano piu il primo schermo. */
   body.ol-mobile-journey-ready .ol-app-access-bar {
     position: static !important;
     top: auto !important;
     z-index: auto !important;
-    display: block !important;
+    display: none !important;
     width: 100% !important;
     margin: 0 !important;
     border: 0 !important;
@@ -1070,3 +1085,146 @@ body footer .ol-simulator-footer-link { font-weight: 700; }
   body .ol-simulator-entry-secondary { transition: none !important; }
 }
 
+
+/* v0.10.68 - I link alle app restano nel footer su tutte le pagine pubbliche. */
+.ol-app-access-bar { display: none !important; }
+
+/* Footer coerente anche sulle pagine editoriali prive del foglio App dedicato. */
+footer .ol-app-access-footer {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 auto 18px;
+}
+footer .ol-app-access-footer .ol-app-access-link {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 42px;
+  padding: 8px 13px;
+  border-radius: 10px;
+  border: 1px solid #a9daba;
+  background: #f0fdf4;
+  color: #14532d !important;
+  text-decoration: none !important;
+  font-weight: 800;
+  font-size: 13px;
+}
+footer .ol-app-access-footer .ol-app-access-premium {
+  background: #eff6ff;
+  border-color: #bfdbfe;
+  color: #1d4ed8 !important;
+}
+footer .ol-app-access-footer .ol-app-access-link:focus-visible {
+  outline: 3px solid rgba(37,99,235,.3);
+  outline-offset: 3px;
+}
+
+/* Landing offerte: gerarchia mobile leggibile, con il confronto prima dei dettagli. */
+@media (max-width: 700px) {
+  body.ol-offers-page .hero {
+    padding: 14px 0 12px !important;
+  }
+  body.ol-offers-page .hero > .shell {
+    padding: 17px 16px 18px !important;
+    border-radius: 21px !important;
+  }
+  body.ol-offers-page .hero .eyebrow {
+    font-size: 11px !important;
+    letter-spacing: .05em !important;
+    margin-bottom: 7px !important;
+  }
+  body.ol-offers-page .hero h1 {
+    font-size: clamp(27px, 7.6vw, 34px) !important;
+    line-height: 1.13 !important;
+    margin-bottom: 10px !important;
+  }
+  body.ol-offers-page .hero p {
+    font-size: 14px !important;
+    line-height: 1.43 !important;
+  }
+  body.ol-offers-page .hero-actions {
+    margin-top: 13px !important;
+    gap: 7px !important;
+  }
+  body.ol-offers-page .hero-actions .button.primary {
+    min-height: 48px !important;
+    font-size: 15px !important;
+  }
+  body.ol-offers-page .hero-actions .button.secondary {
+    background: transparent !important;
+    border: 0 !important;
+    box-shadow: none !important;
+    min-height: 26px !important;
+    padding: 2px 8px !important;
+    text-decoration: underline !important;
+    font-size: 13px !important;
+  }
+  body.ol-offers-page .ol-breadcrumbs {
+    margin-top: 8px !important;
+    font-size: 11px !important;
+  }
+  body.ol-offers-page #arera-update-note {
+    margin: 12px 0 10px !important;
+    padding: 11px 13px !important;
+    font-size: 12px !important;
+    line-height: 1.35 !important;
+  }
+  /* Ciascuna offerta ha un'intestazione sempre visibile e i dettagli su richiesta. */
+  body.ol-offers-page .ol-offer-compact td:first-child {
+    display: block !important;
+    border-top: 0 !important;
+    padding: 0 !important;
+  }
+  body.ol-offers-page .ol-offer-compact td:first-child::before { display: none !important; }
+  body.ol-offers-page .ol-offer-compact:not(.is-open) td:not(:first-child) { display: none !important; }
+  body.ol-offers-page .ol-offer-compact .ol-offer-desktop-provider { display: none !important; }
+  body.ol-offers-page .ol-offer-toggle {
+    width: 100%;
+    min-height: 82px;
+    display: flex;
+    flex-direction: column;
+    text-align: left;
+    gap: 3px;
+    border: 0;
+    border-radius: 13px;
+    padding: 14px 16px 13px;
+    background: transparent;
+    color: #123044;
+    font: inherit;
+    cursor: pointer;
+  }
+  body.ol-offers-page .ol-offer-toggle-provider {
+    font-weight: 850;
+    font-size: 17px;
+    line-height: 1.25;
+  }
+  body.ol-offers-page .ol-offer-toggle-name {
+    font-size: 13px;
+    line-height: 1.35;
+    color: #52677d;
+  }
+  body.ol-offers-page .ol-offer-toggle-tags {
+    color: #087f3a;
+    font-size: 11px;
+    font-weight: 750;
+  }
+  body.ol-offers-page .ol-offer-toggle-more {
+    align-self: flex-end;
+    color: #087f3a;
+    font-weight: 800;
+    font-size: 12px;
+    margin-top: 2px;
+  }
+  body.ol-offers-page .ol-offer-toggle-chevron { font-size: 17px; }
+  body.ol-offers-page .ol-offer-toggle:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .3);
+    outline-offset: -3px;
+  }
+  body.ol-offers-page .ol-offer-compact.is-open td:nth-child(2) { border-top: 1px solid #edf1f2 !important; }
+}
+@media (min-width: 701px) {
+  body.ol-offers-page .ol-offer-toggle { display: none !important; }
+}

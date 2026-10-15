@@ -1,5 +1,6 @@
-/* Accessi rapidi alle app OffertaLogica. */
+/* Accessi alle app OffertaLogica, mantenuti nel footer (v0.10.68). */
 .ol-app-access-bar {
+    display: none !important; /* Accessi App/Premium soltanto nel footer. */
     position: sticky;
     top: 0;
     z-index: 940;
