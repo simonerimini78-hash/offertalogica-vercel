@@ -102,6 +102,7 @@
   .social-entry-card > .social-entry-footer { order:12; }
 }
 </style>
+    <script>window._iub=window._iub||[];window._iub.csConfiguration=window._iub.csConfiguration||{};window._iub.csConfiguration.floatingPreferencesButtonDisplay=false;</script>
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
     <!-- Google tag (gtag.js) - Google Ads -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18424345732"></script>
@@ -133,7 +134,7 @@
       ]
     }
     </script>
-    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.68">
+    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.69">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -21046,6 +21047,11 @@ if (document.readyState === "loading") {
     <script type="text/javascript">
         function apriPreferenzeCookie(event) {
             if (event) event.preventDefault();
+            // API documentata iubenda: funziona anche senza il pulsante flottante.
+            if (window._iub && window._iub.cs && window._iub.cs.api && typeof window._iub.cs.api.openPreferences === "function") {
+                window._iub.cs.api.openPreferences();
+                return;
+            }
             var officialButton = document.querySelector(".iubenda-tp-btn.iubenda-cs-preferences-link");
             if (officialButton) {
                 officialButton.click();
