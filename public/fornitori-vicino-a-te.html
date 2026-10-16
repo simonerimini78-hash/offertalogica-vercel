@@ -24,7 +24,8 @@ const providers={
  liongreen:{name:'Lion Green',site:'https://www.liongreen.it/',offices:[{cap:'81100',city:'Caserta',province:'CE',street:'Via Giuseppe Verdi 37',kind:'Sede legale',source:'https://www.liongreen.it/contatti/'},{cap:'81040',city:'Curti',province:'CE',street:'Via Nazionale Appia 81',kind:'Sede operativa e punto di incontro dichiarato',source:'https://www.liongreen.it/opening-home/'}]},
  ovenergy:{name:'OV Energy',site:null,offices:[]}
 };
-const cutoff='2026-10-16';
+const today=new Date();
+const cutoff=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 const link=(label,href)=>{const a=el('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';return a;};
 const visible=offers.filter(o=>o.customerType==='domestico'&&o.dataFine&&o.dataFine>=cutoff);
