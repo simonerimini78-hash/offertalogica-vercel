@@ -12,13 +12,12 @@
 <section class="hero"><h1>Scopri altri fornitori luce e gas nella tua zona</h1><p>Anche un operatore meno conosciuto potrebbe avere una sede vicino a casa tua. Cerca per CAP, verifica la presenza territoriale e consulta le offerte presenti nell'archivio OffertaLogica.</p></section>
 <section class="box" aria-labelledby="search-title"><h2 id="search-title">Cerca una presenza fisica per CAP</h2><p class="muted">Ricerca sperimentale limitata alle sedi verificate. Il CAP non dimostra che un'offerta sia attivabile a quell'indirizzo.</p>
 <form id="search"><div class="fields"><div><label for="cap">CAP della fornitura</label><input id="cap" name="cap" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" placeholder="Es. 47522" required></div><button type="submit">Cerca nella zona</button></div></form><div id="result-message" role="status" aria-live="polite"></div><div id="matches" class="grid"></div></section>
-<section aria-labelledby="offers-title"><h2 id="offers-title">Offerte dei fornitori nel nostro archivio</h2><p>Le offerte riportate sono tratte dall'archivio OffertaLogica aggiornato il 6 ottobre 2026. Sono escluse le offerte con data di fine precedente al 16 ottobre 2026. <strong>Questa è una consultazione informativa, non un confronto personalizzato né una verifica della disponibilità nel tuo CAP.</strong></p>
-<div id="offers" class="grid"></div></section>
+<section aria-labelledby="offers-title"><h2 id="offers-title">Offerte dei fornitori nel nostro archivio</h2><p>Le offerte sono lette dall’archivio pubblico OffertaLogica e filtrate alla data della consultazione. <strong>Questa è una consultazione informativa, non un confronto personalizzato né una verifica della disponibilità nel tuo CAP.</strong></p>
+<div id="offers-status" role="status" aria-live="polite">Caricamento offerte…</div><div id="offers" class="grid"></div></section>
 <section class="box"><h2>Come interpretiamo la presenza locale?</h2><p>Una sede legale o operativa non equivale automaticamente a uno sportello aperto al pubblico. Orari, accesso e servizi di assistenza di persona saranno esposti solo dopo conferma del fornitore.</p><p class="notice">Anteprima di sviluppo: pagina esclusa dall'indicizzazione, senza attivazioni commerciali o acquisizione di dati personali.</p></section>
 </main><footer><div class="wrap"><small>OffertaLogica · Anteprima non pubblica · Informazioni da verificare prima del lancio</small></div></footer>
 <script>
 'use strict';
-const offers=[{"providerKey":"greenius","providerLabel":"Greenius","nome":"LA STESSA GAS NATURALE 24 MESI","commodity":"gas","tipo":"fisso","dataFine":"2026-10-07","codice":"027184GSFML01XXXXB2609DOGFIXCANA","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"IN CONTROL CASA","commodity":"gas","tipo":"variabile","dataFine":"2026-10-07","codice":"027184GNVML01XXXXX2609DOGCAPRES2","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA GIADA","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GNVML01XXXXX2609DOGPSVRESI","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA ZAFFIRO","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GNVML01XXXXX2609DOGPSVRESK","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA RUBINO","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GNVML01XXXXX2609DOGPSVRESL","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA AMBRA","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GNVML01XXXXX2609DOGPSVRESM","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA OPALE","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GNVML01XXXXX2609DOGPSVRESN","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA SMERALDO","commodity":"gas","tipo":"variabile","dataFine":"2027-01-12","codice":"027184GSVML01XXXXX2609DOGPSVRESJ","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"LA STESSA ENERGIA ELETTRICA 24 MESI","commodity":"luce","tipo":"fisso","dataFine":"2026-10-07","codice":"027184ESFML01XXB2609DOE0FFIXCANA","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"IN CONTROL CASA","commodity":"luce","tipo":"variabile","dataFine":"2026-10-07","codice":"027184ENVML01XXX2609DOEF0CAPRES2","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA GIADA","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ENVOL01XXX2609DOE01PORRESI","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA ZAFFIRO","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ENVOL01XXX2609DOE01PORRESK","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA RUBINO","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ENVOL01XXX2609DOE01PORRESL","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA AMBRA","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ENVOL01XXX2609DOE01PORRESM","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA OPALE","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ENVOL01XXX2609DOE01PORRESN","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA PUN","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ESVOL01XXX2609DOE01PORRES4","customerType":"domestico"},{"providerKey":"greenius","providerLabel":"Greenius","nome":"CASA SMERALDO","commodity":"luce","tipo":"variabile","dataFine":"2027-01-12","codice":"027184ESVOL01XXX2609DOE01PORRESJ","customerType":"domestico"},{"providerKey":"liongreen","providerLabel":"Lion Green","nome":"FAMILY FORCE GAS_2026B","commodity":"gas","tipo":"variabile","dataFine":"2026-12-31","codice":"039840GTVML36XXFORCEPSV042026DOM","customerType":"domestico"},{"providerKey":"liongreen","providerLabel":"Lion Green","nome":"FAMILY FORCE POWER_2026b","commodity":"luce","tipo":"variabile","dataFine":"2026-12-31","codice":"039840ETVFL26XXFORCTPUN042026DOM","customerType":"domestico"},{"providerKey":"ovenergy","providerLabel":"OV Energy","nome":"PSV Domestici Flex","commodity":"gas","tipo":"variabile","dataFine":"2026-12-31","codice":"021889GNVML07XXYYYYPSVDFLEX12026","customerType":"domestico"},{"providerKey":"ovenergy","providerLabel":"OV Energy","nome":"PUN Domestici Flex","commodity":"luce","tipo":"variabile","dataFine":"2026-12-31","codice":"021889ENVFL07XXYYYYYYPUNDFL12026","customerType":"domestico"}];
 const providers={
  greenius:{name:'Greenius',site:'https://greenius.it/',offices:[{cap:'47522',city:'Cesena',province:'FC',street:'Piazzale Caduti del Lavoro 200',kind:'Sede aziendale',source:'https://greenius.it/contatti/'}]},
  liongreen:{name:'Lion Green',site:'https://www.liongreen.it/',offices:[{cap:'81100',city:'Caserta',province:'CE',street:'Via Giuseppe Verdi 37',kind:'Sede legale',source:'https://www.liongreen.it/contatti/'},{cap:'81040',city:'Curti',province:'CE',street:'Via Nazionale Appia 81',kind:'Sede operativa e punto di incontro dichiarato',source:'https://www.liongreen.it/opening-home/'}]},
@@ -28,21 +27,35 @@ const today=new Date();
 const cutoff=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 const link=(label,href)=>{const a=el('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';return a;};
-const visible=offers.filter(o=>o.customerType==='domestico'&&o.dataFine&&o.dataFine>=cutoff);
 const slots=document.getElementById('offers');
-for(const [key,p] of Object.entries(providers)){
- const list=visible.filter(o=>o.providerKey===key);if(!list.length)continue;
- const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',list.length+' offerte domestiche presenti in archivio · validità registrata, da riconfermare prima della pubblicazione','muted'));
- const toggle=el('button',p.name+' — Vedi '+list.length+' offerte');
- toggle.type='button';toggle.setAttribute('aria-expanded','false');
- const panel=el('div');panel.hidden=true;
- const panelId='offerte-'+key;panel.id=panelId;toggle.setAttribute('aria-controls',panelId);
- for(const o of list){const line=el('div',undefined,'offer');line.append(el('strong',o.nome));line.append(el('small',(o.commodity==='luce'?'Luce':'Gas')+' · '+(o.tipo||'Tipologia non indicata')+' · Scadenza archivio: '+o.dataFine));panel.append(line)}
- toggle.addEventListener('click',()=>{const expanded=toggle.getAttribute('aria-expanded')==='true';panel.hidden=expanded;toggle.setAttribute('aria-expanded',String(!expanded));toggle.textContent=p.name+(expanded?' — Vedi ':' — Nascondi ')+list.length+' offerte';});
- card.append(toggle,panel);
- if(p.site){const end=el('p');end.append(link('Sito ufficiale del fornitore',p.site));card.append(end)}
- slots.append(card);
+const status=document.getElementById('offers-status');
+async function loadOffers(){
+ try{
+  const response=await fetch('/data/offerte-partner.json',{cache:'no-store'});
+  if(!response.ok)throw new Error('Archivio non disponibile');
+  const archive=await response.json();
+  if(!archive || !Array.isArray(archive.offerte))throw new Error('Formato archivio non valido');
+  const visible=archive.offerte.filter(o=>o && o.customerType==='domestico' && typeof o.dataFine==='string' && /^\d{4}-\d{2}-\d{2}$/.test(o.dataFine) && o.dataFine>=cutoff && Object.hasOwn(providers,o.providerKey));
+  slots.replaceChildren();
+  let shown=0;
+  for(const [key,p] of Object.entries(providers)){
+   const list=visible.filter(o=>o.providerKey===key);if(!list.length)continue;
+   shown++;
+   const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',list.length+' offerte domestiche nell’archivio · condizioni da riconfermare con il fornitore','muted'));
+   const toggle=el('button',p.name+' — Vedi '+list.length+' offerte');
+   toggle.type='button';toggle.setAttribute('aria-expanded','false');
+   const panel=el('div');panel.hidden=true;
+   const panelId='offerte-'+key;panel.id=panelId;toggle.setAttribute('aria-controls',panelId);
+   for(const o of list){const line=el('div',undefined,'offer');line.append(el('strong',o.nome||'Offerta senza nome'));line.append(el('small',(o.commodity==='luce'?'Luce':o.commodity==='gas'?'Gas':'Energia')+' · '+(o.tipo||'Tipologia non indicata')+' · Scadenza archivio: '+o.dataFine));panel.append(line)}
+   toggle.addEventListener('click',()=>{const expanded=toggle.getAttribute('aria-expanded')==='true';panel.hidden=expanded;toggle.setAttribute('aria-expanded',String(!expanded));toggle.textContent=p.name+(expanded?' — Vedi ':' — Nascondi ')+list.length+' offerte';});
+   card.append(toggle,panel);
+   if(p.site){const end=el('p');end.append(link('Sito ufficiale del fornitore',p.site));card.append(end)}
+   slots.append(card);
+  }
+  status.textContent=shown?'Offerte disponibili per '+shown+' fornitori. Nessuna disponibilità geografica verificata per CAP.':'Nessuna offerta domestica non scaduta nell’archivio.';
+ }catch(err){slots.replaceChildren();status.textContent='Impossibile leggere le offerte aggiornate. Riprova più tardi.';}
 }
+loadOffers();
 document.getElementById('search').addEventListener('submit',e=>{
  e.preventDefault();const cap=document.getElementById('cap').value.trim();const msg=document.getElementById('result-message');const box=document.getElementById('matches');box.replaceChildren();
  if(!/^\d{5}$/.test(cap)){msg.textContent='Inserisci un CAP italiano di cinque cifre.';return;}
