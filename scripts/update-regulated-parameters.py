@@ -275,12 +275,16 @@ def update_network_values(params: dict[str, Any], values: dict[str, float], year
         "variabileComuneApplicataEurKwh": round(values["s3EurKwh"] + asos + arim + uc3 + uc6_energy, 8),
         "potenzaComuneApplicataEurKwAnno": round(values["s2EurKwAnno"] + uc6_power, 8),
     }
-    changed = any(float(current_meta.get(k, -999999)) != float(v) for k, v in updates.items())
+    regulated_updates = {
+        "fissaAnnua": updates["s1EurPodAnno"],
+        "potenzaEurKwAnno": updates["potenzaComuneApplicataEurKwAnno"],
+        "variabileEurUnita": updates["variabileComuneApplicataEurKwh"],
+    }
+    meta_changed = any(float(current_meta.get(k, -999999)) != float(v) for k, v in updates.items())
+    regulated_changed = any(float(luce.get(k, -999999)) != float(v) for k, v in regulated_updates.items())
     current_meta.update(updates)
-    luce["fissaAnnua"] = updates["s1EurPodAnno"]
-    luce["potenzaEurKwAnno"] = updates["potenzaComuneApplicataEurKwAnno"]
-    luce["variabileEurUnita"] = updates["variabileComuneApplicataEurKwh"]
-    return changed
+    luce.update(regulated_updates)
+    return meta_changed or regulated_changed
 
 
 def write_params_pair(root: Path, params: dict[str, Any]) -> None:

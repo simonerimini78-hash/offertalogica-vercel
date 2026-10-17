@@ -110,6 +110,40 @@ class UpdateRegulatedParametersTest(unittest.TestCase):
         self.assertAlmostEqual(luce["potenzaEurKwAnno"], 23.7188)
         self.assertAlmostEqual(luce["variabileEurUnita"], 0.047883)
 
+    def test_network_update_persists_when_meta_is_current_but_regulated_totals_are_stale(self):
+        params = {
+            "parametriCalcolo": {
+                "componentiRegolate": {
+                    "luce": {"fissaAnnua": 0, "potenzaEurKwAnno": 0, "variabileEurUnita": 0}
+                },
+                "componentiRegolateMeta": {
+                    "periodoRete": "2026",
+                    "valoriLuce2026": {
+                        "s1EurPodAnno": 23.04,
+                        "s2EurKwAnno": 23.52,
+                        "s3EurKwh": 0.0119,
+                        "asosEurKwh": 0.031515,
+                        "arimEurKwh": 0.001638,
+                        "uc3EurKwh": 0.002760,
+                        "uc6EurKwAnno": 0.1988,
+                        "uc6EurKwh": 0.000070,
+                        "variabileComuneApplicataEurKwh": 0.047883,
+                        "potenzaComuneApplicataEurKwAnno": 23.7188,
+                    },
+                },
+            }
+        }
+        changed = MODULE.update_network_values(
+            params,
+            {"s1EurPodAnno": 23.04, "misEurPodAnno": 19.5448, "s2EurKwAnno": 23.52, "s3EurKwh": 0.0119},
+            2026,
+        )
+        self.assertTrue(changed)
+        luce = params["parametriCalcolo"]["componentiRegolate"]["luce"]
+        self.assertAlmostEqual(luce["fissaAnnua"], 23.04)
+        self.assertAlmostEqual(luce["potenzaEurKwAnno"], 23.7188)
+        self.assertAlmostEqual(luce["variabileEurUnita"], 0.047883)
+
 
 if __name__ == "__main__":
     unittest.main()
