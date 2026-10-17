@@ -16,7 +16,7 @@ from typing import Any
 SCHEMA_VERSION = 1
 PARTNER_CATALOG_VERSION = 1
 GENERIC_PARSER_VERSION = "generic-cte-v1"
-DEFAULT_PARTNER_ROOT = Path.home() / "Desktop" / "Offerte-Partner"
+DEFAULT_PARTNER_ROOT = Path.home() / "OffertLogica" / "Offerte-Partner"
 PARTNER_METADATA_FILE = ".offertalogica-partner.json"
 ITALIAN_MONTHS = {
     "gennaio": 1,

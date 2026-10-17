@@ -166,6 +166,29 @@ ensure_static_surfaces_from_main() {
   done
 }
 
+rehydrate_static_surfaces_from_local_data() {
+  log "Riallineo le superfici dinamiche ai dataset locali prima degli aggiornamenti."
+
+  if ! python3 "$ROOT_DIR/scripts/update-sitemap-lastmod.py" --root "$ROOT_DIR"; then
+    log "AVVISO: impossibile riallineare la superficie offerte al catalogo locale corrente."
+    return 1
+  fi
+
+  if ! python3 "$ROOT_DIR/scripts/update-energy-today.py" \
+    --sync-from-json \
+    --output "$ROOT_DIR/public/data/energia-oggi.json" \
+    --params "$ROOT_DIR/public/data/calcolo-parametri.json" \
+    --pun-page "$ROOT_DIR/public/pun-oggi.html" \
+    --gas-page "$ROOT_DIR/public/psv-gas-oggi.html" \
+    --sitemap "$ROOT_DIR/public/sitemap.xml"
+  then
+    log "AVVISO: impossibile riallineare le superfici energia al dataset locale corrente."
+    return 1
+  fi
+
+  return 0
+}
+
 snapshot_group() {
   local group="$1"
   shift
@@ -389,6 +412,9 @@ if [ -z "$SELECTED_DATE" ]; then
 fi
 
 ensure_static_surfaces_from_main
+if ! rehydrate_static_surfaces_from_local_data; then
+  log "AVVISO: riallineamento iniziale delle superfici non completato; i controlli successivi decideranno quali gruppi mantenere."
+fi
 
 CORE_FILES=(
   "data/calcolo-parametri.json"

@@ -11,7 +11,7 @@ import urllib.request
 from pathlib import Path
 from typing import Any
 
-DEFAULT_PARTNER_ROOT = Path.home() / "Desktop" / "Offerte-Partner"
+DEFAULT_PARTNER_ROOT = Path.home() / "OffertLogica" / "Offerte-Partner"
 PARTNER_SUBDIRS = ("00_DA_VALIDARE", "10_NORMALIZZATE", "20_ATTIVE", "90_ARCHIVIO")
 PARTNER_METADATA_FILE = ".offertalogica-partner.json"
 FOLDER_RE = re.compile(r"^[a-z0-9][a-z0-9-]{1,79}$")
