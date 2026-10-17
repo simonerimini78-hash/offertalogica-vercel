@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.99";
+const VERSION = "0.12.101";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -20,7 +20,8 @@ const EDITORIAL_RESEARCH_HINT_DEPTHS = new Set(["normal", "deep"]);
 const EDITORIAL_RESEARCH_RADAR_DAYS = new Set([1, 6, 7]); // lunedi, sabato, domenica
 const EDITORIAL_RESEARCH_RADAR_START_MINUTE = 8 * 60;
 const EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES = 8;
-const EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS = 6;
+const EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS = 28;
+const EDITORIAL_RESEARCH_RADAR_CANDIDATE_MAX_AGE_DAYS = 6;
 const EDITORIAL_RESEARCH_RADAR_MAX_ATTEMPTS_PER_DAY = 2;
 const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
 const OPPORTUNITY_TYPES = new Set(["new_article", "social_only", "monitor"]);
@@ -886,6 +887,47 @@ function researchRadarLikelyDuplicate(left, right) {
   return dice >= 0.60 || (intersection >= 3 && containment >= 0.80);
 }
 
+// Confronta il bisogno editoriale, non la chiave (che cambia con titolo o angolo).
+// Le formulazioni simili non devono essere trattate come nuove ricerche.
+function researchRadarSameNeed(left, right) {
+  const leftTopic = String(left?.topic || "");
+  const rightTopic = String(right?.topic || "");
+  if (!leftTopic || !rightTopic) return false;
+  const leftNormalized = cleanToken(leftTopic);
+  const rightNormalized = cleanToken(rightTopic);
+  // Il settore e il pubblico cambiano davvero il bisogno dell'utente.
+  const category = (value) => {
+    const gas = /\b(gas|metano|psv)\b/.test(value);
+    const luce = /\b(luce|elettric[aio]|elettricita|pun)\b/.test(value);
+    return gas && !luce ? "gas" : luce && !gas ? "luce" : null;
+  };
+  if (category(leftNormalized) && category(rightNormalized)
+    && category(leftNormalized) !== category(rightNormalized)) return false;
+  const audience = (value) => /\b(agricoltura|agricole|agricoli|aziende|impresa|imprese|pmi)\b/.test(value)
+    ? "business" : /\b(famiglie|domestico|domestica|casa)\b/.test(value) ? "domestico" : null;
+  if (audience(leftNormalized) && audience(rightNormalized)
+    && audience(leftNormalized) !== audience(rightNormalized)) return false;
+  const normalizedNeed = (value) => [...researchRadarTokens(value)]
+    .filter((token) => !["come", "quanto", "quale", "quali", "guida", "novita"].includes(token))
+    .map((token) => token.length >= 6 ? token.replace(/[aeio]$/, "") : token).join(" ");
+  const leftNeed = normalizedNeed(leftTopic);
+  const rightNeed = normalizedNeed(rightTopic);
+  if (researchRadarLikelyDuplicate(leftNeed, rightNeed)) return true;
+  const leftIntent = String(left?.search_intent || "");
+  const rightIntent = String(right?.search_intent || "");
+  return Boolean(leftIntent && rightIntent
+    && researchRadarSimilarity(leftNeed, rightNeed) >= 0.40
+    && researchRadarSimilarity(normalizedNeed(leftIntent), normalizedNeed(rightIntent)) >= 0.65);
+}
+
+function researchRadarCandidateRecent(candidate, now = Date.now()) {
+  const localDate = String(candidate?.scan_date || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) return false;
+  const dateTime = Date.parse(`${localDate}T23:59:59Z`);
+  return Number.isFinite(dateTime) && dateTime <= now + 86400000
+    && now - dateTime <= EDITORIAL_RESEARCH_RADAR_CANDIDATE_MAX_AGE_DAYS * 86400000;
+}
+
 function researchRadarKey(candidate) {
   const seed = `${cleanToken(candidate?.topic)}|${cleanToken(candidate?.search_intent)}|${cleanToken(candidate?.angle)}`;
   return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 24);
@@ -959,13 +1001,15 @@ function researchRadarPreviousCandidates(runs) {
   for (const run of runs || []) {
     if (String(run?.status || "") !== "success") continue;
     for (const candidate of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
-      values.push({
+      const value = {
         topic: cleanEditorialText(candidate?.topic, 220),
         search_intent: cleanEditorialText(candidate?.search_intent, 420),
         editorial_action: cleanEditorialText(candidate?.editorial_action, 40),
         score: Number(candidate?.score || 0),
-      });
-      if (values.length >= 20) return values;
+      };
+      if (!value.topic || values.some((existing) => researchRadarSameNeed(existing, value))) continue;
+      values.push(value);
+      if (values.length >= 32) return values;
     }
   }
   return values;
@@ -994,6 +1038,7 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
         "Privilegia fonti primarie e istituzionali per i fatti. Usa fonti secondarie affidabili per capire quali domande o temi stanno circolando. Se Google Trends o altre evidenze di domanda sono accessibili, usale; non inventare volumi di ricerca e non trasformare il demand_score in un numero di ricerche mensili.",
         "Search Console e' un segnale quantitativo forte ma non deve creare un circuito chiuso: trova anche temi nuovi sui quali OffertaLogica non ha ancora impressioni.",
         "Confronta ogni proposta con l'archivio articoli fornito. Se lo stesso intento e' gia coperto e non ci sono novita sostanziali usa SKIP_DUPLICATE. Se fatti, prezzi o regole rendono vecchio un articolo esistente usa UPDATE_EXISTING. Usa NEW_ANGLE solo quando l'intento del lettore e' realmente diverso e spiega precisamente la differenza. Usa NEW_ARTICLE per un bisogno nuovo non coperto.",
+        "Considera previous_weekend_radar_candidates un elenco di bisogni gia' individuati nelle ultime quattro settimane: non riproporli cambiando titolo, sinonimi o angolo. Cerca problemi concreti differenti e fonti recenti, diversificando tra utenze domestiche, piccole imprese, agricoltura, mercato, agevolazioni e tecnologie SOLO se emergono evidenze pertinenti. Non inventare novita per riempire l'elenco; temi gia' coperti vanno classificati come aggiornamento o duplicato.",
         "Gli strumenti OffertaLogica non devono guidare artificialmente la scelta. Prima identifica un problema reale dell'utente; poi indica eventuali destinazioni OffertaLogica che permettono un passo pratico successivo. Non trasformare l'articolo in pubblicita.",
         "I temi in editorial_research_hints sono suggerimenti della Redazione da verificare, non ordini di pubblicazione e non ricevono bonus di punteggio. Per ciascun hint devi fare ricerche mirate e restituire esattamente una hint_review. Se depth=deep, approfondisci con piu query e confronto fonti, ma non alzare il punteggio per il solo fatto che il tema e' stato suggerito.",
         "Per una hint_review usa NEW_ARTICLE o NEW_ANGLE solo se le evidenze la validano davvero; UPDATE_EXISTING se e' meglio aggiornare un articolo presente; SKIP_DUPLICATE se l'intento e' gia coperto; INSUFFICIENT_SIGNAL se non trovi domanda o evidenze sufficienti. Se un hint validato merita di competere nella graduatoria, includilo anche tra candidates impostando research_hint_id con il suo ID.",
@@ -1022,7 +1067,7 @@ async function startOpenAiResearchRadar({ localDate, archive, targets, searchSig
   return { response_id: response.id, status: response.status || "queued" };
 }
 
-function validateResearchRadarPayload(payload, { archive, targets, researchHints = [] }) {
+function validateResearchRadarPayload(payload, { archive, targets, researchHints = [], previousCandidates = [] }) {
   let parsed;
   try {
     parsed = JSON.parse(responseOutputText(payload));
@@ -1069,6 +1114,16 @@ function validateResearchRadarPayload(payload, { archive, targets, researchHints
     } else if (action === "NEW_ANGLE" && (!existing || difference.length < 45)) {
       action = closestSimilarity >= 0.45 ? (freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE") : "NEW_ARTICLE";
     }
+
+    // Il confronto con i run precedenti e' obbligatorio anche lato server:
+    // non basta chiedere al modello di evitare i duplicati.
+    const previousMatch = (previousCandidates || []).find((item) => researchRadarSameNeed(
+      { topic, search_intent: searchIntent }, item,
+    ));
+    const currentScanMatch = output.find((item) => researchRadarSameNeed(
+      { topic, search_intent: searchIntent }, item,
+    ));
+    if (previousMatch || currentScanMatch) action = "SKIP_DUPLICATE";
 
     const componentScores = {
       demand: researchRadarClampScore(raw?.demand_score),
@@ -1123,6 +1178,11 @@ function validateResearchRadarPayload(payload, { archive, targets, researchHints
       existing_article: existing ? { id: existing.id, title: existing.title, slug: existing.slug, published_at: existing.published_at || null } : null,
       existing_article_similarity: roundMetric(closestSimilarity, 3),
       difference_from_existing: difference,
+      novelty_note: previousMatch
+        ? "Bisogno editoriale gia' emerso nelle scansioni precedenti."
+        : currentScanMatch
+          ? "Bisogno editoriale gia' presente in questa scansione."
+          : null,
       related_targets: relatedTargets,
       rationale: cleanEditorialText(raw?.rationale, 1000),
       source_urls: sourceUrls,
@@ -1182,34 +1242,64 @@ function validateResearchRadarPayload(payload, { archive, targets, researchHints
 }
 
 function consolidateResearchRadarCandidates(runs) {
-  const groups = new Map();
+  const groups = [];
+  // I run arrivano in ordine decrescente: vince la valutazione piu' recente,
+  // non quella con il punteggio storico piu' alto.
   for (const run of runs || []) {
     if (String(run?.status || "") !== "success") continue;
     for (const raw of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
       const key = String(raw?.radar_key || researchRadarKey(raw));
       if (!key) continue;
-      const current = groups.get(key);
-      const candidate = { ...raw, radar_key: key, scan_date: run?.details?.local_date || null };
-      if (!current) groups.set(key, { candidate, appearances: 1, scan_dates: new Set([candidate.scan_date].filter(Boolean)) });
-      else {
-        current.appearances += 1;
-        if (candidate.scan_date) current.scan_dates.add(candidate.scan_date);
-        if (Number(candidate.score || 0) > Number(current.candidate?.score || 0)) current.candidate = candidate;
+      const date = run?.details?.local_date || null;
+      const group = groups.find(({ candidate }) => candidate.radar_key === key || researchRadarSameNeed(candidate, raw));
+      if (group) {
+        group.appearances += 1;
+        if (date) group.scan_dates.add(date);
+      } else {
+        groups.push({
+          candidate: { ...raw, radar_key: key, scan_date: date },
+          appearances: 1,
+          scan_dates: new Set([date].filter(Boolean)),
+        });
       }
     }
   }
-  return [...groups.values()].map(({ candidate, appearances, scan_dates }) => ({
+  return groups.map(({ candidate, appearances, scan_dates }) => ({
     ...candidate,
     appearances,
     scan_dates: [...scan_dates].sort(),
-    score: Math.min(100, Number(candidate.score || 0) + Math.min(8, Math.max(0, appearances - 1) * 3)),
+    // Nessun bonus per la ripetizione: un tema vecchio non deve battere una novita'.
+    score: Number(candidate.score || 0),
   })).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
 }
 
-async function researchRadarPayload() {
-  const [runs, hints] = await Promise.all([researchRadarRuns(40), researchRadarHints()]);
+async function researchRadarPayload(knownArchive = null) {
+  const [runs, hints, archive] = await Promise.all([
+    researchRadarRuns(40), researchRadarHints(), knownArchive ? Promise.resolve(knownArchive) : researchRadarArchive(),
+  ]);
   const running = runs.find((run) => String(run?.status || "") === "running") || null;
-  const candidates = consolidateResearchRadarCandidates(runs);
+  const candidates = consolidateResearchRadarCandidates(runs).map((candidate) => {
+    const publishedMatch = (archive || []).find((article) => researchRadarSameNeed(
+      candidate, { topic: article.title },
+    ));
+    const hasNewAction = ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || ""));
+    const eligible = hasNewAction && researchRadarCandidateRecent(candidate) && !publishedMatch;
+    return {
+      ...candidate,
+      eligible_for_selection: eligible,
+      ...(publishedMatch && hasNewAction ? {
+        editorial_action: Number(candidate?.component_scores?.freshness || 0) >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE",
+        existing_article: {
+          id: publishedMatch.id, title: publishedMatch.title, slug: publishedMatch.slug,
+          published_at: publishedMatch.published_at || null,
+        },
+        novelty_note: "Articolo gia' pubblicato su questo bisogno editoriale.",
+      } : {}),
+    };
+  });
+  // I candidati nuovi e recenti precedono sempre l'archivio, anche con score inferiore.
+  candidates.sort((a, b) => Number(b.eligible_for_selection) - Number(a.eligible_for_selection)
+    || Number(b.score || 0) - Number(a.score || 0));
   const scans = (runs || []).filter((run) => String(run?.status || "") !== "running").slice(0, 12).map((run) => ({
     id: run.id,
     status: run.status,
@@ -1277,6 +1367,7 @@ async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}
       research_hint_count: researchHints.length,
       research_hint_ids: researchHints.map((row) => row.id),
       research_hint_snapshot: researchHints,
+      previous_candidate_snapshot: previousCandidates,
     });
     return { action: "research_radar_started", pending: true, run: updated, local: currentLocal };
   } catch (error) {
@@ -1307,7 +1398,9 @@ async function resumeResearchRadarRun(run) {
   }
   const [archive, targets] = await Promise.all([researchRadarArchive(), researchRadarTargets()]);
   const researchHints = Array.isArray(run?.details?.research_hint_snapshot) ? run.details.research_hint_snapshot : [];
-  const validated = validateResearchRadarPayload(payload, { archive, targets, researchHints });
+  const previousCandidates = Array.isArray(run?.details?.previous_candidate_snapshot)
+    ? run.details.previous_candidate_snapshot : [];
+  const validated = validateResearchRadarPayload(payload, { archive, targets, researchHints, previousCandidates });
   const candidates = validated.candidates;
   const sourceUrls = responseSourceUrls(payload).map(normalizedHttps).filter(Boolean).slice(0, 40);
   const details = {
@@ -1404,7 +1497,7 @@ async function selectResearchRadarCandidate(user, payload = {}) {
   const candidate = (Array.isArray(radar?.candidates) ? radar.candidates : [])
     .find((row) => String(row?.radar_key || "") === radarKey);
   if (!candidate) throw new Error("Candidato Radar non più disponibile");
-  if (!["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || ""))) {
+  if (!["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || "")) || !candidate.eligible_for_selection) {
     throw new Error("Questo candidato non può creare un nuovo articolo");
   }
   let opportunity = await saveResearchRadarOpportunity(user, candidate);
@@ -1774,9 +1867,10 @@ async function editorialPlannerPreview() {
     });
   }
 
-  const radar = await researchRadarPayload().catch(() => ({ candidates: [] }));
+  const radar = await researchRadarPayload(archive).catch(() => ({ candidates: [] }));
   const radarAll = Array.isArray(radar?.candidates) ? radar.candidates : [];
-  const radarEligible = radarAll.filter((candidate) => ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || "")));
+  const radarEligible = radarAll.filter((candidate) => candidate?.eligible_for_selection
+    && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || "")));
   const topRadarSignal = radarEligible.find((candidate) => Number(candidate.score || 0) >= minimumScore) || null;
   if (topRadarSignal) {
     candidates.push({

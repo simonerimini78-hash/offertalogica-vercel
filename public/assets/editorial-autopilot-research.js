@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.97";
+  const VERSION = "0.12.101";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -444,7 +444,8 @@
       box.innerHTML = '<div class="ol-autopilot-archive-item"><small>Nessun tema suggerito in attesa di validazione.</small></div>';
       return;
     }
-    box.innerHTML = hints.map((hint) => {
+    const previousArchiveOpen = Boolean(box.querySelector("[data-hints-archive]")?.open);
+    const hintMarkup = (hint) => {
       const review = hint?.latest_review || null;
       const sources = (review?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
       const scans = Number(hint?.review_count || 0);
@@ -454,12 +455,17 @@
       return `<div class="ol-autopilot-archive-item">
         <strong>${esc(hint?.topic || "Tema senza titolo")}</strong>
         <small><b>${esc(status)}</b> · ricerca ${hint?.depth === "deep" ? "approfondita" : "normale"}${scans ? ` · valutato in ${scans} scansione${scans === 1 ? "" : "i"}` : ""}</small>
-        ${review?.rationale ? `<small><b>Esito:</b> ${esc(review.rationale)}</small>` : ""}
-        ${review?.suggested_angle ? `<small><b>Possibile angolo:</b> ${esc(review.suggested_angle)}</small>` : ""}
-        ${sources ? `<small><b>Fonti:</b> ${sources}</small>` : ""}
+        ${review?.rationale || review?.suggested_angle || sources ? `<details><summary>Verifica e fonti</summary>
+          ${review?.rationale ? `<small><b>Esito:</b> ${esc(review.rationale)}</small>` : ""}
+          ${review?.suggested_angle ? `<small><b>Possibile angolo:</b> ${esc(review.suggested_angle)}</small>` : ""}
+          ${sources ? `<small><b>Fonti:</b> ${sources}</small>` : ""}
+        </details>` : ""}
         <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-research-hint-archive="${esc(hint.id || "")}">Rimuovi dalle ricerche</button></div>
       </div>`;
-    }).join("");
+    };
+    const primary = hints.slice(0, 3);
+    const rest = hints.slice(3);
+    box.innerHTML = `${primary.map(hintMarkup).join("")}${rest.length ? `<details data-hints-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Altri ${rest.length} temi suggeriti</summary><div class="ol-autopilot-archive-list">${rest.map(hintMarkup).join("")}</div></details>` : ""}`;
   }
 
   function researchRadarActionTone(action) {
@@ -478,22 +484,38 @@
     if (!box || !message || !button) return;
     renderResearchHints(section, Array.isArray(payload?.research_hints) ? payload.research_hints : []);
     const running = payload?.running || null;
+    const scans = Array.isArray(payload?.scans) ? payload.scans : [];
+    const latestScan = scans[0] || null;
+    const lastSuccess = scans.find((row) => row.status === "success") || null;
     button.disabled = Boolean(running);
     if (running) {
       message.textContent = `Scansione web in corso${running.local_date ? ` · ${running.local_date}` : ""}. L'Autopilota la riprenderà al prossimo tick.`;
+    } else if (latestScan?.status === "failed") {
+      message.textContent = `Ultima scansione non riuscita · ${dateIt(latestScan.finished_at || latestScan.started_at)}. Apri il registro per il motivo.`;
+    } else if (lastSuccess) {
+      message.textContent = `Ultima scansione completata ${dateIt(lastSuccess.finished_at || lastSuccess.started_at)} · ${Number(lastSuccess.candidate_count || 0)} candidati.`;
     } else {
-      const lastScan = Array.isArray(payload?.scans) ? payload.scans.find((row) => row.status === "success") : null;
-      message.textContent = lastScan
-        ? `Ultima scansione completata ${dateIt(lastScan.finished_at || lastScan.started_at)} · ${Number(lastScan.candidate_count || 0)} candidati.`
-        : "Nessuna scansione web completata negli ultimi giorni.";
+      message.textContent = "Nessuna scansione web completata negli ultimi giorni.";
     }
 
+    const scanStatus = (scan) => scan.status === "success" ? "completata" : scan.status === "failed" ? "non riuscita" : String(scan.status || "sconosciuta");
+    const scanHistory = scans.slice(0, 6).map((scan) => `<div class="ol-autopilot-archive-item">
+      <small><b>${esc(scan.local_date || dateIt(scan.started_at))}</b> · ${esc(scanStatus(scan))} · ${Number(scan.candidate_count || 0)} candidati</small>
+      ${scan.last_error ? `<small><b>Errore:</b> ${esc(scan.last_error)}</small>` : ""}
+    </div>`).join("");
+    const activity = `<div class="ol-autopilot-archive-item">
+      <strong>Attività delle ricerche</strong>
+      <small>${running ? `Ricerca in corso dal ${esc(dateIt(running.started_at))}.` : latestScan ? `Ultimo tentativo: ${esc(dateIt(latestScan.finished_at || latestScan.started_at))} · ${esc(scanStatus(latestScan))}.` : "Nessun tentativo recente registrato."}</small>
+      ${lastSuccess ? `<small>Ultimo risultato: ${esc(dateIt(lastSuccess.finished_at || lastSuccess.started_at))} · ${Number(lastSuccess.candidate_count || 0)} candidati.</small>` : ""}
+      ${scans.length ? `<details><summary>Registro delle ultime ${Math.min(scans.length, 6)} scansioni</summary><div class="ol-autopilot-archive-list">${scanHistory}</div></details>` : ""}
+    </div>`;
+
+    const previousArchiveOpen = Boolean(box.querySelector("[data-radar-archive]")?.open);
     const candidates = Array.isArray(payload?.candidates) ? payload.candidates.slice(0, 10) : [];
-    if (!candidates.length) {
-      box.innerHTML = '<div class="ol-autopilot-archive-item"><strong>Nessun candidato radar disponibile</strong><small>Il radar web non sostituisce Search Console: aggiunge attualità, domanda emergente, controllo duplicati e collegamento con gli strumenti OffertaLogica.</small></div>';
-      return;
-    }
-    box.innerHTML = candidates.map((candidate) => {
+    const preferred = candidates.filter((candidate) => candidate?.eligible_for_selection !== false
+      && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || ""))).slice(0, 3);
+    const others = candidates.filter((candidate) => !preferred.includes(candidate));
+    const candidateMarkup = (candidate) => {
       const action = String(candidate?.editorial_action || "");
       const sources = (candidate?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
       const tools = (candidate?.related_targets || []).slice(0, 4).map((row) => esc(row?.label || row?.url_path || "")).filter(Boolean).join(" · ");
@@ -502,22 +524,38 @@
         : "";
       const component = candidate?.component_scores || {};
       const hintBadge = candidate?.research_hint?.id ? " · tema suggerito dalla Redazione" : "";
-      const selectable = ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) && candidate?.radar_key;
+      const selectable = candidate?.eligible_for_selection !== false
+        && ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) && candidate?.radar_key;
       const choose = selectable
         ? `<div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-radar-select="${esc(candidate.radar_key)}">Scegli come prossimo articolo</button></div>`
         : "";
       return `<div class="ol-autopilot-archive-item">
         <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100${esc(hintBadge)}</strong>
-        <small><b>${esc(researchRadarActionLabel(action))}</b> · domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · novità ${Number(component.freshness || 0)} · gap ${Number(component.content_gap || 0)}</small>
-        <small><b>Intento:</b> ${esc(candidate?.search_intent || "—")}</small>
-        <small><b>Angolo:</b> ${esc(candidate?.angle || "—")}</small>
-        ${existing}
-        ${tools ? `<small><b>Strumenti OffertaLogica pertinenti:</b> ${tools}</small>` : ""}
+        <small><b>${esc(researchRadarActionLabel(action))}</b>${candidate?.eligible_for_selection === false && ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) ? " · ricerca storica, non selezionabile" : ""} · novità ${Number(component.freshness || 0)}/100${candidate?.appearances > 1 ? ` · ricomparso ${Number(candidate.appearances)} volte` : ""}</small>
         ${candidate?.rationale ? `<small><b>Perché:</b> ${esc(candidate.rationale)}</small>` : ""}
-        ${sources ? `<small><b>Fonti consultate:</b> ${sources}</small>` : ""}
+        ${candidate?.novelty_note ? `<small><b>Controllo novità:</b> ${esc(candidate.novelty_note)}</small>` : ""}
+        <details><summary>Mostra verifica, angolo e fonti</summary>
+          <small>Domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · gap ${Number(component.content_gap || 0)}</small>
+          <small><b>Intento:</b> ${esc(candidate?.search_intent || "—")}</small>
+          <small><b>Angolo:</b> ${esc(candidate?.angle || "—")}</small>
+          ${existing}
+          ${tools ? `<small><b>Strumenti pertinenti:</b> ${tools}</small>` : ""}
+          ${sources ? `<small><b>Fonti consultate:</b> ${sources}</small>` : ""}
+        </details>
         ${choose}
       </div>`;
-    }).join("");
+    };
+    if (!candidates.length) {
+      box.innerHTML = `${activity}<div class="ol-autopilot-archive-item"><strong>Nessun candidato radar disponibile</strong><small>Controlla il registro per verificare se le scansioni sono riuscite.</small></div>`;
+      return;
+    }
+    const featured = preferred.length
+      ? preferred.map(candidateMarkup).join("")
+      : '<div class="ol-autopilot-archive-item"><small>Nessun nuovo articolo o angolo editoriale verificato tra i candidati recenti.</small></div>';
+    const archive = others.length
+      ? `<details data-radar-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Altri ${others.length} temi, aggiornamenti o duplicati</summary><div class="ol-autopilot-archive-list">${others.map(candidateMarkup).join("")}</div></details>`
+      : "";
+    box.innerHTML = `${activity}<p class="ol-muted">${preferred.length} temi in evidenza · ${others.length} disponibili solo nei dettagli.</p>${featured}${archive}`;
   }
 
   async function loadResearchRadar(section) {
@@ -1775,7 +1813,13 @@
         return String(right?.updated_at || right?.created_at || "").localeCompare(String(left?.updated_at || left?.created_at || ""));
       });
 
-      list.innerHTML = visibleRows.map((row, index) => {
+      const previousArchiveOpen = Boolean(list.querySelector("[data-opportunity-archive]")?.open);
+      const currentSelection = visibleRows.filter((row) => row.status === "selected" && !row.target_article_id);
+      const pending = visibleRows.filter((row) => row.status === "pending");
+      const featuredRows = [...currentSelection, ...pending.slice(0, Math.max(0, 3 - currentSelection.length))];
+      const additionalRows = visibleRows.filter((row) => !featuredRows.includes(row));
+      const cardMarkup = (row) => {
+        const index = visibleRows.indexOf(row);
         const id = String(row.id || "");
         const expanded = expandedOpportunityIds.has(id);
         const queries = opportunityQueryExamples(row).slice(0, 3);
@@ -1803,8 +1847,13 @@
             ${opportunityDetailsMarkup(row)}
           </div>
         </article>`;
-      }).join("");
-      message.textContent = `${numberIt(opportunityRows.length)} opportunità visibili. Se non scegli nulla, l’Autopilota mantiene la propria priorità; puoi scegliere un’altra opportunità finché l’articolo non è stato avviato.`;
+      };
+      const additionalMarkup = additionalRows.length
+        ? `<details data-opportunity-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Consulta altre ${additionalRows.length} opportunità salvate</summary><div class="ol-autopilot-archive-list">${additionalRows.map(cardMarkup).join("")}</div></details>`
+        : "";
+      const emptyState = featuredRows.length ? "" : '<p class="ol-muted">Nessuna opportunità attiva da valutare.</p>';
+      list.innerHTML = `${emptyState}${featuredRows.map(cardMarkup).join("")}${additionalMarkup}`;
+      message.textContent = `${numberIt(featuredRows.length)} opportunità in evidenza su ${numberIt(opportunityRows.length)} salvate. Le altre restano consultabili senza occupare l'elenco principale. L’Autopilota mantiene le proprie priorità finché non scegli manualmente.`;
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
