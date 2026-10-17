@@ -1,16 +1,16 @@
 {
-  "versioneDati": "parametri-calcolo-2026-10-15-arera-2026-09",
+  "versioneDati": "parametri-calcolo-2026-10-17-arera-2026-09",
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
-  "aggiornatoIl": "2026-10-15",
+  "aggiornatoIl": "2026-10-17",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "prezzoLuceEurKwh": 0.17604165,
-      "prezzoGasEurSmc": 0.81285093,
-      "quotaFissaLuceAnnua": 141.8049,
-      "quotaFissaGasAnnua": 136.178,
+      "prezzoLuceEurKwh": 0.17627468,
+      "prezzoGasEurSmc": 0.81323252,
+      "quotaFissaLuceAnnua": 142.2636,
+      "quotaFissaGasAnnua": 136.6975,
       "potenzaKw": "3",
       "regioneGas": "nord-ovest",
       "tipoPrezzo": "fisso",
@@ -34,23 +34,25 @@
     },
     "componentiRegolate": {
       "luce": {
-        "variabileEurUnita": 0,
-        "fissaAnnua": 0,
+        "variabileEurUnita": 0.047883,
+        "fissaAnnua": 23.04,
         "imposteEurUnita": 0,
-        "ivaPercentuale": 0
+        "ivaPercentuale": 0,
+        "potenzaEurKwAnno": 23.7188
       },
       "gas": {
         "variabileEurUnita": 0,
         "fissaAnnua": 0,
         "imposteEurUnita": 0,
-        "ivaPercentuale": 0
+        "ivaPercentuale": 0,
+        "qttEurGj": 2.727133
       }
     },
-    "note": "Stima comparativa annua sulle componenti disponibili. Oneri, imposte e IVA puntuali sono indicati come n.n. quando non stimati nel dettaglio. Le componenti di profilo sono applicate in modo omogeneo a tutti gli scenari.",
+    "note": "Stima comparativa annua con rete luce 2026 e oneri elettrici applicabili nel Q4 2026. QTt gas aggiornato dal 1 ottobre 2026. C_DISPD luce resta all'ultimo valore integralmente verificato di settembre 2026; per questo lo stato complessivo dei regolati resta parziale_verificato.",
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
-      "acquisitoIl": "2026-10-15",
+      "acquisitoIl": "2026-10-17",
       "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
@@ -58,15 +60,42 @@
     },
     "profiloMedioFonte": {
       "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
-      "catalogoVersione": "arera-menu-2026-10-15",
-      "catalogoAggiornatoIl": "2026-10-15",
+      "catalogoVersione": "arera-menu-2026-10-17",
+      "catalogoAggiornatoIl": "2026-10-17",
       "tipoPrezzo": "fisso",
       "metodoPrezzo": "Media aritmetica dei prezzi unitari e delle quote fisse delle offerte ARERA correnti per clienti privati dello stesso tipo prezzo.",
-      "numeroOfferteLuce": 137,
-      "numeroOfferteGas": 118,
+      "numeroOfferteLuce": 138,
+      "numeroOfferteGas": 119,
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
       "potenzaKw": "3"
+    },
+    "componentiRegolateMeta": {
+      "stato": "parziale_verificato",
+      "periodo": "2026-Q4",
+      "periodoRete": "2026",
+      "periodoOneri": "2026-10-01/2026-12-31",
+      "acquisitoIl": "2026-10-17",
+      "delibera": "343/2026/R/com",
+      "fonte": "ARERA - rete elettrica domestici 2026; delibera 343/2026/R/com per oneri Q4 e QTt. C_DISPD resta all'ultimo valore integralmente verificato di settembre 2026.",
+      "urlFonte": "https://www.arera.it/area-operatori/prezzi-e-tariffe/tariffe-trasmissione-distribuzione-e-misura-clienti-domestici",
+      "urlFonteOneri": "https://www.arera.it/atti-e-provvedimenti/dettaglio/26/343-26",
+      "urlFonteGas": "https://www.arera.it/atti-e-provvedimenti/dettaglio/26/343-26",
+      "urlDeliberaGas": "https://www.arera.it/atti-e-provvedimenti/dettaglio/26/343-26",
+      "valoriLuce2026": {
+        "s1EurPodAnno": 23.04,
+        "s2EurKwAnno": 23.52,
+        "s3EurKwh": 0.0119,
+        "asosEurKwh": 0.031515,
+        "arimEurKwh": 0.001638,
+        "uc3EurKwh": 0.00276,
+        "uc6EurKwAnno": 0.1988,
+        "uc6EurKwh": 7e-05,
+        "variabileComuneApplicataEurKwh": 0.047883,
+        "potenzaComuneApplicataEurKwAnno": 23.7188
+      },
+      "notaDispacciamentoLuce": "C_DISPD non avanzato al Q4: resta utilizzato l'ultimo valore integralmente verificato di settembre 2026 finché la componente ottobre non è documentata integralmente.",
+      "notaGas": "QTt aggiornato a 2,727133 €/GJ con decorrenza 1 ottobre 2026 ai sensi della deliberazione 343/2026/R/com."
     }
   },
   "indiciMercato": {
@@ -80,7 +109,7 @@
       "unitaOriginale": "eur_mwh",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-10-15",
+      "acquisitoIl": "2026-10-17",
       "stato": "ufficiale",
       "note": "Media mensile monoraria P_ING,M pubblicata da ARERA per le offerte PLACET elettriche."
     },
@@ -92,7 +121,7 @@
       "periodoLabel": "Settembre 2026",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-10-15",
+      "acquisitoIl": "2026-10-17",
       "stato": "ufficiale",
       "note": "Media mensile del prezzo giornaliero al PSV (day ahead) pubblicata da ARERA per le offerte PLACET gas."
     },
