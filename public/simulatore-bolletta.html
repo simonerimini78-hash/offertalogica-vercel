@@ -774,7 +774,7 @@
     const activationOffer=(id,name,provider,supply,url)=>({id:String(id||""),name:String(name||""),provider:String(provider||""),fornitura:String(supply||""),link:String(url||""),officialUrl:String(url||""),destinationType:"arera",destinationStatus:"solo_confronto"});
     if(row.fornitura==="dual"&&row.luce&&row.gas){
       const id=String(row.codice||`${row.providerKey}-${row.nome}`),name=String(row.nome||"Offerta luce e gas"),provider=String(row.providerLabel||row.fornitore||"Fornitore"),url=String(row.url||"");
-      return {version:1,id,name,provider,providerKey:String(row.providerKey||""),type:String(row.tipo||"fisso"),supply:"dual",customerType:String(row.customerType||"privato"),codes:[row.codiceOffertaLuce,row.codiceOffertaGas].filter(Boolean),url,discounts:compactOfferDiscounts(row.sconti),activationOffer:activationOffer(id,name,provider,"dual",url),components:{luce:{price:Number(row.luce.prezzo),annualFixedFee:Number(row.luce.quotaFissaAnnua),type:String(row.luce.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaLuce||row.luce.codice||""),indexName:String(row.luce.indiceRiferimento||""),discounts:compactOfferDiscounts(row.luce.sconti)},gas:{price:Number(row.gas.prezzo),annualFixedFee:Number(row.gas.quotaFissaAnnua),type:String(row.gas.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaGas||row.gas.codice||""),indexName:String(row.gas.indiceRiferimento||""),discounts:compactOfferDiscounts(row.gas.sconti)}}};
+      return {version:1,id,name,provider,providerKey:String(row.providerKey||""),type:String(row.tipo||"fisso"),supply:"dual",customerType:String(row.customerType||"privato"),codes:[row.codiceOffertaLuce,row.codiceOffertaGas].filter(Boolean),url,subscriptionStart:String(row.dataInizio||""),subscriptionEnd:String(row.dataFine||""),discounts:compactOfferDiscounts(row.sconti),activationOffer:activationOffer(id,name,provider,"dual",url),components:{luce:{price:Number(row.luce.prezzo),annualFixedFee:Number(row.luce.quotaFissaAnnua),type:String(row.luce.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaLuce||row.luce.codice||""),indexName:String(row.luce.indiceRiferimento||""),discounts:compactOfferDiscounts(row.luce.sconti)},gas:{price:Number(row.gas.prezzo),annualFixedFee:Number(row.gas.quotaFissaAnnua),type:String(row.gas.tipo||row.tipo||"fisso"),code:String(row.codiceOffertaGas||row.gas.codice||""),indexName:String(row.gas.indiceRiferimento||""),discounts:compactOfferDiscounts(row.gas.sconti)}}};
     }
     const commodity=String(row.commodity||"");if(!["luce","gas"].includes(commodity))return null;
     const id=String(row.codice||`${row.providerKey}-${row.nome}`),name=String(row.nome||"Offerta"),provider=String(row.providerLabel||row.fornitore||"Fornitore"),url=String(row.url||"");
@@ -896,7 +896,21 @@
     else if(unit==="06")amount=part.materia*ratio*Math.min(100,value)/100;
     return Number.isFinite(amount)&&amount>0?Math.min(part.gross,amount):0;
   }
-  function discountRowsForPart(discounts,part,doc,options={}){const rows=[];for(const discount of discounts||[]){const amount=discountAmountForPart(discount,part,doc,options);if(amount>0)rows.push({commodity:part.commodity,label:String(discount.name||"Sconto nuova offerta"),amount});}return rows;}
+  function discountRowsForPart(discounts,part,doc,options={}){
+    const rows=[],seenAnnual=new Set();
+    for(const discount of discounts||[]){
+      const prices=discount?.prices||[];
+      const unit=prices.length===1?String(prices[0]?.unitCode||""):"";
+      const name=String(discount.name||"Sconto nuova offerta");
+      // Le annualita' alternative non sono cumulabili sullo stesso consumo.
+      const annual=/\b(?:1|2|primo|secondo)\s*(?:°|o)?\s*ann[oi]\b/i.test(name);
+      const annualKey=annual?`${name.normalize("NFD").replace(/[\u0300-\u036f]/g,"").toLowerCase().replace(/\b(?:1|2|primo|secondo)\s*(?:°|o)?\s*ann[oi]\b/g,"ANNO").replace(/\s+/g," ").trim()}|${unit}|${prices[0]?.value}`:"";
+      if(annualKey&&seenAnnual.has(annualKey))continue;
+      const amount=discountAmountForPart(discount,part,doc,options);
+      if(amount>0){rows.push({commodity:part.commodity,label:name,amount,discountKind:unit==="06"?"tariff_percentage":"separate"});if(annualKey)seenAnnual.add(annualKey);}
+    }
+    return rows;
+  }
   function dualDiscountRows(discounts,parts,doc,options={}){if(!parts.length)return[];const gross=parts.reduce((sum,item)=>sum+item.gross,0),materia=parts.reduce((sum,item)=>sum+item.materia,0),days=Number(parts[0].days)||daysInclusive(doc?.billing_period_start,doc?.billing_period_end),base={commodity:"dual",consumption:0,materia,gross,days};return discountRowsForPart(discounts,base,doc,{...options,dual:true}).map((row)=>({...row,commodity:"dual"}));}
 
   function billCategoryLabel(category,commodity,originalLabel,multiSupply){
@@ -982,7 +996,8 @@
       const part=payload?.breakdown?.[commodity]||null,component=state.selected?.components?.[commodity]||null;if(!part&&!component)continue;const suffix=multiSupply?` (${commodityLabel(commodity)})`:"",unit=commodity==="luce"?"€/kWh":"€/Smc";
       if(component?.code)addConditionRow(map,{commodity,label:`Codice offerta${suffix}`,value:String(component.code),priority:5});
       addConditionRow(map,{commodity,label:`Tipo prezzo${suffix}`,value:String(part?.tipoPrezzo||component?.type||payload?.offer?.type||state.selected?.type||""),priority:10});
-      const appliedPrice=numericValue(part?.prezzoNuovo??component?.price);if(appliedPrice>0)addConditionRow(map,{commodity,label:`Prezzo ${payload?"applicato":"selezionato"}${suffix}`,value:`${number(appliedPrice,6)} ${unit}`,priority:15});
+      const tariffDiscount=(payload?.appliedDiscounts||[]).filter((row)=>row.commodity===commodity&&row.discountKind==="tariff_percentage").reduce((sum,row)=>sum+Number(row.amount||0),0);
+      const appliedPrice=numericValue(part?.prezzoNuovo??component?.price)-(part?.consumo>0?tariffDiscount/part.consumo:0);if(appliedPrice>0)addConditionRow(map,{commodity,label:`Prezzo ${payload?"applicato":"selezionato"}${suffix}`,value:`${number(appliedPrice,6)} ${unit}`,priority:15});
       const annualFixed=numericValue(part?.quotaFissaAnnuaNuova??component?.annualFixedFee);if(Number.isFinite(annualFixed))addConditionRow(map,{commodity,label:`Quota fissa vendita${suffix}`,value:`${number(annualFixed,2)} €/anno`,priority:20});
       if(component?.priceStructure)addConditionRow(map,{commodity,label:`Struttura prezzo${suffix}`,value:String(component.priceStructure),priority:12});
       if(component?.indexName)addConditionRow(map,{commodity,label:`Indice di riferimento${suffix}`,value:String(component.indexName),priority:25});
@@ -996,7 +1011,7 @@
     }
     return [...map.values()].sort((a,b)=>a.priority-b.priority||a.label.localeCompare(b.label,"it"));
   }
-  function simulatedSaleForCommodity(payload,commodity){const value=Number(payload?.breakdown?.[commodity]?.venditaNuovaLorda??payload?.breakdown?.[commodity]?.venditaNuova);return Number.isFinite(value)?value:null;}
+  function simulatedSaleForCommodity(payload,commodity){const value=Number(payload?.breakdown?.[commodity]?.venditaNuovaLorda??payload?.breakdown?.[commodity]?.venditaNuova);const tariff=(payload?.appliedDiscounts||[]).filter((row)=>row.commodity===commodity&&row.discountKind==="tariff_percentage").reduce((sum,row)=>sum+Number(row.amount||0),0);return Number.isFinite(value)?value-tariff:null;}
   function buildEconomicComparisonRows(payload=null){
     const rows=economicRowsFromDocs().map((row)=>{const legacyDiscount=realBillDiscountRow({label:row.sourceLabel||row.label,amount_eur:row.amount});return { ...row,legacyDiscount,realValue:row.amount,virtualValue:legacyDiscount?null:(row.category==="bill_materia"?null:row.amount) };});
     const matterRowsByCommodity=new Map();
@@ -1020,7 +1035,7 @@
           rows[index].simulatedFromReceipt=true;
         });
       }
-      for(const row of payload.appliedDiscounts||[]){
+      for(const row of (payload.appliedDiscounts||[]).filter((item)=>item.discountKind!=="tariff_percentage")){
         const amount=Number(row?.amount);if(!(amount>0))continue;
         const suffix=row.commodity&&row.commodity!=="dual"&&commoditiesFromDocs().length>1?` (${commodityLabel(row.commodity)})`:"";
         rows.push({commodity:String(row.commodity||""),category:"offer_discount",label:`${String(row.label||"Sconto/bonus nuova offerta")}${suffix}`,realValue:null,virtualValue:-amount,virtualOnly:true,newOfferDiscount:true});
@@ -1093,7 +1108,8 @@
     if(!["luce","gas"].includes(commodity))return null;
     const part=payload.breakdown?.[commodity];
     if(!part)return null;
-    const variableNew=numericValue(part.materiaNuova),fixedNew=numericValue(part.fissoNuovo);
+    const tariffDiscount=(payload.appliedDiscounts||[]).filter((item)=>item.commodity===commodity&&item.discountKind==="tariff_percentage").reduce((sum,item)=>sum+Number(item.amount||0),0);
+    const variableNew=numericValue(part.materiaNuova)-tariffDiscount,fixedNew=numericValue(part.fissoNuovo);
     const oldSale=numericValue(part.venditaAttuale);
     if(![variableNew,fixedNew,oldSale].every(Number.isFinite))return null;
     const rows=source.map((row)=>({...row}));
@@ -1113,12 +1129,20 @@
     else variable[0].unit_price="";
     fixed[0].unit_price=""; // La quota fissa nuova puo' avere un periodo di competenza diverso.
     for(const row of rows){
-      if(row.section==="consumi"&&row.kind==="subtotal")row.amount_eur=round(Number(row.amount_eur)+varDelta);
-      if(row.section==="fissa_potenza"&&row.kind==="subtotal"&&/fissa/.test(normalizeReceiptLabel(row.label)))row.amount_eur=round(Number(row.amount_eur)+fixedDelta);
+      if(row.section==="consumi"&&row.kind==="subtotal"){
+        row.amount_eur=round(Number(row.amount_eur)+varDelta);
+        row.unit_price=consumption>0?`x ${number(row.amount_eur/consumption,6)} ${receiptPriceUnitForCommodity(commodity)}`:"";
+      }
+      if(row.section==="fissa_potenza"&&row.kind==="subtotal"&&/fissa/.test(normalizeReceiptLabel(row.label))){
+        row.amount_eur=round(Number(row.amount_eur)+fixedDelta);
+        const qty=String(row.quantity||"").match(/^(\d+(?:[,.]\d+)?)\s+mes/i);
+        const months=qty?Number(qty[1].replace(",",".")):NaN;
+        row.unit_price=Number.isFinite(months)&&months>0?`x ${number(row.amount_eur/months,6)} €/mese`:"";
+      }
       if(row.kind==="section"&&row.section==="consumi")row.amount_eur=round(Number(row.amount_eur)+varDelta);
       if(row.kind==="section"&&row.section==="fissa_potenza")row.amount_eur=round(Number(row.amount_eur)+fixedDelta);
     }
-    const appliedDiscounts=(payload.appliedDiscounts||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
+    const appliedDiscounts=(payload.appliedDiscounts||[]).filter((item)=>item.discountKind!=="tariff_percentage").reduce((sum,item)=>sum+(Number(item.amount)||0),0);
     const oldTotal=Number(doc.total_amount_eur),newTotal=Number(payload.summary?.simulatedTotal);
     if(!Number.isFinite(oldTotal)||!Number.isFinite(newTotal))return null;
     // Evita uno scontrino che non quadra con il motore esistente.
@@ -1130,7 +1154,7 @@
     oldPay.amount_eur=round(newTotal);
     const otherSection=rows.find((row)=>row.section==="altre_partite"&&row.kind==="section");
     if(otherSection&&appliedDiscounts>0)otherSection.amount_eur=round(Number(otherSection.amount_eur)-appliedDiscounts);
-    for(const discount of payload.appliedDiscounts||[]){
+    for(const discount of (payload.appliedDiscounts||[]).filter((item)=>item.discountKind!=="tariff_percentage")){
       const amount=Number(discount.amount);
       if(!(amount>0))continue;
       const index=rows.indexOf(billTotal);
@@ -1205,12 +1229,33 @@
   function billRowsHtml({facts,side,payload=null,provider,offer}){
     const real=side==="real",economicRows=buildEconomicComparisonRows(payload),conditions=real?billConditionRowsFromDocs():simulatedConditionRows(payload),totalAmount=real?Number(facts.total):Number(payload?.summary?.simulatedTotal);
     let html=`<li><span>Periodo fatturato</span><strong>${facts.period}</strong></li>`;
-    if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
-    if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
+    if(real){
+      if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
+      if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
+    }else{
+      const offerRef=state.selected||{},bounds=[offerRef.subscriptionStart,offerRef.subscriptionEnd];
+      const formatted=(value)=>{const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:"";};
+      const start=formatted(bounds[0]),end=formatted(bounds[1]);
+      if(start)html+=`<li><span>Offerta sottoscrivibile dal</span><strong>${escapeHtml(start)}</strong></li>`;
+      if(end)html+=`<li><span>Offerta sottoscrivibile fino al</span><strong>${escapeHtml(end)}</strong></li>`;
+      if(!start&&!end)html+='<li><span>Validità di sottoscrizione</span><strong>Non verificata</strong></li>';
+      const historical=state.history||historicalCheck(offerRef);
+      const label=historical.mode==="historical_fixed"||historical.mode==="document_historical_fixed"?"Valida nel periodo fatturato":historical.mode==="unavailable"||historical.mode==="document_unavailable"?"Non valida nel periodo fatturato":historical.mode==="partial"||historical.mode==="document_partial"?"Valida solo in parte del periodo":"Validità storica non verificata";
+      html+=`<li><span>Validità nel periodo fatturato</span><strong>${escapeHtml(label)}</strong></li>`;
+    }
     html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
     const originalReceipt=originalReceiptRowsHtml({real,payload});
     html+=originalReceipt||buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
     if(!originalReceipt)html+='<li class="receipt-disclaimer"><span>Dettaglio dello scontrino non ricostruibile integralmente: le voci aggregate non sono una trascrizione analitica della bolletta.</span></li>';
+    if(!real&&state.selected){
+      const offers=[...Object.values(state.selected.components||{}).flatMap((part)=>part.discounts||[]),...(state.selected.discounts||[])];
+      for(const discount of offers){
+        const desc=String(discount.description||discount.name||"Sconto").trim();
+        const applied=Boolean(payload?.appliedDiscounts?.some((item)=>item.label===discount.name));
+        const status=applied?"Applicato al totale":"Non applicato: condizioni o periodo non verificati";
+        html+=`<li class="bill-condition-row is-long"><span>${escapeHtml(discount.name||"Sconto previsto")}</span><strong>${escapeHtml(status)}. ${escapeHtml(desc)}</strong></li>`;
+      }
+    }
     if(conditions.length){html+=`<li class="section-line"><span>${real?"Condizioni economiche lette":"Condizioni economiche applicate"}</span><strong></strong></li>${conditionRowsHtml(conditions)}`;}
     else if(real){html+=`<li class="section-line"><span>Condizioni economiche lette</span><strong></strong></li><li class="bill-condition-row is-long"><span>Dati disponibili</span><strong>Nel documento non sono state riconosciute altre condizioni economiche esplicite.</strong></li>`;}
     return html;
@@ -1238,7 +1283,7 @@
     const simulations=state.docs.map((doc)=>simulateDocument(doc,offerForHistoricalSimulation(offer,history,doc),history)).filter(Boolean);if(!simulations.length)return null;const requested=new Set(Object.keys(offer.components||{})),covered=new Set();simulations.forEach((sim)=>sim.componenti.forEach((part)=>covered.add(part.commodity)));if([...requested].some((commodity)=>!covered.has(commodity)))return null;
     const original=simulations.reduce((sum,item)=>sum+item.totaleOriginale,0),simulated=simulations.reduce((sum,item)=>sum+item.totaleSimulato,0),saving=original-simulated,breakdown={luce:null,gas:null};
     for(const commodity of ["luce","gas"]){const parts=simulations.flatMap((sim)=>sim.componenti.filter((item)=>item.commodity===commodity));if(!parts.length)continue;breakdown[commodity]={consumo:parts.reduce((sum,item)=>sum+item.attuale.consumo,0),materiaAttuale:parts.reduce((sum,item)=>sum+item.attuale.materia,0),materiaNuova:parts.reduce((sum,item)=>sum+item.nuova.materia,0),fissoAttuale:parts.reduce((sum,item)=>sum+item.attuale.quotaFissa,0),fissoNuovo:parts.reduce((sum,item)=>sum+item.nuova.quotaFissa,0),quotaFissaAnnuaNuova:Number(parts[0].nuova.quotaFissaAnnua),venditaAttuale:parts.reduce((sum,item)=>sum+item.attuale.totale,0),venditaNuovaLorda:parts.reduce((sum,item)=>sum+item.nuova.totaleLordo,0),scontoNuova:parts.reduce((sum,item)=>sum+item.nuova.sconto,0),venditaNuova:parts.reduce((sum,item)=>sum+item.nuova.totale,0),prezzoNuovo:parts[0].nuova.prezzoEffettivo,tipoPrezzo:parts[0].nuova.tipoPrezzo};}
-    const groupedDiscounts=new Map();for(const item of simulations.flatMap((sim)=>sim.scontiApplicati||[])){const key=`${item.commodity||""}|${item.label||"Sconto nuova offerta"}`,current=groupedDiscounts.get(key)||{commodity:item.commodity||"",label:item.label||"Sconto nuova offerta",amount:0};current.amount+=Number(item.amount)||0;groupedDiscounts.set(key,current);}
+    const groupedDiscounts=new Map();for(const item of simulations.flatMap((sim)=>sim.scontiApplicati||[])){const key=`${item.commodity||""}|${item.label||"Sconto nuova offerta"}|${item.discountKind||"separate"}`,current=groupedDiscounts.get(key)||{commodity:item.commodity||"",label:item.label||"Sconto nuova offerta",discountKind:item.discountKind||"separate",amount:0};current.amount+=Number(item.amount)||0;groupedDiscounts.set(key,current);}
     const kind=resultKindForHistory(history),cardActivation=offer?.source==="card"&&offer?.activationOffer?JSON.parse(JSON.stringify(offer.activationOffer)):null;
     return {version:7,createdAt:new Date().toISOString(),resultKind:kind,customerType:customerTypeFromDocs()||offer.customerType||"privato",offer:{id:offer.id,name:offer.name,provider:offer.provider,type:offer.type,supply:offer.supply,codes:offer.codes||[],source:String(offer.source||""),cardActivation},source:{provider:[...new Set(simulations.map((item)=>item.provider).filter(Boolean))].join(" + "),offerName:currentOfferLabel(),customerType:customerTypeFromDocs()||"privato"},summary:{originalTotal:Number(original.toFixed(2)),simulatedTotal:Number(simulated.toFixed(2)),saving:Number(saving.toFixed(2)),savingPercent:original>0?Number(((saving/original)*100).toFixed(1)):0,retainedBillAmount:Number(simulations.reduce((sum,item)=>sum+item.restoBolletta,0).toFixed(2)),realBillDiscountsExcluded:Number(Math.abs(simulations.reduce((sum,item)=>sum+item.scontoBollettaRealeEscluso,0)).toFixed(2)),newOfferDiscounts:Number(simulations.reduce((sum,item)=>sum+item.scontoNuovaOfferta,0).toFixed(2))},bills:simulations.map((item)=>({commodity:item.commodity,start:item.start,end:item.end,days:item.giorni,provider:item.provider,originalTotal:Number(item.totaleOriginale.toFixed(2)),simulatedTotal:Number(item.totaleSimulato.toFixed(2)),saving:Number(item.risparmio.toFixed(2))})),breakdown,appliedDiscounts:[...groupedDiscounts.values()].map((item)=>({...item,amount:Number(item.amount.toFixed(2))})).filter((item)=>item.amount>0),hasPromotions:[...groupedDiscounts.values()].some((item)=>item.amount>0),method:kind==="simulation"?"historical_same_bill_replace_offer_component":"current_conditions_same_consumption_comparison",history:{mode:history?.mode||"unknown",message:history?.message||""}};
   }
