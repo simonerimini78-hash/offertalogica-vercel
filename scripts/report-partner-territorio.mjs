@@ -13,7 +13,7 @@ const scriptDir = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(readFileSync(resolve(scriptDir, '../public/data/fornitori-territoriali.json'), 'utf8'));
 if (!catalog?.providers || typeof catalog.providers !== 'object') throw new Error('Anagrafica territoriale non valida');
 const enabled = JSON.parse(readFileSync(resolve(scriptDir, '../public/data/partner-territoriali-attivi.json'), 'utf8'));
-if (enabled?.schemaVersion !== 1 || !Array.isArray(enabled.providers)) throw new Error('Catalogo partner attivi non valido');
+if (enabled?.schemaVersion !== 2 || !Array.isArray(enabled.providers)) throw new Error('Catalogo partner attivi non valido');
 const knownProviderIds = enabled.providers.filter(id => Object.hasOwn(catalog.providers,id));
 const enabledSet = new Set(knownProviderIds);
 const rows = Array.isArray(source) ? source : Array.isArray(source?.events) ? source.events : null;

@@ -1,20 +1,32 @@
-// Generatore esplicito del catalogo pubblico: nessun aggiornamento automatico esistente viene modificato.
-// Eseguire dopo approvazione amministrativa delle singole schede contrattuali.
+// Catalogo pubblico generato soltanto su comando autorizzato. Non modifica job o API esistenti.
+// Uso: node scripts/genera-partner-territoriali.mjs
 import { readdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs';
-import { resolve } from 'node:path';
-const base = resolve('data/partner-territoriali');
-const directory = JSON.parse(readFileSync(resolve('public/data/fornitori-territoriali.json'), 'utf8'));
-if (!directory?.providers || typeof directory.providers !== 'object') throw new Error('Anagrafica territoriale non valida');
-const active = [];
-if (existsSync(base)) for (const filename of readdirSync(base).filter(n => /^[a-z0-9-]+\.json$/.test(n)).sort()) {
-  const row = JSON.parse(readFileSync(resolve(base, filename), 'utf8'));
-  const id = filename.slice(0,-5);
-  if (row.providerId !== id || !Object.hasOwn(directory.providers,id)) throw new Error('Identificativo partner incoerente: '+filename);
-  if (row.status !== 'active') continue;
-  if (row.contractSigned !== true || row.contentApproved !== true || row.territoriesVerified !== true) throw new Error('Partner attivo senza verifiche complete: '+id);
-  if (!/^\d{4}-\d{2}-\d{2}$/.test(row.activeFrom ?? '')) throw new Error('Decorrenza mancante: '+id);
-  if (row.activeFrom > new Date().toISOString().slice(0,10)) continue;
-  active.push(id);
+import { resolve, basename } from 'node:path';
+const root=process.cwd();
+const privateDir=resolve(root,'data/partner-territoriali');
+const output=resolve(root,'public/data/partner-territoriali-attivi.json');
+const geo=JSON.parse(readFileSync(resolve(root,'public/data/fornitori-territoriali.json'),'utf8'));
+if (geo?.schemaVersion !== 1 || !geo.providers || typeof geo.providers !== 'object') throw new Error('Archivio geografico non valido');
+const today=new Date().toISOString().slice(0,10);
+const isDate=v=>typeof v==='string' && /^\d{4}-\d{2}-\d{2}$/.test(v) && !Number.isNaN(Date.parse(v+'T00:00:00Z')) && new Date(v+'T00:00:00Z').toISOString().slice(0,10)===v;
+const partners=[];
+if(existsSync(privateDir)) for(const name of readdirSync(privateDir).sort()) {
+  if(!name.endsWith('.json')) continue;
+  if(!/^[a-z0-9-]+\.json$/.test(name)) throw new Error('Nome file non consentito: '+name);
+  const id=basename(name,'.json');
+  const entry=JSON.parse(readFileSync(resolve(privateDir,name),'utf8'));
+  if(entry.providerId!==id || !Object.hasOwn(geo.providers,id)) throw new Error('Fornitore sconosciuto: '+id);
+  if(!['draft','active','paused','ended'].includes(entry.status)) throw new Error('Stato non valido: '+id);
+  if(entry.status!=='active') continue;
+  if(entry.contractSigned!==true || entry.contentApproved!==true || entry.territoriesVerified!==true) throw new Error('Approvazioni mancanti: '+id);
+  if(!isDate(entry.activeFrom)) throw new Error('Decorrenza non valida: '+id);
+  if(entry.activeUntil!==undefined && (!isDate(entry.activeUntil)||entry.activeUntil<entry.activeFrom)) throw new Error('Scadenza non valida: '+id);
+  if(entry.activeFrom>today || (entry.activeUntil!==undefined && entry.activeUntil<today)) continue;
+  if(!Array.isArray(entry.verifiedCaps) || entry.verifiedCaps.length===0 || entry.verifiedCaps.some(cap=>typeof cap!=='string'|| !/^\d{5}$/.test(cap))) throw new Error('CAP di copertura verificati mancanti o non validi: '+id);
+  if(new Set(entry.verifiedCaps).size!==entry.verifiedCaps.length) throw new Error('CAP duplicati: '+id);
+  partners.push({id,verifiedCaps:entry.verifiedCaps.slice().sort()});
 }
-writeFileSync(resolve('public/data/partner-territoriali-attivi.json'), JSON.stringify({schemaVersion:1,providers:active},null,2)+'\n');
-console.log('Partner pubblicati:',active.length);
+// Nessun dato contrattuale o personale nel file pubblico, solo ID e territori abilitati.
+const doc={schemaVersion:2,providers:partners.map(p=>p.id),coverageByProvider:Object.fromEntries(partners.map(p=>[p.id,p.verifiedCaps]))};
+writeFileSync(output,JSON.stringify(doc,null,2)+'\n');
+console.log('Partner pubblicabili:',partners.length);
