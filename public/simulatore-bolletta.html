@@ -22,7 +22,7 @@
   <meta name="twitter:card" content="summary">
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="apple-touch-icon" href="/assets/logo-offertalogica-icon.png">
-  <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.69">
+  <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.70">
   <script type="application/ld+json">
   {
     "@context":"https://schema.org",
@@ -489,7 +489,7 @@
               <input class="hidden-input" id="bill-photo-input" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" capture="environment">
             </div>
             <ul class="bill-lines" id="real-bill-lines">
-              <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong></strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Componente offerta</span><strong>—</strong></li><li><span>Altre voci</span><strong>—</strong></li>
+              <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong></strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong>—</strong></li><li><span>Voce di bolletta</span><strong>—</strong></li>
             </ul>
             <footer class="bill-total"><span>Totale bolletta reale</span><strong id="original-total">—</strong></footer>
           </article>
@@ -515,7 +515,7 @@
               </section>
             </div>
             <ul class="bill-lines" id="virtual-bill-lines">
-              <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong>—</strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Componente offerta</span><strong>—</strong></li><li><span>Altre voci</span><strong>—</strong></li>
+              <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong>—</strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong>—</strong></li><li><span>Voce di bolletta</span><strong>—</strong></li>
             </ul>
             <footer class="bill-total"><span id="virtual-total-label">Totale bolletta ricalcolata</span><strong id="simulated-total">—</strong></footer>
           </article>
@@ -866,19 +866,32 @@
     return `Altre voci${suffix}`;
   }
   function economicRowsFromDocs(){
-    const supply=commoditiesFromDocs(),multiSupply=supply.length>1,map=new Map();
-    for(const commodity of supply){
-      let materiaFound=false;
-      for(const doc of state.docs){
-        for(const row of breakdownRowsForDoc(doc,commodity)){
-          const amount=Number(row.amount_eur),category=String(row.category||"");if(!Number.isFinite(amount)||!category)continue;if(category==="bill_materia"&&!realBillDiscountRow(row))materiaFound=true;
-          const label=billCategoryLabel(category,commodity,row.label,multiSupply),key=category==="bill_other_charge"?`${commodity}|${category}|${label.toLowerCase()}`:`${commodity}|${category}`;
-          const current=map.get(key)||{commodity,category,label,amount:0,derived:false};current.amount+=amount;map.set(key,current);
+    const supply=commoditiesFromDocs(),multiSupply=supply.length>1,rows=[];
+    let order=0;
+    for(const doc of state.docs){
+      const docCommodities=["luce","gas"].filter((commodity)=>{
+        if(breakdownRowsForDoc(doc,commodity).length)return true;
+        if(periodConsumption(doc,commodity)>0)return true;
+        return doc.commodity===commodity||doc.commodity==="dual";
+      });
+      for(const commodity of docCommodities){
+        const breakdown=breakdownRowsForDoc(doc,commodity);let materiaFound=false;
+        for(const row of breakdown){
+          const amount=Number(row.amount_eur),category=String(row.category||""),baseLabel=String(row.label||"").trim();
+          if(!Number.isFinite(amount)||!category||!baseLabel)continue;
+          if(category==="bill_materia"&&!realBillDiscountRow(row))materiaFound=true;
+          rows.push({commodity,category,label:`${baseLabel}${multiSupply?` (${commodityLabel(commodity)})`:""}`,sourceLabel:baseLabel,amount,derived:false,order:order++});
+        }
+        if(!materiaFound){
+          const amount=currentSaleAmount(doc,commodity);
+          if(amount>0){
+            const baseLabel=commodity==="luce"?"Spesa per la materia energia":"Spesa per la materia gas";
+            rows.push({commodity,category:"bill_materia",label:`${baseLabel}${multiSupply?` (${commodityLabel(commodity)})`:""}`,sourceLabel:baseLabel,amount,derived:true,order:order++});
+          }
         }
       }
-      if(!materiaFound){const amount=state.docs.reduce((sum,doc)=>sum+currentSaleAmount(doc,commodity),0);if(amount>0){const key=`${commodity}|bill_materia`;map.set(key,{commodity,category:"bill_materia",label:billCategoryLabel("bill_materia",commodity,"",multiSupply),amount,derived:true});}}
     }
-    return [...map.values()].sort((a,b)=>(BILL_CATEGORY_ORDER[a.category]??99)-(BILL_CATEGORY_ORDER[b.category]??99)||a.label.localeCompare(b.label,"it"));
+    return rows;
   }
   function conditionPeriodSuffix(period){return period==="month"?" / mese":period==="year"?" / anno":"";}
   function conditionValueFromComponent(row){
@@ -941,12 +954,38 @@
   }
   function simulatedSaleForCommodity(payload,commodity){const value=Number(payload?.breakdown?.[commodity]?.venditaNuovaLorda??payload?.breakdown?.[commodity]?.venditaNuova);return Number.isFinite(value)?value:null;}
   function buildEconomicComparisonRows(payload=null){
-    const rows=economicRowsFromDocs().map((row)=>{const legacyDiscount=realBillDiscountRow({label:row.label,amount_eur:row.amount});return { ...row,legacyDiscount,realValue:row.amount,virtualValue:legacyDiscount?null:(row.category==="bill_materia"?(payload?simulatedSaleForCommodity(payload,row.commodity):null):row.amount) };});
-    if(payload){for(const row of payload.appliedDiscounts||[]){const amount=Number(row?.amount);if(!(amount>0))continue;const suffix=row.commodity&&row.commodity!=="dual"&&commoditiesFromDocs().length>1?` (${commodityLabel(row.commodity)})`:"";rows.push({commodity:String(row.commodity||""),category:"offer_discount",label:`${String(row.label||"Sconto/bonus nuova offerta")}${suffix}`,realValue:null,virtualValue:-amount,virtualOnly:true,newOfferDiscount:true});}}
+    const rows=economicRowsFromDocs().map((row)=>{const legacyDiscount=realBillDiscountRow({label:row.sourceLabel||row.label,amount_eur:row.amount});return { ...row,legacyDiscount,realValue:row.amount,virtualValue:legacyDiscount?null:(row.category==="bill_materia"?null:row.amount) };});
+    const matterRowsByCommodity=new Map();
+    rows.forEach((row,index)=>{if(row.category==="bill_materia"&&!row.legacyDiscount){const list=matterRowsByCommodity.get(row.commodity)||[];list.push(index);matterRowsByCommodity.set(row.commodity,list);}});
+    if(payload){
+      for(const [commodity,indexes] of matterRowsByCommodity.entries()){
+        const totalSimulated=simulatedSaleForCommodity(payload,commodity);
+        if(!Number.isFinite(totalSimulated))continue;
+        const weights=indexes.map((index)=>Math.max(Number(rows[index].realValue)||0,0));
+        const totalWeight=weights.reduce((sum,value)=>sum+value,0);
+        let assigned=0;
+        indexes.forEach((index,position)=>{
+          let value;
+          if(position===indexes.length-1)value=Number((totalSimulated-assigned).toFixed(2));
+          else {
+            const raw=totalWeight>0?totalSimulated*(weights[position]/totalWeight):totalSimulated/indexes.length;
+            value=Number(raw.toFixed(2));
+            assigned=Number((assigned+value).toFixed(2));
+          }
+          rows[index].virtualValue=value;
+          rows[index].simulatedFromReceipt=true;
+        });
+      }
+      for(const row of payload.appliedDiscounts||[]){
+        const amount=Number(row?.amount);if(!(amount>0))continue;
+        const suffix=row.commodity&&row.commodity!=="dual"&&commoditiesFromDocs().length>1?` (${commodityLabel(row.commodity)})`:"";
+        rows.push({commodity:String(row.commodity||""),category:"offer_discount",label:`${String(row.label||"Sconto/bonus nuova offerta")}${suffix}`,realValue:null,virtualValue:-amount,virtualOnly:true,newOfferDiscount:true});
+      }
+    }
     const realTotal=state.docs.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0),virtualTotal=Number(payload?.summary?.simulatedTotal);
     const realKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.realValue)?row.realValue:0),0),virtualKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.virtualValue)?row.virtualValue:0),0);
     const realResidual=Number((realTotal-realKnown).toFixed(2)),virtualResidual=payload&&Number.isFinite(virtualTotal)?Number((virtualTotal-virtualKnown).toFixed(2)):realResidual;
-    if(Math.abs(realResidual)>.01||Math.abs(virtualResidual)>.01)rows.push({commodity:"",category:"bill_other_charge",label:"Altre voci non dettagliate",realValue:realResidual,virtualValue:payload?virtualResidual:realResidual,residual:true});
+    if(Math.abs(realResidual)>.01||Math.abs(virtualResidual)>.01)rows.push({commodity:"",category:"bill_other_charge",label:"Differenza di quadratura (voce non identificata nella lettura)",realValue:realResidual,virtualValue:payload?virtualResidual:realResidual,residual:true});
     return rows;
   }
   function conditionRowsHtml(rows){return rows.map((row)=>{const long=row.value.length>46||row.label.length>40;return `<li class="bill-condition-row${long?" is-long":""}"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></li>`;}).join("");}
@@ -955,7 +994,7 @@
     let html=`<li><span>Periodo fatturato</span><strong>${facts.period}</strong></li>`;
     if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
     if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
-    html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Riepilogo importi</span><strong></strong></li>`;
+    html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
     for(const row of economicRows){if(real&&row.virtualOnly)continue;if(!real&&row.legacyDiscount)continue;let value;if(real)value=euro(row.realValue);else if(row.category==="bill_materia"&&!payload)value=state.selected?"da simulare":"—";else value=euro(row.virtualValue);const rowLabel=row.derived?`${row.label} (ricostruita)`:row.label,classes=["bill-breakdown-row"];if(row.newOfferDiscount)classes.push("is-discount");if(row.legacyDiscount)classes.push("is-real-only");html+=`<li class="${classes.join(" ")}"><span>${escapeHtml(rowLabel)}</span><strong>${escapeHtml(value)}</strong></li>`;}
     if(conditions.length){html+=`<li class="section-line"><span>${real?"Condizioni economiche lette":"Condizioni economiche applicate"}</span><strong></strong></li>${conditionRowsHtml(conditions)}`;}
     else if(real){html+=`<li class="section-line"><span>Condizioni economiche lette</span><strong></strong></li><li class="bill-condition-row is-long"><span>Dati disponibili</span><strong>Nel documento non sono state riconosciute altre condizioni economiche esplicite.</strong></li>`;}
@@ -1016,7 +1055,13 @@
     $("offer-provider").textContent=payload.offer?.provider||"—";$("offer-name").textContent=payload.offer?.name||"—";$("offer-type").textContent=payload.offer?.type==="variabile"?"Prezzo variabile":payload.offer?.type==="misto"?"Prezzi misti":"Prezzo fisso";const prices=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(part)prices.push(`${commodityLabel(commodity)}: ${number(part.prezzoNuovo,6)} €/${commodity==="luce"?"kWh":"Smc"}`);}$("offer-price-line").innerHTML=`<strong>Prezzo applicato:</strong> ${prices.join(" · ")||"—"}`;
     const note=$("bill-note");if(note){const oldDiscount=Number(payload.summary.realBillDiscountsExcluded)||0,newDiscount=Number(payload.summary.newOfferDiscounts)||0;const discountText=oldDiscount>0?` Gli sconti/bonus della bolletta reale (${euro(oldDiscount)}) non sono trasferiti.`:" Gli eventuali sconti della bolletta reale non vengono trasferiti.";const newDiscountText=newDiscount>0?` Sono applicati solo gli sconti/bonus verificabili della nuova offerta per ${euro(newDiscount)}.`:" Non risultano sconti della nuova offerta applicabili con dati verificabili.";note.innerHTML=`<strong>Nota:</strong>${discountText}${newDiscountText} ${isSimulation?"La nuova offerta era valida per l'intero periodo fatturato.":"Questo risultato è una comparazione e non ricostruisce una fattura storica del nuovo fornitore."}`;}const activate=$("activate-selected-offer");if(activate){activate.disabled=false;activate.setAttribute("aria-label",payload.offer?.source==="card"&&payload.offer?.cardActivation?`Attiva ${payload.offer?.name||"l'offerta"}`:"Torna alle offerte per scegliere la card da attivare");}
   }
-  async function simulateSelected(){const select=$("offer-select");if(!state.docs.length||!select||select.value==="")return;const offer=state.filtered[Number(select.value)];if(!offer)return;state.selected=offer;storeJson(OFFER_KEY,offer);await loadCatalog();const history=historicalCheck(offer);state.history=history;const payload=buildPayload(offer,history);if(!payload){setUploadStatus("La bolletta non contiene tutti i dati economici necessari per effettuare il confronto senza inventare valori.","error");return;}storeJson(PAYLOAD_KEY,payload);renderPayload(payload);}
+  async function simulateSelected(){const select=$("offer-select");if(!state.docs.length||!select||select.value==="")return;const offer=state.filtered[Number(select.value)];if(!offer)return;state.selected=offer;storeJson(OFFER_KEY,offer);await loadCatalog();const history=historicalCheck(offer);state.history=history;
+    if(offer.source==="document"&&Object.values(offer.components||{}).some((component)=>String(component?.type||"").toLowerCase()!=="fisso")){
+      renderHistory(history);
+      setUploadStatus("Confronto indicizzato non calcolabile: il prezzo letto dalla CTE non è il PUN/PSV storico del periodo. Occorrono valori storici verificati e la formula completa dell’offerta.","error");
+      return;
+    }
+    const payload=buildPayload(offer,history);if(!payload){setUploadStatus("La bolletta non contiene tutti i dati economici necessari per effettuare il confronto senza inventare valori.","error");return;}storeJson(PAYLOAD_KEY,payload);renderPayload(payload);}
 
 
   $("choose-pdf-button")?.addEventListener("click",()=>{$("bill-pdf-input").value="";$("bill-pdf-input").click();});
@@ -1043,7 +1088,7 @@
 
   async function init(){
     const storedDocs=safeJson(DOCS_KEY);if(Array.isArray(storedDocs))state.docs=storedDocs.map(compactBill).filter(Boolean);const storedOffer=safeJson(OFFER_KEY);if(storedOffer)state.selected=storedOffer;if(state.selected?.source==="document")setOfferDocumentStatus(`CTE / scheda caricata: ${state.selected.provider} — ${state.selected.name}.`,"ready");if(state.docs.length)document.body.classList.add("simulator-has-docs");const payload=safeJson(PAYLOAD_KEY);
-    if(state.docs.length){renderDocsPreview();setUploadStatus(state.docs.length===1?"Bolletta letta":"Bollette lette","ready");await refreshOfferOptions();renderSimulationPreview();if(payload?.summary&&payload?.bills?.length&&state.selected){await loadCatalog();const history=historicalCheck(state.selected);state.history=history;renderHistory(history);const rebuilt=buildPayload(state.selected,history);if(rebuilt){storeJson(PAYLOAD_KEY,rebuilt);renderPayload(rebuilt);}}}
+    if(state.docs.length){renderDocsPreview();setUploadStatus(state.docs.length===1?"Bolletta letta":"Bollette lette","ready");await refreshOfferOptions();renderSimulationPreview();if(payload?.summary&&payload?.bills?.length&&state.selected){await loadCatalog();const history=historicalCheck(state.selected);state.history=history;renderHistory(history);const rebuilt=state.selected.source==="document"&&Object.values(state.selected.components||{}).some((component)=>String(component?.type||"").toLowerCase()!=="fisso")?null:buildPayload(state.selected,history);if(rebuilt){storeJson(PAYLOAD_KEY,rebuilt);renderPayload(rebuilt);}}}
     else {setUploadStatus("");await refreshOfferOptions();if(state.selected){$("offer-selection-note").innerHTML=`Hai già scelto <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Carica o fotografa la bolletta: l'offerta resterà selezionata.`;}}
   }
   init().catch((error)=>setUploadStatus(error?.message||"Impossibile inizializzare il confronto storico","error"));
