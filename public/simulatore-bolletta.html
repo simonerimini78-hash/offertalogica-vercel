@@ -296,6 +296,22 @@
     .bill-lines li.bill-component-row span{padding-left:12px;color:#64748b;font-size:.94em}
     .bill-lines li.bill-component-row strong{font-weight:750;color:#475569}
     .bill-lines li.bill-breakdown-row strong{font-variant-numeric:tabular-nums}
+    .bill-lines li.receipt-columns,.bill-lines li.receipt-row{grid-template-columns:minmax(0,1.55fr) minmax(68px,.56fr) minmax(92px,.72fr) minmax(84px,.62fr)!important;align-items:center!important}
+    .bill-lines li.receipt-columns{background:#f8fafc!important;color:#334155!important;font-size:10px!important;font-weight:900!important;text-transform:uppercase!important;letter-spacing:.045em!important}
+    .bill-lines li.receipt-columns span,.bill-lines li.receipt-columns strong{text-align:right!important;color:#334155!important}
+    .bill-lines li.receipt-columns .receipt-label{text-align:left!important}
+    .bill-lines li.receipt-section{grid-template-columns:minmax(0,1fr) auto!important;background:#fff!important;padding-top:9px!important;padding-bottom:5px!important;border-bottom:0!important}
+    .bill-lines li.receipt-section span,.bill-lines li.receipt-section strong{color:#dc2626!important;font-weight:900!important}
+    .bill-lines li.receipt-row{font-size:12px!important;padding-top:5px!important;padding-bottom:5px!important;min-height:auto!important}
+    .bill-lines li.receipt-row .receipt-label{color:#475569!important;text-align:left!important}
+    .bill-lines li.receipt-row .receipt-qty,.bill-lines li.receipt-row .receipt-price,.bill-lines li.receipt-row .receipt-amount{text-align:right!important;color:#0f172a!important}
+    .bill-lines li.receipt-row .receipt-amount{font-weight:800!important}
+    .bill-lines li.receipt-row.is-discount .receipt-amount{color:#166534!important}
+    .bill-lines li.receipt-grand-total{grid-template-columns:minmax(0,1fr) auto!important;background:#fff!important;border-top:1px solid #dbe3ea!important;padding-top:8px!important;padding-bottom:8px!important}
+    .bill-lines li.receipt-grand-total span,.bill-lines li.receipt-grand-total strong{font-size:17px!important;font-weight:900!important;color:#0f172a!important}
+    .bill-lines li.receipt-post-total{font-size:11px!important;border-top:1px solid #edf2f7!important}
+    .bill-total{background:#3f3f46!important;border-top-color:#3f3f46!important}
+    .bill-total span,.bill-total strong{color:#fff!important}
     .saving-band{max-width:none!important;width:100%!important;margin:14px 0 0!important}
     @media(max-width:700px){
       .comparison-stage{display:block!important}
@@ -363,13 +379,30 @@
     .bill-lines li.section-line{min-height:38px!important;padding-top:9px!important;padding-bottom:9px!important;background:#f4f7fa!important;border-top:1px solid #dbe3ea!important;border-bottom:1px solid #dbe3ea!important;color:#334155!important;text-transform:uppercase;letter-spacing:.055em;font-size:10.5px!important}
     .bill-lines li.bill-breakdown-row span{color:#40536a}
     .bill-lines li.bill-breakdown-row strong{font-variant-numeric:tabular-nums}
+    .bill-lines li.receipt-columns,.bill-lines li.receipt-row{grid-template-columns:minmax(0,1.55fr) minmax(68px,.56fr) minmax(92px,.72fr) minmax(84px,.62fr)!important;align-items:center!important}
+    .bill-lines li.receipt-columns{background:#f8fafc!important;color:#334155!important;font-size:10px!important;font-weight:900!important;text-transform:uppercase!important;letter-spacing:.045em!important}
+    .bill-lines li.receipt-columns span,.bill-lines li.receipt-columns strong{text-align:right!important;color:#334155!important}
+    .bill-lines li.receipt-columns .receipt-label{text-align:left!important}
+    .bill-lines li.receipt-section{grid-template-columns:minmax(0,1fr) auto!important;background:#fff!important;padding-top:9px!important;padding-bottom:5px!important;border-bottom:0!important}
+    .bill-lines li.receipt-section span,.bill-lines li.receipt-section strong{color:#dc2626!important;font-weight:900!important}
+    .bill-lines li.receipt-row{font-size:12px!important;padding-top:5px!important;padding-bottom:5px!important;min-height:auto!important}
+    .bill-lines li.receipt-row .receipt-label{color:#475569!important;text-align:left!important}
+    .bill-lines li.receipt-row .receipt-qty,.bill-lines li.receipt-row .receipt-price,.bill-lines li.receipt-row .receipt-amount{text-align:right!important;color:#0f172a!important}
+    .bill-lines li.receipt-row .receipt-amount{font-weight:800!important}
+    .bill-lines li.receipt-row.is-discount .receipt-amount{color:#166534!important}
+    .bill-lines li.receipt-grand-total{grid-template-columns:minmax(0,1fr) auto!important;background:#fff!important;border-top:1px solid #dbe3ea!important;padding-top:8px!important;padding-bottom:8px!important}
+    .bill-lines li.receipt-grand-total span,.bill-lines li.receipt-grand-total strong{font-size:17px!important;font-weight:900!important;color:#0f172a!important}
+    .bill-lines li.receipt-post-total{font-size:11px!important;border-top:1px solid #edf2f7!important}
+    .bill-total{background:#3f3f46!important;border-top-color:#3f3f46!important}
+    .bill-total span,.bill-total strong{color:#fff!important}
     .bill-lines li.bill-condition-row{align-items:start!important;background:#fff}
     .bill-lines li.bill-condition-row span{color:#64748b;font-size:.94em;line-height:1.35}
     .bill-lines li.bill-condition-row strong{color:#1e293b;font-weight:750;line-height:1.38;text-align:right;overflow-wrap:anywhere}
     .bill-lines li.bill-condition-row.is-long{grid-template-columns:1fr!important;gap:4px!important}
     .bill-lines li.bill-condition-row.is-long strong{text-align:left!important;max-width:none!important}
-    .bill-total{border-top:2px solid #cbd5e1!important;background:#f8fafc!important}
-    .bill-total span{letter-spacing:.055em;text-transform:uppercase;color:#475569}
+    .bill-total{border-top:2px solid #3f3f46!important;background:#3f3f46!important}
+    .bill-total span{letter-spacing:.055em;text-transform:uppercase;color:#fff!important}
+    .bill-total strong{color:#fff!important}
     .result-toolbar{display:none;margin-top:10px;padding:10px;border:1px solid #dbe5ef;border-radius:14px;background:#fff;box-shadow:0 10px 26px rgba(15,23,42,.06)}
     body.simulator-has-result .result-toolbar{display:block}
     .result-toolbar .result-actions{display:grid!important;grid-template-columns:minmax(0,1.25fr) minmax(0,1fr) minmax(0,1fr)!important;gap:8px!important;width:100%!important;margin:0!important}
@@ -385,6 +418,9 @@
       .bill-title-row{align-items:flex-start!important}
       .bill-lines li{grid-template-columns:minmax(108px,.43fr) minmax(0,.57fr)!important;min-height:40px!important;padding:8px 10px!important;font-size:11.4px!important}
       .bill-lines li.section-line,.bill-lines li.bill-condition-row.is-long{grid-template-columns:1fr!important}
+      .bill-lines li.receipt-columns,.bill-lines li.receipt-row{grid-template-columns:minmax(0,1.42fr) minmax(58px,.54fr) minmax(82px,.7fr) minmax(74px,.58fr)!important;font-size:10.4px!important}
+      .bill-lines li.receipt-section,.bill-lines li.receipt-grand-total{grid-template-columns:minmax(0,1fr) auto!important}
+      .bill-lines li.receipt-grand-total span,.bill-lines li.receipt-grand-total strong{font-size:15px!important}
       .bill-lines li.bill-condition-row strong{font-size:10.8px!important}
       .bill-lines li.bill-condition-row.is-long strong{font-size:10.7px!important}
       .bill-total{padding:11px 10px!important}
@@ -491,7 +527,7 @@
             <ul class="bill-lines" id="real-bill-lines">
               <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong></strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong>—</strong></li><li><span>Voce di bolletta</span><strong>—</strong></li>
             </ul>
-            <footer class="bill-total"><span>Totale bolletta reale</span><strong id="original-total">—</strong></footer>
+            <footer class="bill-total"><span>Totale da pagare</span><strong id="original-total">—</strong></footer>
           </article>
 
           <article class="bill-paper simulated" aria-labelledby="virtual-bill-title">
@@ -517,7 +553,7 @@
             <ul class="bill-lines" id="virtual-bill-lines">
               <li><span>Periodo</span><strong>—</strong></li><li><span>Tipo fornitura</span><strong>—</strong></li><li><span>Fornitore</span><strong>—</strong></li><li><span>Offerta</span><strong>—</strong></li><li><span>Consumo</span><strong>—</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong>—</strong></li><li><span>Voce di bolletta</span><strong>—</strong></li>
             </ul>
-            <footer class="bill-total"><span id="virtual-total-label">Totale bolletta ricalcolata</span><strong id="simulated-total">—</strong></footer>
+            <footer class="bill-total"><span id="virtual-total-label">Totale da pagare</span><strong id="simulated-total">—</strong></footer>
           </article>
           <div class="simulate-action"><button class="button primary" id="simulate-selected-offer" type="button" disabled>Confronta la bolletta</button></div>
         </div>
@@ -989,13 +1025,75 @@
     return rows;
   }
   function conditionRowsHtml(rows){return rows.map((row)=>{const long=row.value.length>46||row.label.length>40;return `<li class="bill-condition-row${long?" is-long":""}"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></li>`;}).join("");}
+  function normalizeReceiptLabel(value){return String(value||"").normalize("NFD").replace(/[̀-ͯ]/g,"").toLowerCase();}
+  function receiptSectionForRow(row){
+    const label=normalizeReceiptLabel(row.sourceLabel||row.label);
+    if(/canone|televisione|rai/.test(label))return "post_total";
+    if(row.category==="bill_vat"||row.category==="bill_excise"||/iva|accise|imposte?/.test(label))return "taxes";
+    if(/quota fissa|corrispettivo fisso|potenza|potenze|kw/.test(label))return "fixed_power";
+    if(row.category==="bill_materia"||row.category==="bill_transport"||row.category==="bill_system_charges")return "consumi";
+    return "other";
+  }
+  function receiptSectionTitle(key){
+    if(key==="consumi")return "Quota consumi";
+    if(key==="fixed_power")return "Quota fissa e quota potenza";
+    if(key==="other")return "Altre partite";
+    if(key==="taxes")return "Accise e IVA";
+    if(key==="post_total")return "Dopo il totale";
+    return "Altre voci";
+  }
+  function receiptUnitForCommodity(commodity){return commodity==="luce"?"kWh":commodity==="gas"?"Smc":"";}
+  function receiptPriceUnitForCommodity(commodity){return commodity==="luce"?"€/kWh":commodity==="gas"?"€/Smc":"€/unità";}
+  function receiptValueForSide(row,{real,payload}){
+    if(real)return Number.isFinite(row.realValue)?row.realValue:null;
+    if(row.category==="bill_materia"&&!payload)return null;
+    return Number.isFinite(row.virtualValue)?row.virtualValue:null;
+  }
+  function receiptMetricsForRow(row,{real,payload}){
+    const amount=receiptValueForSide(row,{real,payload});
+    const label=normalizeReceiptLabel(row.sourceLabel||row.label);
+    const consumption=state.docs.reduce((sum,doc)=>sum+periodConsumption(doc,row.commodity),0);
+    if(Number.isFinite(amount)&&consumption>0&&row.commodity&&(row.category==="bill_materia"||/quota consum|consumi|vendita/.test(label))&&!/quota fissa|potenza|canone/.test(label)){
+      return {quantity:`${number(consumption,2)} ${receiptUnitForCommodity(row.commodity)}`,price:`× ${number(amount/consumption,6)} ${receiptPriceUnitForCommodity(row.commodity)}`,amount:euro(amount)};
+    }
+    return {quantity:"—",price:"—",amount:Number.isFinite(amount)?euro(amount):(real?"—":(payload?"—":"da simulare"))};
+  }
+  function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
+    const visibleRows=rows.filter((row)=>!(real&&row.virtualOnly)&&!(!real&&row.legacyDiscount));
+    const groupsOrder=["consumi","fixed_power","other","taxes"];
+    const groups=new Map([...groupsOrder,"post_total"].map((key)=>[key,[]]));
+    for(const row of visibleRows){groups.get(receiptSectionForRow(row))?.push(row);}
+    let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
+    for(const key of groupsOrder){
+      const sectionRows=groups.get(key)||[];
+      if(!sectionRows.length)continue;
+      const sectionTotal=sectionRows.reduce((sum,row)=>sum+(receiptValueForSide(row,{real,payload})||0),0);
+      html+=`<li class="receipt-section"><span>${escapeHtml(receiptSectionTitle(key))}</span><strong>${escapeHtml(euro(sectionTotal))}</strong></li>`;
+      for(const row of sectionRows){
+        const metrics=receiptMetricsForRow(row,{real,payload});
+        const rowLabel=row.derived?`${row.label} (ricostruita)`:row.label;
+        const classes=["receipt-row"];if(row.newOfferDiscount)classes.push("is-discount");if(row.legacyDiscount)classes.push("is-real-only");
+        html+=`<li class="${classes.join(" ")}"><span class="receipt-label">${escapeHtml(rowLabel)}</span><span class="receipt-qty">${escapeHtml(metrics.quantity)}</span><span class="receipt-price">${escapeHtml(metrics.price)}</span><strong class="receipt-amount">${escapeHtml(metrics.amount)}</strong></li>`;
+      }
+    }
+    const postTotalRows=groups.get("post_total")||[];
+    const postTotalAmount=postTotalRows.reduce((sum,row)=>sum+(receiptValueForSide(row,{real,payload})||0),0);
+    const baseTotal=Number.isFinite(totalAmount)?Number((totalAmount-postTotalAmount).toFixed(2)):NaN;
+    html+=`<li class="receipt-grand-total"><span>Totale bolletta</span><strong>${escapeHtml(Number.isFinite(baseTotal)?euro(baseTotal):"—")}</strong></li>`;
+    for(const row of postTotalRows){
+      const metrics=receiptMetricsForRow(row,{real,payload});
+      const rowLabel=row.derived?`${row.label} (ricostruita)`:row.label;
+      html+=`<li class="receipt-row receipt-post-total"><span class="receipt-label">${escapeHtml(rowLabel)}</span><span class="receipt-qty">${escapeHtml(metrics.quantity)}</span><span class="receipt-price">${escapeHtml(metrics.price)}</span><strong class="receipt-amount">${escapeHtml(metrics.amount)}</strong></li>`;
+    }
+    return html;
+  }
   function billRowsHtml({facts,side,payload=null,provider,offer}){
-    const real=side==="real",economicRows=buildEconomicComparisonRows(payload),conditions=real?billConditionRowsFromDocs():simulatedConditionRows(payload);
+    const real=side==="real",economicRows=buildEconomicComparisonRows(payload),conditions=real?billConditionRowsFromDocs():simulatedConditionRows(payload),totalAmount=real?Number(facts.total):Number(payload?.summary?.simulatedTotal);
     let html=`<li><span>Periodo fatturato</span><strong>${facts.period}</strong></li>`;
     if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
     if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
     html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
-    for(const row of economicRows){if(real&&row.virtualOnly)continue;if(!real&&row.legacyDiscount)continue;let value;if(real)value=euro(row.realValue);else if(row.category==="bill_materia"&&!payload)value=state.selected?"da simulare":"—";else value=euro(row.virtualValue);const rowLabel=row.derived?`${row.label} (ricostruita)`:row.label,classes=["bill-breakdown-row"];if(row.newOfferDiscount)classes.push("is-discount");if(row.legacyDiscount)classes.push("is-real-only");html+=`<li class="${classes.join(" ")}"><span>${escapeHtml(rowLabel)}</span><strong>${escapeHtml(value)}</strong></li>`;}
+    html+=buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
     if(conditions.length){html+=`<li class="section-line"><span>${real?"Condizioni economiche lette":"Condizioni economiche applicate"}</span><strong></strong></li>${conditionRowsHtml(conditions)}`;}
     else if(real){html+=`<li class="section-line"><span>Condizioni economiche lette</span><strong></strong></li><li class="bill-condition-row is-long"><span>Dati disponibili</span><strong>Nel documento non sono state riconosciute altre condizioni economiche esplicite.</strong></li>`;}
     return html;
@@ -1040,7 +1138,7 @@
   }
   function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
-    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}const historyNode=$("history-status");if(historyNode){historyNode.hidden=true;historyNode.className="history-status";historyNode.textContent="";}$("virtual-doc-label").textContent="Bolletta ricalcolata";$("virtual-bill-title").textContent="La stessa bolletta";$("virtual-bill-subtitle").textContent="Stesso periodo e stessi consumi, con una nuova offerta.";$("virtual-total-label").textContent="Totale bolletta ricalcolata";$("saving-equation-caption").textContent="Bolletta reale → bolletta ricalcolata";$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;renderBillPanels(null);
+    document.body.classList.remove("simulator-has-result");storeJson(PAYLOAD_KEY,null);const status=$("result-status");if(status){status.classList.remove("is-ready");status.textContent="Confronto pronto";}const historyNode=$("history-status");if(historyNode){historyNode.hidden=true;historyNode.className="history-status";historyNode.textContent="";}$("virtual-doc-label").textContent="Bolletta ricalcolata";$("virtual-bill-title").textContent="La stessa bolletta";$("virtual-bill-subtitle").textContent="Stesso periodo e stessi consumi, con una nuova offerta.";$("virtual-total-label").textContent="Totale da pagare";$("saving-equation-caption").textContent="Bolletta reale → bolletta ricalcolata";$("saving-total").textContent="—";$("saving-percent").textContent="Stesso periodo e stessi consumi";$("saving-equation").textContent="— → —";$("activate-selected-offer").disabled=true;renderBillPanels(null);
   }
   function renderDocsPreview(){renderBillPanels(null);}
 
@@ -1050,7 +1148,7 @@
   function updateSimulationActionLabel(){const button=$("simulate-selected-offer");if(!button)return;if(!state.selected||!state.docs.length){button.textContent="Confronta la bolletta";return;}const history=historicalCheck(state.selected);button.textContent=resultKindForHistory(history)==="simulation"?"Confronta la bolletta":"Confronta l'offerta";}
   function renderPayload(payload){
     if(!payload?.summary||!payload.bills?.length)return;document.body.classList.add("simulator-has-result");renderBillPanels(payload);const status=$("result-status"),kind=payload.resultKind||resultKindForHistory(payload.history),isSimulation=kind==="simulation";if(status){status.textContent=isSimulation?"Confronto storico pronto":"Comparazione pronta";status.classList.add("is-ready");}
-    $("virtual-doc-label").textContent=isSimulation?"Confronto storico":"Comparazione";$("virtual-bill-title").textContent=isSimulation?"La stessa bolletta":"Confronto con l'offerta";$("virtual-bill-subtitle").textContent=isSimulation?"Stesso periodo e stessi consumi, con un'offerta valida in quel periodo.":"Stessi consumi e stessa durata, usando le condizioni disponibili oggi.";$("virtual-total-label").textContent=isSimulation?"Totale bolletta ricalcolata":"Totale comparato";$("saving-equation-caption").textContent=isSimulation?"Bolletta reale → bolletta ricalcolata":"Bolletta reale → comparazione offerta";renderHistory(payload.history||state.history);$("saving-box")?.setAttribute("aria-label",isSimulation?"Differenza tra bolletta reale e ricalcolata":"Differenza tra bolletta reale e comparazione con la nuova offerta");
+    $("virtual-doc-label").textContent=isSimulation?"Confronto storico":"Comparazione";$("virtual-bill-title").textContent=isSimulation?"La stessa bolletta":"Confronto con l'offerta";$("virtual-bill-subtitle").textContent=isSimulation?"Stesso periodo e stessi consumi, con un'offerta valida in quel periodo.":"Stessi consumi e stessa durata, usando le condizioni disponibili oggi.";$("virtual-total-label").textContent="Totale da pagare";$("saving-equation-caption").textContent=isSimulation?"Bolletta reale → bolletta ricalcolata":"Bolletta reale → comparazione offerta";renderHistory(payload.history||state.history);$("saving-box")?.setAttribute("aria-label",isSimulation?"Differenza tra bolletta reale e ricalcolata":"Differenza tra bolletta reale e comparazione con la nuova offerta");
     const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);$("saving-label").textContent=saving>=0?(isSimulation?"Risparmio nel confronto storico":"Differenza favorevole nel confronto"):(isSimulation?"Costo in più nel confronto storico":"Costo in più nel confronto");$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
     $("offer-provider").textContent=payload.offer?.provider||"—";$("offer-name").textContent=payload.offer?.name||"—";$("offer-type").textContent=payload.offer?.type==="variabile"?"Prezzo variabile":payload.offer?.type==="misto"?"Prezzi misti":"Prezzo fisso";const prices=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(part)prices.push(`${commodityLabel(commodity)}: ${number(part.prezzoNuovo,6)} €/${commodity==="luce"?"kWh":"Smc"}`);}$("offer-price-line").innerHTML=`<strong>Prezzo applicato:</strong> ${prices.join(" · ")||"—"}`;
     const note=$("bill-note");if(note){const oldDiscount=Number(payload.summary.realBillDiscountsExcluded)||0,newDiscount=Number(payload.summary.newOfferDiscounts)||0;const discountText=oldDiscount>0?` Gli sconti/bonus della bolletta reale (${euro(oldDiscount)}) non sono trasferiti.`:" Gli eventuali sconti della bolletta reale non vengono trasferiti.";const newDiscountText=newDiscount>0?` Sono applicati solo gli sconti/bonus verificabili della nuova offerta per ${euro(newDiscount)}.`:" Non risultano sconti della nuova offerta applicabili con dati verificabili.";note.innerHTML=`<strong>Nota:</strong>${discountText}${newDiscountText} ${isSimulation?"La nuova offerta era valida per l'intero periodo fatturato.":"Questo risultato è una comparazione e non ricostruisce una fattura storica del nuovo fornitore."}`;}const activate=$("activate-selected-offer");if(activate){activate.disabled=false;activate.setAttribute("aria-label",payload.offer?.source==="card"&&payload.offer?.cardActivation?`Attiva ${payload.offer?.name||"l'offerta"}`:"Torna alle offerte per scegliere la card da attivare");}
