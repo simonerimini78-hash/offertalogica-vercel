@@ -1,8 +1,8 @@
 // Report mensile territoriale da esportazione degli eventi OL. Nessuna nuova API.
 // Uso: node scripts/report-partner-territorio.mjs eventi.json 2027-01
-import { readFileSync } from 'node:fs';
+import { readFileSync, readdirSync, existsSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
-import { dirname, resolve } from 'node:path';
+import { dirname, resolve, basename } from 'node:path';
 const [file, month] = process.argv.slice(2);
 if (!file || !/^\d{4}-(0[1-9]|1[0-2])$/.test(month || '')) {
   console.error('Uso: node scripts/report-partner-territorio.mjs eventi.json AAAA-MM');
@@ -12,10 +12,28 @@ const source = JSON.parse(readFileSync(file, 'utf8'));
 const scriptDir = dirname(fileURLToPath(import.meta.url));
 const catalog = JSON.parse(readFileSync(resolve(scriptDir, '../public/data/fornitori-territoriali.json'), 'utf8'));
 if (!catalog?.providers || typeof catalog.providers !== 'object') throw new Error('Anagrafica territoriale non valida');
-const enabled = JSON.parse(readFileSync(resolve(scriptDir, '../public/data/partner-territoriali-attivi.json'), 'utf8'));
-if (enabled?.schemaVersion !== 2 || !Array.isArray(enabled.providers)) throw new Error('Catalogo partner attivi non valido');
-const knownProviderIds = enabled.providers.filter(id => Object.hasOwn(catalog.providers,id));
-const enabledSet = new Set(knownProviderIds);
+// La storia contrattuale non va ricavata dal catalogo pubblico corrente:
+// un partner cessato potrebbe aver avuto attività nel mese richiesto.
+const registryDir = resolve(scriptDir, '../data/partner-territoriali');
+const monthStart = `${month}-01`;
+const [year, monthNumber] = month.split('-').map(Number);
+const monthEnd = new Date(Date.UTC(year, monthNumber, 0)).toISOString().slice(0, 10);
+const eligibleIds = new Set();
+if (existsSync(registryDir)) for (const name of readdirSync(registryDir)) {
+  if (!/^[a-z0-9-]+\.json$/.test(name)) continue;
+  const id = basename(name, '.json');
+  if (!Object.hasOwn(catalog.providers, id)) continue;
+  const entry = JSON.parse(readFileSync(resolve(registryDir, name), 'utf8'));
+  if (entry.providerId !== id || entry.contractSigned !== true ||
+      entry.contentApproved !== true || entry.territoriesVerified !== true ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(entry.activeFrom || '')) continue;
+  if (!['active','paused','ended'].includes(entry.status)) continue;
+  // Un contratto temporalmente sovrapposto non certifica da solo l'effettiva pubblicazione.
+  if (entry.activeFrom <= monthEnd && (!entry.activeUntil || entry.activeUntil >= monthStart)) eligibleIds.add(id);
+}
+const knownProviderIds = [...eligibleIds];
+const enabledSet = eligibleIds;
+const contractById = new Map([...eligibleIds].map(id => [id, JSON.parse(readFileSync(resolve(registryDir, id + '.json'), 'utf8'))]));
 const rows = Array.isArray(source) ? source : Array.isArray(source?.events) ? source.events : null;
 if (!rows) throw new Error('Atteso un array eventi oppure un oggetto con proprietà events');
 const result = new Map();
@@ -36,10 +54,14 @@ for (const row of rows) {
   if (type !== 'site_action_clicked') continue;
   const item = String(payload.item || '');
   if (item === 'territorio_ricerca_cap') { stats.searches++; continue; }
-  const match = /^territorio_(offerte_dal_cap|offerte|sito|fonte)_([a-z0-9]+)$/.exec(item);
+  const match = /^territorio_(offerte_dal_cap|offerte|sito|fonte)_([a-z0-9-]+)$/.exec(item);
   if (!match) continue;
   const [, action, key] = match;
   if (!enabledSet.has(key)) continue;
+  const entryPath = resolve(registryDir, key + '.json');
+  const contract = contractById.get(key);
+  const eventDay = date.slice(0, 10);
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(eventDay) || eventDay < contract.activeFrom || (contract.activeUntil && eventDay > contract.activeUntil)) continue;
   const values = ensure(key);
   if (action === 'offerte_dal_cap') values.dalCap++;
   if (action === 'offerte') values.offerte++;
@@ -54,8 +76,10 @@ console.log([month,'TOTALE_PAGINA',stats.pageViews,stats.searches,'N/D','N/D','N
 for (const key of knownProviderIds.sort((a,b)=>a.localeCompare(b))) {
   const metric = result.get(key);
   // Se l'export è completo, nessun click osservato è 0; senza garanzie di completezza è N/D.
-  const value = action => metric ? metric[action] : 'N/D';
+  const value = action => metric ? metric[action] : 0;
   console.log([month,key,'N/D','N/D',value('offerte'),value('sito'),value('fonte'),value('dalCap'),'N/D','N/D'].map(q).join(','));
 }
-// La mancanza di eventi non dimostra assenza di interazioni: usare N/D.
+// Un archivio contrattuale completo è necessario per rendicontare partner storici.
+// Gli zeri indicano nessun evento trovato nell'export fornito, non traffico certificato.
+// Un export incompleto non è adatto a una rendicontazione definitiva.
 // Il click sul pulsante è contato anche se la scheda/offerta non è poi stata effettivamente letta.
