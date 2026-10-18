@@ -310,6 +310,7 @@
     .bill-lines li.receipt-grand-total{grid-template-columns:minmax(0,1fr) auto!important;background:#fff!important;border-top:1px solid #dbe3ea!important;padding-top:8px!important;padding-bottom:8px!important}
     .bill-lines li.receipt-grand-total span,.bill-lines li.receipt-grand-total strong{font-size:17px!important;font-weight:900!important;color:#0f172a!important}
     .bill-lines li.receipt-post-total{font-size:11px!important;border-top:1px solid #edf2f7!important}
+    .bill-lines li.receipt-disclaimer{display:block!important;color:#64748b!important;font-size:11px!important;font-style:italic!important}
     .bill-total{background:#3f3f46!important;border-top-color:#3f3f46!important}
     .bill-total span,.bill-total strong{color:#fff!important}
     .saving-band{max-width:none!important;width:100%!important;margin:14px 0 0!important}
@@ -650,6 +651,7 @@
     const compactBreakdown=(rows)=>Array.isArray(rows)?rows.map((row)=>({category:String(row?.category||""),label:String(row?.label||""),amount_eur:numericOrNull(row?.amount_eur)})).filter((row)=>row.category&&row.label&&Number.isFinite(row.amount_eur)):[];
     const compactComponents=(rows)=>Array.isArray(rows)?rows.map((row)=>({label:String(row?.label||""),value:numericOrNull(row?.value),value_text:String(row?.value_text||""),unit:String(row?.unit||""),period:String(row?.period||"none"),band:String(row?.band||"none")})).filter((row)=>row.label&&(Number.isFinite(row.value)||row.value_text)):[];
     const compactFixedDetail=(detail)=>{const row=detail?.commercial_component||detail;if(!row||typeof row!=="object")return null;const value=numericOrNull(row.value),valueText=String(row.value_text||"");if(!Number.isFinite(value)&&!valueText)return null;return {label:String(row.label||"Quota fissa vendita"),value:Number.isFinite(value)?value:null,value_text:valueText,unit:String(row.unit||""),period:String(row.period||"none")};};
+    out.receipt_rows=Array.isArray(input.receipt_rows)?input.receipt_rows.filter((row)=>row&&["luce","gas"].includes(row.commodity)&&Number.isFinite(Number(row.amount_eur))&&row.amount_eur!==null&&String(row.label||"").trim()).slice(0,32).map((row)=>({commodity:row.commodity,section:String(row.section||""),kind:String(row.kind||""),label:String(row.label||""),quantity:String(row.quantity||""),unit_price:String(row.unit_price||""),amount_eur:Number(row.amount_eur)})):[];
     out.bill_breakdown_luce=compactBreakdown(input.bill_breakdown_luce);out.bill_breakdown_gas=compactBreakdown(input.bill_breakdown_gas);
     out.componenti_prezzo_luce=compactComponents(input.componenti_prezzo_luce);out.componenti_prezzo_gas=compactComponents(input.componenti_prezzo_gas);
     out.quota_fissa_dettaglio_luce=compactFixedDetail(input.quota_fissa_dettaglio_luce);out.quota_fissa_dettaglio_gas=compactFixedDetail(input.quota_fissa_dettaglio_gas);
@@ -1021,7 +1023,7 @@
     const realTotal=state.docs.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0),virtualTotal=Number(payload?.summary?.simulatedTotal);
     const realKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.realValue)?row.realValue:0),0),virtualKnown=rows.reduce((sum,row)=>sum+(Number.isFinite(row.virtualValue)?row.virtualValue:0),0);
     const realResidual=Number((realTotal-realKnown).toFixed(2)),virtualResidual=payload&&Number.isFinite(virtualTotal)?Number((virtualTotal-virtualKnown).toFixed(2)):realResidual;
-    if(Math.abs(realResidual)>.01||Math.abs(virtualResidual)>.01)rows.push({commodity:"",category:"bill_other_charge",label:"Differenza di quadratura (voce non identificata nella lettura)",realValue:realResidual,virtualValue:payload?virtualResidual:realResidual,residual:true});
+    if(Math.abs(realResidual)>.01||Math.abs(virtualResidual)>.01)rows.push({commodity:"",category:"bill_other_charge",label:"Differenza di lettura (non è una voce della bolletta)",realValue:realResidual,virtualValue:payload?virtualResidual:realResidual,residual:true});
     return rows;
   }
   function conditionRowsHtml(rows){return rows.map((row)=>{const long=row.value.length>46||row.label.length>40;return `<li class="bill-condition-row${long?" is-long":""}"><span>${escapeHtml(row.label)}</span><strong>${escapeHtml(row.value)}</strong></li>`;}).join("");}
@@ -1058,6 +1060,27 @@
     }
     return {quantity:"—",price:"—",amount:Number.isFinite(amount)?euro(amount):(real?"—":(payload?"—":"da simulare"))};
   }
+  function originalReceiptRowsHtml({real,payload}){
+    if(!real&&payload)return null;
+    const rows=state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
+    if(!rows.length)return null;
+    const allowed=new Set(["consumi","fissa_potenza","altre_partite","accise_iva","totale_bolletta","canone_tv","totale_pagare"]);
+    const printed=rows.filter((row)=>allowed.has(row.section));
+    if(!printed.length)return null;
+    let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
+    for(const row of printed){
+      const amount=euro(row.amount_eur),label=escapeHtml(row.label);
+      if(row.section==="totale_pagare")continue; // Il totale da pagare è mostrato nel footer, una sola volta.
+      if(row.section==="totale_bolletta"){
+        html+=`<li class="receipt-grand-total"><span>${label}</span><strong>${escapeHtml(amount)}</strong></li>`;
+      } else if(row.kind==="section"){
+        html+=`<li class="receipt-section"><span>${label}</span><strong>${escapeHtml(amount)}</strong></li>`;
+      } else {
+        html+=`<li class="receipt-row${row.section==="canone_tv"?" receipt-post-total":""}"><span class="receipt-label">${label}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount)}</strong></li>`;
+      }
+    }
+    return html;
+  }
   function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
     const visibleRows=rows.filter((row)=>!(real&&row.virtualOnly)&&!(!real&&row.legacyDiscount));
     const groupsOrder=["consumi","fixed_power","other","taxes"];
@@ -1093,7 +1116,9 @@
     if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
     if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
     html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
-    html+=buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
+    const originalReceipt=originalReceiptRowsHtml({real,payload});
+    html+=originalReceipt||buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
+    if(real&&!originalReceipt)html+='<li class="receipt-disclaimer"><span>Dettaglio dello scontrino non disponibile nella lettura: riepilogo di voci aggregate, non trascrizione dell’originale.</span></li>';
     if(conditions.length){html+=`<li class="section-line"><span>${real?"Condizioni economiche lette":"Condizioni economiche applicate"}</span><strong></strong></li>${conditionRowsHtml(conditions)}`;}
     else if(real){html+=`<li class="section-line"><span>Condizioni economiche lette</span><strong></strong></li><li class="bill-condition-row is-long"><span>Dati disponibili</span><strong>Nel documento non sono state riconosciute altre condizioni economiche esplicite.</strong></li>`;}
     return html;
