@@ -1084,9 +1084,62 @@
     if(detailRows.length)return Number(detailRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
     return null;
   }
+  function simulatedReceiptRowsForDoc(payload){
+    // Una sola bolletta: la ripartizione vendita della simulazione e' aggregata per fornitura.
+    if(!payload||state.docs.length!==1)return null;
+    const doc=state.docs[0],source=doc.receipt_rows;
+    if(!Array.isArray(source)||!source.length)return null;
+    const commodity=doc.commodity;
+    if(!["luce","gas"].includes(commodity))return null;
+    const part=payload.breakdown?.[commodity];
+    if(!part)return null;
+    const variableNew=numericValue(part.materiaNuova),fixedNew=numericValue(part.fissoNuovo);
+    const oldSale=numericValue(part.venditaAttuale);
+    if(![variableNew,fixedNew,oldSale].every(Number.isFinite))return null;
+    const rows=source.map((row)=>({...row}));
+    const matches=(row)=>row.commodity===commodity&&row.kind==="detail"&&/vendita/.test(normalizeReceiptLabel(row.label));
+    const variable=rows.filter((row)=>row.section==="consumi"&&matches(row));
+    const fixed=rows.filter((row)=>row.section==="fissa_potenza"&&matches(row));
+    // Non ripartire importi su righe ambigue o prive del dettaglio commerciale.
+    if(variable.length!==1||fixed.length!==1)return null;
+    const oldVariable=Number(variable[0].amount_eur),oldFixed=Number(fixed[0].amount_eur);
+    if(Math.abs(oldVariable+oldFixed-oldSale)>.03)return null;
+    const round=(value)=>Number(value.toFixed(2));
+    const varDelta=round(variableNew-oldVariable),fixedDelta=round(fixedNew-oldFixed);
+    variable[0].amount_eur=round(variableNew);
+    fixed[0].amount_eur=round(fixedNew);
+    const consumption=periodConsumption(doc,commodity);
+    if(consumption>0){variable[0].unit_price=`x ${number(variableNew/consumption,6)} ${receiptPriceUnitForCommodity(commodity)}`;}
+    else variable[0].unit_price="";
+    fixed[0].unit_price=""; // La quota fissa nuova puo' avere un periodo di competenza diverso.
+    for(const row of rows){
+      if(row.section==="consumi"&&row.kind==="subtotal")row.amount_eur=round(Number(row.amount_eur)+varDelta);
+      if(row.section==="fissa_potenza"&&row.kind==="subtotal"&&/fissa/.test(normalizeReceiptLabel(row.label)))row.amount_eur=round(Number(row.amount_eur)+fixedDelta);
+      if(row.kind==="section"&&row.section==="consumi")row.amount_eur=round(Number(row.amount_eur)+varDelta);
+      if(row.kind==="section"&&row.section==="fissa_potenza")row.amount_eur=round(Number(row.amount_eur)+fixedDelta);
+    }
+    const appliedDiscounts=(payload.appliedDiscounts||[]).reduce((sum,item)=>sum+(Number(item.amount)||0),0);
+    const oldTotal=Number(doc.total_amount_eur),newTotal=Number(payload.summary?.simulatedTotal);
+    if(!Number.isFinite(oldTotal)||!Number.isFinite(newTotal))return null;
+    // Evita uno scontrino che non quadra con il motore esistente.
+    if(Math.abs(round(oldTotal+varDelta+fixedDelta-appliedDiscounts)-newTotal)>.03)return null;
+    const billTotal=rows.find((row)=>row.section==="totale_bolletta"&&row.kind==="total");
+    const oldPay=rows.find((row)=>row.section==="totale_pagare"&&row.kind==="total");
+    if(!billTotal||!oldPay||Math.abs(Number(oldPay.amount_eur)-oldTotal)>.03)return null;
+    billTotal.amount_eur=round(Number(billTotal.amount_eur)+varDelta+fixedDelta-appliedDiscounts);
+    oldPay.amount_eur=round(newTotal);
+    const otherSection=rows.find((row)=>row.section==="altre_partite"&&row.kind==="section");
+    if(otherSection&&appliedDiscounts>0)otherSection.amount_eur=round(Number(otherSection.amount_eur)-appliedDiscounts);
+    for(const discount of payload.appliedDiscounts||[]){
+      const amount=Number(discount.amount);
+      if(!(amount>0))continue;
+      const index=rows.indexOf(billTotal);
+      rows.splice(index,0,{commodity,section:"altre_partite",kind:"detail",label:String(discount.label||"Sconto nuova offerta"),quantity:"",unit_price:"",amount_eur:-round(amount)});
+    }
+    return rows;
+  }
   function originalReceiptRowsHtml({real,payload}){
-    if(!real&&payload)return null;
-    const rows=state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
+    const rows=!real&&payload?simulatedReceiptRowsForDoc(payload):state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
     if(!rows.length)return null;
     const allowed=["consumi","fissa_potenza","altre_partite","accise_iva","totale_bolletta","canone_tv","totale_pagare"];
     const grouped=new Map();
@@ -1157,7 +1210,7 @@
     html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
     const originalReceipt=originalReceiptRowsHtml({real,payload});
     html+=originalReceipt||buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
-    if(real&&!originalReceipt)html+='<li class="receipt-disclaimer"><span>Dettaglio dello scontrino non disponibile nella lettura: riepilogo di voci aggregate, non trascrizione dell’originale.</span></li>';
+    if(!originalReceipt)html+='<li class="receipt-disclaimer"><span>Dettaglio dello scontrino non ricostruibile integralmente: le voci aggregate non sono una trascrizione analitica della bolletta.</span></li>';
     if(conditions.length){html+=`<li class="section-line"><span>${real?"Condizioni economiche lette":"Condizioni economiche applicate"}</span><strong></strong></li>${conditionRowsHtml(conditions)}`;}
     else if(real){html+=`<li class="section-line"><span>Condizioni economiche lette</span><strong></strong></li><li class="bill-condition-row is-long"><span>Dati disponibili</span><strong>Nel documento non sono state riconosciute altre condizioni economiche esplicite.</strong></li>`;}
     return html;
