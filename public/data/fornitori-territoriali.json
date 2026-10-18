@@ -78,6 +78,24 @@
           "kind": "Unoenergy Point — offerte luce/gas, volture e subentri",
           "source": "https://www.unoenergy.it/sedi/emilia-romagna/unoenergy-point/forli/",
           "publicAssistanceVerified": true
+        },
+        {
+          "cap": "48121",
+          "city": "Ravenna",
+          "province": "RA",
+          "street": "Via San Mama 9",
+          "kind": "Unoenergy Point — offerte luce/gas, volture e subentri",
+          "source": "https://www.unoenergy.it/sedi/emilia-romagna/unoenergy-point/ravenna-via-san-mama/",
+          "publicAssistanceVerified": true
+        },
+        {
+          "cap": "47822",
+          "city": "Santarcangelo di Romagna",
+          "province": "RN",
+          "street": "Piazza Ludovico Marini 17",
+          "kind": "Unoenergy Point — offerte luce/gas, volture e subentri",
+          "source": "https://www.unoenergy.it/sedi/emilia-romagna/unoenergy-point/santarcangelo-di-romagna/",
+          "publicAssistanceVerified": true
         }
       ],
       "coverageVerified": false
