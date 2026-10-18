@@ -21,6 +21,8 @@
 let providers = {};
 let coverageByProvider = {};
 let activeProviders = new Set();
+let visibleUntilByProvider = {};
+const currentLocalDate=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 let offersByProvider = new Map();
 
 const today=new Date();
@@ -42,19 +44,23 @@ async function loadOffers(){
     if(!geoResponse.ok || !activeResponse.ok || !offerResponse.ok) throw new Error('Archivi non disponibili');
     const [geo,active,archive]=await Promise.all([geoResponse.json(),activeResponse.json(),offerResponse.json()]);
     if(geo?.schemaVersion!==1 || !geo.providers || typeof geo.providers!=='object' || Array.isArray(geo.providers)) throw new Error('Anagrafica non valida');
-    if(active?.schemaVersion!==2 || !Array.isArray(active.providers) || !active.coverageByProvider || typeof active.coverageByProvider!=='object') throw new Error('Catalogo partner non valido');
+    if(active?.schemaVersion!==2 || !Array.isArray(active.providers) || !active.coverageByProvider || typeof active.coverageByProvider!=='object' || !active.visibleUntilByProvider || typeof active.visibleUntilByProvider!=='object') throw new Error('Catalogo partner non valido');
     if(!Array.isArray(archive?.offerte)) throw new Error('Catalogo offerte non valido');
     const eligible=new Set();
     const allowedCaps={};
     for(const id of active.providers){
       if(typeof id!=='string' || !Object.hasOwn(geo.providers,id)) throw new Error('Identificativo partner non valido');
       const caps=active.coverageByProvider[id];
+      const until=active.visibleUntilByProvider[id];
+      if(typeof until!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(until)) throw new Error('Scadenza partner non valida');
+      if(until<currentLocalDate()) continue;
       if(!Array.isArray(caps) || !caps.length || !caps.every(v=>typeof v==='string' && /^\d{5}$/.test(v))) throw new Error('Copertura non verificabile');
       eligible.add(id);
       allowedCaps[id]=new Set(caps);
     }
     providers=geo.providers;
     coverageByProvider=allowedCaps;
+    visibleUntilByProvider=active.visibleUntilByProvider;
     activeProviders=eligible;
     offersByProvider=new Map();
     for(const o of archive.offerte){
@@ -109,7 +115,7 @@ document.getElementById('search').addEventListener('submit',e=>{
   const box=document.getElementById('matches');box.replaceChildren();slots.replaceChildren();
   if(!/^\d{5}$/.test(cap)){msg.textContent='Inserisci un CAP italiano di cinque cifre.';return;}
   if(!geographicalReady){msg.textContent='Dati territoriali non disponibili.';return;}
-  const ids=[...activeProviders].filter(id=>coverageByProvider[id]?.has(cap));
+  const ids=[...activeProviders].filter(id=>visibleUntilByProvider[id]>=currentLocalDate() && coverageByProvider[id]?.has(cap));
   if(!ids.length){msg.textContent='Nessun partner con copertura verificata per questo CAP. Questa ricerca non esclude altri fornitori disponibili.';status.textContent='Nessuna offerta partner mostrata.';return;}
   msg.textContent=ids.length+' partner con copertura dichiarata e verificata per il CAP richiesto.';
   status.textContent='Offerte dei partner con copertura verificata per il CAP inserito.';
