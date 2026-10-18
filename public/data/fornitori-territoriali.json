@@ -49,6 +49,38 @@
       "site": null,
       "offices": [],
       "coverageVerified": false
+    },
+    "ecocorrente": {
+      "name": "E.CO Energia Corrente",
+      "site": "https://www.energiacorrente.it/",
+      "offices": [
+        {
+          "cap": "47521",
+          "city": "Cesena",
+          "province": "FC",
+          "street": "Via Leopoldo Lucchi 135",
+          "kind": "Ufficio per sottoscrizione contratti",
+          "source": "https://www.energiacorrente.it/contatti/",
+          "publicAssistanceVerified": true
+        }
+      ],
+      "coverageVerified": false
+    },
+    "unoenergy": {
+      "name": "Unoenergy",
+      "site": "https://www.unoenergy.it/",
+      "offices": [
+        {
+          "cap": "47121",
+          "city": "Forlì",
+          "province": "FC",
+          "street": "Viale Vittorio Veneto 26",
+          "kind": "Unoenergy Point — offerte luce/gas, volture e subentri",
+          "source": "https://www.unoenergy.it/sedi/emilia-romagna/unoenergy-point/forli/",
+          "publicAssistanceVerified": true
+        }
+      ],
+      "coverageVerified": false
     }
   }
 }
