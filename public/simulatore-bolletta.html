@@ -1320,16 +1320,35 @@
     if(!state.docs.length)return null;const bills=state.docs,period=bills.length===1?`${date(bills[0].billing_period_start)} – ${date(bills[0].billing_period_end)}`:`${bills.length} bollette analizzate`;const supply=commoditiesFromDocs(),supplyLabel=supply.length===2?"Luce e gas":commodityLabel(supply[0]);const customer=customerLabel(customerTypeFromDocs()||"privato");const providers=[...new Set(bills.flatMap((doc)=>[doc.fornitore_luce,doc.fornitore_gas,doc.fornitore]).map((v)=>String(v||"").trim()).filter(Boolean))].join(" · ");const consumptions=[];for(const commodity of ["luce","gas"]){const total=bills.reduce((sum,doc)=>sum+periodConsumption(doc,commodity),0);if(total>0)consumptions.push(`${commodityLabel(commodity)} ${number(total,2)} ${commodity==="luce"?"kWh":"Smc"}`);}const total=bills.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0),issueDate=bills.length===1&&bills[0].issue_date?date(bills[0].issue_date):"",dueDate=bills.length===1&&bills[0].due_date?date(bills[0].due_date):"";return {period,issueDate,dueDate,supplyLabel,customer,providers,consumptionText:consumptions.join(" · ")||"—",total};
   }
   function selectedVirtualIdentity(payload=null){const providerSelect=$("provider-select"),offerSelect=$("offer-select");return {provider:payload?.offer?.provider||state.selected?.provider||(providerSelect?.value?providerSelect.selectedOptions?.[0]?.textContent:"")||"—",offer:payload?.offer?.name||state.selected?.name||(offerSelect?.value?offerSelect.selectedOptions?.[0]?.textContent:"")||"—"};}
-  function syncBillLineHeights(){
+  let billSyncTimers=[];
+  let billLayoutObserver=null;
+  function applyBillHeightSync(){
     const left=[...($("real-bill-lines")?.children||[])],right=[...($("virtual-bill-lines")?.children||[])];
-    [...left,...right].forEach((node)=>{node.style.minHeight="";});
+    const leftFooter=document.querySelector(".bill-paper.real .bill-total"),rightFooter=document.querySelector(".bill-paper.simulated .bill-total");
+    [...left,...right,leftFooter,rightFooter].filter(Boolean).forEach((node)=>{node.style.height="";node.style.minHeight="";});
     if(window.matchMedia("(max-width:700px)").matches)return;
     const total=Math.max(left.length,right.length);
     for(let index=0;index<total;index++){
-      const a=left[index],b=right[index],height=Math.max(a?.offsetHeight||0,b?.offsetHeight||0);
-      if(a&&height)a.style.minHeight=`${height}px`;
-      if(b&&height)b.style.minHeight=`${height}px`;
+      const a=left[index],b=right[index];
+      const height=Math.max(a?.offsetHeight||0,b?.offsetHeight||0);
+      if(a&&height){a.style.height=`${height}px`;a.style.minHeight=`${height}px`;}
+      if(b&&height){b.style.height=`${height}px`;b.style.minHeight=`${height}px`;}
     }
+    const footerHeight=Math.max(leftFooter?.offsetHeight||0,rightFooter?.offsetHeight||0);
+    if(leftFooter&&footerHeight){leftFooter.style.height=`${footerHeight}px`;leftFooter.style.minHeight=`${footerHeight}px`;}
+    if(rightFooter&&footerHeight){rightFooter.style.height=`${footerHeight}px`;rightFooter.style.minHeight=`${footerHeight}px`;}
+  }
+  function scheduleBillHeightSync(){
+    billSyncTimers.forEach((id)=>window.clearTimeout(id));
+    billSyncTimers=[];
+    window.requestAnimationFrame(applyBillHeightSync);
+    [40,120,260].forEach((delay)=>billSyncTimers.push(window.setTimeout(applyBillHeightSync,delay)));
+    if(document.fonts?.ready){document.fonts.ready.then(()=>window.requestAnimationFrame(applyBillHeightSync)).catch(()=>{});}
+  }
+  function ensureBillLayoutObserver(){
+    if(billLayoutObserver||typeof ResizeObserver==="undefined")return;
+    billLayoutObserver=new ResizeObserver(()=>scheduleBillHeightSync());
+    [document.querySelector(".bill-paper.real"),document.querySelector(".bill-paper.simulated"),$("real-bill-lines"),$("virtual-bill-lines")].filter(Boolean).forEach((node)=>billLayoutObserver.observe(node));
   }
   function renderBillPanels(payload=null){
     const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);
@@ -1337,7 +1356,8 @@
     $("virtual-bill-lines").innerHTML=billRowsHtml({facts,side:"virtual",payload,provider:virtual.provider,offer:virtual.offer});
     document.querySelector(".bill-paper.simulated")?.classList.toggle("is-more-expensive",moreExpensive);
     $("original-total").textContent=euro(facts.total);$("simulated-total").textContent=payload?.summary?euro(payload.summary.simulatedTotal):"—";
-    window.requestAnimationFrame(syncBillLineHeights);
+    ensureBillLayoutObserver();
+    scheduleBillHeightSync();
   }
   function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
@@ -1381,7 +1401,7 @@
   document.querySelectorAll("[data-bill-view]").forEach((button)=>button.addEventListener("click",()=>{const view=button.dataset.billView;document.querySelectorAll("[data-bill-view]").forEach((item)=>item.setAttribute("aria-pressed",item===button?"true":"false"));document.querySelector(".bill-paper.real")?.classList.toggle("mobile-active",view==="real");document.querySelector(".bill-paper.simulated")?.classList.toggle("mobile-active",view==="simulated");}));
   function syncMobileDisclosures(){if(window.matchMedia("(max-width:700px)").matches){document.querySelectorAll(".info-disclosure").forEach((node)=>node.removeAttribute("open"));$("seo-details")?.removeAttribute("open");}else{document.querySelectorAll(".info-disclosure").forEach((node)=>node.setAttribute("open",""));$("seo-details")?.setAttribute("open","");}}
   syncMobileDisclosures();
-  window.addEventListener("resize",()=>window.requestAnimationFrame(syncBillLineHeights));
+  window.addEventListener("resize",scheduleBillHeightSync);
 
   $("provider-select")?.addEventListener("change",()=>{clearSimulationResult();const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);setOfferDocumentStatus("");}renderOfferSelect();updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
   $("offer-select")?.addEventListener("change",()=>{clearSimulationResult();const select=$("offer-select"),index=Number(select?.value);state.selected=select?.value!==""&&Number.isInteger(index)?state.filtered[index]||null:null;storeJson(OFFER_KEY,state.selected);if(state.selected?.source==="document")setOfferDocumentStatus(`CTE / scheda caricata: ${state.selected.provider} — ${state.selected.name}.`,"ready");else setOfferDocumentStatus("");$("simulate-selected-offer").disabled=!state.docs.length||select?.value==="";updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
