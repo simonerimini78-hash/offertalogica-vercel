@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "source": "Audit nazionale OL 2026-10-17 + sedi gia censite in incremento 06",
-  "note": "Il CAP della sede NON dimostra copertura commerciale dell’offerta. I CAP sono da riconfermare; il dato sportello aperto al pubblico non è certificato.",
+  "note": "Il CAP della sede NON dimostra copertura commerciale delle offerte. I punti di assistenza sono descritti solo secondo le fonti indicate; verificare orari e accesso prima di recarsi sul posto.",
   "providers": {
     "greenius": {
       "name": "Greenius",
@@ -62,6 +62,15 @@
           "kind": "Ufficio per sottoscrizione contratti",
           "source": "https://www.energiacorrente.it/contatti/",
           "publicAssistanceVerified": true
+        },
+        {
+          "cap": "47521",
+          "city": "Cesena",
+          "province": "FC",
+          "street": "Viale Giovanni Bovio 29",
+          "kind": "E.CO Point — punto commerciale indicato dal fornitore",
+          "source": "https://www.energiacorrente.it/contatti/",
+          "publicAssistanceVerified": false
         }
       ],
       "coverageVerified": false
@@ -95,6 +104,47 @@
           "street": "Piazza Ludovico Marini 17",
           "kind": "Unoenergy Point — offerte luce/gas, volture e subentri",
           "source": "https://www.unoenergy.it/sedi/emilia-romagna/unoenergy-point/santarcangelo-di-romagna/",
+          "publicAssistanceVerified": true
+        }
+      ],
+      "coverageVerified": false
+    },
+    "sgrservizi": {
+      "name": "SGR Servizi",
+      "site": "https://www.sgrservizi.it/",
+      "offices": [
+        {
+          "cap": "47924",
+          "city": "Rimini",
+          "province": "RN",
+          "street": "Via Gabriello Chiabrera 34/b",
+          "kind": "Recapito aziendale e per comunicazioni ai clienti; accesso in presenza non verificato",
+          "source": "https://www.sgrservizi.it/wp-content/modulistica/domestici/MOD-800-CGC.pdf",
+          "publicAssistanceVerified": false
+        }
+      ],
+      "coverageVerified": false
+    },
+    "sinergas": {
+      "name": "Sinergas",
+      "site": "https://www.sinergas.it/",
+      "offices": [
+        {
+          "cap": "41012",
+          "city": "Carpi",
+          "province": "MO",
+          "street": "Via Alghisi 19",
+          "kind": "Sede legale; sportello clienti dichiarato sul sito ufficiale",
+          "source": "https://www.sinergas.it/contatti-e-sportelli/",
+          "publicAssistanceVerified": true
+        },
+        {
+          "cap": "41037",
+          "city": "Mirandola",
+          "province": "MO",
+          "street": "Via Maestri del Lavoro 38",
+          "kind": "Sede operativa; sportello clienti dichiarato sul sito ufficiale",
+          "source": "https://www.sinergas.it/contatti-e-sportelli/",
           "publicAssistanceVerified": true
         }
       ],
