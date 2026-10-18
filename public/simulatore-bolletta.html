@@ -449,7 +449,7 @@
     /* v0.10.23 — esito cromatico, sconti corretti e distinzione simulazione/comparazione */
     body.simulator-has-result .history-status{display:block!important;margin:10px 0 0!important;padding:10px 12px!important;border:1px solid #dbe5ef!important;border-radius:12px!important;background:#f8fafc!important;color:#475569!important;font-size:12px!important;line-height:1.45!important}
     body.simulator-has-result .history-status.is-simulation{border-color:#bbf7d0!important;background:#f0fdf4!important;color:#166534!important}
-    body.simulator-has-result .history-status.is-comparison{border-color:#bfdbfe!important;background:#eff6ff!important;color:#1e40af!important}
+    body.simulator-has-result .history-status.is-comparison{border-color:#fecaca!important;background:#fef2f2!important;color:#b91c1c!important}
     .bill-paper.simulated.is-more-expensive .bill-total{background:#fef2f2!important;border-top-color:#fecaca!important}
     .bill-paper.simulated.is-more-expensive .bill-total strong{color:#b91c1c!important}
     body.simulator-has-result .saving-band.is-negative{background:#fff7f7!important;border-color:#fecaca!important;border-left-color:#dc2626!important}
@@ -670,6 +670,34 @@
   function numericValue(raw){return raw===null||raw===undefined||raw===""?NaN:Number(raw);}
   function currentPrice(doc,commodity){const primary=commodity==="luce"?doc.prezzo_vendita_bolletta_luce_eur_kwh:doc.prezzo_vendita_bolletta_gas_eur_smc;const fallback=commodity==="luce"?doc.prezzo_luce_eur_kwh:doc.prezzo_gas_eur_smc;const primaryValue=numericValue(primary);return Number.isFinite(primaryValue)&&primaryValue>0?primaryValue:numericValue(fallback);}
   function currentFixed(doc,commodity){return numericValue(doc[commodity==="luce"?"quota_fissa_vendita_luce_eur_anno":"quota_fissa_vendita_gas_eur_anno"]);}
+  function receiptQuantityMonths(value){const match=String(value||"").trim().match(/^(\d+(?:[,.]\d+)?)\s+mes/i);return match?Number(match[1].replace(",",".")):NaN;}
+  function fullCalendarMonthSpan(start,end){
+    const a=String(start||"").match(/^(\d{4})-(\d{2})-(\d{2})$/),b=String(end||"").match(/^(\d{4})-(\d{2})-(\d{2})$/);
+    if(!a||!b)return NaN;
+    const sy=Number(a[1]),sm=Number(a[2]),sd=Number(a[3]),ey=Number(b[1]),em=Number(b[2]),ed=Number(b[3]);
+    if(sd!==1)return NaN;
+    const lastDay=new Date(ey,em,0).getDate();
+    if(ed!==lastDay)return NaN;
+    return (ey-sy)*12+(em-sm)+1;
+  }
+  function fixedBillingMonths(doc,commodity){
+    const rows=Array.isArray(doc?.receipt_rows)?doc.receipt_rows:[];
+    const candidates=rows.filter((row)=>row?.commodity===commodity&&row?.section==="fissa_potenza"&&/fissa/.test(normalizeReceiptLabel(row?.label||"")));
+    for(const row of candidates){
+      const months=receiptQuantityMonths(row?.quantity);
+      if(Number.isFinite(months)&&months>0)return months;
+    }
+    const byCalendar=fullCalendarMonthSpan(doc?.billing_period_start,doc?.billing_period_end);
+    return Number.isFinite(byCalendar)&&byCalendar>0?byCalendar:NaN;
+  }
+  function fixedChargeForPeriod(doc,commodity,annualFixedFee){
+    const annual=Number(annualFixedFee);
+    if(!(annual>=0))return NaN;
+    const months=fixedBillingMonths(doc,commodity);
+    if(Number.isFinite(months)&&months>0)return annual*(months/12);
+    const days=daysInclusive(doc?.billing_period_start,doc?.billing_period_end);
+    return days>0?annual*(days/365):NaN;
+  }
   function periodConsumption(doc,commodity){return numericValue(doc[commodity==="luce"?"consumo_periodo_luce_kwh":"consumo_periodo_gas_smc"]);}
 
   async function jsonResponse(response){const type=response.headers.get("content-type")||"";if(!type.includes("application/json"))throw new Error("Risposta non valida dal lettore bolletta");const payload=await response.json();if(!response.ok||!payload?.ok)throw new Error(payload?.error||"Lettura bolletta non disponibile");return payload;}
@@ -1127,7 +1155,8 @@
     const consumption=periodConsumption(doc,commodity);
     if(consumption>0){variable[0].unit_price=`x ${number(variableNew/consumption,6)} ${receiptPriceUnitForCommodity(commodity)}`;}
     else variable[0].unit_price="";
-    fixed[0].unit_price=""; // La quota fissa nuova puo' avere un periodo di competenza diverso.
+    const fixedMonths=receiptQuantityMonths(fixed[0].quantity)||receiptQuantityMonths(rows.find((row)=>row.section==="fissa_potenza"&&row.kind==="subtotal"&&/fissa/.test(normalizeReceiptLabel(row.label)))?.quantity);
+    fixed[0].unit_price=Number.isFinite(fixedMonths)&&fixedMonths>0?`x ${number(fixedNew/fixedMonths,6)} €/mese`:"";
     for(const row of rows){
       if(row.section==="consumi"&&row.kind==="subtotal"){
         row.amount_eur=round(Number(row.amount_eur)+varDelta);
@@ -1266,9 +1295,9 @@
     const start=doc.billing_period_start,end=doc.billing_period_end,days=daysInclusive(start,end),original=Number(doc.total_amount_eur);if(!(days>0)||!(original>0))return null;
     const declared=doc.commodity==="dual"?["luce","gas"]:["luce","gas"].filter((commodity)=>doc.commodity===commodity||periodConsumption(doc,commodity)>0),parts=[];
     for(const commodity of declared){
-      const component=offer.components?.[commodity];if(!component)continue;const consumption=periodConsumption(doc,commodity),priceCurrent=currentPrice(doc,commodity),fixedCurrent=currentFixed(doc,commodity),priceNew=Number(component.price),fixedNew=Number(component.annualFixedFee);if(!(consumption>0)||!(priceCurrent>0)||!Number.isFinite(fixedCurrent)||fixedCurrent<0||!(priceNew>0)||!Number.isFinite(fixedNew)||fixedNew<0)continue;
-      const materiaCurrent=consumption*priceCurrent,fissoCurrent=fixedCurrent*(days/365),materiaNew=consumption*priceNew,fissoNew=fixedNew*(days/365),saleFromBill=explicitMateriaAmount(doc,commodity),currentSale=saleFromBill>0?saleFromBill:materiaCurrent+fissoCurrent,grossNew=materiaNew+fissoNew;
-      parts.push({commodity,days,consumption,materia:materiaNew,gross:grossNew,component,attuale:{consumo:consumption,materia:materiaCurrent,quotaFissa:fissoCurrent,quotaFissaAnnua:fixedCurrent,totale:currentSale,totaleDaBolletta:saleFromBill>0},nuova:{consumo:consumption,materia:materiaNew,quotaFissa:fissoNew,quotaFissaAnnua:fixedNew,totaleLordo:grossNew,totale:grossNew,prezzoEffettivo:priceNew,tipoPrezzo:component.type||offer.type,sconto:0}});
+      const component=offer.components?.[commodity];if(!component)continue;const consumption=periodConsumption(doc,commodity),priceCurrent=currentPrice(doc,commodity),fixedCurrentAnnual=currentFixed(doc,commodity),priceNew=Number(component.price),fixedNewAnnual=Number(component.annualFixedFee);if(!(consumption>0)||!(priceCurrent>0)||!Number.isFinite(fixedCurrentAnnual)||fixedCurrentAnnual<0||!(priceNew>0)||!Number.isFinite(fixedNewAnnual)||fixedNewAnnual<0)continue;
+      const materiaCurrent=consumption*priceCurrent,fissoCurrent=fixedChargeForPeriod(doc,commodity,fixedCurrentAnnual),materiaNew=consumption*priceNew,fissoNew=fixedChargeForPeriod(doc,commodity,fixedNewAnnual),saleFromBill=explicitMateriaAmount(doc,commodity),currentSale=saleFromBill>0?saleFromBill:materiaCurrent+fissoCurrent,grossNew=materiaNew+fissoNew;
+      parts.push({commodity,days,consumption,materia:materiaNew,gross:grossNew,component,attuale:{consumo:consumption,materia:materiaCurrent,quotaFissa:fissoCurrent,quotaFissaAnnua:fixedCurrentAnnual,totale:currentSale,totaleDaBolletta:saleFromBill>0},nuova:{consumo:consumption,materia:materiaNew,quotaFissa:fissoNew,quotaFissaAnnua:fixedNewAnnual,totaleLordo:grossNew,totale:grossNew,prezzoEffettivo:priceNew,tipoPrezzo:component.type||offer.type,sconto:0}});
     }
     if(!parts.length)return null;
     const isHistorical=resultKindForHistory(history)==="simulation",dual=parts.length===2&&offer.supply==="dual",appliedDiscounts=[];
@@ -1291,12 +1320,24 @@
     if(!state.docs.length)return null;const bills=state.docs,period=bills.length===1?`${date(bills[0].billing_period_start)} – ${date(bills[0].billing_period_end)}`:`${bills.length} bollette analizzate`;const supply=commoditiesFromDocs(),supplyLabel=supply.length===2?"Luce e gas":commodityLabel(supply[0]);const customer=customerLabel(customerTypeFromDocs()||"privato");const providers=[...new Set(bills.flatMap((doc)=>[doc.fornitore_luce,doc.fornitore_gas,doc.fornitore]).map((v)=>String(v||"").trim()).filter(Boolean))].join(" · ");const consumptions=[];for(const commodity of ["luce","gas"]){const total=bills.reduce((sum,doc)=>sum+periodConsumption(doc,commodity),0);if(total>0)consumptions.push(`${commodityLabel(commodity)} ${number(total,2)} ${commodity==="luce"?"kWh":"Smc"}`);}const total=bills.reduce((sum,doc)=>sum+(Number(doc.total_amount_eur)||0),0),issueDate=bills.length===1&&bills[0].issue_date?date(bills[0].issue_date):"",dueDate=bills.length===1&&bills[0].due_date?date(bills[0].due_date):"";return {period,issueDate,dueDate,supplyLabel,customer,providers,consumptionText:consumptions.join(" · ")||"—",total};
   }
   function selectedVirtualIdentity(payload=null){const providerSelect=$("provider-select"),offerSelect=$("offer-select");return {provider:payload?.offer?.provider||state.selected?.provider||(providerSelect?.value?providerSelect.selectedOptions?.[0]?.textContent:"")||"—",offer:payload?.offer?.name||state.selected?.name||(offerSelect?.value?offerSelect.selectedOptions?.[0]?.textContent:"")||"—"};}
+  function syncBillLineHeights(){
+    const left=[...($("real-bill-lines")?.children||[])],right=[...($("virtual-bill-lines")?.children||[])];
+    [...left,...right].forEach((node)=>{node.style.minHeight="";});
+    if(window.matchMedia("(max-width:700px)").matches)return;
+    const total=Math.max(left.length,right.length);
+    for(let index=0;index<total;index++){
+      const a=left[index],b=right[index],height=Math.max(a?.offsetHeight||0,b?.offsetHeight||0);
+      if(a&&height)a.style.minHeight=`${height}px`;
+      if(b&&height)b.style.minHeight=`${height}px`;
+    }
+  }
   function renderBillPanels(payload=null){
     const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);
     $("real-bill-lines").innerHTML=billRowsHtml({facts,side:"real",payload,provider:facts.providers||"—",offer:currentOfferLabel()||"—"});
     $("virtual-bill-lines").innerHTML=billRowsHtml({facts,side:"virtual",payload,provider:virtual.provider,offer:virtual.offer});
     document.querySelector(".bill-paper.simulated")?.classList.toggle("is-more-expensive",moreExpensive);
     $("original-total").textContent=euro(facts.total);$("simulated-total").textContent=payload?.summary?euro(payload.summary.simulatedTotal):"—";
+    window.requestAnimationFrame(syncBillLineHeights);
   }
   function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
@@ -1340,6 +1381,7 @@
   document.querySelectorAll("[data-bill-view]").forEach((button)=>button.addEventListener("click",()=>{const view=button.dataset.billView;document.querySelectorAll("[data-bill-view]").forEach((item)=>item.setAttribute("aria-pressed",item===button?"true":"false"));document.querySelector(".bill-paper.real")?.classList.toggle("mobile-active",view==="real");document.querySelector(".bill-paper.simulated")?.classList.toggle("mobile-active",view==="simulated");}));
   function syncMobileDisclosures(){if(window.matchMedia("(max-width:700px)").matches){document.querySelectorAll(".info-disclosure").forEach((node)=>node.removeAttribute("open"));$("seo-details")?.removeAttribute("open");}else{document.querySelectorAll(".info-disclosure").forEach((node)=>node.setAttribute("open",""));$("seo-details")?.setAttribute("open","");}}
   syncMobileDisclosures();
+  window.addEventListener("resize",()=>window.requestAnimationFrame(syncBillLineHeights));
 
   $("provider-select")?.addEventListener("change",()=>{clearSimulationResult();const selectedProvider=$("provider-select").value;if(state.selected&&providerKeyForOffer(state.selected)!==selectedProvider){state.selected=null;storeJson(OFFER_KEY,null);setOfferDocumentStatus("");}renderOfferSelect();updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
   $("offer-select")?.addEventListener("change",()=>{clearSimulationResult();const select=$("offer-select"),index=Number(select?.value);state.selected=select?.value!==""&&Number.isInteger(index)?state.filtered[index]||null:null;storeJson(OFFER_KEY,state.selected);if(state.selected?.source==="document")setOfferDocumentStatus(`CTE / scheda caricata: ${state.selected.provider} — ${state.selected.name}.`,"ready");else setOfferDocumentStatus("");$("simulate-selected-offer").disabled=!state.docs.length||select?.value==="";updateSimulationActionLabel();renderDocsPreview();renderSimulationPreview();});
