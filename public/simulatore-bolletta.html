@@ -304,6 +304,9 @@
     .bill-lines li.receipt-section span,.bill-lines li.receipt-section strong{color:#dc2626!important;font-weight:900!important}
     .bill-lines li.receipt-row{font-size:12px!important;padding-top:5px!important;padding-bottom:5px!important;min-height:auto!important}
     .bill-lines li.receipt-row .receipt-label{color:#475569!important;text-align:left!important}
+    .bill-lines li.receipt-row.is-subtotal .receipt-label,.bill-lines li.receipt-row.is-subtotal .receipt-qty,.bill-lines li.receipt-row.is-subtotal .receipt-price,.bill-lines li.receipt-row.is-subtotal .receipt-amount{font-weight:800!important;color:#0f172a!important}
+    .bill-lines li.receipt-row.is-detail .receipt-label{padding-left:14px!important;font-size:.94em!important;color:#334155!important}
+    .bill-lines li.receipt-row.is-detail .receipt-qty,.bill-lines li.receipt-row.is-detail .receipt-price,.bill-lines li.receipt-row.is-detail .receipt-amount{font-size:.95em!important}
     .bill-lines li.receipt-row .receipt-qty,.bill-lines li.receipt-row .receipt-price,.bill-lines li.receipt-row .receipt-amount{text-align:right!important;color:#0f172a!important}
     .bill-lines li.receipt-row .receipt-amount{font-weight:800!important}
     .bill-lines li.receipt-row.is-discount .receipt-amount{color:#166534!important}
@@ -388,6 +391,9 @@
     .bill-lines li.receipt-section span,.bill-lines li.receipt-section strong{color:#dc2626!important;font-weight:900!important}
     .bill-lines li.receipt-row{font-size:12px!important;padding-top:5px!important;padding-bottom:5px!important;min-height:auto!important}
     .bill-lines li.receipt-row .receipt-label{color:#475569!important;text-align:left!important}
+    .bill-lines li.receipt-row.is-subtotal .receipt-label,.bill-lines li.receipt-row.is-subtotal .receipt-qty,.bill-lines li.receipt-row.is-subtotal .receipt-price,.bill-lines li.receipt-row.is-subtotal .receipt-amount{font-weight:800!important;color:#0f172a!important}
+    .bill-lines li.receipt-row.is-detail .receipt-label{padding-left:14px!important;font-size:.94em!important;color:#334155!important}
+    .bill-lines li.receipt-row.is-detail .receipt-qty,.bill-lines li.receipt-row.is-detail .receipt-price,.bill-lines li.receipt-row.is-detail .receipt-amount{font-size:.95em!important}
     .bill-lines li.receipt-row .receipt-qty,.bill-lines li.receipt-row .receipt-price,.bill-lines li.receipt-row .receipt-amount{text-align:right!important;color:#0f172a!important}
     .bill-lines li.receipt-row .receipt-amount{font-weight:800!important}
     .bill-lines li.receipt-row.is-discount .receipt-amount{color:#166534!important}
@@ -1060,23 +1066,56 @@
     }
     return {quantity:"—",price:"—",amount:Number.isFinite(amount)?euro(amount):(real?"—":(payload?"—":"da simulare"))};
   }
+  function receiptPrintedSectionTitle(key){
+    if(key==="consumi")return "Quota consumi";
+    if(key==="fissa_potenza")return "Quota fissa e quota potenza";
+    if(key==="altre_partite")return "Altre partite";
+    if(key==="accise_iva")return "Accise e IVA";
+    if(key==="totale_bolletta")return "Totale bolletta";
+    if(key==="totale_pagare")return "Totale da pagare";
+    return "";
+  }
+  function receiptSectionAmount(rows){
+    const sectionRow=rows.find((row)=>row.kind==="section"&&Number.isFinite(Number(row.amount_eur)));
+    if(sectionRow)return Number(sectionRow.amount_eur);
+    const subtotalRows=rows.filter((row)=>row.kind==="subtotal"&&Number.isFinite(Number(row.amount_eur)));
+    if(subtotalRows.length)return Number(subtotalRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
+    const detailRows=rows.filter((row)=>Number.isFinite(Number(row.amount_eur)));
+    if(detailRows.length)return Number(detailRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
+    return null;
+  }
   function originalReceiptRowsHtml({real,payload}){
     if(!real&&payload)return null;
     const rows=state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
     if(!rows.length)return null;
-    const allowed=new Set(["consumi","fissa_potenza","altre_partite","accise_iva","totale_bolletta","canone_tv","totale_pagare"]);
-    const printed=rows.filter((row)=>allowed.has(row.section));
-    if(!printed.length)return null;
+    const allowed=["consumi","fissa_potenza","altre_partite","accise_iva","totale_bolletta","canone_tv","totale_pagare"];
+    const grouped=new Map();
+    for(const row of rows){
+      if(!allowed.includes(row.section))continue;
+      if(!grouped.has(row.section))grouped.set(row.section,[]);
+      grouped.get(row.section).push(row);
+    }
+    if(!grouped.size)return null;
     let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
-    for(const row of printed){
-      const amount=euro(row.amount_eur),label=escapeHtml(row.label);
-      if(row.section==="totale_pagare")continue; // Il totale da pagare è mostrato nel footer, una sola volta.
-      if(row.section==="totale_bolletta"){
-        html+=`<li class="receipt-grand-total"><span>${label}</span><strong>${escapeHtml(amount)}</strong></li>`;
-      } else if(row.kind==="section"){
-        html+=`<li class="receipt-section"><span>${label}</span><strong>${escapeHtml(amount)}</strong></li>`;
-      } else {
-        html+=`<li class="receipt-row${row.section==="canone_tv"?" receipt-post-total":""}"><span class="receipt-label">${label}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount)}</strong></li>`;
+    for(const section of allowed){
+      const sectionRows=grouped.get(section)||[];
+      if(!sectionRows.length)continue;
+      if(section==="totale_pagare")continue; // mostrato nel footer
+      if(section==="totale_bolletta"){
+        const totalRow=sectionRows.find((row)=>Number.isFinite(Number(row.amount_eur)));
+        html+=`<li class="receipt-grand-total"><span>${escapeHtml(totalRow?.label||receiptPrintedSectionTitle(section))}</span><strong>${escapeHtml(euro(totalRow?.amount_eur))}</strong></li>`;
+        continue;
+      }
+      if(section!=="canone_tv"){
+        const explicitSection=sectionRows.find((row)=>row.kind==="section");
+        const amount=receiptSectionAmount(sectionRows);
+        const label=explicitSection?.label||receiptPrintedSectionTitle(section);
+        html+=`<li class="receipt-section"><span>${escapeHtml(label)}</span><strong>${escapeHtml(Number.isFinite(Number(amount))?euro(amount):"—")}</strong></li>`;
+      }
+      for(const row of sectionRows){
+        if(row.kind==="section")continue;
+        const amount=euro(row.amount_eur),label=escapeHtml(row.label),kindClass=row.kind==="subtotal"?" is-subtotal":(row.kind==="detail"?" is-detail":"");
+        html+=`<li class="receipt-row${kindClass}${section==="canone_tv"?" receipt-post-total":""}"><span class="receipt-label">${label}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount)}</strong></li>`;
       }
     }
     return html;
