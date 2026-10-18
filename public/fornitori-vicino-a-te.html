@@ -27,8 +27,6 @@ let visibleUntilByProvider = {};
 const currentLocalDate=()=>{const d=new Date();return [d.getFullYear(),String(d.getMonth()+1).padStart(2,'0'),String(d.getDate()).padStart(2,'0')].join('-');};
 let offersByProvider = new Map();
 
-const today=new Date();
-const cutoff=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 const link=(label,href,sponsored=false)=>{if(typeof href!=='string'||!/^https:\/\/[^\s/]+(?:\/|$)/i.test(href))return null;const a=el('a',label);a.href=href;a.target='_blank';a.rel=sponsored?'noopener noreferrer sponsored':'noopener noreferrer';return a;};
 let geographicalReady = false;
@@ -66,7 +64,7 @@ async function loadOffers(){
     activeProviders=eligible;
     offersByProvider=new Map();
     for(const o of archive.offerte){
-      if(!o || !eligible.has(o.providerKey) || o.customerType!=='domestico' || typeof o.dataFine!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.dataFine) || o.dataFine<cutoff) continue;
+      if(!o || !eligible.has(o.providerKey) || o.customerType!=='domestico' || typeof o.dataFine!=='string' || !/^\d{4}-\d{2}-\d{2}$/.test(o.dataFine) || o.dataFine<currentLocalDate()) continue;
       const list=offersByProvider.get(o.providerKey)||[];
       list.push(o);
       offersByProvider.set(o.providerKey,list);
@@ -86,7 +84,7 @@ async function loadOffers(){
   }
 }
 function offerPanel(key){
-  const list=offersByProvider.get(key)||[];
+  const list=(offersByProvider.get(key)||[]).filter(o=>o.dataFine>=currentLocalDate());
   const container=el('div');
   if(!list.length){container.append(el('p','Nessuna offerta domestica valida nel catalogo attuale.','muted'));return container;}
   const toggle=el('button',key+' — Vedi '+list.length+' offerte');
@@ -101,6 +99,7 @@ function offerPanel(key){
     panel.append(line);
   }
   toggle.addEventListener('click',()=>{
+    if(visibleUntilByProvider[key]<currentLocalDate()){document.getElementById('matches').replaceChildren();document.getElementById('offers-status').textContent='La disponibilità dei partner è cambiata. Effettua una nuova verifica.';return;}
     const expanded=toggle.getAttribute('aria-expanded')==='true';
     toggle.setAttribute('aria-expanded',String(!expanded));
     panel.hidden=expanded;
