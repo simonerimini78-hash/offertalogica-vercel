@@ -10,8 +10,8 @@
 <main id="main" class="wrap">
 <nav aria-label="Percorso di navigazione"><a href="/">Home</a> › <span aria-current="page">Fornitori nella tua zona</span></nav>
 <section class="hero"><h1>Scopri altri fornitori luce e gas nella tua zona</h1><p>Anche un operatore meno conosciuto potrebbe avere una sede vicino a casa tua. Cerca per CAP, verifica la presenza territoriale e consulta le offerte presenti nell'archivio OffertaLogica.</p></section>
-<section class="box" aria-labelledby="search-title"><h2 id="search-title">Cerca una presenza fisica per CAP</h2><p class="muted">Ricerca sperimentale limitata alle sedi verificate. Il CAP non dimostra che un'offerta sia attivabile a quell'indirizzo.</p>
-<form id="search"><div class="fields"><div><label for="cap">CAP della fornitura</label><input id="cap" name="cap" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" placeholder="Es. 47522" required></div><button type="submit">Cerca nella zona</button></div></form><div id="result-message" role="status" aria-live="polite"></div><div id="matches" class="grid"></div></section>
+<section class="box" aria-labelledby="search-title"><h2 id="search-title">Cerca sedi e punti assistenza per CAP</h2><p class="muted">Ricerca sperimentale limitata alle sedi verificate. Il CAP non dimostra che un'offerta sia attivabile a quell'indirizzo.</p>
+<form id="search"><div class="fields"><div><label for="cap">CAP della fornitura</label><input id="cap" name="cap" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" placeholder="Es. 47522" required></div><button type="submit" data-discovery-link="territorio_ricerca_cap">Cerca nella zona</button></div></form><div id="result-message" role="status" aria-live="polite"></div><div id="matches" class="grid"></div></section>
 <section aria-labelledby="offers-title"><h2 id="offers-title">Offerte dei fornitori nel nostro archivio</h2><p>Le offerte sono lette dall’archivio pubblico OffertaLogica e filtrate alla data della consultazione. <strong>Questa è una consultazione informativa, non un confronto personalizzato né una verifica della disponibilità nel tuo CAP.</strong></p>
 <div id="offers-status" role="status" aria-live="polite">Caricamento offerte…</div><div id="offers" class="grid"></div></section>
 <section class="box"><h2>Come interpretiamo la presenza locale?</h2><p>Una sede legale o operativa non equivale automaticamente a uno sportello aperto al pubblico. Orari, accesso e servizi di assistenza di persona saranno esposti solo dopo conferma del fornitore.</p><p class="notice">Anteprima di sviluppo: pagina esclusa dall'indicizzazione, senza attivazioni commerciali o acquisizione di dati personali.</p></section>
@@ -25,6 +25,7 @@ const cutoff=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),Str
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
 const link=(label,href)=>{const a=el('a',label);a.href=href;a.target='_blank';a.rel='noopener noreferrer';return a;};
 const offerToggles = new Map();
+let geographicalReady = false;
 const slots=document.getElementById('offers');
 const status=document.getElementById('offers-status');
 async function loadOffers(){
@@ -35,6 +36,7 @@ async function loadOffers(){
     const geo = await geoResponse.json();
     if (!geo || !geo.providers || typeof geo.providers !== 'object') throw new Error('Anagrafica territoriale non valida');
     providers = geo.providers;
+    geographicalReady = true;
   } catch (error) {
     status.textContent = 'Anagrafica territoriale non disponibile. Nessun risultato geografico affidabile.';
     document.querySelector('#search button[type="submit"]').disabled = true;
@@ -50,26 +52,32 @@ async function loadOffers(){
   offerToggles.clear();
   let shown=0;
   for(const [key,p] of Object.entries(providers)){
-   const list=visible.filter(o=>o.providerKey===key);if(!list.length)continue;
+   const list=visible.filter(o=>o.providerKey===key);
    shown++;
-   const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',list.length+' offerte domestiche nell’archivio · condizioni da riconfermare con il fornitore','muted'));
-   const toggle=el('button',p.name+' — Vedi '+list.length+' offerte');
-   toggle.type='button';toggle.setAttribute('aria-expanded','false');
-   const panel=el('div');panel.hidden=true;
-   const panelId='offerte-'+key;panel.id=panelId;toggle.setAttribute('aria-controls',panelId);
-   for(const o of list){const line=el('div',undefined,'offer');line.append(el('strong',o.nome||'Offerta senza nome'));line.append(el('small',(o.commodity==='luce'?'Luce':o.commodity==='gas'?'Gas':'Energia')+' · '+(o.tipo||'Tipologia non indicata')+' · Scadenza archivio: '+o.dataFine));panel.append(line)}
-   offerToggles.set(key,toggle);
-   toggle.addEventListener('click',()=>{const expanded=toggle.getAttribute('aria-expanded')==='true';panel.hidden=expanded;toggle.setAttribute('aria-expanded',String(!expanded));toggle.textContent=p.name+(expanded?' — Vedi ':' — Nascondi ')+list.length+' offerte';});
-   card.append(toggle,panel);
-   if(p.site){const end=el('p');end.append(link('Sito ufficiale del fornitore',p.site));card.append(end)}
+   const card=el('article',undefined,'card');card.append(el('h3',p.name));
+   const officeCount=Array.isArray(p.offices)?p.offices.length:0;
+   card.append(el('p',officeCount?officeCount+' presenza/e fisica/e censita/e · servizi e accesso da verificare sulle fonti ufficiali':'Nessuna sede territoriale verificata nell’archivio','muted'));
+   if(list.length){
+    const toggle=el('button',p.name+' — Vedi '+list.length+' offerte');toggle.setAttribute('data-discovery-link','territorio_offerte_'+key);
+    toggle.type='button';toggle.setAttribute('aria-expanded','false');
+    const panel=el('div');panel.hidden=true;
+    const panelId='offerte-'+key;panel.id=panelId;toggle.setAttribute('aria-controls',panelId);
+    for(const o of list){const line=el('div',undefined,'offer');line.append(el('strong',o.nome||'Offerta senza nome'));line.append(el('small',(o.commodity==='luce'?'Luce':o.commodity==='gas'?'Gas':'Energia')+' · '+(o.tipo||'Tipologia non indicata')+' · Scadenza archivio: '+o.dataFine));panel.append(line)}
+    offerToggles.set(key,toggle);
+    toggle.addEventListener('click',()=>{const expanded=toggle.getAttribute('aria-expanded')==='true';panel.hidden=expanded;toggle.setAttribute('aria-expanded',String(!expanded));toggle.textContent=p.name+(expanded?' — Vedi ':' — Nascondi ')+list.length+' offerte';});
+    card.append(toggle,panel);
+   }else{
+    card.append(el('p','Nessuna offerta domestica attualmente valida nel catalogo OL per questo operatore.','muted'));
+   }
+   if(p.site){const end=el('p');const siteLink=link('Sito ufficiale del fornitore',p.site);siteLink.setAttribute('data-discovery-link','territorio_sito_'+key);end.append(siteLink);card.append(end)}
    slots.append(card);
   }
-  status.textContent=shown?'Offerte disponibili per '+shown+' fornitori. Nessuna disponibilità geografica verificata per CAP.':'Nessuna offerta domestica non scaduta nell’archivio.';
+  status.textContent=shown?'Operatori censiti: '+shown+'. Apri le offerte dal pulsante del fornitore; la disponibilità geografica non è certificata.':'Nessun operatore censito.';
  }catch(err){slots.replaceChildren();status.textContent='Impossibile leggere le offerte aggiornate. Riprova più tardi.';}
  finally {
   if(document.getElementById('search').dataset.pendingCapSearch==='1'){
    delete document.getElementById('search').dataset.pendingCapSearch;
-   document.getElementById('search').requestSubmit();
+   if(geographicalReady) document.getElementById('search').requestSubmit();
   }
  }
 }
@@ -77,13 +85,14 @@ loadOffers();
 document.getElementById('search').addEventListener('submit',e=>{
  e.preventDefault();const cap=document.getElementById('cap').value.trim();const msg=document.getElementById('result-message');const box=document.getElementById('matches');box.replaceChildren();
  if(!/^\d{5}$/.test(cap)){msg.textContent='Inserisci un CAP italiano di cinque cifre.';return;}
- const hits=Object.entries(providers).flatMap(([key,p])=>p.offices.filter(o=>o.cap===cap).map(o=>({key,p,o}))); 
+ if(!geographicalReady){msg.textContent='Archivio geografico non disponibile.';return;}
+ const hits=Object.entries(providers).flatMap(([key,p])=>(Array.isArray(p.offices)?p.offices:[]).filter(o=>o && o.cap===cap).map(o=>({key,p,o}))); 
  if(!hits.length){msg.textContent='Nessuna sede verificata per questo CAP nel nostro archivio iniziale. Non significa che non esistano fornitori nella tua zona.';return;}
  msg.textContent=hits.length+' presenza/e fisica/e registrata/e per il CAP '+cap+'.';
- for(const {key,p,o} of hits){const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',o.kind,'tag'));card.append(el('p',o.street+', '+o.cap+' '+o.city+' ('+o.province+')'));card.append(el('p',o.publicAssistanceVerified?'Servizi al pubblico indicati sul sito ufficiale; verifica gli orari prima di recarti sul posto.':'L’accesso al pubblico e i servizi disponibili devono essere confermati.','muted'));card.append(link('Verifica fonte ufficiale',o.source));
+ for(const {key,p,o} of hits){const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',o.kind,'tag'));card.append(el('p',o.street+', '+o.cap+' '+o.city+' ('+o.province+')'));card.append(el('p',o.publicAssistanceVerified?'Servizi al pubblico indicati sul sito ufficiale; verifica gli orari prima di recarti sul posto.':'L’accesso al pubblico e i servizi disponibili devono essere confermati.','muted'));const sourceLink=link('Verifica fonte ufficiale',o.source);sourceLink.setAttribute('data-discovery-link','territorio_fonte_'+key);card.append(sourceLink);
   if(offerToggles.has(key)){
    const openOffers=el('button','Consulta le offerte in archivio (copertura da verificare)');
-   openOffers.type='button';
+   openOffers.type='button';openOffers.setAttribute('data-discovery-link','territorio_offerte_dal_cap_'+key);
    openOffers.addEventListener('click',()=>{
     const toggle=offerToggles.get(key);
     if(toggle.getAttribute('aria-expanded')==='false')toggle.click();
@@ -100,4 +109,4 @@ if (capFromBill && /^[0-9]{5}$/.test(capFromBill)) {
    // Wait for geographic data to load before running an automatic search.
   document.getElementById('search').dataset.pendingCapSearch = '1';
 }
-</script></body></html>
+</script><script src="/assets/ol-journey-tracking.js" defer></script></body></html>
