@@ -1,0 +1,54 @@
+{
+  "schemaVersion": 1,
+  "source": "Audit nazionale OL 2026-10-17 + sedi gia censite in incremento 06",
+  "note": "Il CAP della sede NON dimostra copertura commerciale dell’offerta. I CAP sono da riconfermare; il dato sportello aperto al pubblico non è certificato.",
+  "providers": {
+    "greenius": {
+      "name": "Greenius",
+      "site": "https://greenius.it/",
+      "offices": [
+        {
+          "cap": "47522",
+          "city": "Cesena",
+          "province": "FC",
+          "street": "Piazzale Caduti del Lavoro 200",
+          "kind": "Sede aziendale",
+          "source": "https://greenius.it/contatti/",
+          "publicAssistanceVerified": false
+        }
+      ],
+      "coverageVerified": false
+    },
+    "liongreen": {
+      "name": "Lion Green",
+      "site": "https://www.liongreen.it/",
+      "offices": [
+        {
+          "cap": "81100",
+          "city": "Caserta",
+          "province": "CE",
+          "street": "Via Giuseppe Verdi 37",
+          "kind": "Sede legale",
+          "source": "https://www.liongreen.it/contatti/",
+          "publicAssistanceVerified": false
+        },
+        {
+          "cap": "81040",
+          "city": "Curti",
+          "province": "CE",
+          "street": "Via Nazionale Appia 81",
+          "kind": "Sede operativa e punto di incontro dichiarato",
+          "source": "https://www.liongreen.it/opening-home/",
+          "publicAssistanceVerified": false
+        }
+      ],
+      "coverageVerified": false
+    },
+    "ovenergy": {
+      "name": "OV Energy",
+      "site": null,
+      "offices": [],
+      "coverageVerified": false
+    }
+  }
+}

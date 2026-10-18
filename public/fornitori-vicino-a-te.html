@@ -18,11 +18,8 @@
 </main><footer><div class="wrap"><small>OffertaLogica · Anteprima non pubblica · Informazioni da verificare prima del lancio</small></div></footer>
 <script>
 'use strict';
-const providers={
- greenius:{name:'Greenius',site:'https://greenius.it/',offices:[{cap:'47522',city:'Cesena',province:'FC',street:'Piazzale Caduti del Lavoro 200',kind:'Sede aziendale',source:'https://greenius.it/contatti/'}]},
- liongreen:{name:'Lion Green',site:'https://www.liongreen.it/',offices:[{cap:'81100',city:'Caserta',province:'CE',street:'Via Giuseppe Verdi 37',kind:'Sede legale',source:'https://www.liongreen.it/contatti/'},{cap:'81040',city:'Curti',province:'CE',street:'Via Nazionale Appia 81',kind:'Sede operativa e punto di incontro dichiarato',source:'https://www.liongreen.it/opening-home/'}]},
- ovenergy:{name:'OV Energy',site:null,offices:[]}
-};
+let providers = {};
+
 const today=new Date();
 const cutoff=[today.getFullYear(),String(today.getMonth()+1).padStart(2,'0'),String(today.getDate()).padStart(2,'0')].join('-');
 const el=(tag,text,className)=>{const node=document.createElement(tag);if(text!==undefined)node.textContent=text;if(className)node.className=className;return node;};
@@ -30,6 +27,22 @@ const link=(label,href)=>{const a=el('a',label);a.href=href;a.target='_blank';a.
 const slots=document.getElementById('offers');
 const status=document.getElementById('offers-status');
 async function loadOffers(){
+  // Load geographic records independently from offers; never infer commercial coverage from a venue CAP.
+  try {
+    const geoResponse = await fetch('/data/fornitori-territoriali.json', {cache:'no-store'});
+    if (!geoResponse.ok) throw new Error('Anagrafica territoriale non disponibile');
+    const geo = await geoResponse.json();
+    if (!geo || !geo.providers || typeof geo.providers !== 'object') throw new Error('Anagrafica territoriale non valida');
+    providers = geo.providers;
+    if (document.getElementById('search').dataset.pendingCapSearch === '1') {
+      delete document.getElementById('search').dataset.pendingCapSearch;
+      document.getElementById('search').requestSubmit();
+    }
+  } catch (error) {
+    status.textContent = 'Anagrafica territoriale non disponibile. Nessun risultato geografico affidabile.';
+    document.querySelector('#search button[type="submit"]').disabled = true;
+    return;
+  }
  try{
   const response=await fetch('/data/offerte-partner.json',{cache:'no-store'});
   if(!response.ok)throw new Error('Archivio non disponibile');
@@ -67,6 +80,7 @@ document.getElementById('search').addEventListener('submit',e=>{
 const capFromBill = new URLSearchParams(location.search).get('cap');
 if (capFromBill && /^[0-9]{5}$/.test(capFromBill)) {
   document.getElementById('cap').value = capFromBill;
-  document.getElementById('search').requestSubmit();
+   // Wait for geographic data to load before running an automatic search.
+  document.getElementById('search').dataset.pendingCapSearch = '1';
 }
 </script></body></html>
