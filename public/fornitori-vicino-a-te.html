@@ -64,4 +64,9 @@ document.getElementById('search').addEventListener('submit',e=>{
  msg.textContent=hits.length+' presenza/e fisica/e registrata/e per il CAP '+cap+'.';
  for(const {p,o} of hits){const card=el('article',undefined,'card');card.append(el('h3',p.name));card.append(el('p',o.kind,'tag'));card.append(el('p',o.street+', '+o.cap+' '+o.city+' ('+o.province+')'));card.append(el('p','L’accesso al pubblico e i servizi disponibili devono essere confermati.','muted'));card.append(link('Verifica fonte ufficiale',o.source));box.append(card)}
 });
+const capFromBill = new URLSearchParams(location.search).get('cap');
+if (capFromBill && /^[0-9]{5}$/.test(capFromBill)) {
+  document.getElementById('cap').value = capFromBill;
+  document.getElementById('search').requestSubmit();
+}
 </script></body></html>

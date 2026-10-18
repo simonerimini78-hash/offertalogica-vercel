@@ -18618,6 +18618,21 @@ function pdfBlockedAutofillLine(contract) {
   return labels.length ? `Non autocompilati automaticamente: ${labels.join(", ")}` : "";
 }
 
+function linkFornitoriTerritorialiDaPdf(merged) {
+  if (!merged || merged.merge_blocked || merged.mixed_documents || merged.kind !== "bolletta") return "";
+  const addresses = [merged.indirizzo_fornitura_luce, merged.indirizzo_fornitura_gas, merged.indirizzo_fornitura]
+    .filter((value) => typeof value === "string" && value.trim());
+  if (!addresses.length) return "";
+  const caps = new Set();
+  for (const address of addresses) {
+    const found = address.match(/(?:^|[^0-9])([0-9]{5})(?=[^0-9]|$)/g) || [];
+    for (const match of found) caps.add(match.match(/[0-9]{5}/)[0]);
+  }
+  if (caps.size !== 1) return "";
+  const cap = [...caps][0];
+  return `<p><a href="/fornitori-vicino-a-te.html?cap=${cap}">Scopri i fornitori con sede registrata nel CAP ${cap}</a> <small>(verifica la località: una sede non garantisce la disponibilità dell’offerta)</small></p>`;
+}
+
 function renderPdfSummary(documents, merged) {
   const rows = documents.map((doc) => {
     if (doc.error) return `<li><strong>${testoHtmlSicuro(doc.filename)}</strong>: ${testoHtmlSicuro(doc.error)}. Puoi cambiare PDF oppure continuare con la compilazione manuale.</li>`;
@@ -18746,6 +18761,7 @@ function renderPdfSummary(documents, merged) {
     <span>Documenti analizzati:</span>
     <ul style="margin:6px 0 10px 18px;">${rows}</ul>
     <span><strong>Dati letti:</strong> ${mergedRows || "nessun dato sufficientemente affidabile; completa il modulo manualmente."}<br><small>Nel modulo saranno inseriti soltanto i campi completi ammessi dal contratto dati, dopo la tua conferma.${ocrReviewTargets ? " I dati OCR compariranno nell’anteprima deselezionati e dovrai sceglierli esplicitamente." : ""}</small></span>
+    ${linkFornitoriTerritorialiDaPdf(merged)}
   `;
 }
 
