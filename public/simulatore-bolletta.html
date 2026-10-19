@@ -491,6 +491,7 @@
       .bill-head-action-slot{min-height:26px;margin-top:5px}
       .offer-document-button{height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9.8px!important}
     }
+    /* v0.10.99 — scontrino storico: preserva righe lette e usa la proiezione completa */
     /* v0.10.98 — scontrino storico: quote verificate e totale virtuale */
     /* v0.10.88 — slot fissi per lo scontrino: etichette e altezze coerenti */
     .bill-lines li.receipt-row.is-empty{color:#94a3b8!important;background:#fbfcfd!important}
@@ -1343,14 +1344,36 @@
     const variableNew=numericValue(part.materiaNuova)-tariffDiscount,fixedNew=numericValue(part.fissoNuovo);
     const oldSale=numericValue(part.venditaAttuale);
     if(![variableNew,fixedNew,oldSale].every(Number.isFinite))return null;
-    const rows=source.map((row)=>({...row}));
-    const matches=(row)=>row.commodity===commodity&&row.kind==="detail"&&/vendita/.test(normalizeReceiptLabel(row.label));
-    const variable=rows.filter((row)=>row.section==="consumi"&&matches(row));
-    const fixed=rows.filter((row)=>row.section==="fissa_potenza"&&matches(row));
-    // Non ripartire importi su righe ambigue o prive del dettaglio commerciale.
-    if(variable.length!==1||fixed.length!==1)return null;
-    const oldVariable=Number(variable[0].amount_eur),oldFixed=Number(fixed[0].amount_eur);
-    if(Math.abs(oldVariable+oldFixed-oldSale)>.03)return null;
+    const rows=source.map((row,index)=>({...row,_receiptSourceIndex:index}));
+    // La lettura puo' avere etichette spostate rispetto agli importi.
+    // Riutilizziamo la riconciliazione gia' verificata per lo scontrino reale;
+    // non assumiamo che la prima riga denominata "vendita" sia la vendita.
+    const mapped=receiptFilledSlots(rows,doc).assigned;
+    const rowFor=(key)=>{
+      const index=mapped.get(key)?._receiptSourceIndex;
+      return Number.isInteger(index)?rows[index]:null;
+    };
+    const variableRow=rowFor("vendita_consumo"),fixedRow=rowFor("vendita_fissa");
+    if(!variableRow||!fixedRow||variableRow===fixedRow||variableRow.kind!=="detail"||fixedRow.kind!=="detail")return null;
+    const oldVariable=receiptAmount(variableRow),oldFixed=receiptAmount(fixedRow);
+    if(oldVariable===null||oldFixed===null||Math.abs(oldVariable+oldFixed-oldSale)>.03)return null;
+    // Se la classificazione contabile ha corretto etichette traslate,
+    // riportiamo la stessa gerarchia nella proiezione (non gli importi vecchi).
+    for(const key of ["totale_consumo","vendita_consumo","rete_consumo","oneri_consumo"]){
+      const mappedRow=mapped.get(key),index=mappedRow?._receiptSourceIndex;
+      if(!Number.isInteger(index)||!mappedRow||mappedRow.label===rows[index].label)continue;
+      rows[index].label=mappedRow.label;
+      if(key==="totale_consumo")rows[index].kind="subtotal";
+      else rows[index].kind="detail";
+    }
+    // Aggiungere il subtotale solo se quello reale e' gia' stato verificato
+    // su lettura, vendite e quadratura della fattura.
+    const fixedParent=mapped.get("totale_fissa"),powerRow=rowFor("potenza");
+    if(fixedParent?.verified==="sale_months_bill"&&!rows.some((row)=>row.section==="fissa_potenza"&&row.kind==="subtotal"&&/fissa/.test(normalizeReceiptLabel(row.label)))){
+      rows.splice(rows.indexOf(fixedRow),0,{commodity,section:"fissa_potenza",kind:"subtotal",label:"Spesa totale quota fissa",quantity:fixedRow.quantity||"",unit_price:fixedRow.unit_price||"",amount_eur:oldFixed});
+    }
+    if(powerRow&&/spesa totale.*potenza/.test(normalizeReceiptLabel(powerRow.label)))powerRow.kind="subtotal";
+    const variable=[variableRow],fixed=[fixedRow];
     const round=(value)=>Number(value.toFixed(2));
     const varDelta=round(variableNew-oldVariable),fixedDelta=round(fixedNew-oldFixed);
     variable[0].amount_eur=round(variableNew);
@@ -1606,12 +1629,20 @@
   function originalReceiptRowsHtml({real,payload}){
     // Se la ricostruzione analitica non è verificabile, il confronto usa
     // il riepilogo economico: non tentare di leggere .length su null.
-    const rows=!real&&payload?simulatedReceiptRowsForDoc(payload):state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
-    if(!Array.isArray(rows)||!rows.length)return null;
+    const source=real?state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]):(payload?simulatedReceiptRowsForDoc(payload):null);
+    if(!Array.isArray(source)||!source.length)return null;
+    // Uno slot fisso non deve cancellare righe lette che non riesce a classificare.
+    // L'indice e' conservato anche per le righe di proiezione della nuova offerta.
+    const rows=source.map((row,index)=>({...row,_receiptSourceIndex:index}));
     const grouped=new Map();
     for(const row of rows){if(!grouped.has(row.section))grouped.set(row.section,[]);grouped.get(row.section).push(row);}
     const slots=receiptSlotDefinitions(),doc=state.docs.length===1?state.docs[0]:null;
     const {assigned:lookup}=receiptFilledSlots(rows,doc);
+    const assignedIndexes=new Set([...lookup.values()].map((row)=>row?._receiptSourceIndex).filter(Number.isInteger));
+    const unassignedRows=(section,all=false)=>rows.filter((row,index)=>row.section===section&&row.kind!=="section"&&row.kind!=="total"&&
+      (section!=="altre_partite"||!rows.some((item,i)=>i<index&&item.section==="totale_bolletta"))&&
+      receiptAmount(row)!==null&&(all||!assignedIndexes.has(row._receiptSourceIndex)));
+    const sourceDetailHtml=(section,all=false)=>unassignedRows(section,all).map((row)=>`<li class="receipt-row ${row.kind==="subtotal"?"is-subtotal":"is-detail"}" data-align-key="receipt-source-${row._receiptSourceIndex}"><span class="receipt-label">${escapeHtml(row.label)}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(euro(receiptAmount(row)))}</strong></li>`).join("");
     const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
     let html='<li class="receipt-columns" data-align-key="receipt-head"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
@@ -1639,7 +1670,9 @@
       }
       const row=lookup.get(slot.key);
       if(slot.key==="altre"||slot.key==="imposte"){
-        // Il totale della sezione e' già nello slot principale: non duplicarlo.
+        // Il totale non va sommato di nuovo; i dettagli del PDF vanno
+        // tuttavia mostrati, anche se non corrispondono a uno slot predefinito.
+        html+=sourceDetailHtml(slot.section,true);
         continue;
       }
       if(slot.key==="canone"&&!row){
@@ -1648,6 +1681,7 @@
       }
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
       html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.verified==="sale_months_bill"?" (riconciliata)":row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
+      if(slot.key==="oneri_consumo"||slot.key==="potenza"||slot.key==="canone")html+=sourceDetailHtml(slot.section==="canone_tv"?"canone_tv":slot.section);
     }
     // I messaggi tecnici di mappatura e quadratura non fanno parte
     // dello scontrino destinato all'utente.
@@ -1721,12 +1755,19 @@
     const postCorrection=value("rettifiche_post");
     if(original.has("rettifiche_post"))rows.set("rettifiche_post",original.get("rettifiche_post"));
     const zeroCanoneVerified=canone===null&&!source.some((row)=>row.section==="canone_tv")&&
-      originalBill!==null&&originalPay!==null&&near(originalPay,originalBill+(postCorrection??0));
-    const postTotalVerified=originalBill!==null&&originalPay!==null&&(canone!==null||zeroCanoneVerified)&&
-      near(originalPay,originalBill+(canone??0)+(postCorrection??0));
+      originalBill!==null&&(
+        (originalPay!==null&&near(originalPay,originalBill+(postCorrection??0)))||
+        (Number.isFinite(numericValue(doc?.total_amount_eur))&&near(numericValue(doc.total_amount_eur),originalBill+(postCorrection??0)))
+      );
+    // Il totale da pagare normalizzato proviene dal PDF: non richiedere
+    // che il lettore abbia trascritto anche la sua riga nello scontrino.
+    const normalizedPay=doc?numericValue(doc.total_amount_eur):NaN;
+    const payable=originalPay!==null?originalPay:Number.isFinite(normalizedPay)?normalizedPay:null;
+    const postTotalVerified=originalBill!==null&&payable!==null&&(canone!==null||zeroCanoneVerified)&&
+      near(payable,originalBill+(canone??0)+(postCorrection??0));
     // La modalita' di simulazione puo' trattenere altre voci dopo il totale:
     // non sottrarre il canone senza poterlo verificare.
-    const billCandidate=postTotalVerified&&Number.isFinite(Number(totalAmount))?Number((Number(totalAmount)-(originalPay-originalBill)).toFixed(2)):null;
+    const billCandidate=postTotalVerified&&Number.isFinite(Number(totalAmount))?Number((Number(totalAmount)-(payable-originalBill)).toFixed(2)):null;
     const complete=Object.values(groups).every((val)=>val!==null);
     const groupSum=complete?Number(Object.values(groups).reduce((sum,val)=>sum+val,0).toFixed(2)):null;
     // Il totale simulato è autonomamente verificabile dalla differenza
@@ -1791,7 +1832,9 @@
     html+=`<li data-align-key="subscription"><span>Validità di sottoscrizione</span><strong>${real?"—":escapeHtml(subscription)}</strong></li>`;
     html+=`<li data-align-key="validity"><span>Validità nel periodo fatturato</span><strong>${real?"—":escapeHtml(validity)}</strong></li>`;
     html+=`<li data-align-key="supply"><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li data-align-key="provider"><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li data-align-key="offer"><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li data-align-key="consumption"><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line" data-align-key="receipt-section-title"><span>Scontrino dell'energia</span><strong></strong></li>`;
-    const originalReceipt=real?originalReceiptRowsHtml({real,payload}):null;
+    // Anche la simulata deve tentare lo scontrino completo: prima era
+    // costretta sempre nel riepilogo ridotto, indipendentemente dai dati.
+    const originalReceipt=originalReceiptRowsHtml({real,payload});
     html+=originalReceipt||receiptFallbackSlotsHtml({real,payload,totalAmount});
     if(!real&&state.selected){
       const offers=[...Object.values(state.selected.components||{}).flatMap((part)=>part.discounts||[]),...(state.selected.discounts||[])];
