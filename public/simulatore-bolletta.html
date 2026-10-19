@@ -839,9 +839,9 @@
   }
   async function loadCatalog(){
     if(state.catalog)return state.catalog;
-    const [menuResponse,historyResponse,brandResponse]=await Promise.all([fetch("/data/offerte-arera-menu.json",{cache:"no-store"}),fetch("/data/offerte-arera-history.json",{cache:"no-store"}),fetch("/data/provider-brand.json",{cache:"no-store"})]);
+    const [menuResponse,historyResponse,brandResponse,indicesResponse]=await Promise.all([fetch("/data/offerte-arera-menu.json",{cache:"no-store"}),fetch("/data/offerte-arera-history.json",{cache:"no-store"}),fetch("/data/provider-brand.json",{cache:"no-store"}),fetch("/data/archivio-indici-storici.json",{cache:"no-store"})]);
     if(!menuResponse.ok)throw new Error("Catalogo offerte non disponibile");
-    const menu=await menuResponse.json();const history=historyResponse.ok?await historyResponse.json():null;const brands=brandResponse.ok?await brandResponse.json():{providers:{}};state.catalog={menu,history,brands};return state.catalog;
+    const menu=await menuResponse.json();const history=historyResponse.ok?await historyResponse.json():null;const brands=brandResponse.ok?await brandResponse.json():{providers:{}};const indices=indicesResponse.ok?await indicesResponse.json():null;state.catalog={menu,history,brands,indices};return state.catalog;
   }
   async function refreshOfferOptions(){
     try{
@@ -857,6 +857,24 @@
   }
 
   function parseHistoryDate(value,endOfDay=false){const text=String(value||"");const iso=text.match(/^(\d{4})-(\d{2})-(\d{2})$/);if(iso)return Date.parse(`${iso[1]}-${iso[2]}-${iso[3]}T${endOfDay?"23:59:59":"00:00:00"}Z`);const arera=text.match(/^(\d{2})\/(\d{2})\/(\d{4})(?:_(\d{2}):(\d{2}):(\d{2}))?/);if(!arera)return NaN;return Date.UTC(Number(arera[3]),Number(arera[2])-1,Number(arera[1]),Number(arera[4]||0),Number(arera[5]||0),Number(arera[6]||0));}
+  function verifiedMonthlyIndexForDoc(version,doc){
+    // Si applica solo a un mese civile intero: non inventare consumi mensili per bollette plurimensili.
+    const start=String(doc?.billing_period_start||""),end=String(doc?.billing_period_end||"");
+    const m=start.match(/^(\d{4})-(\d{2})-01$/);
+    if(!m||!end.startsWith(`${m[1]}-${m[2]}-`))return null;
+    const lastDay=new Date(Number(m[1]),Number(m[2]),0).getDate();
+    if(end!==`${m[1]}-${m[2]}-${String(lastDay).padStart(2,"0")}`)return null;
+    if(version?.priceQuality!=="indice_piu_spread_semantico")return null;
+    const spread=Number(version?.spreadEstimate);
+    if(!Number.isFinite(spread)||spread<0)return null;
+    const indexName=String(version?.indexName||"").trim().toUpperCase();
+    const seriesName=indexName==="PUN"?"pun_medio_mensile_utente":indexName==="PSV"?"psv_medio_mensile_utente":null;
+    if(!seriesName)return null; // PLACET, CMEM e PSV DA non sono sinonimi automatici di PUN/PSV.
+    const record=state.catalog?.indices?.serie?.[seriesName]?.mesi?.[`${m[1]}-${m[2]}`];
+    const value=Number(record?.valore);
+    if(!(value>0)||!record?.stato||!["ufficiale","fornito_utente_da_verificare"].includes(record.stato))return null;
+    return {value,spread,period:`${m[1]}-${m[2]}`,source:record.fonte||"",status:record.stato,indexName};
+  }
   function historicalCheck(offer){
     if(offer?.source==="document"){
       const details={},modes=[];
@@ -885,14 +903,40 @@
     if(modes.includes("partial"))return {mode:"partial",components:details,message:"L'offerta risulta valida solo per una parte del periodo fatturato. Il risultato è una comparazione, perché non può essere applicata all'intera bolletta come confronto storico."};
     if(modes.includes("unknown"))return {mode:"unknown",components:details,message:"La validità dell'offerta nel periodo fatturato non è verificabile con certezza. Il risultato è una comparazione con le condizioni disponibili oggi."};
     const variable=Object.entries(details).some(([commodity,item])=>String(item.version?.priceType||offer.components?.[commodity]?.type||"").toLowerCase()==="variabile");
-    if(variable)return {mode:"historical_variable",components:details,message:"L'offerta era valida nel periodo, ma il prezzo era indicizzato e lo storico non contiene tutti i valori PUN/PSV necessari. Il risultato è quindi una comparazione con le condizioni disponibili oggi."};
+    if(variable){
+      let allResolvable=true,provisional=false;
+      for(const [commodity,item] of Object.entries(details)){
+        const docs=state.docs.filter((doc)=>doc.commodity===commodity||doc.commodity==="dual"||periodConsumption(doc,commodity)>0);
+        for(const doc of docs){
+          const historicalVersion=historicalVersionForDoc(item,doc);
+          if(String(historicalVersion?.priceType||"").toLowerCase()!=="variabile")continue;
+          const match=verifiedMonthlyIndexForDoc(historicalVersion,doc);
+          if(!match){allResolvable=false;break;}
+          if(match.status!=="ufficiale")provisional=true;
+        }
+      }
+      if(allResolvable)return {mode:"indexed_comparison",components:details,message:provisional?"Prezzo indicizzato ricostruito con PUN/PSV mensile comunicato ma non verificato sulla fonte primaria. È una comparazione indicativa, non una fattura storica certificata.":"Prezzo indicizzato ricostruito con indice mensile archiviato e spread storico; il risultato resta una comparazione, non una fattura emessa."};
+      return {mode:"historical_variable",components:details,message:"L'offerta era valida nel periodo ma non sono disponibili indici storici compatibili e una formula verificabile per tutti i mesi fatturati. Il risultato usa le condizioni correnti e resta una comparazione."};
+    }
     return {mode:"historical_fixed",components:details,message:"L'offerta era valida per l'intero periodo fatturato. Il risultato è un confronto storico sulle condizioni a prezzo fisso archiviate per quel periodo."};
   }
   function historicalVersionForDoc(item,doc){
     if(!item?.record||!doc)return item?.version||null;const start=parseHistoryDate(doc.billing_period_start),end=parseHistoryDate(doc.billing_period_end,true);if(!Number.isFinite(start)||!Number.isFinite(end))return item?.version||null;
     const matches=(item.record.versions||[]).filter((version)=>{const from=parseHistoryDate(version.validFrom),to=parseHistoryDate(version.validTo,true);return Number.isFinite(from)&&Number.isFinite(to)&&from<=start&&to>=end;});matches.sort((a,b)=>String(b.catalogDate||"").localeCompare(String(a.catalogDate||"")));return matches[0]||item?.version||null;
   }
-  function offerForHistoricalSimulation(offer,history,doc=null){if(history?.mode!=="historical_fixed")return offer;const copy=JSON.parse(JSON.stringify(offer));Object.entries(history.components||{}).forEach(([commodity,item])=>{const version=historicalVersionForDoc(item,doc);if(!version||!copy.components?.[commodity])return;const price=Number(version.price),fixed=Number(version.annualFixedFee);if(price>0)copy.components[commodity].price=price;if(Number.isFinite(fixed)&&fixed>=0)copy.components[commodity].annualFixedFee=fixed;copy.components[commodity].historical=true;});return copy;}
+  function offerForHistoricalSimulation(offer,history,doc=null){
+    if(!["historical_fixed","indexed_comparison"].includes(history?.mode))return offer;
+    const copy=JSON.parse(JSON.stringify(offer));
+    Object.entries(history.components||{}).forEach(([commodity,item])=>{
+      const version=historicalVersionForDoc(item,doc);if(!version||!copy.components?.[commodity])return;
+      const indexed=history.mode==="indexed_comparison"&&String(version.priceType||"").toLowerCase()==="variabile"?verifiedMonthlyIndexForDoc(version,doc):null;
+      const price=indexed?indexed.value+indexed.spread:Number(version.price),fixed=Number(version.annualFixedFee);
+      if(price>0)copy.components[commodity].price=price;
+      if(Number.isFinite(fixed)&&fixed>=0)copy.components[commodity].annualFixedFee=fixed;
+      copy.components[commodity].historical=true;
+    });
+    return copy;
+  }
   function resultKindForHistory(history){return ["historical_fixed","document_historical_fixed"].includes(history?.mode)?"simulation":"comparison";}
   function renderHistory(history){
     const node=$("history-status");if(!node)return;const kind=resultKindForHistory(history);node.hidden=false;node.className=`history-status ${kind==="simulation"?"is-simulation":"is-comparison"}`;node.innerHTML=`<strong>${kind==="simulation"?"Confronto storico":"Comparazione"}.</strong> ${escapeHtml(history?.message||"")}`;
