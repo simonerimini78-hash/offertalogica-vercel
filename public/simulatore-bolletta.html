@@ -868,11 +868,11 @@
     const spread=Number(version?.spreadEstimate);
     if(!Number.isFinite(spread)||spread<0)return null;
     const indexName=String(version?.indexName||"").trim().toUpperCase();
-    const seriesName=indexName==="PUN"?"pun_medio_mensile_utente":indexName==="PSV"?"psv_medio_mensile_utente":null;
-    if(!seriesName)return null; // PLACET, CMEM e PSV DA non sono sinonimi automatici di PUN/PSV.
-    const record=state.catalog?.indices?.serie?.[seriesName]?.mesi?.[`${m[1]}-${m[2]}`];
+    const seriesNames=indexName==="PUN"?["pun_index_gme_f0_confermato","pun_medio_mensile_utente"]:indexName==="CMEM"?["arera_cmem_m_vulnerabili"]:indexName==="PSV"?["psv_medio_mensile_utente"]:[];
+    if(!seriesNames.length)return null; // CMEM e PSV contrattuale non sono equivalenti automaticamente.
+    const record=seriesNames.map((name)=>state.catalog?.indices?.serie?.[name]?.mesi?.[`${m[1]}-${m[2]}`]).find((item)=>item&&["ufficiale","confermato_fonti_secondarie","fornito_utente_da_verificare"].includes(item.stato));
     const value=Number(record?.valore);
-    if(!(value>0)||!record?.stato||!["ufficiale","fornito_utente_da_verificare"].includes(record.stato))return null;
+    if(!(value>0))return null;
     return {value,spread,period:`${m[1]}-${m[2]}`,source:record.fonte||"",status:record.stato,indexName};
   }
   function historicalCheck(offer){
@@ -915,7 +915,7 @@
           if(match.status!=="ufficiale")provisional=true;
         }
       }
-      if(allResolvable)return {mode:"indexed_comparison",components:details,message:provisional?"Prezzo indicizzato ricostruito con PUN/PSV mensile comunicato ma non verificato sulla fonte primaria. È una comparazione indicativa, non una fattura storica certificata.":"Prezzo indicizzato ricostruito con indice mensile archiviato e spread storico; il risultato resta una comparazione, non una fattura emessa."};
+      if(allResolvable)return {mode:"indexed_comparison",components:details,message:provisional?"Prezzo indicizzato ricostruito da archivio mensile non certificato direttamente dalla fonte primaria: il risultato è indicativo, non una fattura storica certificata.":"Prezzo indicizzato ricostruito con indice mensile archiviato e spread storico; il risultato resta una comparazione, non una fattura emessa."};
       return {mode:"historical_variable",components:details,message:"L'offerta era valida nel periodo ma non sono disponibili indici storici compatibili e una formula verificabile per tutti i mesi fatturati. Il risultato usa le condizioni correnti e resta una comparazione."};
     }
     return {mode:"historical_fixed",components:details,message:"L'offerta era valida per l'intero periodo fatturato. Il risultato è un confronto storico sulle condizioni a prezzo fisso archiviate per quel periodo."};
