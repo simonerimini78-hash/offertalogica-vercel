@@ -8430,7 +8430,7 @@ export default async function handler(req, res) {
         provider_name: clean(data.provider_name, 140),
         space_code: clean(data.space_code, 32),
         territory_code: clean(data.territory_code, 13),
-        target_caps: Array.isArray(data.target_caps) ? [...new Set(data.target_caps.map(v=>clean(v,5)))].slice(0,500) : [...new Set(clean(data.target_caps,3200).split(/[\s,;]+/).filter(Boolean))].slice(0,500),
+        target_caps: Array.isArray(data.target_caps) ? [...new Set(data.target_caps.map(v=>String(v ?? '').trim()))] : [...new Set(String(data.target_caps ?? '').trim().split(/[\s,;]+/).filter(Boolean))],
         format: clean(data.format, 16),
         delivery_mode: clean(data.delivery_mode, 16),
         begins_on: clean(data.begins_on, 10),
@@ -8442,7 +8442,7 @@ export default async function handler(req, res) {
       };
       // Solo lo spazio territorio_a e' effettivamente erogato dal frontend pubblico.
       if (body.space_code !== 'territorio_a') return json(res, 400, { ok: false, error: 'Spazio non pubblicabile: e’ disponibile solo territorio_a' });
-      if (body.target_caps.length === 0 || !body.target_caps.every(c => /^\d{5}$/.test(c))) return json(res, 400, { ok: false, error: "Indicare i CAP verificati per la campagna" });
+      if (body.target_caps.length === 0 || body.target_caps.length > 500 || !body.target_caps.every(c => /^\d{5}$/.test(c))) return json(res, 400, { ok: false, error: "Indicare i CAP verificati per la campagna" });
       if (!body.provider_name || !/^[a-z0-9_-]{2,32}$/i.test(body.space_code) || !/^(?:[0-9]{2}|[0-9]{2}:[0-9]{3}|[0-9]{2}:[0-9]{3}:[0-9]{6})$/.test(body.territory_code)) {
         return json(res, 400, { ok: false, error: "Fornitore, spazio o codice territoriale non valido" });
       }
