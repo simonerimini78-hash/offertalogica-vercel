@@ -491,9 +491,94 @@
       .bill-head-action-slot{min-height:26px;margin-top:5px}
       .offer-document-button{height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9.8px!important}
     }
-    /* v0.10.88 — slot fissi per lo scontrino: etichette e altezze coerenti */
-    .bill-lines li.receipt-row.is-empty{color:#94a3b8!important;background:#fbfcfd!important}
-    .bill-lines li.receipt-row.is-empty .receipt-label,.bill-lines li.receipt-row.is-empty .receipt-amount{color:#64748b!important;font-weight:500!important}
+    /* v0.10.89 — testata dei due pannelli realmente speculare */
+    .bill-paper-head{
+      display:grid!important;
+      grid-template-rows:32px 46px 36px 34px!important;
+      row-gap:8px!important;
+      align-content:start!important;
+      min-height:auto!important;
+      padding:16px 18px 14px!important;
+    }
+    .bill-brand-row{
+      min-height:32px!important;
+      align-items:flex-start!important;
+      margin:0!important;
+    }
+    .bill-brand-row img{
+      width:146px!important;
+      align-self:flex-start!important;
+    }
+    .doc-label{
+      align-self:flex-start!important;
+      line-height:1.15!important;
+      padding-top:4px!important;
+      text-align:right!important;
+    }
+    .bill-title-row{
+      display:grid!important;
+      grid-template-columns:minmax(0,1fr) 180px!important;
+      align-items:start!important;
+      min-height:46px!important;
+      gap:12px!important;
+      margin-top:0!important;
+    }
+    .bill-title-row h2{
+      margin:0!important;
+      line-height:1.08!important;
+      align-self:start!important;
+    }
+    .upload-status,.upload-status-spacer{
+      width:180px!important;
+      max-width:180px!important;
+      min-height:18px!important;
+      justify-self:end!important;
+      align-self:start!important;
+      text-align:right!important;
+      margin-top:4px!important;
+    }
+    .bill-subtitle{
+      min-height:36px!important;
+      margin:0!important;
+      display:flex!important;
+      align-items:flex-start!important;
+      line-height:1.35!important;
+    }
+    .bill-head-action-slot{
+      min-height:34px!important;
+      margin-top:0!important;
+      display:flex!important;
+      align-items:flex-start!important;
+    }
+    .bill-paper.real .bill-head-action-slot{
+      visibility:hidden!important;
+    }
+    .offer-document-button{
+      align-self:flex-start!important;
+    }
+    @media(max-width:700px){
+      .bill-paper-head{
+        grid-template-rows:24px 34px 28px 28px!important;
+        row-gap:6px!important;
+        padding:11px 12px 8px!important;
+      }
+      .bill-brand-row{min-height:24px!important}
+      .bill-brand-row img{width:104px!important}
+      .doc-label{padding-top:2px!important}
+      .bill-title-row{
+        grid-template-columns:minmax(0,1fr) 122px!important;
+        min-height:34px!important;
+        gap:8px!important;
+      }
+      .upload-status,.upload-status-spacer{
+        width:122px!important;
+        max-width:122px!important;
+        font-size:9.5px!important;
+        margin-top:2px!important;
+      }
+      .bill-subtitle{min-height:28px!important}
+      .bill-head-action-slot{min-height:28px!important}
+    }
   </style>
 </head>
 <body>
@@ -1180,79 +1265,14 @@
     if(key==="totale_pagare")return "Totale da pagare";
     return "";
   }
-  function receiptAmount(row){
-    if(!row||row.amount_eur===null||row.amount_eur===undefined||row.amount_eur==="")return null;
-    const amount=Number(row.amount_eur);return Number.isFinite(amount)?amount:null;
-  }
-  function receiptSectionAmount(rows,section=""){
-    const explicit=rows.find((row)=>row.kind==="section"&&receiptAmount(row)!==null);
-    if(explicit)return receiptAmount(explicit);
-    const subtotals=rows.filter((row)=>row.kind==="subtotal"&&receiptAmount(row)!==null);
-    if(subtotals.length)return Number(subtotals.reduce((sum,row)=>sum+receiptAmount(row),0).toFixed(2));
-    const details=rows.filter((row)=>row.kind==="detail"&&receiptAmount(row)!==null);
-    if(!details.length)return null;
-    // Le sottovoci non possono essere sommate senza una gerarchia accertata.
-    if(section==="consumi"){
-      const parent=details.find((row)=>!/^\s*di cui\b/i.test(row.label||"")&&!/oneri|rete|vendita/i.test(row.label||""));
-      if(parent)return receiptAmount(parent);
-      if(details.length>=3){
-        const matching=details.find((row)=>{
-          const others=details.filter((other)=>other!==row);
-          return others.length>=2&&Math.abs(receiptAmount(row)-others.reduce((sum,other)=>sum+receiptAmount(other),0))<=.025;
-        });
-        if(matching)return receiptAmount(matching);
-      }
-    }
-    if(section==="fissa_potenza"){
-      const months=details.filter((row)=>/mes/i.test(`${row.quantity||""} ${row.unit_price||""}`)&&!/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`));
-      const powers=details.filter((row)=>/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`));
-      if(months.length&&powers.length)return Number((Math.max(...months.map(receiptAmount))+Math.max(...powers.map(receiptAmount))).toFixed(2));
-    }
-    if(section==="altre_partite"||section==="accise_iva")return details.length===1?receiptAmount(details[0]):null;
+  function receiptSectionAmount(rows){
+    const sectionRow=rows.find((row)=>row.kind==="section"&&Number.isFinite(Number(row.amount_eur)));
+    if(sectionRow)return Number(sectionRow.amount_eur);
+    const subtotalRows=rows.filter((row)=>row.kind==="subtotal"&&Number.isFinite(Number(row.amount_eur)));
+    if(subtotalRows.length)return Number(subtotalRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
+    const detailRows=rows.filter((row)=>Number.isFinite(Number(row.amount_eur)));
+    if(detailRows.length)return Number(detailRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
     return null;
-  }
-  function receiptSlotKey(row){
-    const label=normalizeReceiptLabel(row.label||"");
-    if(row.section==="consumi"){
-      if(/vendita|commercializzazione/.test(label))return "vendita_consumo";
-      if(/rete|trasporto|oneri/.test(label))return "rete_consumo";
-      if(row.kind==="subtotal"||/spesa totale quota consum|quota consumi/.test(label))return "totale_consumo";
-    }
-    if(row.section==="fissa_potenza"){
-      const power=/potenz|\bkw\b/.test(label)||/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`);
-      if(power)return "potenza";
-      if(/vendita|commercializzazione/.test(label))return "vendita_fissa";
-      if(/rete|trasporto|oneri/.test(label))return "rete_fissa";
-      if(row.kind==="subtotal"||/quota fissa/.test(label))return "totale_fissa";
-    }
-    if(row.section==="altre_partite")return "altre";
-    if(row.section==="accise_iva")return "imposte";
-    if(row.section==="canone_tv")return "canone";
-    return "extra";
-  }
-  function receiptSlotDefinitions(){return [
-    {section:"consumi",key:"totale_consumo",label:"Spesa totale quota consumi",group:"Quota consumi"},
-    {section:"consumi",key:"vendita_consumo",label:"di cui spesa per vendita energia"},
-    {section:"consumi",key:"rete_consumo",label:"di cui spesa per rete e oneri"},
-    {section:"fissa_potenza",key:"totale_fissa",label:"Spesa totale quota fissa",group:"Quota fissa e quota potenza"},
-    {section:"fissa_potenza",key:"vendita_fissa",label:"di cui spesa per vendita energia"},
-    {section:"fissa_potenza",key:"rete_fissa",label:"di cui spesa per rete e oneri"},
-    {section:"fissa_potenza",key:"potenza",label:"Spesa totale quota potenza"},
-    {section:"altre_partite",key:"altre",label:"Altre partite",group:"Altre partite"},
-    {section:"accise_iva",key:"imposte",label:"Accise e IVA",group:"Accise e IVA"},
-    {section:"totale_bolletta",key:"totale_bolletta",label:"Totale bolletta"},
-    {section:"canone_tv",key:"canone",label:"Canone TV"}
-  ];}
-  function receiptReconciliationNotice(rows,docs){
-    if(docs.length!==1)return "";
-    const parts=["consumi","fissa_potenza","altre_partite","accise_iva"].map((section)=>{
-      const subset=rows.filter((row)=>row.section===section);
-      return subset.length?receiptSectionAmount(subset,section):0;
-    });
-    const total=rows.find((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
-    if(!total||parts.some((value)=>value===null))return "Quadratura non verificabile: importi principali non sufficienti nella lettura della bolletta.";
-    const sum=Number(parts.reduce((a,b)=>a+b,0).toFixed(2));
-    return Math.abs(sum-receiptAmount(total))>.035?`Quadratura non verificata: sezioni ${euro(sum)}, totale bolletta letto ${euro(receiptAmount(total))}. Verificare l’originale.`:"";
   }
   function simulatedReceiptRowsForDoc(payload){
     // Una sola bolletta: la ripartizione vendita della simulazione e' aggregata per fornitura.
@@ -1321,45 +1341,36 @@
   function originalReceiptRowsHtml({real,payload}){
     const rows=!real&&payload?simulatedReceiptRowsForDoc(payload):state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
     if(!rows.length)return null;
+    const allowed=["consumi","fissa_potenza","altre_partite","accise_iva","totale_bolletta","canone_tv","totale_pagare"];
     const grouped=new Map();
-    for(const row of rows){if(!grouped.has(row.section))grouped.set(row.section,[]);grouped.get(row.section).push(row);}
-    const slots=receiptSlotDefinitions(),lookup=new Map(),extra=[];
     for(const row of rows){
-      if(row.kind==="section"||row.kind==="total")continue;
-      const key=receiptSlotKey(row);
-      if(key==="extra"||lookup.has(key))extra.push(row);
-      else lookup.set(key,row);
+      if(!allowed.includes(row.section))continue;
+      if(!grouped.has(row.section))grouped.set(row.section,[]);
+      grouped.get(row.section).push(row);
     }
-    const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
+    if(!grouped.size)return null;
     let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
-    for(const slot of slots){
-      if(slot.key==="totale_bolletta"){
-        const total=grouped.get("totale_bolletta")?.find((r)=>receiptAmount(r)!==null);
-        html+=`<li class="receipt-grand-total"><span>Totale bolletta</span><strong>${escapeHtml(fmt(receiptAmount(total)))}</strong></li>`;
+    for(const section of allowed){
+      const sectionRows=grouped.get(section)||[];
+      if(!sectionRows.length)continue;
+      if(section==="totale_pagare")continue; // mostrato nel footer
+      if(section==="totale_bolletta"){
+        const totalRow=sectionRows.find((row)=>Number.isFinite(Number(row.amount_eur)));
+        html+=`<li class="receipt-grand-total"><span>${escapeHtml(totalRow?.label||receiptPrintedSectionTitle(section))}</span><strong>${escapeHtml(euro(totalRow?.amount_eur))}</strong></li>`;
         continue;
       }
-      if(slot.group){
-        const sectionRows=grouped.get(slot.section)||[];
-        const amount=receiptSectionAmount(sectionRows,slot.section);
-        html+=`<li class="receipt-section"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(fmt(amount))}</strong></li>`;
+      if(section!=="canone_tv"){
+        const explicitSection=sectionRows.find((row)=>row.kind==="section");
+        const amount=receiptSectionAmount(sectionRows);
+        const label=explicitSection?.label||receiptPrintedSectionTitle(section);
+        html+=`<li class="receipt-section"><span>${escapeHtml(label)}</span><strong>${escapeHtml(Number.isFinite(Number(amount))?euro(amount):"—")}</strong></li>`;
       }
-      const row=lookup.get(slot.key);
-      if(slot.key==="altre"||slot.key==="imposte"){
-        // Il totale della sezione e' già nello slot principale: non duplicarlo.
-        continue;
+      for(const row of sectionRows){
+        if(row.kind==="section")continue;
+        const amount=euro(row.amount_eur),label=escapeHtml(row.label),kindClass=row.kind==="subtotal"?" is-subtotal":(row.kind==="detail"?" is-detail":"");
+        html+=`<li class="receipt-row${kindClass}${section==="canone_tv"?" receipt-post-total":""}"><span class="receipt-label">${label}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount)}</strong></li>`;
       }
-      if(slot.key==="canone"&&!row){
-        html+='<li class="receipt-row receipt-post-total is-empty"><span class="receipt-label">Canone TV</span><span class="receipt-qty">—</span><span class="receipt-price">—</span><strong class="receipt-amount">—</strong></li>';
-        continue;
-      }
-      const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
-      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}"><span class="receipt-label">${escapeHtml(slot.label)}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
     }
-    // Le righe non assegnabili rimangono consultabili, mai aggiunte a un totale.
-    if(extra.length){
-      html+='<li class="receipt-disclaimer"><span>Dettagli ulteriori letti: consultare il documento originale per le voci non classificabili univocamente.</span></li>';
-    }
-    if(real){const message=receiptReconciliationNotice(rows,state.docs);if(message)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(message)}</span></li>`;}
     return html;
   }
   function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
