@@ -491,6 +491,7 @@
       .bill-head-action-slot{min-height:26px;margin-top:5px}
       .offer-document-button{height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9.8px!important}
     }
+    /* v0.10.98 — scontrino storico: quote verificate e totale virtuale */
     /* v0.10.88 — slot fissi per lo scontrino: etichette e altezze coerenti */
     .bill-lines li.receipt-row.is-empty{color:#94a3b8!important;background:#fbfcfd!important}
     .bill-lines li.receipt-row.is-empty .receipt-label,.bill-lines li.receipt-row.is-empty .receipt-amount{color:#64748b!important;font-weight:500!important}
@@ -1508,6 +1509,36 @@
       assigned.delete("vendita_fissa");
       assigned.delete("rete_fissa");
     }
+    // Conserva la quota fissa reale anche quando il PDF non presenta un
+    // subtotale separato, ma solo se importi, tariffa mensile, spesa vendita
+    // indipendente e totale stampato concordano tutti. Non creare sottovoci
+    // di rete né dedurre importi dai soli residui della fattura.
+    const fixedDetails=exactDetails(fixedRows);
+    const fixedSaleRows=fixedDetails.filter((row)=>receiptSlotKey(row)==="vendita_fissa");
+    const fixedPowerRows=fixedDetails.filter((row)=>receiptSlotKey(row)==="potenza");
+    const fixedSaleRow=fixedSaleRows.length===1?fixedSaleRows[0]:null;
+    const fixedPowerRow=fixedPowerRows.length===1?fixedPowerRows[0]:null;
+    const originalConsumption=receiptSectionAmount(consumptionRows,"consumi");
+    const originalTax=receiptSectionAmount(sectionRows("accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
+    const originalBill=rows.find((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
+    const originalBillPosition=rows.indexOf(originalBill);
+    const noOtherBeforeBill=originalBillPosition>=0&&!rows.slice(0,originalBillPosition).some((row)=>row.section==="altre_partite");
+    const salePrice=exactMonthlyPrice(fixedSaleRow);
+    const fixedSaleAmount=receiptAmount(fixedSaleRow),fixedPowerAmount=receiptAmount(fixedPowerRow);
+    const consumedSale=receiptAmount(assigned.get("vendita_consumo"));
+    if(doc&&fixedDetails.length===2&&fixedSaleRow&&fixedPowerRow&&
+       !assigned.has("totale_fissa")&&
+       !fixedRows.some((row)=>row.kind==="section"||row.kind==="subtotal")&&
+       Number.isFinite(billingMonths)&&billingMonths>0&&Number.isFinite(salePrice)&&
+       cents(fixedSaleAmount,salePrice*billingMonths)&&
+       saleFromBreakdown>0&&consumedSale!==null&&
+       cents(saleFromBreakdown,consumedSale+fixedSaleAmount)&&
+       originalConsumption!==null&&originalTax!==null&&fixedPowerAmount!==null&&
+       noOtherBeforeBill&&
+       cents(receiptAmount(originalBill),originalConsumption+fixedSaleAmount+fixedPowerAmount+originalTax)){
+      assigned.set("totale_fissa",{section:"fissa_potenza",kind:"derived",label:"Spesa totale quota fissa",amount_eur:fixedSaleAmount,verified:"sale_months_bill"});
+      assigned.set("vendita_fissa",{...fixedSaleRow});
+    }
     const consumptionTotal=receiptSectionAmount(consumptionRows,"consumi"),fixedTotal=receiptSectionAmount(fixedRows,"fissa_potenza");
     if(!assigned.has("totale_consumo")&&consumptionTotal!==null)put("totale_consumo",{label:"Spesa totale quota consumi",amount_eur:consumptionTotal});
     const powerAmount=receiptAmount(assigned.get("potenza"));
@@ -1556,6 +1587,22 @@
     }
     return {assigned,notes};
   }
+  function receiptNoOtherChargesVerified(rows,doc,assigned){
+    if(!doc||!["luce","gas"].includes(doc.commodity)||!Array.isArray(rows)||!rows.length||
+       rows.some((row)=>row.commodity&&row.commodity!==doc.commodity))return false;
+    const billIndex=rows.findIndex((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
+    if(billIndex<0||rows.slice(0,billIndex).some((row)=>row.section==="altre_partite"))return false;
+    const total=receiptAmount(rows[billIndex]);
+    const consumption=receiptSectionAmount(rows.filter((row)=>row.section==="consumi"),"consumi");
+    const taxes=receiptSectionAmount(rows.filter((row)=>row.section==="accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
+    const fixedRows=rows.filter((row)=>row.section==="fissa_potenza");
+    const explicit=receiptAmount(fixedRows.find((row)=>row.kind==="section"&&receiptAmount(row)!==null));
+    const fixed=receiptAmount(assigned.get("totale_fissa"));
+    const power=doc.commodity==="gas"?0:receiptAmount(assigned.get("potenza"));
+    const fixedSection=explicit!==null?explicit:fixed!==null&&power!==null?fixed+power:null;
+    return [total,consumption,taxes,fixedSection].every((value)=>value!==null)&&
+      Math.abs(total-(consumption+fixedSection+taxes))<=.035;
+  }
   function originalReceiptRowsHtml({real,payload}){
     // Se la ricostruzione analitica non è verificabile, il confronto usa
     // il riepilogo economico: non tentare di leggere .length su null.
@@ -1580,12 +1627,13 @@
           rows.slice(0,billIndex).filter((row)=>row.section===slot.section):sectionRows;
         let amount=receiptSectionAmount(beforeBill,slot.section);
         if(slot.section==="accise_iva"&&amount===null)amount=receiptTaxFromBreakdown(doc);
+        if(slot.section==="altre_partite"&&amount===null&&receiptNoOtherChargesVerified(rows,doc,lookup))amount=0;
         if(slot.section==="fissa_potenza"&&!sectionRows.some((row)=>row.kind==="section"&&receiptAmount(row)!==null)){
           const subtotalFixed=sectionRows.some((row)=>row.kind==="subtotal"&&receiptSlotKey(row)==="totale_fissa");
           const subtotalPower=sectionRows.some((row)=>row.kind==="subtotal"&&receiptSlotKey(row)==="potenza");
           const fixed=receiptAmount(lookup.get("totale_fissa")),power=receiptAmount(lookup.get("potenza"));
-          const validatedShift=lookup.get("totale_fissa")?.reclassified===true;
-          amount=((subtotalFixed&&subtotalPower)||validatedShift)&&fixed!==null&&power!==null?Number((fixed+power).toFixed(2)):null;
+          const validatedFixed=lookup.get("totale_fissa")?.reclassified===true||lookup.get("totale_fissa")?.verified==="sale_months_bill";
+          amount=((subtotalFixed&&subtotalPower)||validatedFixed)&&fixed!==null&&power!==null?Number((fixed+power).toFixed(2)):null;
         }
         html+=`<li class="receipt-section" data-align-key="receipt-group-${slot.section}"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(fmt(amount))}</strong></li>`;
       }
@@ -1599,7 +1647,7 @@
         continue;
       }
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
-      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
+      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.verified==="sale_months_bill"?" (riconciliata)":row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
     }
     // I messaggi tecnici di mappatura e quadratura non fanno parte
     // dello scontrino destinato all'utente.
@@ -1640,16 +1688,18 @@
     const oneriSeparate=originalOneri!==null&&regulatedBase!==null&&near(originalConsumption,regulatedBase+originalOneri);
     const consumptionVerified=networkIncludesOneri||oneriSeparate;
     const originalFixed=value("totale_fissa"),oldFixedSale=value("vendita_fissa"),oldFixedNetwork=value("rete_fissa"),power=value("potenza");
-    const fixedVerified=near(originalFixed,(oldFixedSale!==null&&oldFixedNetwork!==null)?oldFixedSale+oldFixedNetwork:null);
+    const verifiedNoFixedNetwork=original.get("totale_fissa")?.verified==="sale_months_bill"&&oldFixedNetwork===null&&near(originalFixed,oldFixedSale);
+    const fixedNetwork=verifiedNoFixedNetwork?0:oldFixedNetwork;
+    const fixedVerified=near(originalFixed,(oldFixedSale!==null&&fixedNetwork!==null)?oldFixedSale+fixedNetwork:null);
     // Se il totale regolato non e' verificabile non lo si tratta come zero.
     const consumptionTotal=consumptionVerified&&Number.isFinite(variable)?Number((variable+networkVariable+(oneriSeparate?originalOneri:0)).toFixed(2)):null;
     const regulatedPower=commodity==="gas"?0:power;
-    const fixedSectionTotal=fixedVerified&&regulatedPower!==null&&Number.isFinite(fixed)?Number((fixed+oldFixedNetwork+regulatedPower).toFixed(2)):null;
+    const fixedSectionTotal=fixedVerified&&regulatedPower!==null&&Number.isFinite(fixed)?Number((fixed+fixedNetwork+regulatedPower).toFixed(2)):null;
     if(consumptionTotal!==null){
       rows.set("totale_consumo",{amount_eur:consumptionTotal,quantity:consumption>0?`${number(consumption,2)} ${receiptUnitForCommodity(commodity)}`:"",unit_price:consumption>0?`x ${number(consumptionTotal/consumption,6)} ${receiptPriceUnitForCommodity(commodity)}`:""});
     }
     if(fixedVerified&&Number.isFinite(fixed)){
-      const fixedTotal=Number((fixed+oldFixedNetwork).toFixed(2));
+      const fixedTotal=Number((fixed+fixedNetwork).toFixed(2));
       rows.set("totale_fissa",{amount_eur:fixedTotal,quantity:Number.isFinite(months)&&months>0?`${number(months,2)} ${months===1?"mese":"mesi"}`:"",unit_price:Number.isFinite(months)&&months>0?`x ${number(fixedTotal/months,6)} €/mese`:""});
     }
     const taxes=receiptSectionAmount(source.filter((row)=>row.section==="accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
@@ -1659,16 +1709,7 @@
     let otherOriginal=receiptSectionAmount(otherRows,"altre_partite");
     // Uno zero puo' essere dichiarato soltanto se le altre sezioni
     // esplicite quadrano gia' con il totale stampato sulla bolletta.
-    if(!otherRows.length&&otherOriginal===null){
-      const originalBillRow=source.find((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
-      const originalConsumptionAmount=receiptSectionAmount(source.filter((row)=>row.section==="consumi"),"consumi");
-      const originalFixedRows=source.filter((row)=>row.section==="fissa_potenza");
-      const explicitFixed=originalFixedRows.find((row)=>row.kind==="section"&&receiptAmount(row)!==null);
-      const originalFixedAmount=receiptAmount(explicitFixed);
-      const originalTaxAmount=receiptSectionAmount(source.filter((row)=>row.section==="accise_iva"),"accise_iva");
-      if(originalBillRow&&originalConsumptionAmount!==null&&originalFixedAmount!==null&&originalTaxAmount!==null&&
-         near(receiptAmount(originalBillRow),originalConsumptionAmount+originalFixedAmount+originalTaxAmount))otherOriginal=0;
-    }
+    if(!otherRows.length&&otherOriginal===null&&receiptNoOtherChargesVerified(source,doc,original))otherOriginal=0;
     const other=otherOriginal!==null?Number((otherOriginal-otherDiscount).toFixed(2)):(otherDiscount>0?-otherDiscount:null);
     const groups={consumi:consumptionTotal,fissa_potenza:fixedSectionTotal,altre_partite:other,accise_iva:taxes};
     // La quadratura di tutte le voci deve corrispondere al totale fattura.
@@ -1688,7 +1729,10 @@
     const billCandidate=postTotalVerified&&Number.isFinite(Number(totalAmount))?Number((Number(totalAmount)-(originalPay-originalBill)).toFixed(2)):null;
     const complete=Object.values(groups).every((val)=>val!==null);
     const groupSum=complete?Number(Object.values(groups).reduce((sum,val)=>sum+val,0).toFixed(2)):null;
-    const billTotal=complete&&near(groupSum,billCandidate)?billCandidate:null;
+    // Il totale simulato è autonomamente verificabile dalla differenza
+    // post-totale: non oscurarlo solo perché una sottovoce non è distinta.
+    // Se la ripartizione è completa ma non quadra, resta non certificata.
+    const billTotal=billCandidate!==null&&(!complete||near(groupSum,billCandidate))?billCandidate:null;
     let html='<li class="receipt-columns" data-align-key="receipt-head"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
       if(slot.key==="totale_bolletta"){
