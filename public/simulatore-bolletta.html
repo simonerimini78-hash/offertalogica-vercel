@@ -900,22 +900,37 @@
   async function loadCatalog(){
     if(state.catalog)return state.catalog;
     const optionalJson=async(url,fallback)=>{try{const response=await fetch(url,{cache:"no-store"});return response.ok?await response.json():fallback;}catch(error){return fallback;}};
-    const [menuResponse,history,brands,indices]=await Promise.all([
+    const [menuResponse,history,brands,indices,partner]=await Promise.all([
       fetch("/data/offerte-arera-menu.json",{cache:"no-store"}),
       optionalJson("/data/offerte-arera-history.json",null),
       optionalJson("/data/provider-brand.json",{providers:{}}),
-      optionalJson("/data/archivio-indici-storici.json",null)
+      optionalJson("/data/archivio-indici-storici.json",null),
+      optionalJson("/data/offerte-partner.json",{offerte:[],offerteBusiness:[]})
     ]);
     if(!menuResponse.ok)throw new Error("Catalogo offerte non disponibile");
-    const menu=await menuResponse.json();state.catalog={menu,history,brands,indices};return state.catalog;
+    const menu=await menuResponse.json();state.catalog={menu,history,brands,indices,partner};return state.catalog;
   }
   async function refreshOfferOptions(){
     try{
-      const {menu}=await loadCatalog();const customer=customerTypeFromDocs();const supply=commoditiesFromDocs();let rows=[];
+      const {menu,partner}=await loadCatalog();const customer=customerTypeFromDocs();const supply=commoditiesFromDocs();let rows=[];
       if(supply.length===2){if(customer==="business")rows=menu.offerteDualBusiness||[];else if(customer==="privato")rows=menu.offerteDual||[];else rows=[...(menu.offerteDual||[]),...(menu.offerteDualBusiness||[])];}
       else if(supply.length===1){let base=[];if(customer==="business")base=menu.offerteBusiness||[];else if(customer==="privato")base=menu.offerte||[];else base=[...(menu.offerte||[]),...(menu.offerteBusiness||[])];rows=base.filter((row)=>row.commodity===supply[0]);}
       else rows=[...(menu.offerte||[]),...(menu.offerteBusiness||[]),...(menu.offerteDual||[]),...(menu.offerteDualBusiness||[])];
-      const deduped=new Map();rows.map(rawToOffer).filter(Boolean).filter(offerCompatible).forEach((offer)=>deduped.set(offerKey(offer),offer));state.offers=[...deduped.values()];
+      const deduped=new Map();rows.map(rawToOffer).filter(Boolean).filter(offerCompatible).forEach((offer)=>deduped.set(offerKey(offer),offer));
+      // Le CTE partner sono una sorgente opzionale distinta dalle offerte ARERA.
+      // Nessuna offerta incompleta, business su bollette private o non compatibile.
+      const partnerRows=customer==="business"?(partner?.offerteBusiness||[]):customer==="privato"?(partner?.offerte||[]):[...(partner?.offerte||[]),...(partner?.offerteBusiness||[])];
+      for(const raw of partnerRows){
+        const price=Number(raw?.prezzo),annual=Number(raw?.quotaFissaAnnua);
+        if(raw?.eligible===false||!(price>0)||!Number.isFinite(annual)||annual<0)continue;
+        const mapped=rawToOffer({...raw,customerType:raw.customerType==="domestico"?"privato":raw.customerType});
+        if(!mapped||!offerCompatible(mapped))continue;
+        // Non associare alle CTE partner un'azione ARERA di attivazione.
+        mapped.source="partner_catalog";mapped.activationOffer=null;
+        mapped.subscriptionStart=String(raw.dataInizio||"");mapped.subscriptionEnd=String(raw.dataFine||"");
+        deduped.set(offerKey(mapped),mapped);
+      }
+      state.offers=[...deduped.values()];
       const pre=safeJson(OFFER_KEY);state.preselectionIssue=null;if(pre){const resolved=resolvePreselectedOffer(pre);if(resolved){state.selected=resolved;const matchIndex=state.offers.findIndex((offer)=>sameOfferSelection(offer,resolved));if(matchIndex>=0)state.offers[matchIndex]=resolved;else state.offers.unshift(resolved);storeJson(OFFER_KEY,resolved);}else{state.selected=null;state.preselectionIssue=pre;storeJson(OFFER_KEY,null);}}
       renderProviderSelect();renderOfferSelect();updateSimulationActionLabel();renderSimulationPreview();
       const note=$("offer-selection-note");if(note){if(state.selected)note.innerHTML=`Offerta selezionata automaticamente: <strong>${escapeHtml(state.selected.provider)} — ${escapeHtml(state.selected.name)}</strong>. Puoi simularla subito oppure sceglierne un'altra.`;else if(state.preselectionIssue)note.innerHTML=`L'offerta scelta dalla card non è compatibile con la bolletta caricata. Seleziona un'offerta della stessa fornitura.`;else if(!customer)note.innerHTML=`Il tipo di utenza non è stato riconosciuto con certezza dalla bolletta: le offerte compatibili restano separate tra <strong>Privato</strong> e <strong>Business</strong>.`;else note.innerHTML=`Scegli prima il <strong>fornitore</strong> dal menu e poi l'offerta compatibile da simulare.`;}
@@ -1486,17 +1501,17 @@
     const slots=receiptSlotDefinitions(),doc=state.docs.length===1?state.docs[0]:null;
     const {assigned:lookup}=receiptFilledSlots(rows,doc);
     const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
-    let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
+    let html='<li class="receipt-columns" data-align-key="receipt-head"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
       if(slot.key==="totale_bolletta"){
         const total=grouped.get("totale_bolletta")?.find((r)=>receiptAmount(r)!==null);
-        html+=`<li class="receipt-grand-total"><span>Totale bolletta</span><strong>${escapeHtml(fmt(receiptAmount(total)))}</strong></li>`;
+        html+=`<li class="receipt-grand-total" data-align-key="receipt-billtotal"><span>Totale bolletta</span><strong>${escapeHtml(fmt(receiptAmount(total)))}</strong></li>`;
         continue;
       }
       if(slot.group){
         const sectionRows=grouped.get(slot.section)||[];
         const amount=receiptSectionAmount(sectionRows,slot.section);
-        html+=`<li class="receipt-section"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(fmt(amount))}</strong></li>`;
+        html+=`<li class="receipt-section" data-align-key="receipt-group-${slot.section}"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(fmt(amount))}</strong></li>`;
       }
       const row=lookup.get(slot.key);
       if(slot.key==="altre"||slot.key==="imposte"){
@@ -1504,14 +1519,63 @@
         continue;
       }
       if(slot.key==="canone"&&!row){
-        html+='<li class="receipt-row receipt-post-total is-empty"><span class="receipt-label">Canone TV</span><span class="receipt-qty">—</span><span class="receipt-price">—</span><strong class="receipt-amount">—</strong></li>';
+        html+='<li class="receipt-row receipt-post-total is-empty" data-align-key="receipt-canone"><span class="receipt-label">Canone TV</span><span class="receipt-qty">—</span><span class="receipt-price">—</span><strong class="receipt-amount">—</strong></li>';
         continue;
       }
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
-      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?" (per differenza)":""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
+      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?" (per differenza)":""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
     }
     // I messaggi tecnici di mappatura e quadratura non fanno parte
     // dello scontrino destinato all'utente.
+    return html;
+  }
+  function receiptFallbackSlotsHtml({real,payload,totalAmount}){
+    const slots=receiptSlotDefinitions(),commodity=commoditiesFromDocs().length===1?commoditiesFromDocs()[0]:"";
+    const part=commodity?payload?.breakdown?.[commodity]:null;
+    const doc=state.docs.length===1?state.docs[0]:null;
+    const originalRows=Array.isArray(doc?.receipt_rows)?doc.receipt_rows:[];
+    const originalSlots=originalRows.length?receiptFilledSlots(originalRows,doc).assigned:new Map();
+    const amount=(value)=>Number.isFinite(Number(value))&&value!==null?euro(Number(value)):"—";
+    const tariffDiscount=(payload?.appliedDiscounts||[]).filter((item)=>item.commodity===commodity&&item.discountKind==="tariff_percentage").reduce((sum,item)=>sum+(Number(item.amount)||0),0);
+    const consumption=commodity?periodConsumption(doc,commodity):NaN;
+    const saleVariable=part?Number(part.materiaNuova)-tariffDiscount:null;
+    const saleFixed=part?Number(part.fissoNuovo):null;
+    const rows=new Map();
+    if(part&&Number.isFinite(saleVariable)&&saleVariable>=0){
+      rows.set("vendita_consumo",{amount_eur:saleVariable,quantity:consumption>0?`${number(consumption,2)} ${commodity==="luce"?"kWh":"Smc"}`:"",unit_price:consumption>0?`x ${number(saleVariable/consumption,6)} €/${commodity==="luce"?"kWh":"Smc"}`:""});
+    }
+    if(part&&Number.isFinite(saleFixed)&&saleFixed>=0){
+      const months=doc?fixedBillingMonths(doc,commodity):NaN;
+      rows.set("vendita_fissa",{amount_eur:saleFixed,quantity:Number.isFinite(months)&&months>0?`${number(months,2)} ${months===1?"mese":"mesi"}`:"",unit_price:Number.isFinite(months)&&months>0?`x ${number(saleFixed/months,6)} €/mese`:""});
+    }
+    for(const key of ["rete_consumo","oneri_consumo","rete_fissa","potenza","canone"]){
+      if(originalSlots.has(key))rows.set(key,originalSlots.get(key));
+    }
+    const retainedTax=receiptSectionAmount(originalRows.filter((row)=>row.section==="accise_iva"),"accise_iva");
+    const retainedOther=receiptSectionAmount(originalRows.filter((row)=>row.section==="altre_partite"),"altre_partite");
+    const separateDiscount=(payload?.appliedDiscounts||[]).filter((row)=>row.discountKind!=="tariff_percentage").reduce((sum,row)=>sum+(Number(row.amount)||0),0);
+    const groupValues={
+      accise_iva:retainedTax,
+      altre_partite:retainedOther!==null?retainedOther-separateDiscount:(separateDiscount>0?-separateDiscount:null)
+    };
+    const billOriginal=originalRows.find((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
+    const billTotal=Number.isFinite(Number(totalAmount))&&doc&&billOriginal&&Number.isFinite(Number(doc.total_amount_eur))
+      ?Number(billOriginal.amount_eur)+(Number(totalAmount)-Number(doc.total_amount_eur)):null;
+    // Se la bolletta non fornisce un totale verificabile, il dato resta non ricostruito.
+    let html='<li class="receipt-columns" data-align-key="receipt-head"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
+    for(const slot of slots){
+      if(slot.key==="totale_bolletta"){
+        html+=`<li class="receipt-grand-total" data-align-key="receipt-billtotal"><span>Totale bolletta</span><strong>${escapeHtml(amount(billTotal))}</strong></li>`;
+        continue;
+      }
+      if(slot.group){
+        // Conserva imposte e partite già riconosciute; non inventare quote parziali.
+        html+=`<li class="receipt-section" data-align-key="receipt-group-${slot.section}"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(amount(groupValues[slot.section]))}</strong></li>`;
+      }
+      if(slot.key==="altre"||slot.key==="imposte")continue;
+      const row=rows.get(slot.key),post=slot.key==="canone";
+      html+=`<li class="receipt-row${row?"":" is-empty"}${post?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount(row?.amount_eur))}</strong></li>`;
+    }
     return html;
   }
   function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
@@ -1545,25 +1609,20 @@
   }
   function billRowsHtml({facts,side,payload=null,provider,offer}){
     const real=side==="real",economicRows=buildEconomicComparisonRows(payload),conditions=real?billConditionRowsFromDocs():simulatedConditionRows(payload),totalAmount=real?Number(facts.total):Number(payload?.summary?.simulatedTotal);
-    let html=`<li><span>Periodo fatturato</span><strong>${facts.period}</strong></li>`;
-    if(real){
-      if(facts.issueDate)html+=`<li><span>Data emissione</span><strong>${facts.issueDate}</strong></li>`;
-      if(facts.dueDate)html+=`<li><span>Scadenza pagamento</span><strong>${facts.dueDate}</strong></li>`;
-    }else{
-      const offerRef=state.selected||{},bounds=[offerRef.subscriptionStart,offerRef.subscriptionEnd];
-      const formatted=(value)=>{const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:"";};
-      const start=formatted(bounds[0]),end=formatted(bounds[1]);
-      if(start)html+=`<li><span>Offerta sottoscrivibile dal</span><strong>${escapeHtml(start)}</strong></li>`;
-      if(end)html+=`<li><span>Offerta sottoscrivibile fino al</span><strong>${escapeHtml(end)}</strong></li>`;
-      if(!start&&!end)html+='<li><span>Validità di sottoscrizione</span><strong>Non verificata</strong></li>';
-      const historical=state.history||historicalCheck(offerRef);
-      const label=historical.mode==="historical_fixed"||historical.mode==="document_historical_fixed"?"Valida nel periodo fatturato":historical.mode==="unavailable"||historical.mode==="document_unavailable"?"Non valida nel periodo fatturato":historical.mode==="partial"||historical.mode==="document_partial"?"Valida solo in parte del periodo":"Validità storica non verificata";
-      html+=`<li><span>Validità nel periodo fatturato</span><strong>${escapeHtml(label)}</strong></li>`;
-    }
-    html+=`<li><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line"><span>Scontrino dell'energia</span><strong></strong></li>`;
+    let html=`<li data-align-key="period"><span>Periodo fatturato</span><strong>${facts.period}</strong></li>`;
+    const offerRef=state.selected||{},formatted=(value)=>{const m=String(value||"").match(/^(\d{4})-(\d{2})-(\d{2})/);return m?`${m[3]}/${m[2]}/${m[1]}`:"";};
+    const start=formatted(offerRef.subscriptionStart),end=formatted(offerRef.subscriptionEnd);
+    const subscription=start&&end?`${start} – ${end}`:start?`Dal ${start}`:end?`Fino al ${end}`:"Non verificata";
+    const historical=state.history||historicalCheck(offerRef);
+    const validity=historical.mode==="historical_fixed"||historical.mode==="document_historical_fixed"?"Valida nel periodo fatturato":historical.mode==="unavailable"||historical.mode==="document_unavailable"?"Non valida nel periodo fatturato":historical.mode==="partial"||historical.mode==="document_partial"?"Valida solo in parte del periodo":"Validità storica non verificata";
+    // Schema comune: gli spazi prima dello scontrino restano speculari.
+    html+=`<li data-align-key="issued"><span>Data emissione</span><strong>${real?escapeHtml(facts.issueDate||"—"):"—"}</strong></li>`;
+    html+=`<li data-align-key="due"><span>Scadenza pagamento</span><strong>${real?escapeHtml(facts.dueDate||"—"):"—"}</strong></li>`;
+    html+=`<li data-align-key="subscription"><span>Validità di sottoscrizione</span><strong>${real?"—":escapeHtml(subscription)}</strong></li>`;
+    html+=`<li data-align-key="validity"><span>Validità nel periodo fatturato</span><strong>${real?"—":escapeHtml(validity)}</strong></li>`;
+    html+=`<li data-align-key="supply"><span>Tipo fornitura</span><strong>${facts.supplyLabel}</strong></li><li data-align-key="provider"><span>Fornitore</span><strong>${escapeHtml(provider||"—")}</strong></li><li data-align-key="offer"><span>Offerta</span><strong>${escapeHtml(offer||"—")}</strong></li><li data-align-key="consumption"><span>Consumo del periodo</span><strong>${facts.consumptionText}</strong></li><li class="section-line" data-align-key="receipt-section-title"><span>Scontrino dell'energia</span><strong></strong></li>`;
     const originalReceipt=originalReceiptRowsHtml({real,payload});
-    html+=originalReceipt||buildReceiptRowsHtml(economicRows,{real,payload,totalAmount});
-    if(!originalReceipt)html+='<li class="receipt-disclaimer"><span>Dettaglio dello scontrino non ricostruibile integralmente: le voci aggregate non sono una trascrizione analitica della bolletta.</span></li>';
+    html+=originalReceipt||receiptFallbackSlotsHtml({real,payload,totalAmount});
     if(!real&&state.selected){
       const offers=[...Object.values(state.selected.components||{}).flatMap((part)=>part.discounts||[]),...(state.selected.discounts||[])];
       for(const discount of offers){
@@ -1620,17 +1679,17 @@
     const leftFooter=document.querySelector(".bill-paper.real .bill-total"),rightFooter=document.querySelector(".bill-paper.simulated .bill-total");
     [...left,...right,leftFooter,rightFooter].filter(Boolean).forEach((node)=>{node.style.height="";node.style.minHeight="";});
     if(window.matchMedia("(max-width:700px)").matches)return;
-    const total=Math.max(left.length,right.length);
-    for(let index=0;index<total;index++){
-      const a=left[index],b=right[index];
-      const height=Math.max(a?.offsetHeight||0,b?.offsetHeight||0);
-      if(a&&height){a.style.height=`${height}px`;a.style.minHeight=`${height}px`;}
-      if(b&&height){b.style.height=`${height}px`;b.style.minHeight=`${height}px`;}
+    const rightByKey=new Map(right.filter((node)=>node.dataset.alignKey).map((node)=>[node.dataset.alignKey,node]));
+    for(const a of left){
+      const b=rightByKey.get(a.dataset.alignKey);if(!a.dataset.alignKey||!b)continue;
+      const height=Math.max(a.offsetHeight,b.offsetHeight);
+      if(height){a.style.minHeight=`${height}px`;b.style.minHeight=`${height}px`;}
     }
     const footerHeight=Math.max(leftFooter?.offsetHeight||0,rightFooter?.offsetHeight||0);
-    if(leftFooter&&footerHeight){leftFooter.style.height=`${footerHeight}px`;leftFooter.style.minHeight=`${footerHeight}px`;}
-    if(rightFooter&&footerHeight){rightFooter.style.height=`${footerHeight}px`;rightFooter.style.minHeight=`${footerHeight}px`;}
+    if(leftFooter&&footerHeight)leftFooter.style.minHeight=`${footerHeight}px`;
+    if(rightFooter&&footerHeight)rightFooter.style.minHeight=`${footerHeight}px`;
   }
+
   function scheduleBillHeightSync(){
     billSyncTimers.forEach((id)=>window.clearTimeout(id));
     billSyncTimers=[];
@@ -1641,7 +1700,7 @@
   function ensureBillLayoutObserver(){
     if(billLayoutObserver||typeof ResizeObserver==="undefined")return;
     billLayoutObserver=new ResizeObserver(()=>scheduleBillHeightSync());
-    [document.querySelector(".bill-paper.real"),document.querySelector(".bill-paper.simulated"),$("real-bill-lines"),$("virtual-bill-lines")].filter(Boolean).forEach((node)=>billLayoutObserver.observe(node));
+    [document.querySelector(".bill-paper.real"),document.querySelector(".bill-paper.simulated")].filter(Boolean).forEach((node)=>billLayoutObserver.observe(node));
   }
   function renderBillPanels(payload=null){
     const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);

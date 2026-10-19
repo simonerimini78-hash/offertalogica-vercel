@@ -19492,7 +19492,15 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
   const attuale = leggiOffertaAttuale();
   const tipoTariffa = leggiValore("master-luce-tipo", "fisso");
   const tipoFornitura = tipoFornituraPerCalcolo();
-  const offerta = miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura);
+  let offerta = miglioreNuovaOffertaPerFornitore(providerKey, attuale, tipoTariffa, tipoFornitura);
+  let passaggioVariabile = false;
+  // Questi cataloghi partner contengono CTE variabili, non offerte fisse.
+  // Solo nel confronto per fornitore, se non esiste una proposta del tipo
+  // scelto, seleziona una variabile compatibile e dichiara il cambio filtro.
+  if (!offerta && tipoTariffa === "fisso" && ["greenius", "ovenergy", "liongreen"].includes(providerKey)) {
+    const candidate = miglioreNuovaOffertaPerFornitore(providerKey, attuale, "variabile", tipoFornitura);
+    if (candidate?.tipo === "variabile") {offerta = candidate;passaggioVariabile = true;}
+  }
 
   if (!offerta) {
     const avevaOffertaAutomatica = Boolean(NUOVA_OFFERTA_AUTOMATICA?.offerta);
@@ -19507,6 +19515,7 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
   }
 
   applicaOffertaAlBloccoNuovo(offerta, providerKey);
+  if (passaggioVariabile) mostraHintNuovaOfferta(`Offerte disponibili di ${offerta.provider || etichettaFornitoreSelezionato()}\nLa CTE compatibile trovata è a prezzo variabile: il filtro è stato aggiornato da fisso a variabile. Offerta selezionata: ${offerta.nome}. Fonte: catalogo CTE partner. Puoi cambiare filtro o proposta.`);
   return true;
 }
 
