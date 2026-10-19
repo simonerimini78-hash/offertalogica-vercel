@@ -1274,6 +1274,15 @@
     if(section==="altre_partite"||section==="accise_iva")return details.length===1?receiptAmount(details[0]):null;
     return null;
   }
+  function receiptTaxFromBreakdown(doc){
+    if(!doc)return null;
+    const rows=[...(doc.bill_breakdown_luce||[]),...(doc.bill_breakdown_gas||[])];
+    const excise=rows.filter((row)=>row.category==="bill_excise"&&receiptAmount(row)!==null);
+    const vat=rows.filter((row)=>row.category==="bill_vat"&&receiptAmount(row)!==null);
+    // La sola IVA non dimostra che non vi siano accise e viceversa.
+    if(!excise.length||!vat.length)return null;
+    return Number([...excise,...vat].reduce((sum,row)=>sum+receiptAmount(row),0).toFixed(2));
+  }
   function receiptSlotKey(row){
     const label=normalizeReceiptLabel(row.label||"");
     if(row.section==="consumi"){
@@ -1424,33 +1433,62 @@
     const hasFixedParent=fixedRows.some((row)=>row.kind==="subtotal"&&receiptAmount(row)!==null&&receiptSlotKey(row)==="totale_fissa");
     const monthly=f.filter((row)=>!/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`)&&!/potenz/i.test(row.label||""));
     const powers=f.filter((row)=>/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`)||/potenz/i.test(row.label||""));
-    // Altro slittamento documentato: 14,92 è il totale fisso, 11,08
-    // è la vendita, 11,86 è la potenza. La quota rete non era conservata.
+    // Recupera una traslazione di riga SOLO quando esistono riscontri
+    // aritmetici indipendenti: tariffe per mese, durata, potenza e totale.
+    // Nessuna regola dipende dal nome del fornitore o da importi prefissati.
+    const billingMonths=doc?fixedBillingMonths(doc,doc.commodity):NaN;
+    const exactMonthlyPrice=(row)=>{
+      const match=String(row?.unit_price||"").match(/([0-9]+(?:[.,][0-9]+)?)\s*(?:€|eur)\s*\/\s*mes/i);
+      return match?Number(match[1].replace(",",".")):NaN;
+    };
+    const verifiedMonthly=(row)=>Number.isFinite(billingMonths)&&billingMonths>0&&Number.isFinite(exactMonthlyPrice(row))&&
+      cents(receiptAmount(row),Number((exactMonthlyPrice(row)*billingMonths).toFixed(2)));
+    const computedPower=(row)=>{
+      const match=String(row?.unit_price||"").match(/([0-9]+(?:[.,][0-9]+)?)\s*(?:€|eur)\s*\/\s*kW\b/i);
+      const kw=numericValue(doc?.potenza_impegnata_kw);
+      if(!match||!(kw>0)||!(billingMonths>0))return null;
+      const expected=Number((Number(match[1].replace(",","."))*kw*billingMonths).toFixed(2));
+      const read=receiptAmount(row);
+      return Number.isFinite(expected)&&expected>=0&&(cents(read,expected)||cents(read*billingMonths,expected))?expected:null;
+    };
+    const powerCandidate=powers.length===1?computedPower(powers[0]):null;
     const billRead=receiptAmount(rows.find((row)=>row.section==="totale_bolletta"));
     const consumptionRead=receiptSectionAmount(consumptionRows,"consumi");
-    const taxRead=receiptSectionAmount(sectionRows("accise_iva"),"accise_iva");
-    const otherRead=receiptSectionAmount(sectionRows("altre_partite"),"altre_partite")??0;
-    const fPotential=monthly.length===2&&powers.length===1?
-      (consumptionRead??NaN)+receiptAmount(monthly[0])+receiptAmount(powers[0])+(taxRead??NaN)+otherRead:NaN;
-    const fAlternative=monthly.length===2&&powers.length===1?
-      fPotential+receiptAmount(monthly[1]):NaN;
-    const fixedShiftConfirmed=Number.isFinite(billRead)&&Number.isFinite(fPotential)&&
-      Math.abs(billRead-fPotential)<=.2&&Math.abs(billRead-fAlternative)>1;
-    if(!hasFixedParent&&fixedShiftConfirmed&&
-       /vendita/.test(normalizeReceiptLabel(monthly[0].label))&&
-       /rete|trasporto/.test(normalizeReceiptLabel(monthly[1].label))&&
-       receiptAmount(monthly[0])>receiptAmount(monthly[1])&&
-       receiptAmount(monthly[1])>0){
-      const fixed=receiptAmount(monthly[0]),sale=receiptAmount(monthly[1]);
-      assigned.set("totale_fissa",{...monthly[0],label:"Spesa totale quota fissa"});
-      assigned.set("vendita_fissa",{...monthly[1],label:"di cui vendita energia"});
+    const taxRead=receiptSectionAmount(sectionRows("accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
+    const originalBillIndex=rows.findIndex((row)=>row.section==="totale_bolletta");
+    const extrasBefore=rows.slice(0,originalBillIndex>=0?originalBillIndex:rows.length).filter((row)=>row.section==="altre_partite");
+    const otherRead=extrasBefore.length?receiptSectionAmount(extrasBefore,"altre_partite"):0;
+    const first=monthly[0],second=monthly[1];
+    const orderedShift=monthly.length===2&&powers.length===1&&
+      /vendita/.test(normalizeReceiptLabel(first.label))&&
+      /rete|trasporto/.test(normalizeReceiptLabel(second.label))&&
+      !hasFixedParent&&receiptAmount(first)>receiptAmount(second)&&receiptAmount(second)>0&&
+      verifiedMonthly(first)&&verifiedMonthly(second);
+    const parentTotal=orderedShift&&powerCandidate!==null&&consumptionRead!==null&&taxRead!==null&&otherRead!==null?
+      Number((consumptionRead+receiptAmount(first)+powerCandidate+taxRead+otherRead).toFixed(2)):null;
+    const literalTotal=parentTotal!==null?Number((parentTotal+receiptAmount(second)).toFixed(2)):null;
+    // 10 centesimi di discrepanza possono provenire da una lettura OCR
+    // errata del totale: NON li correggiamo qui. La tolleranza serve solo
+    // a riconoscere una possibile gerarchia, non a certificare la bolletta.
+    const saleFromBreakdown=doc?explicitMateriaAmount(doc,doc.commodity):0;
+    const recognizedSale=receiptAmount(assigned.get("vendita_consumo"));
+    const independentSale=saleFromBreakdown>0&&recognizedSale!==null&&
+      cents(saleFromBreakdown,recognizedSale+receiptAmount(second));
+    const independentMatch=independentSale||(parentTotal!==null&&billRead!==null&&
+      Math.abs(billRead-parentTotal)<=.11&&Math.abs(billRead-literalTotal)>1);
+    if(orderedShift&&independentMatch){
+      const fixed=receiptAmount(first),sale=receiptAmount(second);
+      assigned.set("totale_fissa",{...first,label:"Spesa totale quota fissa",reclassified:true});
+      assigned.set("vendita_fissa",{...second,label:"di cui vendita energia",reclassified:true});
       const network=Number((fixed-sale).toFixed(2));
-      if(network>=0){
-        const months=doc?fixedBillingMonths(doc,doc.commodity):NaN;
-        assigned.set("rete_fissa",{section:"fissa_potenza",kind:"derived",label:"di cui rete e oneri",quantity:Number.isFinite(months)&&months>0?`${number(months,2)} ${months===1?"mese":"mesi"}`:"",unit_price:Number.isFinite(months)&&months>0?`x ${number(network/months,6)} €/mese`:"",amount_eur:network,derived:true});
+      assigned.set("rete_fissa",{section:"fissa_potenza",kind:"derived",label:"di cui rete e oneri",quantity:`${number(billingMonths,2)} ${billingMonths===1?"mese":"mesi"}`,unit_price:`x ${number(network/billingMonths,6)} €/mese`,amount_eur:network,derived:true});
+      const readPower=receiptAmount(powers[0]);
+      if(!cents(readPower,powerCandidate)){
+        const kw=numericValue(doc.potenza_impegnata_kw);
+        assigned.set("potenza",{...powers[0],label:"Spesa totale quota potenza",amount_eur:powerCandidate,
+          quantity:`${number(kw,2)} kW × ${number(billingMonths,2)} ${billingMonths===1?"mese":"mesi"}`,derived:true,derivedKind:"unit_price"});
       }
-      assigned.set("potenza",{...powers[0]});
-      notes.push("La quota rete fissa è ricavata per differenza fra totale fisso e vendita; non era presente come dato separato nella lettura.");
+      notes.push("Gerarchia quota fissa e durata della potenza riconciliate tramite prezzi unitari, periodo e importi; valori letti conservati nell'origine.");
     }
     // Se una riga "di cui" contraddice il suo stesso subtotale, non
     // assegnarla a uno slot economico come se fosse un valore certo.
@@ -1541,11 +1579,13 @@
         const beforeBill=slot.section==="altre_partite"&&billIndex>=0?
           rows.slice(0,billIndex).filter((row)=>row.section===slot.section):sectionRows;
         let amount=receiptSectionAmount(beforeBill,slot.section);
+        if(slot.section==="accise_iva"&&amount===null)amount=receiptTaxFromBreakdown(doc);
         if(slot.section==="fissa_potenza"&&!sectionRows.some((row)=>row.kind==="section"&&receiptAmount(row)!==null)){
           const subtotalFixed=sectionRows.some((row)=>row.kind==="subtotal"&&receiptSlotKey(row)==="totale_fissa");
           const subtotalPower=sectionRows.some((row)=>row.kind==="subtotal"&&receiptSlotKey(row)==="potenza");
           const fixed=receiptAmount(lookup.get("totale_fissa")),power=receiptAmount(lookup.get("potenza"));
-          amount=(subtotalFixed&&subtotalPower&&fixed!==null&&power!==null)?Number((fixed+power).toFixed(2)):null;
+          const validatedShift=lookup.get("totale_fissa")?.reclassified===true;
+          amount=((subtotalFixed&&subtotalPower)||validatedShift)&&fixed!==null&&power!==null?Number((fixed+power).toFixed(2)):null;
         }
         html+=`<li class="receipt-section" data-align-key="receipt-group-${slot.section}"><span>${escapeHtml(slot.group)}</span><strong>${escapeHtml(fmt(amount))}</strong></li>`;
       }
@@ -1559,7 +1599,7 @@
         continue;
       }
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
-      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?" (per differenza)":""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
+      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
     }
     // I messaggi tecnici di mappatura e quadratura non fanno parte
     // dello scontrino destinato all'utente.
@@ -1612,7 +1652,7 @@
       const fixedTotal=Number((fixed+oldFixedNetwork).toFixed(2));
       rows.set("totale_fissa",{amount_eur:fixedTotal,quantity:Number.isFinite(months)&&months>0?`${number(months,2)} ${months===1?"mese":"mesi"}`:"",unit_price:Number.isFinite(months)&&months>0?`x ${number(fixedTotal/months,6)} €/mese`:""});
     }
-    const taxes=receiptSectionAmount(source.filter((row)=>row.section==="accise_iva"),"accise_iva");
+    const taxes=receiptSectionAmount(source.filter((row)=>row.section==="accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
     const sourceBillIndex=source.findIndex((row)=>row.section==="totale_bolletta"&&receiptAmount(row)!==null);
     const beforeBill=sourceBillIndex>=0?source.slice(0,sourceBillIndex):source;
     const otherRows=beforeBill.filter((row)=>row.section==="altre_partite");
