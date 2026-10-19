@@ -483,6 +483,10 @@ async function handleEditorialSitemap(req, res) {
 }
 
 
+function italianCampaignDate(now = new Date()) {
+  return new Intl.DateTimeFormat('en-CA', { timeZone: 'Europe/Rome', year: 'numeric', month: '2-digit', day: '2-digit' }).format(now);
+}
+
 async function serveTerritorialAdvertising(req, res, cap) {
   if (req.method !== 'GET') return json(res, 405, { ok:false, error:'Metodo non consentito' });
   if (!/^\d{5}$/.test(cap)) return json(res,400,{ok:false,error:'CAP non valido'});
@@ -490,7 +494,8 @@ async function serveTerritorialAdvertising(req, res, cap) {
   const serviceKey=String(process.env.EDITORIAL_SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||'');
   if(!dbUrl||!serviceKey) return json(res,200,{ok:true,ads:[]});
   try {
-    const path='/rest/v1/ol_ad_campaigns?select=id,provider_name,space_code,territory_code,format,delivery_mode,creative_url,target_url,target_caps&status=eq.active&begins_on=lte.'+new Date().toISOString().slice(0,10)+'&ends_on=gte.'+new Date().toISOString().slice(0,10)+'&target_caps=cs.'+encodeURIComponent('{'+cap+'}')+'&limit=60';
+    const today = italianCampaignDate();
+    const path='/rest/v1/ol_ad_campaigns?select=id,provider_name,space_code,territory_code,format,delivery_mode,creative_url,target_url,target_caps&status=eq.active&begins_on=lte.'+today+'&ends_on=gte.'+today+'&target_caps=cs.'+encodeURIComponent('{'+cap+'}')+'&limit=60';
     const response=await fetch(dbUrl+path,{headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey},signal:AbortSignal.timeout(4500)});
     if(!response.ok) throw new Error('ads read failure');
     const rows=await response.json();
