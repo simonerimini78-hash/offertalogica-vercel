@@ -1162,14 +1162,53 @@
     if(key==="totale_pagare")return "Totale da pagare";
     return "";
   }
-  function receiptSectionAmount(rows){
-    const sectionRow=rows.find((row)=>row.kind==="section"&&Number.isFinite(Number(row.amount_eur)));
-    if(sectionRow)return Number(sectionRow.amount_eur);
-    const subtotalRows=rows.filter((row)=>row.kind==="subtotal"&&Number.isFinite(Number(row.amount_eur)));
-    if(subtotalRows.length)return Number(subtotalRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
-    const detailRows=rows.filter((row)=>Number.isFinite(Number(row.amount_eur)));
-    if(detailRows.length)return Number(detailRows.reduce((sum,row)=>sum+(Number(row.amount_eur)||0),0).toFixed(2));
-    return null;
+  function receiptSectionAmount(rows,section=""){
+    const value=(row)=>Number(row?.amount_eur);
+    const valid=(row)=>row&&row.amount_eur!==null&&Number.isFinite(value(row));
+    const same=(a,b)=>Math.abs(a-b)<=.025;
+    const sectionRow=rows.find((row)=>row.kind==="section"&&valid(row));
+    if(sectionRow)return value(sectionRow);
+    const subtotalRows=rows.filter((row)=>row.kind==="subtotal"&&valid(row));
+    if(subtotalRows.length)return Number(subtotalRows.reduce((sum,row)=>sum+value(row),0).toFixed(2));
+    const detailRows=rows.filter(valid);
+    if(!detailRows.length)return null;
+    // Le righe "di cui" sono ripartizioni, non addebiti aggiuntivi.
+    // Accetta una ricostruzione solo quando e' sostenuta da una relazione aritmetica
+    // oppure da unita' di misura non ambigue, senza sommare tutti i dettagli.
+    if(section==="consumi"){
+      for(const row of detailRows){
+        const others=detailRows.filter((candidate)=>candidate!==row);
+        if(others.length>=2&&same(value(row),others.reduce((sum,item)=>sum+value(item),0)))return value(row);
+      }
+      return detailRows.length===1&&!/^\s*di cui\b/i.test(detailRows[0].label||"")?value(detailRows[0]):null;
+    }
+    if(section==="fissa_potenza"){
+      const power=detailRows.filter((row)=>/\bpotenza\b|\bkw\b/i.test(`${row.label||""} ${row.quantity||""} ${row.unit_price||""}`)&&/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`));
+      const monthly=detailRows.filter((row)=>!/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`)&&/mes/i.test(`${row.quantity||""} ${row.unit_price||""}`));
+      // Ciascun blocco ha sottovoci: fra righe mensili omogenee il valore
+      // maggiore non va sommato alle altre sottovoci.
+      if(monthly.length&&power.length){
+        const fixed=Math.max(...monthly.map(value));
+        const powerAmount=Math.max(...power.map(value));
+        if(Number.isFinite(fixed)&&Number.isFinite(powerAmount))return Number((fixed+powerAmount).toFixed(2));
+      }
+      return detailRows.length===1?value(detailRows[0]):null;
+    }
+    // Altre partite e imposte con piu' righe non hanno una gerarchia certa.
+    return detailRows.length===1?value(detailRows[0]):null;
+  }
+  function receiptReconciliationNotice(rows,docs){
+    if(docs.length!==1)return "";
+    const doc=docs[0];
+    const values=["consumi","fissa_potenza","altre_partite","accise_iva"].map((section)=>{
+      const group=rows.filter((row)=>row.section===section);
+      return group.length?receiptSectionAmount(group,section):0;
+    });
+    const subtotal=rows.find((row)=>row.section==="totale_bolletta"&&Number.isFinite(Number(row.amount_eur)));
+    if(!subtotal||values.some((item)=>item===null))return "Gerarchia incompleta: una o più voci non sono ricostruibili con certezza dai dettagli estratti.";
+    const calculated=Number(values.reduce((sum,item)=>sum+item,0).toFixed(2));
+    if(Math.abs(calculated-Number(subtotal.amount_eur))>.035)return `Quadratura non verificata: somma delle sezioni ${euro(calculated)}, totale bolletta letto ${euro(subtotal.amount_eur)}. Verificare il PDF originale.`;
+    return "";
   }
   function simulatedReceiptRowsForDoc(payload){
     // Una sola bolletta: la ripartizione vendita della simulazione e' aggregata per fornitura.
@@ -1258,7 +1297,7 @@
       }
       if(section!=="canone_tv"){
         const explicitSection=sectionRows.find((row)=>row.kind==="section");
-        const amount=receiptSectionAmount(sectionRows);
+        const amount=receiptSectionAmount(sectionRows,section);
         const label=explicitSection?.label||receiptPrintedSectionTitle(section);
         html+=`<li class="receipt-section"><span>${escapeHtml(label)}</span><strong>${escapeHtml(Number.isFinite(Number(amount))?euro(amount):"—")}</strong></li>`;
       }
@@ -1267,6 +1306,10 @@
         const amount=euro(row.amount_eur),label=escapeHtml(row.label),kindClass=row.kind==="subtotal"?" is-subtotal":(row.kind==="detail"?" is-detail":"");
         html+=`<li class="receipt-row${kindClass}${section==="canone_tv"?" receipt-post-total":""}"><span class="receipt-label">${label}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(amount)}</strong></li>`;
       }
+    }
+    if(real){
+      const message=receiptReconciliationNotice(rows,state.docs);
+      if(message)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(message)}</span></li>`;
     }
     return html;
   }
