@@ -1484,8 +1484,7 @@
     const grouped=new Map();
     for(const row of rows){if(!grouped.has(row.section))grouped.set(row.section,[]);grouped.get(row.section).push(row);}
     const slots=receiptSlotDefinitions(),doc=state.docs.length===1?state.docs[0]:null;
-    const {assigned:lookup,notes}=receiptFilledSlots(rows,doc);
-    const extra=rows.filter((row)=>row.kind!=="section"&&row.kind!=="total"&&receiptSlotKey(row)==="extra");
+    const {assigned:lookup}=receiptFilledSlots(rows,doc);
     const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
     let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
@@ -1511,15 +1510,8 @@
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
       html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?" (per differenza)":""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
     }
-    // Le righe non assegnabili rimangono consultabili, mai aggiunte a un totale.
-    if(extra.length){
-      html+='<li class="receipt-disclaimer"><span>Dettagli ulteriori letti: consultare il documento originale per le voci non classificabili univocamente.</span></li>';
-    }
-    if(real){
-      for(const note of notes)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(note)}</span></li>`;
-      const message=receiptReconciliationNotice(rows,state.docs);
-      if(message)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(message)}</span></li>`;
-    }
+    // I messaggi tecnici di mappatura e quadratura non fanno parte
+    // dello scontrino destinato all'utente.
     return html;
   }
   function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
