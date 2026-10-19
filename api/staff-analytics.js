@@ -8440,6 +8440,8 @@ export default async function handler(req, res) {
         target_url: clean(data.target_url, 1000),
         notes: clean(data.notes, 1200),
       };
+      // Solo lo spazio territorio_a e' effettivamente erogato dal frontend pubblico.
+      if (body.space_code !== 'territorio_a') return json(res, 400, { ok: false, error: 'Spazio non pubblicabile: e’ disponibile solo territorio_a' });
       if (body.target_caps.length === 0 || !body.target_caps.every(c => /^\d{5}$/.test(c))) return json(res, 400, { ok: false, error: "Indicare i CAP verificati per la campagna" });
       if (!body.provider_name || !/^[a-z0-9_-]{2,32}$/i.test(body.space_code) || !/^(?:[0-9]{2}|[0-9]{2}:[0-9]{3}|[0-9]{2}:[0-9]{3}:[0-9]{6})$/.test(body.territory_code)) {
         return json(res, 400, { ok: false, error: "Fornitore, spazio o codice territoriale non valido" });
