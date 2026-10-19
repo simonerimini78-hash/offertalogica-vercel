@@ -491,7 +491,7 @@
       .bill-head-action-slot{min-height:26px;margin-top:5px}
       .offer-document-button{height:26px!important;min-height:26px!important;padding:3px 8px!important;font-size:9.8px!important}
     }
-    /* v0.10.100 — diagnostica locale delle righe ricevute, mappate e mostrate */
+    /* v0.10.101 — correzione mappatura e totali del simulatore storico */
     /* v0.10.99 — scontrino storico: preserva righe lette e usa la proiezione completa */
     /* v0.10.98 — scontrino storico: quote verificate e totale virtuale */
     /* v0.10.88 — slot fissi per lo scontrino: etichette e altezze coerenti */
@@ -539,27 +539,7 @@
     .simulate-action{flex-wrap:wrap!important}
     .simulate-action-error{width:100%;margin:8px 0 0!important;padding:10px 12px;border:1px solid #fecaca;border-radius:9px;background:#fef2f2;color:#991b1b;font-size:12px;line-height:1.45;text-align:left}
     .simulate-action-error[hidden]{display:none!important}
-  
-    /* Diagnostica passiva; non modifica gli scontrini o il calcolo. */
-    .reading-diagnostics{margin:16px 0;padding:0;border:1px solid #cbd5e1;border-radius:12px;background:#fff;color:#182439}
-    .reading-diagnostics[hidden]{display:none!important}
-    .reading-diagnostics>summary{cursor:pointer;padding:15px 18px;font-size:14px;font-weight:800}
-    .reading-diagnostics-body{padding:0 18px 18px;border-top:1px solid #e2e8f0;font-size:12px;line-height:1.55}
-    .reading-diagnostics-body h3{font-size:14px;margin:20px 0 7px}
-    .reading-diagnostics-body h4{font-size:12px;margin:14px 0 5px}
-    .reading-diagnostics-body p{margin:10px 0;color:#41536b}
-    .reading-diagnostics-controls{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin:12px 0}
-    .reading-diagnostics-controls button{font:inherit;font-weight:750;color:#174ba9;background:#f1f5ff;border:1px solid #cbd5e1;border-radius:7px;padding:8px 12px;cursor:pointer}
-    .reading-diagnostics-table-wrap{overflow-x:auto;border:1px solid #e2e8f0;border-radius:7px;margin:8px 0}
-    .reading-diagnostics-table{border-collapse:collapse;width:100%;font-size:11px;min-width:760px}
-    .reading-diagnostics-table th,.reading-diagnostics-table td{padding:8px;text-align:left;vertical-align:top;border-bottom:1px solid #e2e8f0;overflow-wrap:anywhere}
-    .reading-diagnostics-table th{background:#f3f6fa;color:#27384e;white-space:nowrap}
-    .reading-diagnostics-table tr:last-child td{border-bottom:0}
-    .reading-diagnostics-table .diag-missing{color:#991b1b;font-weight:750}
-    .reading-diagnostics-table .diag-found{color:#166534}
-    .reading-diagnostics-json{white-space:pre-wrap;overflow-wrap:anywhere;max-height:340px;overflow:auto;font-size:11px;padding:12px;background:#f3f6fa;border:1px solid #e2e8f0;border-radius:7px}
-    @media(max-width:700px){.reading-diagnostics{margin:12px 0}.reading-diagnostics>summary{padding:12px}.reading-diagnostics-body{padding:0 12px 12px}}
-</style>
+  </style>
 </head>
 <body>
 <a class="skip-link" href="#main-content">Vai al contenuto principale</a>
@@ -657,14 +637,6 @@
           <details class="info-card info-disclosure"><summary>Come viene calcolata</summary><div class="info-card-body"><ul><li>consumo del periodo letto dalla bolletta;</li><li>quota fissa riproporzionata sui giorni fatturati;</li><li>prezzo della nuova offerta;</li><li>altre voci mantenute come riferimento quando non dipendono dall'offerta confrontata.</li></ul></div></details>
           <details class="info-card info-disclosure"><summary>Dati dell'offerta confrontata</summary><div class="info-card-body"><p><strong>Fornitore:</strong> <span id="offer-provider">—</span></p><p><strong>Offerta:</strong> <span id="offer-name">—</span></p><p><strong>Tipologia:</strong> <span id="offer-type">—</span></p><p id="offer-price-line"><strong>Prezzo applicato:</strong> —</p></div></details>
         </div>
-        <details class="reading-diagnostics" id="bill-reading-diagnostics" hidden>
-          <summary>Diagnostica lettura bolletta (cosa è stato ricevuto e mostrato)</summary>
-          <div class="reading-diagnostics-body">
-            <p>Mostra esclusivamente i dati strutturati restituiti dal lettore, non il testo o l'immagine integrale del PDF. Non modifica lettura, classificazione, simulazione o importi.</p>
-            <div class="reading-diagnostics-controls"><button type="button" id="download-reading-diagnostics">Esporta diagnostica JSON</button><span>Il file può contenere dati personali della bolletta: condividilo solo dopo averlo controllato.</span></div>
-            <div id="reading-diagnostics-content" aria-live="polite"></div>
-          </div>
-        </details>
         <p class="bill-note" id="bill-note"><strong>Nota:</strong> la bolletta ricalcolata è un risultato informativo OffertaLogica e non una fattura emessa dal fornitore.</p>
       </div>
     </div>
@@ -718,7 +690,7 @@
   const RETURN_OFFERS_KEY="offertalogicaSimulatorReturnOffersV1";
   const RETURN_URL_KEY="offertalogicaBillSimulatorReturnUrlV1";
   const PDF_DIRECT_UPLOAD_THRESHOLD_BYTES=4000000;
-  const state={docs:[],offers:[],filtered:[],selected:null,history:null,stream:null,catalog:null,preselectionIssue:null,diagnosticReads:[]};
+  const state={docs:[],offers:[],filtered:[],selected:null,history:null,stream:null,catalog:null,preselectionIssue:null};
   const $=(id)=>document.getElementById(id);
   const euro=(value)=>Number.isFinite(Number(value))?new Intl.NumberFormat("it-IT",{style:"currency",currency:"EUR",minimumFractionDigits:2}).format(Number(value)):"—";
   const number=(value,digits=2)=>Number.isFinite(Number(value))?new Intl.NumberFormat("it-IT",{maximumFractionDigits:digits}).format(Number(value)):"—";
@@ -823,18 +795,13 @@
   async function analyzePhoto(file,source="camera"){const prepared=await prepareBillPhoto(file);const body=new FormData();body.append("photo",prepared,prepared.name);body.append("inputSource",source);body.append("archiveContext",JSON.stringify({customerType:"",inputKind:"photo",source:"simulator"}));return jsonResponse(await fetch("/api/analyze-pdf",{method:"POST",body}));}
   async function acceptDocuments(files,kind){
     const list=[...files];if(!list.length)return;setUploadStatus(`Lettura ${list.length>1?"delle bollette":"della bolletta"} in corso…`,"loading");
-    const docs=[],reads=[];state.diagnosticReads=[];
+    const docs=[];
     try{
-      for(const file of list){
-        const payload=kind==="photo"?await analyzePhoto(file,"camera"):await analyzePdf(file);
-        const doc=compactBill(payload.normalized);
-        reads.push({filename:String(file.name||"Documento"),source:kind,normalized:payload.normalized||null,compact:doc});
-        if(doc)docs.push(doc);
-      }
+      for(const file of list){const payload=kind==="photo"?await analyzePhoto(file,"camera"):await analyzePdf(file);const doc=compactBill(payload.normalized);if(doc)docs.push(doc);}
       if(!docs.length)throw new Error("Il documento non contiene dati sufficienti per il confronto");
-      state.docs=docs;state.diagnosticReads=reads;document.body.classList.add("simulator-has-docs");document.body.classList.remove("simulator-has-result");storeJson(DOCS_KEY,docs);storeJson(PAYLOAD_KEY,null);renderDocsPreview();setUploadStatus(docs.length===1?"Bolletta letta":"Bollette lette","ready");
+      state.docs=docs;document.body.classList.add("simulator-has-docs");document.body.classList.remove("simulator-has-result");storeJson(DOCS_KEY,docs);storeJson(PAYLOAD_KEY,null);renderDocsPreview();setUploadStatus(docs.length===1?"Bolletta letta":"Bollette lette","ready");
       await refreshOfferOptions();renderSimulationPreview();if(state.selected?.source==="card"&&$("offer-select")?.value!=="")await simulateSelected();else window.setTimeout(()=>$("offer-picker")?.scrollIntoView({behavior:"smooth",block:"center"}),80);
-    }catch(error){state.diagnosticReads=reads;setUploadStatus(error?.message||"Lettura bolletta non disponibile","error");renderReadingDiagnostics(lastDiagnosticsPayload);}
+    }catch(error){setUploadStatus(error?.message||"Lettura bolletta non disponibile","error");}
   }
 
   function stopCamera(){if(state.stream){state.stream.getTracks().forEach((track)=>track.stop());state.stream=null;}const video=$("camera-video");if(video)video.srcObject=null;const modal=$("camera-modal");if(modal){modal.hidden=true;modal.setAttribute("aria-hidden","true");}}
@@ -1284,6 +1251,12 @@
     const amount=Number(row.amount_eur);return Number.isFinite(amount)?amount:null;
   }
   function receiptSectionAmount(rows,section=""){
+    if(section==="altre_partite"){
+      const charges=rows.filter((row)=>row.kind==="section"&&receiptAmount(row)!==null);
+      if(charges.length>1&&charges.every((row)=>!/^(?:totale\s+)?altre\s+partite$/i.test(String(row.label||"").trim()))){
+        return Number(charges.reduce((sum,row)=>sum+receiptAmount(row),0).toFixed(2));
+      }
+    }
     const explicit=rows.find((row)=>row.kind==="section"&&receiptAmount(row)!==null);
     if(explicit)return receiptAmount(explicit);
     const subtotals=rows.filter((row)=>row.kind==="subtotal"&&receiptAmount(row)!==null);
@@ -1303,9 +1276,9 @@
       }
     }
     if(section==="fissa_potenza"){
-      const months=details.filter((row)=>/mes/i.test(`${row.quantity||""} ${row.unit_price||""}`)&&!/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`));
-      const powers=details.filter((row)=>/kw/i.test(`${row.quantity||""} ${row.unit_price||""}`));
-      if(months.length&&powers.length)return Number((Math.max(...months.map(receiptAmount))+Math.max(...powers.map(receiptAmount))).toFixed(2));
+      // Un addebito mensile non e' necessariamente il totale delle quote
+      // fisse: sommare il massimo mensile alla potenza occultava altre voci.
+      return null;
     }
     if(section==="altre_partite"||section==="accise_iva")return details.length===1?receiptAmount(details[0]):null;
     return null;
@@ -1436,7 +1409,7 @@
     if(!Number.isFinite(oldTotal)||!Number.isFinite(newTotal))return null;
     // Evita uno scontrino che non quadra con il motore esistente.
     if(Math.abs(round(oldTotal+varDelta+fixedDelta-appliedDiscounts)-newTotal)>.03)return null;
-    const billTotal=rows.find((row)=>row.section==="totale_bolletta"&&row.kind==="total");
+    const billTotal=rows.find((row)=>row.section==="totale_bolletta"&&["subtotal","total"].includes(row.kind)&&receiptAmount(row)!==null);
     const oldPay=rows.find((row)=>row.section==="totale_pagare"&&row.kind==="total");
     if(!billTotal||!oldPay||Math.abs(Number(oldPay.amount_eur)-oldTotal)>.03)return null;
     billTotal.amount_eur=round(Number(billTotal.amount_eur)+varDelta+fixedDelta-appliedDiscounts);
@@ -1501,53 +1474,12 @@
     };
     const verifiedMonthly=(row)=>Number.isFinite(billingMonths)&&billingMonths>0&&Number.isFinite(exactMonthlyPrice(row))&&
       cents(receiptAmount(row),Number((exactMonthlyPrice(row)*billingMonths).toFixed(2)));
-    const computedPower=(row)=>{
-      const match=String(row?.unit_price||"").match(/([0-9]+(?:[.,][0-9]+)?)\s*(?:€|eur)\s*\/\s*kW\b/i);
-      const kw=numericValue(doc?.potenza_impegnata_kw);
-      if(!match||!(kw>0)||!(billingMonths>0))return null;
-      const expected=Number((Number(match[1].replace(",","."))*kw*billingMonths).toFixed(2));
-      const read=receiptAmount(row);
-      return Number.isFinite(expected)&&expected>=0&&(cents(read,expected)||cents(read*billingMonths,expected))?expected:null;
-    };
-    const powerCandidate=powers.length===1?computedPower(powers[0]):null;
-    const billRead=receiptAmount(rows.find((row)=>row.section==="totale_bolletta"));
-    const consumptionRead=receiptSectionAmount(consumptionRows,"consumi");
-    const taxRead=receiptSectionAmount(sectionRows("accise_iva"),"accise_iva")??receiptTaxFromBreakdown(doc);
-    const originalBillIndex=rows.findIndex((row)=>row.section==="totale_bolletta");
-    const extrasBefore=rows.slice(0,originalBillIndex>=0?originalBillIndex:rows.length).filter((row)=>row.section==="altre_partite");
-    const otherRead=extrasBefore.length?receiptSectionAmount(extrasBefore,"altre_partite"):0;
-    const first=monthly[0],second=monthly[1];
-    const orderedShift=monthly.length===2&&powers.length===1&&
-      /vendita/.test(normalizeReceiptLabel(first.label))&&
-      /rete|trasporto/.test(normalizeReceiptLabel(second.label))&&
-      !hasFixedParent&&receiptAmount(first)>receiptAmount(second)&&receiptAmount(second)>0&&
-      verifiedMonthly(first)&&verifiedMonthly(second);
-    const parentTotal=orderedShift&&powerCandidate!==null&&consumptionRead!==null&&taxRead!==null&&otherRead!==null?
-      Number((consumptionRead+receiptAmount(first)+powerCandidate+taxRead+otherRead).toFixed(2)):null;
-    const literalTotal=parentTotal!==null?Number((parentTotal+receiptAmount(second)).toFixed(2)):null;
-    // 10 centesimi di discrepanza possono provenire da una lettura OCR
-    // errata del totale: NON li correggiamo qui. La tolleranza serve solo
-    // a riconoscere una possibile gerarchia, non a certificare la bolletta.
+    // La spesa di vendita e' una verifica indipendente del documento,
+    // non una somma ricostruita dalle etichette potenzialmente traslate.
     const saleFromBreakdown=doc?explicitMateriaAmount(doc,doc.commodity):0;
-    const recognizedSale=receiptAmount(assigned.get("vendita_consumo"));
-    const independentSale=saleFromBreakdown>0&&recognizedSale!==null&&
-      cents(saleFromBreakdown,recognizedSale+receiptAmount(second));
-    const independentMatch=independentSale||(parentTotal!==null&&billRead!==null&&
-      Math.abs(billRead-parentTotal)<=.11&&Math.abs(billRead-literalTotal)>1);
-    if(orderedShift&&independentMatch){
-      const fixed=receiptAmount(first),sale=receiptAmount(second);
-      assigned.set("totale_fissa",{...first,label:"Spesa totale quota fissa",reclassified:true});
-      assigned.set("vendita_fissa",{...second,label:"di cui vendita energia",reclassified:true});
-      const network=Number((fixed-sale).toFixed(2));
-      assigned.set("rete_fissa",{section:"fissa_potenza",kind:"derived",label:"di cui rete e oneri",quantity:`${number(billingMonths,2)} ${billingMonths===1?"mese":"mesi"}`,unit_price:`x ${number(network/billingMonths,6)} €/mese`,amount_eur:network,derived:true});
-      const readPower=receiptAmount(powers[0]);
-      if(!cents(readPower,powerCandidate)){
-        const kw=numericValue(doc.potenza_impegnata_kw);
-        assigned.set("potenza",{...powers[0],label:"Spesa totale quota potenza",amount_eur:powerCandidate,
-          quantity:`${number(kw,2)} kW × ${number(billingMonths,2)} ${billingMonths===1?"mese":"mesi"}`,derived:true,derivedKind:"unit_price"});
-      }
-      notes.push("Gerarchia quota fissa e durata della potenza riconciliate tramite prezzi unitari, periodo e importi; valori letti conservati nell'origine.");
-    }
+    // Non cambiare etichetta o ruolo alle sottovoci mensili usando soltanto
+    // la quadratura: i dati del lettore potrebbero essere gia' disallineati.
+    // Preservare le voci originali e verificare separatamente il subtotale.
     // Se una riga "di cui" contraddice il suo stesso subtotale, non
     // assegnarla a uno slot economico come se fosse un valore certo.
     const fixedParent=receiptAmount(assigned.get("totale_fissa"));
@@ -1563,8 +1495,15 @@
     // Senza un totale fisso riconoscibile, due importi in sequenza non
     // bastano a distinguere "quota fissa" e "di cui vendita".
     if(!assigned.has("totale_fissa")&&!fixedRows.some((row)=>row.kind==="section"&&receiptAmount(row)!==null)){
-      assigned.delete("vendita_fissa");
-      assigned.delete("rete_fissa");
+      const verifiedSeparateRows=monthly.length===2&&monthly.every(verifiedMonthly)&&
+        receiptSlotKey(monthly[0])!==receiptSlotKey(monthly[1])&&
+        ["vendita_fissa","rete_fissa"].every((key)=>monthly.some((row)=>receiptSlotKey(row)===key));
+      if(!verifiedSeparateRows){
+        assigned.delete("vendita_fissa");
+        assigned.delete("rete_fissa");
+      }else{
+        notes.push("Sottovoci mensili conservate come lette: manca un subtotale fisso riconciliato.");
+      }
     }
     // Conserva la quota fissa reale anche quando il PDF non presenta un
     // subtotale separato, ma solo se importi, tariffa mensile, spesa vendita
@@ -1673,10 +1612,11 @@
     const slots=receiptSlotDefinitions(),doc=state.docs.length===1?state.docs[0]:null;
     const {assigned:lookup}=receiptFilledSlots(rows,doc);
     const assignedIndexes=new Set([...lookup.values()].map((row)=>row?._receiptSourceIndex).filter(Number.isInteger));
-    const unassignedRows=(section,all=false)=>rows.filter((row,index)=>row.section===section&&row.kind!=="section"&&row.kind!=="total"&&
+    const unassignedRows=(section,all=false)=>rows.filter((row,index)=>row.section===section&&
+      (row.kind!=="section"||(section==="altre_partite"&&!/^(?:totale\s+)?altre\s+partite$/i.test(String(row.label||"").trim())))&&row.kind!=="total"&&
       (section!=="altre_partite"||!rows.some((item,i)=>i<index&&item.section==="totale_bolletta"))&&
       receiptAmount(row)!==null&&(all||!assignedIndexes.has(row._receiptSourceIndex)));
-    const sourceDetailHtml=(section,all=false)=>unassignedRows(section,all).map((row)=>`<li class="receipt-row ${row.kind==="subtotal"?"is-subtotal":"is-detail"}" data-align-key="receipt-source-${row._receiptSourceIndex}" data-diagnostic-source-index="${row._receiptSourceIndex}"><span class="receipt-label">${escapeHtml(row.label)}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(euro(receiptAmount(row)))}</strong></li>`).join("");
+    const sourceDetailHtml=(section,all=false)=>unassignedRows(section,all).map((row)=>`<li class="receipt-row ${row.kind==="subtotal"?"is-subtotal":"is-detail"}" data-align-key="receipt-source-${row._receiptSourceIndex}"><span class="receipt-label">${escapeHtml(row.label)}</span><span class="receipt-qty">${escapeHtml(row.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(euro(receiptAmount(row)))}</strong></li>`).join("");
     const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
     let html='<li class="receipt-columns" data-align-key="receipt-head"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
@@ -1714,7 +1654,7 @@
         continue;
       }
       const kindClass=row?.kind==="subtotal"?" is-subtotal":(row?.kind==="detail"?" is-detail":"");
-      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"${Number.isInteger(row?._receiptSourceIndex)?` data-diagnostic-source-index="${row._receiptSourceIndex}"`:""}><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.verified==="sale_months_bill"?" (riconciliata)":row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
+      html+=`<li class="receipt-row${kindClass}${row?"":" is-empty"}${slot.key==="canone"?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}${row?.derived?(row.verified==="sale_months_bill"?" (riconciliata)":row.derivedKind==="unit_price"?" (da quantità e tariffa)":" (per differenza)"):""}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(fmt(receiptAmount(row)))}</strong></li>`;
       if(slot.key==="oneri_consumo"||slot.key==="potenza"||slot.key==="canone")html+=sourceDetailHtml(slot.section==="canone_tv"?"canone_tv":slot.section);
     }
     // I messaggi tecnici di mappatura e quadratura non fanno parte
@@ -1820,6 +1760,9 @@
       if(slot.key==="altre"||slot.key==="imposte")continue;
       const row=rows.get(slot.key),post=slot.key==="canone";
       html+=`<li class="receipt-row${row?"":" is-empty"}${post?" receipt-post-total":""}" data-align-key="receipt-${slot.key}"><span class="receipt-label">${escapeHtml(slot.label)}</span><span class="receipt-qty">${escapeHtml(row?.quantity||"—")}</span><span class="receipt-price">${escapeHtml(row?.unit_price||"—")}</span><strong class="receipt-amount">${escapeHtml(money(receiptAmount(row)))}</strong></li>`;
+    }
+    if(!real&&payload?.summary&&Number.isFinite(Number(payload.summary.simulatedTotal))){
+      html+=`<li class="receipt-grand-total" data-align-key="receipt-simulated-payable"><span>Totale da pagare simulato (riepilogo economico, scontrino non riconciliato)</span><strong>${escapeHtml(euro(Number(payload.summary.simulatedTotal)))}</strong></li>`;
     }
     return html;
   }
@@ -1949,136 +1892,6 @@
     billLayoutObserver=new ResizeObserver(()=>scheduleBillHeightSync());
     [document.querySelector(".bill-paper.real"),document.querySelector(".bill-paper.simulated")].filter(Boolean).forEach((node)=>billLayoutObserver.observe(node));
   }
-  // La diagnostica non partecipa alla lettura o al calcolo; la risposta
-  // normalizzata completa esiste solo finche' questa pagina rimane aperta.
-  let lastDiagnosticsPayload=null;
-  function diagnosticReadEntries(){
-    return state.diagnosticReads.length?state.diagnosticReads:
-      state.docs.map((doc,index)=>({filename:`Documento ${index+1} (ripristinato)`,source:"sessione",normalized:null,compact:doc}));
-  }
-  function diagnosticReceiptKey(row){
-    return JSON.stringify([row?.commodity||"",row?.section||"",row?.kind||"",row?.label||"",row?.quantity||"",row?.unit_price||"",receiptAmount(row)]);
-  }
-  function diagnosticCells(values){return values.map((v)=>`<td>${escapeHtml(v===null||v===undefined?"—":String(v))}</td>`).join("");}
-  function diagnosticTable(headings,rows){
-    return `<div class="reading-diagnostics-table-wrap"><table class="reading-diagnostics-table"><thead><tr>${headings.map((h)=>`<th scope="col">${escapeHtml(h)}</th>`).join("")}</tr></thead><tbody>${rows.length?rows.map((cells)=>`<tr>${diagnosticCells(cells)}</tr>`).join(""):`<tr><td colspan="${headings.length}">Nessuna riga disponibile in questa fase.</td></tr>`}</tbody></table></div>`;
-  }
-  function diagnosticDomLines(id){
-    const root=$(id);if(!root)return [];
-    return [...root.querySelectorAll("li")].map((node)=>({
-      alignKey:node.dataset.alignKey||"",
-      sourceIndex:node.hasAttribute("data-diagnostic-source-index")?Number(node.dataset.diagnosticSourceIndex):null,
-      label:node.querySelector(".receipt-label")?.textContent?.trim()||node.querySelector("span")?.textContent?.trim()||"",
-      value:node.querySelector(".receipt-amount")?.textContent?.trim()||node.querySelector("strong")?.textContent?.trim()||"",
-      text:node.textContent.trim().replace(/\s+/g," ")
-    }));
-  }
-  function diagnosticMapping(rows,doc){
-    if(!rows.length)return [];
-    const indexed=rows.map((row,index)=>({...row,_receiptSourceIndex:index}));
-    const filled=receiptFilledSlots(indexed,doc).assigned;
-    return [...filled].map(([slot,row])=>({slot,sourceIndex:Number.isInteger(row?._receiptSourceIndex)?row._receiptSourceIndex:null,label:row?.label||"",amount_eur:receiptAmount(row),derived:Boolean(row?.derived||row?.reclassified),verified:row?.verified||""}));
-  }
-  function diagnosticProjectionSignals(payload){
-    const doc=state.docs.length===1?state.docs[0]:null,commodity=doc?.commodity||"";
-    const part=payload?.breakdown?.[commodity];
-    const source=doc?.receipt_rows||[],mapped=source.length?diagnosticMapping(source,doc):[];
-    const find=(key)=>mapped.find((entry)=>entry.slot===key);
-    const sourceSale=Number(part?.venditaAttuale);
-    const variable=source[find("vendita_consumo")?.sourceIndex];
-    const fixed=source[find("vendita_fissa")?.sourceIndex];
-    const sum=variable&&fixed?Number(variable.amount_eur)+Number(fixed.amount_eur):null;
-    const flags={singola_bolletta:state.docs.length===1,righe_scontrino_presenti:source.length>0,commodity_ammessa:["luce","gas"].includes(commodity),breakdown_simulazione_presente:!!part,vendita_consumi_mappata:!!variable,vendita_fissa_mappata:!!fixed,somma_vendite_letto:sum,totale_vendita_usato_dal_motore:Number.isFinite(sourceSale)?sourceSale:null,quadratura_vendite:sum!==null&&Number.isFinite(sourceSale)?Math.abs(sum-sourceSale)<=.03:null,totale_bolletta_letto:source.some((r)=>r.section==="totale_bolletta"&&r.kind==="total"),totale_pagare_letto:source.some((r)=>r.section==="totale_pagare"&&r.kind==="total")};
-    return flags;
-  }
-  function diagnosticFlatFields(value,prefix="",out=[]){
-    if(Array.isArray(value)){
-      value.forEach((item,index)=>diagnosticFlatFields(item,`${prefix}[${index}]`,out));
-    }else if(value&&typeof value==="object"){
-      for(const [key,item] of Object.entries(value)){
-        // Righe dello scontrino gia' riprodotte nella tabella dedicata.
-        if(!prefix&&key==="receipt_rows")continue;
-        diagnosticFlatFields(item,prefix?`${prefix}.${key}`:key,out);
-      }
-    }else{
-      out.push({path:prefix,value:value===null?"null":String(value)});
-    }
-    return out;
-  }
-  function diagnosticSnapshot(payload=lastDiagnosticsPayload){
-    const entries=diagnosticReadEntries();
-    const rawRows=entries.flatMap((entry)=>Array.isArray(entry.normalized?.receipt_rows)?entry.normalized.receipt_rows:[]);
-    const accepted=entries.filter((entry)=>!!entry.compact);
-    const sameDocsInView=accepted.length===state.docs.length&&accepted.every((entry,index)=>entry.compact===state.docs[index]);
-    const compactRows=accepted.flatMap((entry)=>Array.isArray(entry.compact.receipt_rows)?entry.compact.receipt_rows:[]);
-    const realLines=sameDocsInView?diagnosticDomLines("real-bill-lines"):[],virtualLines=sameDocsInView?diagnosticDomLines("virtual-bill-lines"):[];
-    const displayedReal=new Set(realLines.filter((line)=>line.sourceIndex!==null).map((line)=>line.sourceIndex));
-    const realMapping=diagnosticMapping(compactRows,accepted.length===1?accepted[0].compact:null);
-    const projection=payload?simulatedReceiptRowsForDoc(payload):null;
-    const virtualMapping=projection?diagnosticMapping(projection,state.docs.length===1?state.docs[0]:null):[];
-    const displayedVirtual=new Set(virtualLines.filter((line)=>line.sourceIndex!==null).map((line)=>line.sourceIndex));
-    const countCompact=new Map();for(const row of compactRows){const key=diagnosticReceiptKey(row);countCompact.set(key,(countCompact.get(key)||0)+1);}
-    const rawStatus=rawRows.map((row,index)=>{const key=diagnosticReceiptKey(row),n=countCompact.get(key)||0;if(n)countCompact.set(key,n-1);return {index,page:row.page??null,row,conserved:n>0};});
-    const originMap=new Map(realMapping.filter((row)=>row.sourceIndex!==null).map((row)=>[row.sourceIndex,row.slot]));
-    const compactStatus=compactRows.map((row,index)=>{
-      let status=!sameDocsInView?"documento non caricato nello scontrino":displayedReal.has(index)?"visibile":originMap.has(index)?"mappata ma non rintracciata nel DOM":"non visibile come dettaglio";
-      if(sameDocsInView&&row.kind==="section")status="intestazione aggregata (verificare l'importo visualizzato)";
-      if(sameDocsInView&&row.kind==="total")status="totale separato (verificare lo scontrino/il footer)";
-      return {index,row,slot:originMap.get(index)||null,displayed:displayedReal.has(index),status};
-    });
-    return {version:"0.10.100",collectedAt:new Date().toISOString(),rawPdfTextAvailable:false,notice:"La risposta pubblica contiene dati normalizzati e righe receipt_rows, non il testo grezzo del PDF. Le risposte originali non sono salvate nel browser: dopo un aggiornamento pagina rimangono solo i dati compatti di sessione.",documents:entries.map((entry)=>({filename:entry.filename,source:entry.source,readerResponseAvailable:!!entry.normalized,acceptedForSimulator:!!entry.compact,normalized:entry.normalized,compact:entry.compact})),stages:{readerRows:rawStatus,compactRows:compactStatus,sameDocsInView,realMapping,realDisplayed:realLines,virtualProjectionAvailable:Array.isArray(projection),projectionSignals:payload?diagnosticProjectionSignals(payload):null,virtualProjectionRows:projection,virtualMapping,virtualRowsTracked:[...displayedVirtual],virtualDisplayed:virtualLines,simulationSummary:payload?.summary||null}};
-  }
-  function renderReadingDiagnostics(payload=null){
-    lastDiagnosticsPayload=payload;
-    const panel=$("bill-reading-diagnostics"),node=$("reading-diagnostics-content");
-    if(!panel||!node)return;
-    const hasData=diagnosticReadEntries().length>0;
-    panel.hidden=!hasData;
-    if(!hasData||!panel.open)return;
-    try{
-      const report=diagnosticSnapshot(payload),stage=report.stages;
-      const rawKnown=report.documents.some((d)=>d.readerResponseAvailable);
-      const countLost=stage.readerRows.filter((r)=>!r.conserved).length;
-      const hidden=stage.compactRows.filter((r)=>r.row.kind==="detail"&&!r.displayed).length;
-      let html=`<p><strong>Controllo:</strong> ${report.documents.length} documento/i · ${stage.readerRows.length} righe restituite dal lettore · ${stage.compactRows.length} righe conservate · ${hidden} righe di dettaglio non rintracciate come tali nello scontrino reale.</p>`;
-      if(!rawKnown)html+='<p><strong>Risposta originale non disponibile:</strong> pagina ricaricata o sessione ripristinata. Ricarica la bolletta per acquisire la risposta completa del lettore.</p>';
-      if(countLost)html+=`<p><strong>${countLost} riga/e ricevuta/e non conservata/e nel simulatore.</strong> Controlla la tabella successiva.</p>`;
-      if(report.documents.some((doc)=>!doc.acceptedForSimulator)||!stage.sameDocsInView)html+='<p><strong>La lettura corrente non corrisponde allo scontrino visualizzato.</strong> Il documento potrebbe non aver superato la validazione iniziale; non confrontare le due colonne con queste righe.</p>';
-      html+='<h3>1. Risposta del lettore (prima della riduzione)</h3>';
-      for(const entry of report.documents){html+=`<h4>${escapeHtml(entry.filename)} · ${entry.readerResponseAvailable?"Risposta acquisita":"Solo dati di sessione"}</h4>`;}
-      html+=diagnosticTable(["N.","Pagina","Sezione","Tipo","Descrizione letta","Quantità","Prezzo","Importo","Conservata"],stage.readerRows.map((r)=>[r.index+1,r.page,r.row.section,r.row.kind,r.row.label,r.row.quantity,r.row.unit_price,r.row.amount_eur,r.conserved?"Sì":"NO: persa in compattazione"]));
-      html+='<details><summary>Altri campi restituiti dal lettore (consumi, potenze, prezzi, quote e componenti)</summary>';
-      for(const entry of report.documents){
-        if(!entry.readerResponseAvailable)continue;
-        html+=`<h4>${escapeHtml(entry.filename)}</h4>`;
-        html+=diagnosticTable(["Percorso nel dato normalizzato","Valore restituito"],diagnosticFlatFields(entry.normalized).map((field)=>[field.path,field.value]));
-      }
-      html+='</details>';
-      html+='<h3>2. Righe conservate, assegnazione e visibilità reale</h3>';
-      html+=diagnosticTable(["N.","Sezione","Tipo","Descrizione conservata","Importo","Slot assegnato","Esito nella colonna reale"],stage.compactRows.map((r)=>[r.index+1,r.row.section,r.row.kind,r.row.label,r.row.amount_eur,r.slot||"—",r.status]));
-      html+='<h3>3. Bolletta simulata (proiezione e vista)</h3>';
-      if(!payload)html+='<p>Nessuna simulazione attiva: scegli un’offerta e avvia il confronto per analizzare anche la colonna simulata.</p>';
-      else {
-        html+=`<p><strong>Proiezione completa:</strong> ${stage.virtualProjectionAvailable?"generata":"non generata: il simulatore ha usato lo scontrino ridotto"}. L’assenza di proiezione non indica che la riga non sia stata letta.</p>`;
-        html+=diagnosticTable(["Controllo della proiezione","Valore rilevato"],Object.entries(stage.projectionSignals||{}).map(([k,v])=>[k,v===null?"non verificabile":String(v)]));
-        html+=diagnosticTable(["N.","Sezione","Tipo","Voce proiettata","Quantità","Prezzo","Importo"],(stage.virtualProjectionRows||[]).map((r,i)=>[i+1,r.section,r.kind,r.label,r.quantity,r.unit_price,r.amount_eur]));
-      }
-      html+='<h3>4. Testo effettivamente presente nelle due colonne</h3>';
-      for(const [title,lines] of [["Bolletta reale",stage.realDisplayed],["Bolletta simulata",stage.virtualDisplayed]]){
-        html+=`<h4>${title}</h4>`+diagnosticTable(["Riga visualizzata","Indice origine","Testo a schermo"],lines.map((r)=>[r.alignKey||"—",r.sourceIndex===null?"—":r.sourceIndex+1,r.text]));
-      }
-      html+='<details><summary>JSON esatto della risposta normalizzata e dei passaggi</summary><p>Contiene solo ciò che il server ha effettivamente restituito. Può includere dati personali.</p><pre class="reading-diagnostics-json"></pre></details>';
-      node.innerHTML=html;
-      const pre=node.querySelector(".reading-diagnostics-json");if(pre)pre.textContent=JSON.stringify(report,null,2);
-    }catch(error){node.textContent=`Diagnostica non disponibile: ${String(error?.message||"errore sconosciuto")}. Il confronto rimane invariato.`;}
-  }
-  function downloadReadingDiagnostics(){
-    try{
-      const json=JSON.stringify(diagnosticSnapshot(),null,2);
-      const blob=new Blob([json],{type:"application/json;charset=utf-8"}),url=URL.createObjectURL(blob);
-      const a=document.createElement("a");a.href=url;a.download="diagnostica-simulatore-storico-v0.10.100.json";document.body.appendChild(a);a.click();a.remove();window.setTimeout(()=>URL.revokeObjectURL(url),1000);
-    }catch(error){const node=$("reading-diagnostics-content");if(node)node.textContent=`Impossibile esportare: ${String(error?.message||"errore")}`;}
-  }
   function renderBillPanels(payload=null){
     const facts=previewBillFacts();if(!facts)return;const virtual=selectedVirtualIdentity(payload),moreExpensive=Boolean(payload?.summary&&Number(payload.summary.simulatedTotal)>Number(payload.summary.originalTotal)+.004);
     $("real-bill-lines").innerHTML=billRowsHtml({facts,side:"real",payload,provider:facts.providers||"—",offer:currentOfferLabel()||"—"});
@@ -2087,7 +1900,6 @@
     $("original-total").textContent=euro(facts.total);$("simulated-total").textContent=payload?.summary?euro(payload.summary.simulatedTotal):"—";
     ensureBillLayoutObserver();
     scheduleBillHeightSync();
-    renderReadingDiagnostics(payload);
   }
   function renderSimulationPreview(){renderBillPanels(null);}
   function clearSimulationResult(){
@@ -2134,8 +1946,6 @@
   }
 
 
-  $("bill-reading-diagnostics")?.addEventListener("toggle",()=>renderReadingDiagnostics(lastDiagnosticsPayload));
-  $("download-reading-diagnostics")?.addEventListener("click",downloadReadingDiagnostics);
   $("choose-pdf-button")?.addEventListener("click",()=>{$("bill-pdf-input").value="";$("bill-pdf-input").click();});
   $("bill-pdf-input")?.addEventListener("change",(event)=>acceptDocuments(event.target.files,"pdf"));
   $("choose-offer-pdf-button")?.addEventListener("click",()=>{$("offer-pdf-input").value="";$("offer-pdf-input").click();});
