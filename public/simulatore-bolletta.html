@@ -1253,6 +1253,7 @@
   function receiptSlotKey(row){
     const label=normalizeReceiptLabel(row.label||"");
     if(row.section==="consumi"){
+      if(/oneri di sistema|oneri generali/.test(label))return "oneri_consumo";
       if(/vendita|commercializzazione/.test(label))return "vendita_consumo";
       if(/rete|trasporto|oneri/.test(label))return "rete_consumo";
       if(row.kind==="subtotal"||/spesa totale quota consum|quota consumi/.test(label))return "totale_consumo";
@@ -1273,6 +1274,7 @@
     {section:"consumi",key:"totale_consumo",label:"Spesa totale quota consumi",group:"Quota consumi"},
     {section:"consumi",key:"vendita_consumo",label:"di cui spesa per vendita energia"},
     {section:"consumi",key:"rete_consumo",label:"di cui spesa per rete e oneri"},
+    {section:"consumi",key:"oneri_consumo",label:"di cui oneri generali di sistema"},
     {section:"fissa_potenza",key:"totale_fissa",label:"Spesa totale quota fissa",group:"Quota fissa e quota potenza"},
     {section:"fissa_potenza",key:"vendita_fissa",label:"di cui spesa per vendita energia"},
     {section:"fissa_potenza",key:"rete_fissa",label:"di cui spesa per rete e oneri"},
@@ -1357,18 +1359,60 @@
     }
     return rows;
   }
+  function receiptFilledSlots(rows,doc){
+    const sectionRows=(name)=>rows.filter((row)=>row.section===name);
+    const consumptionRows=sectionRows("consumi"),fixedRows=sectionRows("fissa_potenza"),assigned=new Map(),notes=[];
+    for(const row of rows){
+      if(row.kind==="section"||row.kind==="total")continue;
+      const key=receiptSlotKey(row);
+      if(key!=="extra"&&!assigned.has(key))assigned.set(key,{...row});
+    }
+    const consumptionTotal=receiptSectionAmount(consumptionRows,"consumi"),fixedTotal=receiptSectionAmount(fixedRows,"fissa_potenza");
+    const totalConsumption=consumptionRows.find((row)=>receiptSlotKey(row)==="totale_consumo"&&receiptAmount(row)!==null);
+    if(!assigned.has("totale_consumo")&&consumptionTotal!==null){
+      assigned.set("totale_consumo",{label:"Spesa totale quota consumi",amount_eur:consumptionTotal,quantity:totalConsumption?.quantity||"",unit_price:totalConsumption?.unit_price||""});
+    }
+    const powerAmount=receiptAmount(assigned.get("potenza"));
+    if(!assigned.has("totale_fissa")&&fixedTotal!==null&&powerAmount!==null){
+      assigned.set("totale_fissa",{label:"Spesa totale quota fissa",amount_eur:Number((fixedTotal-powerAmount).toFixed(2)),quantity:"",unit_price:""});
+    }
+    const qty=doc&&["luce","gas"].includes(doc.commodity)?periodConsumption(doc,doc.commodity):NaN;
+    const unit=doc?.commodity==="gas"?"Smc":"kWh";
+    const consumptionSlot=assigned.get("totale_consumo");
+    if(consumptionSlot&&qty>0&&!consumptionSlot.quantity){
+      consumptionSlot.quantity=`${number(qty,2)} ${unit}`;
+      if(!consumptionSlot.unit_price&&receiptAmount(consumptionSlot)!==null)consumptionSlot.unit_price=`x ${number(receiptAmount(consumptionSlot)/qty,6)} €/${unit}`;
+    }
+    const months=doc?fixedBillingMonths(doc,doc.commodity):NaN;
+    const fixedSlot=assigned.get("totale_fissa");
+    if(fixedSlot&&Number.isFinite(months)&&months>0){
+      if(!fixedSlot.quantity)fixedSlot.quantity=`${number(months,2)} ${months===1?"mese":"mesi"}`;
+      if(!fixedSlot.unit_price&&receiptAmount(fixedSlot)!==null)fixedSlot.unit_price=`x ${number(receiptAmount(fixedSlot)/months,6)} €/mese`;
+    }
+    // Il dato di potenza va preso dal documento; non inventare i kW da un prezzo.
+    if(assigned.get("potenza")&&Number.isFinite(months)&&months>0&&!assigned.get("potenza").quantity){
+      const row=assigned.get("potenza"),original=fixedRows.find((item)=>receiptSlotKey(item)==="potenza");
+      if(original?.quantity)row.quantity=original.quantity;
+    }
+    // Se il presunto importo di vendita coincide con la somma delle due altre
+    // sottovoci, e con il totale consumi, e' un totale mal classificato.
+    const sale=assigned.get("vendita_consumo"),network=assigned.get("rete_consumo"),system=assigned.get("oneri_consumo");
+    if(sale&&network&&system&&consumptionTotal!==null&&
+       Math.abs(receiptAmount(sale)-consumptionTotal)<.025&&
+       Math.abs(receiptAmount(network)+receiptAmount(system)-consumptionTotal)<.025){
+      assigned.delete("vendita_consumo");
+      notes.push("La voce di vendita coincide con il totale consumi: non è mostrata come costo aggiuntivo; verificare l’etichetta nel PDF.");
+    }
+    return {assigned,notes};
+  }
   function originalReceiptRowsHtml({real,payload}){
     const rows=!real&&payload?simulatedReceiptRowsForDoc(payload):state.docs.flatMap((doc)=>Array.isArray(doc.receipt_rows)?doc.receipt_rows:[]);
     if(!rows.length)return null;
     const grouped=new Map();
     for(const row of rows){if(!grouped.has(row.section))grouped.set(row.section,[]);grouped.get(row.section).push(row);}
-    const slots=receiptSlotDefinitions(),lookup=new Map(),extra=[];
-    for(const row of rows){
-      if(row.kind==="section"||row.kind==="total")continue;
-      const key=receiptSlotKey(row);
-      if(key==="extra"||lookup.has(key))extra.push(row);
-      else lookup.set(key,row);
-    }
+    const slots=receiptSlotDefinitions(),doc=state.docs.length===1?state.docs[0]:null;
+    const {assigned:lookup,notes}=receiptFilledSlots(rows,doc);
+    const extra=rows.filter((row)=>row.kind!=="section"&&row.kind!=="total"&&receiptSlotKey(row)==="extra");
     const fmt=(amount)=>amount===null?"Non rilevato":euro(amount);
     let html='<li class="receipt-columns"><span class="receipt-label"></span><span class="receipt-qty">Quantità</span><span class="receipt-price">Prezzo medio</span><span class="receipt-amount">Importi</span></li>';
     for(const slot of slots){
@@ -1398,7 +1442,11 @@
     if(extra.length){
       html+='<li class="receipt-disclaimer"><span>Dettagli ulteriori letti: consultare il documento originale per le voci non classificabili univocamente.</span></li>';
     }
-    if(real){const message=receiptReconciliationNotice(rows,state.docs);if(message)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(message)}</span></li>`;}
+    if(real){
+      for(const note of notes)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(note)}</span></li>`;
+      const message=receiptReconciliationNotice(rows,state.docs);
+      if(message)html+=`<li class="receipt-disclaimer"><span>${escapeHtml(message)}</span></li>`;
+    }
     return html;
   }
   function buildReceiptRowsHtml(rows,{real,payload,totalAmount}){
