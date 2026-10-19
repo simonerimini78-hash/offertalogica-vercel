@@ -14,6 +14,7 @@
 <section class="hero"><h1>Scopri altri fornitori luce e gas nella tua zona</h1><p>Anche un operatore meno conosciuto potrebbe avere una sede vicino a casa tua. Cerca per CAP, verifica la presenza territoriale e consulta le offerte presenti nell'archivio OffertaLogica.</p></section>
 <section class="box" aria-labelledby="search-title"><h2 id="search-title">Cerca i partner per CAP</h2><p class="muted">I risultati richiedono una copertura commerciale verificata. Le sedi fisiche sono mostrate separatamente, se presenti.</p>
 <form id="search"><div class="fields"><div><label for="cap">CAP della fornitura</label><input id="cap" name="cap" type="text" inputmode="numeric" pattern="[0-9]{5}" maxlength="5" autocomplete="postal-code" placeholder="Es. 47522" required></div><button type="submit" data-discovery-link="territorio_ricerca_cap">Cerca nella zona</button></div></form><div id="result-message" role="status" aria-live="polite" aria-atomic="true"></div><div id="matches" class="grid"></div></section>
+<section class="box" id="partner-ad-space" aria-label="Spazio pubblicitario territoriale" hidden><small>Pubblicità</small><div id="partner-ad-content"></div></section>
 <section aria-labelledby="offers-title"><h2 id="offers-title">Offerte dei partner nella tua zona</h2><p>Mostriamo solo i partner con copertura commerciale verificata per il CAP inserito. Le offerte non costituiscono un confronto personalizzato.</p>
 <div id="offers-status" role="status" aria-live="polite" aria-atomic="true">Caricamento partner…</div><div id="offers" class="grid"></div></section>
 <section class="box"><h2>Come interpretiamo la presenza locale?</h2><p>Una sede legale o operativa non equivale automaticamente a uno sportello aperto al pubblico. Orari, accesso e servizi di assistenza di persona saranno esposti solo dopo conferma del fornitore.</p><p class="notice">Anteprima di sviluppo: pagina esclusa dall'indicizzazione, senza attivazioni commerciali o acquisizione di dati personali.</p></section>
@@ -141,4 +142,4 @@ if (capFromBill && /^[0-9]{5}$/.test(capFromBill)) {
    // Wait for geographic data to load before running an automatic search.
   document.getElementById('search').dataset.pendingCapSearch = '1';
 }
-</script><script src="/assets/ol-journey-tracking.js" defer></script></body></html>
+</script><script src="/assets/ol-territorial-ads.js" defer></script><script src="/assets/ol-journey-tracking.js" defer></script></body></html>

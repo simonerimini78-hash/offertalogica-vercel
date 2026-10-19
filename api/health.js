@@ -482,8 +482,27 @@ async function handleEditorialSitemap(req, res) {
   }
 }
 
+
+async function serveTerritorialAdvertising(req, res, cap) {
+  if (req.method !== 'GET') return json(res, 405, { ok:false, error:'Metodo non consentito' });
+  if (!/^\d{5}$/.test(cap)) return json(res,400,{ok:false,error:'CAP non valido'});
+  const dbUrl=String(process.env.SUPABASE_URL||'').replace(/\/+$/,'');
+  const serviceKey=String(process.env.EDITORIAL_SUPABASE_SERVICE_ROLE_KEY||process.env.SUPABASE_SERVICE_ROLE_KEY||'');
+  if(!dbUrl||!serviceKey) return json(res,200,{ok:true,ads:[]});
+  try {
+    const path='/rest/v1/ol_ad_campaigns?select=id,provider_name,space_code,territory_code,format,delivery_mode,creative_url,target_url,target_caps&status=eq.active&begins_on=lte.'+new Date().toISOString().slice(0,10)+'&ends_on=gte.'+new Date().toISOString().slice(0,10)+'&target_caps=cs.'+encodeURIComponent('{'+cap+'}')+'&limit=60';
+    const response=await fetch(dbUrl+path,{headers:{apikey:serviceKey,Authorization:'Bearer '+serviceKey},signal:AbortSignal.timeout(4500)});
+    if(!response.ok) throw new Error('ads read failure');
+    const rows=await response.json();
+    const ads=(Array.isArray(rows)?rows:[]).filter(x=>/^https:\/\/[^\s]+$/.test(x.creative_url||'')&&/^https:\/\/[^\s]+$/.test(x.target_url||'')).map(({id,provider_name,space_code,format,delivery_mode,creative_url,target_url})=>({id,provider_name,space_code,format,delivery_mode,creative_url,target_url}));
+    res.setHeader('Cache-Control','public, max-age=60');
+    return json(res,200,{ok:true,ads});
+  }catch { return json(res,200,{ok:true,ads:[]}); }
+}
+
 export default async function handler(req, res) {
   const url = requestUrl(req);
+  if (url.searchParams.has("partner_ads_cap")) return serveTerritorialAdvertising(req,res,url.searchParams.get("partner_ads_cap") || "");
   const publicArticleSlug = url.searchParams.get("editorial_slug");
   if (publicArticleSlug !== null) return handleEditorialArticle(req, res, publicArticleSlug);
   const publicAuthorSlug = url.searchParams.get("editorial_author_slug");

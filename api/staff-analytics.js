@@ -8418,6 +8418,72 @@ export default async function handler(req, res) {
       });
     }
 
+    // Partner advertising: isolated admin-only actions. No automatic update paths are modified.
+    if (req.method === "GET" && action === "partner-ads-list") {
+      const rows = await serviceFetch("ol_ad_campaigns?select=*&order=created_at.desc&limit=300");
+      return json(res, 200, { ok: true, campaigns: rows || [] });
+    }
+    if (req.method === "POST" && action === "partner-ads-save") {
+      const data = req.body || {};
+      const clean = (v, max = 200) => String(v ?? "").trim().slice(0, max);
+      const body = {
+        provider_name: clean(data.provider_name, 140),
+        space_code: clean(data.space_code, 32),
+        territory_code: clean(data.territory_code, 13),
+        target_caps: Array.isArray(data.target_caps) ? [...new Set(data.target_caps.map(v=>clean(v,5)))].slice(0,500) : [...new Set(clean(data.target_caps,3200).split(/[\s,;]+/).filter(Boolean))].slice(0,500),
+        format: clean(data.format, 16),
+        delivery_mode: clean(data.delivery_mode, 16),
+        begins_on: clean(data.begins_on, 10),
+        ends_on: clean(data.ends_on, 10),
+        status: clean(data.status, 16),
+        creative_url: clean(data.creative_url, 1000),
+        target_url: clean(data.target_url, 1000),
+        notes: clean(data.notes, 1200),
+      };
+      if (body.target_caps.length === 0 || !body.target_caps.every(c => /^\d{5}$/.test(c))) return json(res, 400, { ok: false, error: "Indicare i CAP verificati per la campagna" });
+      if (!body.provider_name || !/^[a-z0-9_-]{2,32}$/i.test(body.space_code) || !/^(?:[0-9]{2}|[0-9]{2}:[0-9]{3}|[0-9]{2}:[0-9]{3}:[0-9]{6})$/.test(body.territory_code)) {
+        return json(res, 400, { ok: false, error: "Fornitore, spazio o codice territoriale non valido" });
+      }
+      if (!['shared', 'exclusive'].includes(body.delivery_mode) || !['mobile', 'desktop', 'responsive'].includes(body.format)
+        || !['draft', 'booked', 'active', 'paused', 'ended'].includes(body.status)
+        || !/^\d{4}-\d{2}-\d{2}$/.test(body.begins_on) || !/^\d{4}-\d{2}-\d{2}$/.test(body.ends_on)
+        || body.ends_on < body.begins_on) {
+        return json(res, 400, { ok: false, error: "Modalità, periodo o stato non valido" });
+      }
+      const validHttps = value => !value || (() => { try { const u = new URL(value); return u.protocol === 'https:' && !u.username && !u.password; } catch { return false; } })();
+      if (!validHttps(body.creative_url) || !validHttps(body.target_url)) {
+        return json(res, 400, { ok: false, error: "Sono consentiti soltanto URL HTTPS validi" });
+      }
+      if (['booked', 'active'].includes(body.status) && (!body.creative_url || !body.target_url)) {
+        return json(res, 400, { ok: false, error: "Per prenotare o attivare servono creatività e destinazione" });
+      }
+      const id = clean(data.id, 36);
+      if (id && !/^[0-9a-f]{8}-[0-9a-f-]{27}$/i.test(id)) return json(res, 400, { ok: false, error: "ID non valido" });
+      const result = id
+        ? await serviceFetch(`ol_ad_campaigns?id=eq.${encodeURIComponent(id)}&select=*`, { method: 'PATCH', body, prefer: 'return=representation' })
+        : await serviceFetch('ol_ad_campaigns?select=*', { method: 'POST', body, prefer: 'return=representation' });
+      if (!result?.length) return json(res, 404, { ok: false, error: "Campagna non trovata" });
+      return json(res, 200, { ok: true, campaign: result[0] });
+    }
+
+    if (req.method === "POST" && action === "partner-ads-upload") {
+      const { url, serviceKey } = supabaseConfig();
+      if (!url || !serviceKey) return json(res, 503, { ok:false, error:"Storage non configurato" });
+      const mime=String(req.body?.mime||'');
+      const allowed={ 'image/png':'png', 'image/jpeg':'jpg', 'image/webp':'webp' };
+      const base64=String(req.body?.data||'');
+      if(!allowed[mime] || base64.length>3_000_000 || !/^[A-Za-z0-9+/]+={0,2}$/.test(base64)) return json(res,400,{ok:false,error:'Immagine non valida (max 2 MB)'});
+      const buffer=Buffer.from(base64,'base64');
+      if(buffer.length>2_000_000 || buffer.length<100) return json(res,400,{ok:false,error:'Dimensione immagine non valida'});
+      const isPng=buffer.subarray(0,8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+      const isJpg=buffer[0]===255&&buffer[1]===216&&buffer[2]===255;
+      const isWebp=buffer.toString('ascii',0,4)==='RIFF'&&buffer.toString('ascii',8,12)==='WEBP';
+      if(!((mime==='image/png'&&isPng)||(mime==='image/jpeg'&&isJpg)||(mime==='image/webp'&&isWebp))) return json(res,400,{ok:false,error:'Formato immagine non coerente'});
+      const path='ads/'+crypto.randomUUID()+'.'+allowed[mime];
+      const response=await fetch(url+'/storage/v1/object/ol-ad-creatives/'+path,{method:'POST',headers:{Authorization:'Bearer '+serviceKey,apikey:serviceKey,'Content-Type':mime,'x-upsert':'false'},body:buffer});
+      if(!response.ok) return json(res,502,{ok:false,error:'Caricamento non disponibile: controllare il bucket'});
+      return json(res,200,{ok:true,url:url+'/storage/v1/object/public/ol-ad-creatives/'+path});
+    }
     if (req.method === "GET" && action === "editorial-research-status") {
       return json(res, 200, await statusPayload());
     }
