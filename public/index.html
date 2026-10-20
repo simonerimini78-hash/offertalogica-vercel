@@ -4960,8 +4960,32 @@
                 </div>
             </div>
         </div>
-    </div> 
-            
+    </div>
+
+        <div id="average-ranking-filters-setup" class="average-ranking-filters" hidden aria-label="Filtri della classifica sul profilo medio">
+            <div class="average-ranking-filters-title">Scegli la Top 10 da confrontare</div>
+            <div class="average-ranking-filters-grid">
+                <div class="input-group">
+                    <label for="average-ranking-prezzo-setup">Tipo di prezzo delle offerte</label>
+                    <select id="average-ranking-prezzo-setup" data-average-ranking-filter="prezzo">
+                        <option value="tutte" selected>Tutte (fisso e variabile)</option>
+                        <option value="fisso">Solo prezzo fisso</option>
+                        <option value="variabile">Solo prezzo variabile</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label for="average-ranking-fornitura-setup">Fornitura da confrontare</label>
+                    <select id="average-ranking-fornitura-setup" data-average-ranking-filter="fornitura">
+                        <option value="dual" selected>Luce + Gas, stesso fornitore</option>
+                        <option value="separate">Luce + Gas, fornitori separati</option>
+                        <option value="luce">Solo luce</option>
+                        <option value="gas">Solo gas</option>
+                    </select>
+                </div>
+            </div>
+            <p class="average-ranking-filters-note">Profilo medio: 2.700 kWh luce e/o 1.400 Smc gas. La classifica viene ricalcolata, mantenendo invariato il riferimento economico.</p>
+        </div>
+
             <!-- Sezione Input Manuali Perfettamente Speculari (Luce/Gas a Sinistra e Luce/Gas a Destra) -->
     <div class="manual-container">
         
@@ -5973,6 +5997,26 @@
             text-align: center;
         }
         .offers-media-context[hidden] { display: none !important; }
+        /* v0.10.106: filtri indipendenti per la Top 10 del profilo medio. */
+        .average-ranking-filters {
+            margin: 12px 0 16px;
+            padding: 14px;
+            border: 1px solid #bdd8c9;
+            border-radius: 12px;
+            background: #f3faf6;
+            color: #123044;
+        }
+        .average-ranking-filters[hidden] { display: none !important; }
+        .average-ranking-filters-title { font-size: 15px; font-weight: 850; margin-bottom: 11px; }
+        .average-ranking-filters-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+        .average-ranking-filters .input-group { min-width: 0; margin: 0; }
+        .average-ranking-filters .input-group label { display: block; font-weight: 750; margin-bottom: 5px; }
+        .average-ranking-filters select { width: 100%; max-width: 100%; min-width: 0; }
+        .average-ranking-filters-note { margin: 10px 0 0; font-size: 12px; line-height: 1.4; color: #526274; }
+        @media (max-width: 700px) {
+            .average-ranking-filters { margin: 9px 0 12px; padding: 11px; }
+            .average-ranking-filters-grid { grid-template-columns: minmax(0, 1fr); gap: 9px; }
+        }
         .offers-media-context strong { color: #123044; font-weight: 950; }
 
         /* V108: la card mostra solo i dati decisionali; CTA prima delle condizioni. */
@@ -9513,6 +9557,45 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale,
 }
 
 let modalitaCalcolo = "manuale";
+// Il filtro della Top 10 media NON modifica la tariffa attuale usata come riferimento.
+let TIPO_PREZZO_RANKING_MEDIA = "tutte";
+
+function sincronizzaFiltriRankingMedia() {
+  document.querySelectorAll('[data-average-ranking-filter="prezzo"]').forEach((select) => {
+    select.value = TIPO_PREZZO_RANKING_MEDIA;
+  });
+  const fornitura = tipoFornituraPerCalcolo();
+  document.querySelectorAll('[data-average-ranking-filter="fornitura"]').forEach((select) => {
+    select.value = ["luce", "gas", "dual", "separate"].includes(fornitura) ? fornitura : "dual";
+  });
+}
+
+function htmlFiltriRankingMediaRisultati() {
+  return `<div class="average-ranking-filters" hidden aria-label="Filtri della Top 10 sul profilo medio">
+    <div class="average-ranking-filters-title">Personalizza la Top 10</div>
+    <div class="average-ranking-filters-grid">
+      <div class="input-group">
+        <label for="average-ranking-prezzo-risultati">Tipo di prezzo delle offerte</label>
+        <select id="average-ranking-prezzo-risultati" data-average-ranking-filter="prezzo">
+          <option value="tutte">Tutte (fisso e variabile)</option>
+          <option value="fisso">Solo prezzo fisso</option>
+          <option value="variabile">Solo prezzo variabile</option>
+        </select>
+      </div>
+      <div class="input-group">
+        <label for="average-ranking-fornitura-risultati">Fornitura da confrontare</label>
+        <select id="average-ranking-fornitura-risultati" data-average-ranking-filter="fornitura">
+          <option value="dual">Luce + Gas, stesso fornitore</option>
+          <option value="separate">Luce + Gas, fornitori separati</option>
+          <option value="luce">Solo luce</option>
+          <option value="gas">Solo gas</option>
+        </select>
+      </div>
+    </div>
+    <p class="average-ranking-filters-note">Prezzo variabile: stima con l'indice di riferimento disponibile, non prezzo garantito. Ogni scelta ricalcola l'intera graduatoria.</p>
+  </div>`;
+}
+
 
 function leggiNumero(id, fallback = 0) {
   const element = document.getElementById(id);
@@ -10027,6 +10110,8 @@ function selezionaSegmentoCliente(tipo) {
   if (businessPanel) businessPanel.style.display = isBusiness ? "block" : "none";
   setDisplay(".manual-block", isBusiness ? "none" : "block");
   setDisplay(".btn-calc", isBusiness ? "none" : "block");
+  const filtriMediaSetup = document.getElementById("average-ranking-filters-setup");
+  if (filtriMediaSetup) filtriMediaSetup.hidden = isBusiness || modalitaCalcolo !== "media";
   if (isBusiness) setDisplay(".fornitori-consigliati-section", "none");
   const results = document.getElementById("results-area");
   if (results) results.style.display = "none";
@@ -11554,6 +11639,7 @@ function creaGruppoOfferte(id, classe, titolo, testo) {
       <div>${titolo}</div>
       <div>${testo}</div>
     </div>
+    ${id === "offerte-ranking-group" ? htmlFiltriRankingMediaRisultati() : ""}
     <div class="offers-media-context" hidden></div>
     <div class="offers-contact-trust"><strong>Confronto senza registrazione.</strong> OffertaLogica non effettua chiamate telefoniche. Telefono ed email servono solo se prosegui tramite noi con un’offerta partner.</div>
     <div class="offer-group-cards"></div>
@@ -11678,7 +11764,11 @@ function offertaCoerenteConFornitura(offerta, tipoFornitura) {
 }
 
 function tipoPrezzoCompatibileConRanking(offerta, tipoTariffa) {
-  if (modalitaCalcolo === "media") return ["fisso", "variabile"].includes(offerta?.tipo);
+  if (modalitaCalcolo === "media") {
+    return TIPO_PREZZO_RANKING_MEDIA === "tutte"
+      ? ["fisso", "variabile"].includes(offerta?.tipo)
+      : offerta?.tipo === TIPO_PREZZO_RANKING_MEDIA;
+  }
   return offerta?.tipo === tipoTariffa;
 }
 
@@ -12759,7 +12849,7 @@ function unisciOfferteCandidati(offerteRanking, offertePartner) {
 
 function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const tipiRanking = modalitaCalcolo === "media"
-    ? ["fisso", "variabile"]
+    ? (TIPO_PREZZO_RANKING_MEDIA === "tutte" ? ["fisso", "variabile"] : [TIPO_PREZZO_RANKING_MEDIA])
     : [tipoTariffa];
   const daArera = tipiRanking.flatMap((tipo) => costruisciOfferteAreraRanking(attuale, tipo, tipoFornitura));
 
@@ -12965,7 +13055,10 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       mediaContext.textContent = "";
     }
   }
-  const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers);
+  const filtriMediaRisultati = gruppoRanking?.querySelector(".average-ranking-filters");
+  if (filtriMediaRisultati) filtriMediaRisultati.hidden = modalitaCalcolo !== "media";
+  if (modalitaCalcolo === "media") sincronizzaFiltriRankingMedia();
+  const contenitoreRanking = resetGruppoOfferte(gruppoRanking, hasVisibleOffers || modalitaCalcolo === "media");
 
   offerteCalcolate.forEach(({ card, offerta }) => {
     if (!idsVisibili.has(String(offerta.id))) {
@@ -12982,7 +13075,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       `
       : `
         <strong style="display:block; margin-bottom:4px;">Nessuna offerta disponibile per questo filtro.</strong>
-        Al momento nella lista aggiornata non abbiamo offerte ${testoFiltroOfferte(tipoTariffa, tipoFornitura)}.
+        Al momento nella lista aggiornata non abbiamo offerte ${modalitaCalcolo === "media" ? `${TIPO_PREZZO_RANKING_MEDIA === "tutte" ? "a prezzo fisso o variabile" : `a prezzo ${TIPO_PREZZO_RANKING_MEDIA}`} / ${tipoFornitura === "luce" ? "solo luce" : tipoFornitura === "gas" ? "solo gas" : tipoFornitura === "separate" ? "forniture separate" : "luce e gas stesso fornitore"}` : testoFiltroOfferte(tipoTariffa, tipoFornitura)}.
         Stiamo ampliando i partner e le schede certificate: prova a cambiare filtro oppure carica la bolletta per una verifica più precisa.
       `;
     if (!hasVisibleOffers) contenitoreSchede?.appendChild(emptyMessage);
@@ -13236,7 +13329,7 @@ function aggiornaConsumiDaMasterSeMedia() {
   }
 }
 
-window.avviaComparazioneDati = function avviaComparazioneDati() {
+window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
   const a11yUserRequestedResults = Boolean(window.__OL_A11Y_RESULTS_PENDING__);
   window.__OL_A11Y_RESULTS_PENDING__ = false;
   if (!DATI_UFFICIALI_CONFRONTO_PRONTI) {
@@ -13268,7 +13361,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   }
   if (origineDocumentoConfronto()) applicaFallbackStimaDocumentale();
   const attuale = leggiOffertaAttuale();
-  trackEvent("comparison_started", {
+  if (!options?.daFiltroMedia) trackEvent("comparison_started", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
     ...leggiProfiloComparazione(),
@@ -13327,7 +13420,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati() {
   }
 
   aggiornaOfferteProposte(attuale, confrontoNuova.attuale, tipoTariffa, tipoFornitura);
-  trackEvent("comparison_completed", {
+  if (!options?.daFiltroMedia) trackEvent("comparison_completed", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
     hasNewOffer: haNuovaOfferta,
@@ -20146,6 +20239,26 @@ function collegaEventiUX() {
     }, 0);
   });
 
+  document.addEventListener("change", (event) => {
+    const filtro = event.target?.closest?.("select[data-average-ranking-filter]");
+    if (!filtro || modalitaCalcolo !== "media" || LEAD_STATE.customerType !== "privato") return;
+    if (filtro.dataset.averageRankingFilter === "prezzo") {
+      if (!["tutte", "fisso", "variabile"].includes(filtro.value)) return;
+      TIPO_PREZZO_RANKING_MEDIA = filtro.value;
+    } else if (filtro.dataset.averageRankingFilter === "fornitura") {
+      if (!["dual", "separate", "luce", "gas"].includes(filtro.value)) return;
+      applicaAmbitoConfronto(filtro.value);
+    } else return;
+    sincronizzaFiltriRankingMedia();
+    trackEvent("average_ranking_filter_changed", {
+      tipoPrezzoRanking: TIPO_PREZZO_RANKING_MEDIA,
+      tipoFornituraRanking: tipoFornituraPerCalcolo(),
+    });
+    if (document.querySelector(".fornitori-consigliati-section")?.style.display === "block") {
+      window.avviaComparazioneDati({ daFiltroMedia: true });
+    }
+  });
+
   btnPrecisi?.addEventListener("click", (event) => {
     modalitaCalcolo = "manuale";
     if (event?.isTrusted) tracciaSceltaPercorsoConfronto("manual", "desktop_choice");
@@ -20595,7 +20708,10 @@ if (document.readyState === "loading") {
               btnMedi.classList.add("selected");
               LEAD_STATE.dataOrigin = "arera_average_profile";
               
-              // Nascondiamo l'interfaccia manuale per l'utente
+              // I filtri della Top 10 media restano disponibili anche prima del confronto.
+              TIPO_PREZZO_RANKING_MEDIA = "tutte";
+              const filtriMediaSetup = document.getElementById("average-ranking-filters-setup");
+              if (filtriMediaSetup) filtriMediaSetup.hidden = false;
               if(containerTendine) containerTendine.style.display = "none";
               if(blocchiInferiori) blocchiInferiori.style.display = "none";
               if(pulsanteCalcoloManuale) pulsanteCalcoloManuale.style.display = "none";
@@ -20607,6 +20723,8 @@ if (document.readyState === "loading") {
               if(document.getElementById("master-luce-tipo")) document.getElementById("master-luce-tipo").value = PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo;
               if(document.getElementById("master-gas-consumo")) document.getElementById("master-gas-consumo").value = String(PARAMETRI_CALCOLO.profiloMedio.gasConsumoSmc);
               if(document.getElementById("master-tipo-fornitura")) document.getElementById("master-tipo-fornitura").value = PARAMETRI_CALCOLO.profiloMedio.tipoFornitura;
+              applicaAmbitoConfronto(PARAMETRI_CALCOLO.profiloMedio.tipoFornitura);
+              sincronizzaFiltriRankingMedia();
               if(document.getElementById("master-gas-regione")) document.getElementById("master-gas-regione").value = PARAMETRI_CALCOLO.profiloMedio.regioneGas;
               if(document.getElementById("master-gas-contatore")) document.getElementById("master-gas-contatore").value = PARAMETRI_CALCOLO.profiloMedio.classeContatoreGas || "";
               if(document.getElementById("master-gas-pcs")) document.getElementById("master-gas-pcs").value = PARAMETRI_CALCOLO.profiloMedio.potereCalorificoGasGjSmc || "";
@@ -20661,6 +20779,8 @@ if (document.readyState === "loading") {
               resetBotteonStyles();
               btnPrecisi.classList.add("selected");
               LEAD_STATE.dataOrigin = "manual_input";
+              const filtriMediaSetup = document.getElementById("average-ranking-filters-setup");
+              if (filtriMediaSetup) filtriMediaSetup.hidden = true;
               if (originePrecedente === "arera_average_profile") azzeraDatiTecniciProfiloManuale();
               nascondiGuida("comparison-next-step-guidance");
               nascondiGuida("pdf-data-review-guidance");
