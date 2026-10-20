@@ -833,6 +833,9 @@
         .business-ranking-meta { min-width: 0; }
         .business-ranking-meta strong { display: block; margin: 0; color: #123044; font-size: 14px; line-height: 1.25; }
         .business-ranking-meta small { display: block; margin-top: 2px; color: #64748b; font-size: 11px; line-height: 1.35; }
+        .business-ranking-meta .business-offer-conditions { margin-top: 7px; }
+        .business-ranking-meta .business-offer-conditions summary { cursor: pointer; font-size: 12px; color: #334155; font-weight: 700; }
+        .business-ranking-meta .business-offer-conditions strong { display: inline; color: inherit; font-size: inherit; }
         .business-ranking-economics { text-align: right; white-space: nowrap; }
         .business-ranking-cost-label { display: block; margin-bottom: 2px; color: #64748b; font-size: 10px; font-weight: 800; line-height: 1.2; }
         .business-ranking-economics strong { display: block; margin: 0; color: #123044; font-size: 14px; }
@@ -8480,6 +8483,7 @@ function normalizzaRigaAreraMenu(riga) {
     indiceRiferimento: String(riga.indiceRiferimento || riga.provenienzaPrezzo?.indiceApplicato || "").trim().toLowerCase(),
     provenienzaPrezzo: normalizzaProvenienzaPrezzoArera(riga.provenienzaPrezzo),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
   };
 }
 
@@ -8517,6 +8521,7 @@ function normalizzaRigaAreraDual(riga) {
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     score: numeroSicuro(riga.score, luce.score + gas.score),
     sconti: normalizzaScontiArera(riga.sconti, riga.durataMesi),
+    condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
     luce,
     gas,
   };
@@ -9164,16 +9169,41 @@ function unicoPrezzoScontoArera(sconto) {
   return unici.size === 1 ? [...unici.values()][0] : null;
 }
 
-function fattoreDurataScontoArera(sconto) {
-  const durata = Number(sconto?.durataMesi);
-  if (Number.isFinite(durata) && durata > 0) return Math.min(12, durata) / 12;
-  const durataOfferta = Number(sconto?.durataOffertaMesi);
-  if (sconto?.durataInteraOfferta && Number.isFinite(durataOfferta) && durataOfferta > 0) return Math.min(12, durataOfferta) / 12;
-  const giorni = Number(sconto?.durataGiorni);
-  if (Number.isFinite(giorni) && giorni > 0) return Math.min(365, giorni) / 365;
-  const meseSingolo = Number(sconto?.meseValidita);
-  if (Number.isFinite(meseSingolo) && meseSingolo >= 1 && meseSingolo <= 12) return 1 / 12;
+// Il periodo di validita commerciale nel catalogo non e il mese di fornitura.
+// Per il primo anno consideriamo soltanto finestre temporali esplicite nella promozione.
+function meseInizioScontoArera(sconto) {
+  const nome = testoAreraNormalizzato(sconto?.nome);
+  const descrizione = testoAreraNormalizzato(sconto?.descrizione);
+  const testo = `${nome} ${descrizione}`;
+  const paroleMese = Object.keys(NUMERI_DURATA_ARERA).sort((a, b) => b.length - a.length).join("|");
+  const numeroMese = `(?:\\d{1,3}|${paroleMese})`;
+  // Una finestra del primo anno prevale su eventuali descrizioni di rinnovi successivi.
+  const intervallo = descrizione.match(new RegExp(`\\bdal\\s+(${numeroMese})\\s+(?:al|fino al)\\s+${numeroMese}\\s+mese\\b`));
+  if (intervallo) return numeroDurataTestoArera(intervallo[1]) || 1;
+  if (/\b2\s+anno\b/.test(nome)
+    || /\b(?:il|nel|dal|durante|mentre il) secondo anno\b/.test(descrizione)
+    || /\ba partire dal primo mese del secondo anno\b/.test(descrizione)) {
+    // Una promozione unica che cita entrambi gli anni resta applicabile nel primo.
+    if (!/\b(?:primo|1) anno\b/.test(descrizione) || /\b2\s+anno\b/.test(nome)) return 13;
+  }
+  const dalMese = testo.match(new RegExp(`\\b(?:dal|a partire dal)\\s+(${numeroMese})\\s+mese\\b`));
+  if (dalMese) return numeroDurataTestoArera(dalMese[1]) || 1;
   return 1;
+}
+
+function fattoreDurataScontoArera(sconto) {
+  const meseInizio = meseInizioScontoArera(sconto);
+  if (meseInizio > 12) return 0;
+  const mesiResiduiPrimoAnno = 13 - meseInizio;
+  const durata = Number(sconto?.durataMesi);
+  if (Number.isFinite(durata) && durata > 0) return Math.min(mesiResiduiPrimoAnno, durata) / 12;
+  const durataOfferta = Number(sconto?.durataOffertaMesi);
+  if (sconto?.durataInteraOfferta && Number.isFinite(durataOfferta) && durataOfferta > 0) return Math.min(mesiResiduiPrimoAnno, durataOfferta) / 12;
+  const giorni = Number(sconto?.durataGiorni);
+  if (Number.isFinite(giorni) && giorni > 0) return Math.min(mesiResiduiPrimoAnno / 12, giorni / 365);
+  const meseSingolo = Number(sconto?.meseValidita);
+  if (Number.isFinite(meseSingolo) && meseSingolo > 0) return meseSingolo <= 12 ? 1 / 12 : 0;
+  return mesiResiduiPrimoAnno / 12;
 }
 
 function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
@@ -9188,18 +9218,8 @@ function importoScontoArera(sconti, voceCalcolata, contesto = {}) {
     else if (prezzo.unita === "03" && contesto.commodity === "luce") importo = voceCalcolata.consumoFatturato * prezzo.valore * fattoreDurata;
     else if (prezzo.unita === "04" && contesto.commodity === "gas") importo = voceCalcolata.consumoFatturato * prezzo.valore * fattoreDurata;
     else if (prezzo.unita === "01") importo = prezzo.valore * fattoreDurata;
-    else if (prezzo.unita === "02") {
-      const mesi = Number.isFinite(Number(sconto.durataMesi)) && Number(sconto.durataMesi) > 0
-        ? Math.min(12, Number(sconto.durataMesi))
-        : sconto.durataInteraOfferta && Number.isFinite(Number(sconto.durataOffertaMesi)) && Number(sconto.durataOffertaMesi) > 0
-          ? Math.min(12, Number(sconto.durataOffertaMesi))
-          : Number.isFinite(Number(sconto.durataGiorni)) && Number(sconto.durataGiorni) > 0
-            ? Math.min(12, Number(sconto.durataGiorni) / (365 / 12))
-            : Number.isFinite(Number(sconto.meseValidita)) && Number(sconto.meseValidita) >= 1 && Number(sconto.meseValidita) <= 12
-              ? 1
-              : 12;
-      importo = prezzo.valore * mesi;
-    } else if (prezzo.unita === "05") importo = prezzo.valore;
+    else if (prezzo.unita === "02") importo = prezzo.valore * 12 * fattoreDurata;
+    else if (prezzo.unita === "05") importo = fattoreDurata > 0 ? prezzo.valore : 0;
     if (Number.isFinite(importo) && importo > 0) totale += importo;
   }
   return Math.max(0, totale);
@@ -9380,7 +9400,7 @@ function htmlPromozioniApplicateOfferta(offerta, costoOfferta) {
       </div>`
     : "";
   const nonIncluse = riepilogo.nonIncluse > 0
-    ? `<small style="display:block; margin-top:4px; color:var(--text-muted); font-weight:600;">Altre promozioni dichiarate non sono incluse nel costo perché le relative condizioni non risultano soddisfatte o verificabili nel profilo corrente.</small>`
+    ? `<small style="display:block; margin-top:4px; color:var(--text-muted); font-weight:600;">Altre promozioni dichiarate non sono incluse nel costo perché previste fuori dai primi 12 mesi o perché le relative condizioni non risultano soddisfatte o verificabili nel profilo corrente.</small>`
     : "";
   return `${incluse}${nonIncluse}`;
 }
@@ -10144,6 +10164,7 @@ function creaCandidatoBusinessSingolo(riga, profile) {
     differenza: costoAttuale - costo,
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     codici: [riga.codice].filter(Boolean),
+    [commodity]: { condizioniRecessoAnticipato: riga.condizioniRecessoAnticipato || [] },
     simulatorKind: "business",
     simulatorComponents: {
       [commodity]: {
@@ -10180,6 +10201,9 @@ function creaCandidatoBusinessDual(riga, profile) {
     differenza: profile.costoAttuale - costo,
     fonte: riga.fonte || DATI_ARERA_MENU_META.fonte,
     codici: [riga.codiceOffertaLuce, riga.codiceOffertaGas].filter(Boolean),
+    condizioniRecessoAnticipato: riga.condizioniRecessoAnticipato || [],
+    luce: { condizioniRecessoAnticipato: riga.luce?.condizioniRecessoAnticipato || [] },
+    gas: { condizioniRecessoAnticipato: riga.gas?.condizioniRecessoAnticipato || [] },
     simulatorKind: "business",
     simulatorComponents: {
       luce: {
@@ -10217,6 +10241,8 @@ function creaCandidatoBusinessSeparato(luce, gas, profile) {
     differenza: profile.costoAttuale - costo,
     fonte: `${luce.fonte} | ${gas.fonte}`,
     codici: [...luce.codici, ...gas.codici],
+    luce: luce.luce || null,
+    gas: gas.gas || null,
     simulatorKind: "business",
     simulatorComponents: {
       luce: luce.simulatorComponents?.luce || null,
@@ -10225,7 +10251,7 @@ function creaCandidatoBusinessSeparato(luce, gas, profile) {
   };
 }
 
-function selezionaRankingBusiness(candidati, limite = 9) {
+function selezionaRankingBusiness(candidati, limite = 10) {
   return [...candidati]
     .filter((item) => item && Number.isFinite(item.costo) && Number.isFinite(item.differenza))
     .sort((a, b) => (a.costo - b.costo) || (b.differenza - a.differenza) || String(a.provider).localeCompare(String(b.provider)))
@@ -10233,7 +10259,7 @@ function selezionaRankingBusiness(candidati, limite = 9) {
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
 }
 
-function costruisciRankingBusiness(profile, limite = 9) {
+function costruisciRankingBusiness(profile, limite = 10) {
   const hasLuce = Number.isFinite(profile?.consumoLuceKwh) && Number.isFinite(profile?.costoAttualeLuce);
   const hasGas = Number.isFinite(profile?.consumoGasSmc) && Number.isFinite(profile?.costoAttualeGas);
   if (!hasLuce && !hasGas) return [];
@@ -10431,6 +10457,13 @@ function renderRankingBusiness(profile, ranking) {
     const tipo = item.tipo === "variabile" ? "Prezzo variabile" : item.tipo === "misto" ? "Prezzi misti" : "Prezzo fisso";
     detail.textContent = `${item.nome} · ${tipo} · ${descriviAmbitoBusiness(item)}`;
     meta.append(title, detail);
+    const recessoBusiness = htmlCondizioniRecessoOfferta(item);
+    if (recessoBusiness) {
+      const condizioni = document.createElement("details");
+      condizioni.className = "business-offer-conditions";
+      condizioni.innerHTML = `<summary>Dettagli e condizioni</summary>${recessoBusiness}`;
+      meta.appendChild(condizioni);
+    }
     main.appendChild(meta);
 
     const economics = document.createElement("div");
@@ -10489,7 +10522,7 @@ window.calcolaBusiness = function calcolaBusiness() {
     return null;
   }
 
-  const ranking = costruisciRankingBusiness(profile, 9);
+  const ranking = costruisciRankingBusiness(profile, 10);
   const migliore = ranking[0] || null;
   const profiloCalcolato = {
     ...profile,
@@ -12713,7 +12746,7 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
 }
 
 // BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
-const NUMERO_OFFERTE_RANKING_MENU = 9;
+const NUMERO_OFFERTE_RANKING_MENU = 10;
 
 function selezionaRankingEconomicoPerMenu(items, limite = NUMERO_OFFERTE_RANKING_MENU) {
   return [...items]
