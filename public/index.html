@@ -6879,11 +6879,13 @@ function applicaFallbackStimaDocumentale() {
   const profilo = PARAMETRI_CALCOLO.profiloMedio || {};
   const fallbackById = {
     "in-luce-cons-att": { value: numeroSicuro(profilo.luceConsumoKwh, NaN), label: "consumo annuo luce" },
-    "in-luce-prezzo-att": { value: numeroSicuro(profilo.prezzoLuceEurKwh, NaN), label: "prezzo luce attuale" },
-    "in-luce-fisso-att": { value: numeroSicuro(profilo.quotaFissaLuceAnnua, NaN), label: "quota fissa luce attuale", unitId: "in-luce-fisso-att-unita", unit: "anno" },
+    // Un prezzo medio del benchmark NON e un prezzo letto dalla bolletta.
+    // Se manca il prezzo vendita verificabile, il confronto personale si ferma.
+    // La quota fissa commerciale deve provenire da una voce di vendita, non
+    // dalla quota fissa totale della bolletta o dal benchmark.
     "in-gas-cons-att": { value: numeroSicuro(profilo.gasConsumoSmc, NaN), label: "consumo annuo gas" },
-    "in-gas-prezzo-att": { value: numeroSicuro(profilo.prezzoGasEurSmc, NaN), label: "prezzo gas attuale" },
-    "in-gas-fisso-att": { value: numeroSicuro(profilo.quotaFissaGasAnnua, NaN), label: "quota fissa gas attuale", unitId: "in-gas-fisso-att-unita", unit: "anno" },
+    // Stessa regola per il gas: nessun PSV/prezzo simulato spacciato per storico.
+    // Non usare la quota fissa media del profilo come componente del contratto.
   };
   const missing = campiMancanti(configurazioniPerAmbito(CAMPI_ATTUALI_ESSENZIALI));
   const already = new Map(fallbackDocumentaliAttivi().map((item) => [item.id, item]));
@@ -11087,15 +11089,18 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
 
   if (areaRisultati) areaRisultati.style.display = "flex";
   if (scatolaVerdetto) scatolaVerdetto.className = "verdetto-box warning";
-  if (titolo) titolo.innerText = "Completa i dati";
+  const documentoPdf = Boolean(origineDocumentoConfronto());
+  if (titolo) titolo.innerText = documentoPdf ? "Lettura della bolletta incompleta" : "Completa i dati";
   if (badgeNumero) {
-    badgeNumero.innerText = "Dati mancanti";
+    badgeNumero.innerText = documentoPdf ? "Stima non disponibile" : "Dati mancanti";
     badgeNumero.style.display = "inline-block";
   }
   if (testoDescrizione) {
-    testoDescrizione.innerText = mancanti.length <= 2
-      ? `Per calcolare il risparmio ci manca: ${elencoSempliceCampi(mancanti)}.`
-      : "Alcuni dati della bolletta non sono completi. Compila le caselle evidenziate in rosso.";
+    testoDescrizione.innerText = documentoPdf
+      ? "Non riusciamo a leggere tutte le componenti necessarie per una stima affidabile. Carica una bolletta PDF più leggibile: non devi cercare PUN, PSV o spread."
+      : mancanti.length <= 2
+        ? `Per calcolare il risparmio ci manca: ${elencoSempliceCampi(mancanti)}.`
+        : "Alcuni dati della bolletta non sono completi. Compila le caselle evidenziate in rosso.";
   }
   if (btnAttiva) btnAttiva.style.display = "none";
   if (comparazione) comparazione.remove();
@@ -11106,11 +11111,13 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
   LEAD_STATE.firstOfferId = "";
   LEAD_STATE.bestPartnerSaving = 0;
   if (mancanti.some(({ id }) => String(id).includes("-nuov"))) apriDettagliNuovaOfferta();
-  segnalaCampiMancanti(mancanti);
-  window.setTimeout(() => {
-    mancanti[0]?.element?.scrollIntoView({ behavior: "smooth", block: "center" });
-    mancanti[0]?.element?.focus({ preventScroll: true });
-  }, 50);
+  if (!documentoPdf) {
+    segnalaCampiMancanti(mancanti);
+    window.setTimeout(() => {
+      mancanti[0]?.element?.scrollIntoView({ behavior: "smooth", block: "center" });
+      mancanti[0]?.element?.focus({ preventScroll: true });
+    }, 50);
+  }
   trackEvent("comparison_incomplete_data", {
     context: contesto,
     missingFields: mancanti.map(({ id }) => id),
@@ -11218,7 +11225,7 @@ function mostraAvvisoStimaIndicativaPdf() {
   notice.id = "pdf-stima-indicativa-warning";
   notice.setAttribute("role", "status");
   notice.style.cssText = "padding:14px 16px;margin:12px 0;border:1px solid #d97706;border-radius:10px;background:#fff7ed;color:#7c2d12;font-size:14px";
-  notice.innerHTML = `<strong>Confronto indicativo, non un risparmio garantito.</strong> Per ${voci.join(", ")} manca una formula indicizzata completa. Il confronto usa il prezzo storico letto dal documento: il costo futuro potrebbe essere differente. Puoi integrare indice e spread in seguito.`;
+  notice.innerHTML = `<strong>Confronto indicativo, non un risparmio garantito.</strong> Per ${voci.join(", ")} sono utilizzati i prezzi storici commerciali rilevati dalla bolletta, non una previsione degli indici futuri. Le tariffe variabili possono cambiare; il calcolatore non inventa PUN, PSV o spread.`;
   area.prepend(notice);
 }
 
@@ -16183,10 +16190,10 @@ function aggiornaStatoPdfMobileDopoAnalisi({ files = [], validCurrent = [], vali
       mostraStatoPdfMobile({
         mode: "warning",
         title: count === 1 ? "Manca 1 dato per continuare" : `Mancano ${count} dati per continuare`,
-        copy: "Non abbiamo un valore medio valido per questo campo. Controlla il primo dato evidenziato oppure prova con il PDF completo del fornitore.",
+        copy: "La bolletta non contiene dati commerciali abbastanza chiari per un confronto personalizzato. Carica una copia PDF completa e leggibile: non devi cercare indici o spread.",
         filename,
-        primaryLabel: count === 1 ? "Completa il dato" : "Completa i dati",
-        secondaryLabel: "Controlla il modulo",
+        primaryLabel: "Carica una bolletta migliore",
+        secondaryLabel: "Controlla il documento",
         primaryAction: "missing",
         missingFieldId: mancanti[0]?.id || "",
       });
@@ -17928,6 +17935,23 @@ function aggiornaProfiloPdfDaDati(data, scope) {
     const value = pdfValoreContrattoCompletoPerCalcolo(data, field);
     if (value !== undefined) profile[field] = value;
   });
+  if (normalizedScope === "current" && data?.kind === "bolletta") {
+    for (const commodity of ["luce", "gas"]) {
+      const priceField = commodity === "luce" ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc";
+      const fixedField = `quota_fissa_vendita_${commodity}_eur_anno`;
+      const price = Number(pdfSafeAutofillValue(data, priceField));
+      const fixed = pdfSafeAutofillValue(data, fixedField);
+      const type = pdfSafeAutofillValue(data, `tipo_prezzo_${commodity}`);
+      const priceEvidence = pdfContractFieldEntry(data, priceField);
+      const fromReceipt = priceEvidence?.derivation?.type === "pdf_receipt_sales_unit_price";
+      if ((fromReceipt || type === "variabile") && Number.isFinite(price) && price > 0
+          && fixed !== undefined && Number.isFinite(Number(fixed)) && Number(fixed) >= 0) {
+        // Per la fornitura corrente usa i prezzi storici delle componenti
+        // commerciali (evidenziati come stima), senza pretendere PUN/spread.
+        profile[`stimaIndicativa_${commodity}`] = true;
+      }
+    }
+  }
 }
 
 // OFFERTALOGICA_OFFER_SHEET_BAND_PRICE_20260728
