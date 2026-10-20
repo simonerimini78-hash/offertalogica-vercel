@@ -18668,11 +18668,15 @@ function renderPdfContractControl(merged) {
     const conditionEnd = merged.scadenza_condizioni_economiche_luce || (commodity === "luce" ? merged.scadenza_condizioni_economiche : "");
     rows.push(pdfContractCheckRow("Scadenza condizioni economiche luce", conditionEnd));
     rows.push(pdfContractCheckRow("Scadenza contratto luce", merged.scadenza_contratto_luce));
+    if (merged.onere_recesso_anticipato_luce) rows.push(`<li>Penali/oneri recesso luce: ${testoHtmlSicuro(merged.onere_recesso_anticipato_luce)} (dal documento).</li>`);
+    if (Array.isArray(merged.sconti_offerta_luce) && merged.sconti_offerta_luce.length) rows.push(`<li>Bonus e sconti luce dichiarati: ${testoHtmlSicuro(merged.sconti_offerta_luce.join("; "))}.</li>`);
   }
   if (hasGas) {
     const conditionEnd = merged.scadenza_condizioni_economiche_gas || (commodity === "gas" ? merged.scadenza_condizioni_economiche : "");
     rows.push(pdfContractCheckRow("Scadenza condizioni economiche gas", conditionEnd));
     rows.push(pdfContractCheckRow("Scadenza contratto gas", merged.scadenza_contratto_gas));
+    if (merged.onere_recesso_anticipato_gas) rows.push(`<li>Penali/oneri recesso gas: ${testoHtmlSicuro(merged.onere_recesso_anticipato_gas)} (dal documento).</li>`);
+    if (Array.isArray(merged.sconti_offerta_gas) && merged.sconti_offerta_gas.length) rows.push(`<li>Bonus e sconti gas dichiarati: ${testoHtmlSicuro(merged.sconti_offerta_gas.join("; "))}.</li>`);
   }
   if (!rows.length) {
     rows.push(pdfContractCheckRow("Scadenza condizioni economiche", merged?.scadenza_condizioni_economiche));
