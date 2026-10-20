@@ -8403,10 +8403,17 @@ function normalizzaVoceOfferta(voce) {
     riferimentoArera: normalizzaRiferimentoArera(voce.riferimentoArera),
   };
   if (voce.formula && typeof voce.formula === "object") {
+    const formula = voce.formula;
+    const esplicito = (value) => value !== null && value !== undefined && String(value).trim() !== "" && Number.isFinite(Number(value));
+    const moltiplicatore = formula.tipo === "indice_moltiplicatore_spread";
     normalized.formula = {
-      tipo: voce.formula.tipo || "",
-      indice: voce.formula.indice || "",
-      spread: numeroSicuro(voce.formula.spread, 0),
+      tipo: formula.tipo || "",
+      indice: String(formula.indice || "").trim().toLowerCase(),
+      spread: esplicito(formula.spread) ? Number(formula.spread) : null,
+      ...(moltiplicatore ? {
+        moltiplicatore: esplicito(formula.moltiplicatore) ? Number(formula.moltiplicatore) : null,
+        moltiplicatoreEsplicito: true,
+      } : {}),
     };
   }
   return normalized;
@@ -8662,9 +8669,31 @@ async function caricaOfferteAreraMenu() {
   return false;
 }
 
+// Ricostruisce la formula solo se i parametri della CTE del partner sono completi
+// e riproducono il prezzo di proiezione documentato. Il prezzo salvato non e'
+// una quotazione valida per periodi futuri.
+function formulaPartnerDirettaDaCte(riga) {
+  if (riga?.tipo !== "variabile" || String(riga?.qualitaPrezzo || "") !== "partner_cte_validata") return null;
+  const economia = riga?.dettagliTecnici?.economics;
+  const indice = String(riga?.indiceRiferimento || "").trim().toLowerCase();
+  if (!["pun", "psv", "psbg"].includes(indice)) return null;
+  if (indice !== String(economia?.indexName || "").trim().toLowerCase()) return null;
+  if (economia?.cap?.enabled === true) return null; // Servirebbe un modello dedicato al cap.
+  const numeroEsplicito = (value) => value !== null && value !== undefined && String(value).trim() !== "" && Number.isFinite(Number(value));
+  if (![economia?.indexValueAtProjection, economia?.spread, riga?.prezzo].every(numeroEsplicito)) return null;
+  const riferimento = Number(economia.indexValueAtProjection);
+  const spread = Number(economia.spread);
+  const proiezione = Number(riga.prezzo);
+  if (riferimento <= 0 || proiezione <= 0 || Math.abs(riferimento + spread - proiezione) > 0.000001) return null;
+  return { tipo: "indice_spread", indice, spread };
+}
+
 function normalizzaRigaPartnerDiretta(riga) {
   const base = normalizzaRigaAreraMenu(riga);
   if (!base) return null;
+  const formula = riga.tipo === "variabile" ? formulaPartnerDirettaDaCte(riga) : null;
+  // Non utilizzare il prezzo storico come se fosse un indice attuale.
+  if (riga.tipo === "variabile" && !formula) return null;
   const partnerKeys = Array.isArray(riga?.partnerKeys)
     ? riga.partnerKeys.map((key) => String(key || "").trim().toLowerCase()).filter(Boolean)
     : [];
@@ -8672,6 +8701,7 @@ function normalizzaRigaPartnerDiretta(riga) {
   if (partnerKey && !partnerKeys.includes(partnerKey)) partnerKeys.push(partnerKey);
   return {
     ...base,
+    formula,
     sourceType: String(riga?.sourceType || "partner_direct").trim().toLowerCase(),
     partnerKey,
     partnerKeys,
@@ -10838,16 +10868,37 @@ function indiceMercatoDaProfiloPdf(index, commodity) {
   return "";
 }
 
-function formulaDaProfiloPdf(scope, commodity) {
+function valoreNumericoContrattoPdf(value) {
+  if (value === null || value === undefined || String(value).trim() === "") return null;
+  const numero = Number(String(value).trim().replace(",", "."));
+  return Number.isFinite(numero) ? numero : null;
+}
+
+function formulaPdfMancante(scope, commodity) {
   const profile = PDF_PROFILE_STATE[scope] || {};
   const suffix = commodity === "luce" ? "luce" : "gas";
-  const index = profile[`indice_riferimento_${suffix}`];
-  const multiplier = Number(profile[`moltiplicatore_indice_${suffix}`]);
-  const spread = Number(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  const indice = indiceMercatoDaProfiloPdf(index, commodity);
-  if (!indice) return undefined;
-  if (Number.isFinite(multiplier)) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread: Number.isFinite(spread) ? spread : 0 };
-  return { tipo: "indice_spread", indice, spread: Number.isFinite(spread) ? spread : 0 };
+  const indiceLetto = String(profile[`indice_riferimento_${suffix}`] || "").trim();
+  if (!indiceLetto) return false;
+  // Se il PDF descrive un indice diverso da quelli modellati, serve una verifica.
+  if (!indiceMercatoDaProfiloPdf(indiceLetto, commodity)) return true;
+  const spread = valoreNumericoContrattoPdf(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
+  const multiplierRaw = profile[`moltiplicatore_indice_${suffix}`];
+  const multiplier = valoreNumericoContrattoPdf(multiplierRaw);
+  const formulaTesto = String(profile[`formula_prezzo_${suffix}`] || "");
+  const moltiplicatoreRichiesto = /(?:pun|psv|psbg)[^\n]{0,60}[x×*]\s*\d/i.test(formulaTesto);
+  return spread === null || (multiplierRaw !== null && multiplierRaw !== undefined && String(multiplierRaw).trim() !== "" && (multiplier === null || multiplier <= 0)) || (moltiplicatoreRichiesto && multiplier === null);
+}
+
+function formulaDaProfiloPdf(scope, commodity) {
+  if (modalitaCalcolo === "media") return undefined;
+  const profile = PDF_PROFILE_STATE[scope] || {};
+  const suffix = commodity === "luce" ? "luce" : "gas";
+  const indice = indiceMercatoDaProfiloPdf(profile[`indice_riferimento_${suffix}`], commodity);
+  if (!indice || formulaPdfMancante(scope, commodity)) return undefined;
+  const multiplier = valoreNumericoContrattoPdf(profile[`moltiplicatore_indice_${suffix}`]);
+  const spread = valoreNumericoContrattoPdf(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
+  if (multiplier !== null) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread };
+  return { tipo: "indice_spread", indice, spread };
 }
 
 function fasceDaProfiloPdf(scope, prefix) {
@@ -11038,6 +11089,27 @@ function mostraErroreDatiMancanti(mancanti, contesto = "fornitura attuale") {
     missingFields: mancanti.map(({ id }) => id),
   });
   registraDifficoltaAssistenza(`missing_${contesto.replace(/\s+/g, "_")}`);
+}
+
+function mostraErroreFormulaPdfMancante(voci) {
+  const area = document.getElementById("results-area");
+  const titolo = document.getElementById("verdetto-titolo");
+  const numero = document.getElementById("verdetto-numero");
+  const testo = document.getElementById("verdetto-testo");
+  if (area) area.style.display = "flex";
+  const verdetto = document.querySelector(".verdetto-box");
+  if (verdetto) verdetto.className = "verdetto-box warning";
+  if (titolo) titolo.innerText = "Formula indicizzata incompleta";
+  if (numero) { numero.innerText = "Verifica la CTE"; numero.style.display = "inline-block"; }
+  if (testo) testo.innerText = `La lettura PDF non ha confermato indice, spread e/o moltiplicatore per ${voci.join(", ")}. Non possiamo stimare il risparmio usando uno spread inventato o un prezzo storico. Verifica la scheda contrattuale prima del confronto.`;
+  document.getElementById("btn-attiva-subito")?.style.setProperty("display", "none");
+  document.querySelector(".fornitori-consigliati-section")?.style.setProperty("display", "none");
+  document.getElementById("comparazione-dettaglio-costi")?.remove();
+  LEAD_STATE.bestSaving = 0;
+  LEAD_STATE.firstOfferSaving = null;
+  LEAD_STATE.firstOfferId = "";
+  LEAD_STATE.bestPartnerSaving = 0;
+  trackEvent("comparison_incomplete_data", { context: "pdf_index_formula", missingFields: voci });
 }
 
 function mostraErroreDatiImplausibili(campi, contesto = "fornitura attuale") {
@@ -11778,9 +11850,14 @@ function offertaCompatibileConRanking(offerta, tipoTariffa, tipoFornitura) {
 }
 
 function voceIndicizzataCalcolabile(voce) {
-  if (!voce?.formula || voce.formula.tipo !== "indice_spread") return true;
-  const indice = INDICI_MERCATO[voce.formula.indice]?.valore;
-  return numeroSicuro(indice, 0) > 0 || numeroSicuro(voce.prezzoVariabile, 0) > 0;
+  if (!voce?.formula) return true;
+  if (!["indice_spread", "indice_moltiplicatore_spread"].includes(voce.formula.tipo)) return false;
+  const indice = Number(INDICI_MERCATO[voce.formula.indice]?.valore);
+  const spread = voce.formula.spread;
+  const moltiplicatore = voce.formula.tipo === "indice_moltiplicatore_spread" ? voce.formula.moltiplicatore : 1;
+  return Number.isFinite(indice) && indice > 0
+    && spread !== null && spread !== undefined && String(spread).trim() !== "" && Number.isFinite(Number(spread))
+    && moltiplicatore !== null && moltiplicatore !== undefined && Number.isFinite(Number(moltiplicatore)) && Number(moltiplicatore) > 0;
 }
 
 function offertaCalcolabileConIndici(offerta) {
@@ -13386,6 +13463,17 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
 
   const nuova = leggiNuovaOfferta(attuale);
   const nuovaIniziata = nuovaOffertaCompilata();
+  const formulePdfIncomplete = [];
+  if (modalitaCalcolo !== "media") for (const commodity of ["luce", "gas"]) {
+    if (tipoFornitura === "luce" && commodity !== "luce") continue;
+    if (tipoFornitura === "gas" && commodity !== "gas") continue;
+    if (formulaPdfMancante("current", commodity)) formulePdfIncomplete.push(`fornitura attuale ${commodity}`);
+    if (nuovaIniziata && formulaPdfMancante("offer", commodity)) formulePdfIncomplete.push(`offerta proposta ${commodity}`);
+  }
+  if (formulePdfIncomplete.length) {
+    mostraErroreFormulaPdfMancante(formulePdfIncomplete);
+    return;
+  }
   const configurazioniNuova = configurazioniPerAmbito(CAMPI_NUOVA_OFFERTA_ESSENZIALI);
   const mancantiNuova = nuovaIniziata ? campiMancanti(configurazioniNuova) : [];
   if (mancantiNuova.length) {
@@ -19415,6 +19503,7 @@ function voceDaRigaPartnerDiretta(riga) {
   if (!riga) return null;
   return {
     prezzoVariabile: riga.prezzo,
+    formula: riga.formula,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     sconti: normalizzaScontiArera(riga.sconti),
     riferimentoArera: null,
@@ -19422,11 +19511,12 @@ function voceDaRigaPartnerDiretta(riga) {
 }
 
 function costoRigaPartnerDirettaSuProfilo(riga, attuale) {
-  if (!riga) return Number.POSITIVE_INFINITY;
+  if (!riga || (riga.tipo === "variabile" && !voceIndicizzataCalcolabile(riga))) return Number.POSITIVE_INFINITY;
   const base = riga.commodity === "luce" ? attuale.luce : attuale.gas;
   return calcolaVoceEnergia({
     consumo: base.consumo,
     prezzoVariabile: riga.prezzo,
+    formula: riga.formula,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     quoteUniversaliAnnue: base.quoteUniversaliAnnue,
     componentiRegolate: base.componentiRegolate,
@@ -19437,7 +19527,7 @@ function costoRigaPartnerDirettaSuProfilo(riga, attuale) {
 
 function miglioreRigaPartnerDiretta(righe, commodity, attuale) {
   return righe
-    .filter((riga) => riga.commodity === commodity)
+    .filter((riga) => riga.commodity === commodity && voceIndicizzataCalcolabile(riga))
     .sort((a, b) => (costoRigaPartnerDirettaSuProfilo(a, attuale) - costoRigaPartnerDirettaSuProfilo(b, attuale)) || (a.score - b.score))[0] || null;
 }
 
@@ -19500,6 +19590,7 @@ function offertaPartnerDirettaPerFornitore(providerKey, attuale, tipoTariffa, ti
     riga.providerKey === providerKey
     && riga.tipo === tipoTariffa
     && riga.customerType !== "business"
+    && voceIndicizzataCalcolabile(riga)
   ));
   if (!righe.length) return null;
 
