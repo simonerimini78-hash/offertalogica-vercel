@@ -10874,30 +10874,57 @@ function valoreNumericoContrattoPdf(value) {
   return Number.isFinite(numero) ? numero : null;
 }
 
+// I parametri contrattuali vengono dal Box dell'offerta. Un testo-formula puo
+// completare un campo strutturato assente SOLO quando scrive numeri espliciti.
+function parametriFormulaEsplicitaPdf(profile, commodity) {
+  const testo = String(profile?.[`formula_prezzo_${commodity}`] || "").trim();
+  const unita = commodity === "luce" ? "kwh" : "smc";
+  const rx = commodity === "luce" ? "pun" : "(?:psv|psbg)";
+  const pattern = new RegExp(`\\b(${rx})\\b(?:\\s+(?:index|index\\s+gme))?\\s*(?:[x×*]\\s*(\\d+(?:[.,]\\d+)?))?\\s*([+\\-])\\s*(?:spread\\s*(?:di\\s*)?)?(\\d+(?:[.,]\\d+)?)(?:\\s*€\\s*\\/\\s*${unita})?\\s*$`, "i");
+  const match = testo.match(pattern);
+  if (!match) return null;
+  const indice = indiceMercatoDaProfiloPdf(match[1], commodity);
+  const spread = valoreNumericoContrattoPdf(match[4]);
+  const moltiplicatore = match[2] ? valoreNumericoContrattoPdf(match[2]) : null;
+  if (!indice || spread === null || spread < 0 || (moltiplicatore !== null && moltiplicatore <= 0)) return null;
+  return { indice, spread: match[3] === "-" ? -spread : spread, moltiplicatore };
+}
+
+function parametriDaProfiloPdf(scope, commodity) {
+  const profile = PDF_PROFILE_STATE[scope] || {};
+  const explicit = parametriFormulaEsplicitaPdf(profile, commodity);
+  const suffix = commodity === "luce" ? "luce" : "gas";
+  const indiceLetto = profile[`indice_riferimento_${suffix}`];
+  const indice = indiceMercatoDaProfiloPdf(indiceLetto, commodity) || explicit?.indice || "";
+  const spreadRaw = valoreNumericoContrattoPdf(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
+  const multiplierRaw = profile[`moltiplicatore_indice_${suffix}`];
+  const moltiplicatoreLetto = valoreNumericoContrattoPdf(multiplierRaw);
+  const spread = spreadRaw !== null ? spreadRaw : (explicit?.spread ?? null);
+  const moltiplicatore = moltiplicatoreLetto !== null ? moltiplicatoreLetto : (explicit?.moltiplicatore ?? null);
+  const formulaTesto = String(profile[`formula_prezzo_${suffix}`] || "");
+  const necessitaMoltiplicatore = /(?:pun|psv|psbg)[^\n]{0,60}[x×*]\s*\d/i.test(formulaTesto);
+  const tipoVariabile = String(profile[`tipo_prezzo_${suffix}`] || "").toLowerCase() === "variabile";
+  const rilevata = tipoVariabile || Boolean(indiceLetto) || /\b(?:pun|psv|psbg)\b/i.test(formulaTesto);
+  const contraddizione = Boolean(explicit && ((indiceMercatoDaProfiloPdf(indiceLetto, commodity) && indiceMercatoDaProfiloPdf(indiceLetto, commodity) !== explicit.indice)
+    || (spreadRaw !== null && Math.abs(spreadRaw - explicit.spread) > 0.0000001)
+    || (moltiplicatoreLetto !== null && explicit.moltiplicatore !== null && Math.abs(moltiplicatoreLetto - explicit.moltiplicatore) > 0.0000001)));
+  const incompleta = rilevata && (contraddizione || !indice || spread === null || (multiplierRaw !== null && multiplierRaw !== undefined && String(multiplierRaw).trim() !== "" && (moltiplicatoreLetto === null || moltiplicatoreLetto <= 0)) || (necessitaMoltiplicatore && moltiplicatore === null));
+  return { indice, spread, moltiplicatore, rilevata, incompleta };
+}
+
 function formulaPdfMancante(scope, commodity) {
   const profile = PDF_PROFILE_STATE[scope] || {};
-  const suffix = commodity === "luce" ? "luce" : "gas";
-  const indiceLetto = String(profile[`indice_riferimento_${suffix}`] || "").trim();
-  if (!indiceLetto) return false;
-  // Se il PDF descrive un indice diverso da quelli modellati, serve una verifica.
-  if (!indiceMercatoDaProfiloPdf(indiceLetto, commodity)) return true;
-  const spread = valoreNumericoContrattoPdf(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  const multiplierRaw = profile[`moltiplicatore_indice_${suffix}`];
-  const multiplier = valoreNumericoContrattoPdf(multiplierRaw);
-  const formulaTesto = String(profile[`formula_prezzo_${suffix}`] || "");
-  const moltiplicatoreRichiesto = /(?:pun|psv|psbg)[^\n]{0,60}[x×*]\s*\d/i.test(formulaTesto);
-  return spread === null || (multiplierRaw !== null && multiplierRaw !== undefined && String(multiplierRaw).trim() !== "" && (multiplier === null || multiplier <= 0)) || (moltiplicatoreRichiesto && multiplier === null);
+  if (profile[`stimaIndicativa_${commodity}`] === true) return false;
+  return parametriDaProfiloPdf(scope, commodity).incompleta;
 }
 
 function formulaDaProfiloPdf(scope, commodity) {
   if (modalitaCalcolo === "media") return undefined;
   const profile = PDF_PROFILE_STATE[scope] || {};
-  const suffix = commodity === "luce" ? "luce" : "gas";
-  const indice = indiceMercatoDaProfiloPdf(profile[`indice_riferimento_${suffix}`], commodity);
-  if (!indice || formulaPdfMancante(scope, commodity)) return undefined;
-  const multiplier = valoreNumericoContrattoPdf(profile[`moltiplicatore_indice_${suffix}`]);
-  const spread = valoreNumericoContrattoPdf(profile[`spread_${suffix}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`]);
-  if (multiplier !== null) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore: multiplier, moltiplicatoreEsplicito: true, spread };
+  if (profile[`stimaIndicativa_${commodity}`] === true) return undefined;
+  const { indice, spread, moltiplicatore, incompleta } = parametriDaProfiloPdf(scope, commodity);
+  if (!indice || incompleta) return undefined;
+  if (moltiplicatore !== null) return { tipo: "indice_moltiplicatore_spread", indice, moltiplicatore, moltiplicatoreEsplicito: true, spread };
   return { tipo: "indice_spread", indice, spread };
 }
 
@@ -11112,10 +11139,7 @@ function mostraCompletamentoFormulaPdf(campi) {
   panel.style.cssText = "margin-top:18px;padding:16px;background:#fff;border:1px solid #cbd5e1;border-radius:12px;color:#233044;text-align:left";
   const groupHtml = campi.map(({ scope, commodity }, position) => {
     const profile = PDF_PROFILE_STATE[scope] || {};
-    const indice = indiceMercatoDaProfiloPdf(profile[`indice_riferimento_${commodity}`], commodity);
-    const spreadKey = `spread_${commodity}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`;
-    const spread = valoreNumericoContrattoPdf(profile[spreadKey]);
-    const multiplier = valoreNumericoContrattoPdf(profile[`moltiplicatore_indice_${commodity}`]);
+    const { indice, spread, moltiplicatore: multiplier } = parametriDaProfiloPdf(scope, commodity);
     const options = commodity === "luce" ? ["pun"] : ["psv", "psbg"];
     const optionsHtml = `<option value="">Seleziona dalla CTE</option>` + options.map((key) => `<option value="${key}"${indice === key ? " selected" : ""}>${key.toUpperCase()}</option>`).join("");
     return `<fieldset data-pdf-formula-index="${position}" style="border:1px solid #e2e8f0;border-radius:8px;padding:12px;margin:10px 0">
@@ -11125,7 +11149,7 @@ function mostraCompletamentoFormulaPdf(campi) {
       <label style="display:block;margin:8px 0">Moltiplicatore (solo se previsto dalla CTE) <input data-pdf-formula-field="moltiplicatore" type="text" inputmode="decimal" placeholder="Es. 1,10" value="${multiplier === null ? "" : multiplier}" style="display:block;width:100%;max-width:400px;box-sizing:border-box;padding:9px;margin-top:4px"></label>
     </fieldset>`;
   }).join("");
-  panel.innerHTML = `<h3 style="margin:0 0 8px;font-size:17px">Completa i dati dalla CTE</h3><p style="font-size:13px">I valori mancanti non si possono dedurre dalla bolletta. Inserisci solo indice, spread e moltiplicatore effettivamente previsti dalla scheda contrattuale; puoi usare la virgola per i decimali.</p><form id="pdf-formula-repair-form">${groupHtml}<p id="pdf-formula-repair-error" role="alert" style="color:#b91c1c;font-size:13px" hidden></p><button type="submit" style="padding:11px 16px;border:0;border-radius:8px;background:#187e45;color:#fff;font-weight:700;cursor:pointer">Salva e riprendi il confronto</button></form>`;
+  panel.innerHTML = `<h3 style="margin:0 0 8px;font-size:17px">Completa i dati dalla CTE</h3><p style="font-size:13px">Alcuni dati del Box dell'offerta non sono stati letti con certezza. Se li conosci puoi completarli; altrimenti puoi proseguire usando il prezzo storico come stima indicativa, senza inventare indice o spread.</p><form id="pdf-formula-repair-form">${groupHtml}<p id="pdf-formula-repair-error" role="alert" style="color:#b91c1c;font-size:13px" hidden></p><button type="submit" style="padding:11px 16px;border:0;border-radius:8px;background:#187e45;color:#fff;font-weight:700;cursor:pointer">Salva e riprendi il confronto</button> <button type="button" id="pdf-formula-use-estimate" style="margin-top:8px;padding:11px 16px;border:1px solid #475569;border-radius:8px;background:white;color:#334155;font-weight:700;cursor:pointer">Continua con stima indicativa</button></form>`;
   verdict.appendChild(panel);
   const form = panel.querySelector("form");
   form.addEventListener("submit", (event) => {
@@ -11151,6 +11175,7 @@ function mostraCompletamentoFormulaPdf(campi) {
     }
     updates.forEach(({ scope, commodity, indice, spread, multiplier }) => {
       const profile = PDF_PROFILE_STATE[scope] || (PDF_PROFILE_STATE[scope] = {});
+      profile[`stimaIndicativa_${commodity}`] = false;
       profile[`indice_riferimento_${commodity}`] = indice;
       profile[`spread_${commodity}_${commodity === "luce" ? "eur_kwh" : "eur_smc"}`] = spread;
       if (multiplier !== null) profile[`moltiplicatore_indice_${commodity}`] = multiplier;
@@ -11158,6 +11183,43 @@ function mostraCompletamentoFormulaPdf(campi) {
     panel.remove();
     window.avviaComparazioneDati();
   });
+  panel.querySelector("#pdf-formula-use-estimate")?.addEventListener("click", () => {
+    // Non consentire un risparmio artificiale senza neppure un prezzo storico.
+    const mancanti = campi.filter(({ scope, commodity }) => {
+      const id = scope === "current" ? `in-${commodity}-prezzo-att` : `in-${commodity}-prezzo-nuov`;
+      return !(leggiNumero(id) > 0);
+    });
+    const error = panel.querySelector("#pdf-formula-repair-error");
+    if (mancanti.length) {
+      error.textContent = "Per la stima indicativa serve almeno il prezzo unitario letto dalla bolletta o dalla scheda. Senza questo dato non possiamo indicare un risparmio attendibile.";
+      error.hidden = false;
+      return;
+    }
+    campi.forEach(({ scope, commodity }) => {
+      const profile = PDF_PROFILE_STATE[scope] || (PDF_PROFILE_STATE[scope] = {});
+      profile[`stimaIndicativa_${commodity}`] = true;
+    });
+    trackEvent("pdf_index_estimate_selected", { entries: campi.map(({ scope, commodity }) => `${scope}_${commodity}`) });
+    panel.remove();
+    window.avviaComparazioneDati();
+  });
+}
+
+function mostraAvvisoStimaIndicativaPdf() {
+  document.getElementById("pdf-stima-indicativa-warning")?.remove();
+  if (modalitaCalcolo === "media") return;
+  const voci = ["current", "offer"].flatMap((scope) => ["luce", "gas"]
+    .filter((commodity) => PDF_PROFILE_STATE[scope]?.[`stimaIndicativa_${commodity}`] === true)
+    .map((commodity) => `${scope === "current" ? "tariffa attuale" : "proposta"} ${commodity}`));
+  if (!voci.length) return;
+  const area = document.getElementById("results-area");
+  if (!area) return;
+  const notice = document.createElement("div");
+  notice.id = "pdf-stima-indicativa-warning";
+  notice.setAttribute("role", "status");
+  notice.style.cssText = "padding:14px 16px;margin:12px 0;border:1px solid #d97706;border-radius:10px;background:#fff7ed;color:#7c2d12;font-size:14px";
+  notice.innerHTML = `<strong>Confronto indicativo, non un risparmio garantito.</strong> Per ${voci.join(", ")} manca una formula indicizzata completa. Il confronto usa il prezzo storico letto dal documento: il costo futuro potrebbe essere differente. Puoi integrare indice e spread in seguito.`;
+  area.prepend(notice);
 }
 
 function mostraErroreFormulaPdfMancante(voci) {
@@ -11170,7 +11232,7 @@ function mostraErroreFormulaPdfMancante(voci) {
   if (verdetto) verdetto.className = "verdetto-box warning";
   if (titolo) titolo.innerText = "Formula indicizzata incompleta";
   if (numero) { numero.innerText = "Verifica la CTE"; numero.style.display = "inline-block"; }
-  if (testo) testo.innerText = `La lettura PDF non ha confermato indice, spread e/o moltiplicatore per ${voci.join(", ")}. Inserisci i dati dalla CTE nel modulo qui sotto per riprendere il confronto senza ricaricare la bolletta.`;
+  if (testo) testo.innerText = `La lettura PDF non ha confermato tutti i parametri per ${voci.join(", ")}. Puoi completarli nel modulo oppure proseguire con una stima indicativa se è disponibile un prezzo storico.`;
   document.getElementById("btn-attiva-subito")?.style.setProperty("display", "none");
   document.querySelector(".fornitori-consigliati-section")?.style.setProperty("display", "none");
   document.getElementById("comparazione-dettaglio-costi")?.remove();
@@ -13579,6 +13641,7 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
   }
 
   aggiornaOfferteProposte(attuale, confrontoNuova.attuale, tipoTariffa, tipoFornitura);
+  mostraAvvisoStimaIndicativaPdf();
   if (!options?.daFiltroMedia) trackEvent("comparison_completed", {
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
@@ -17859,6 +17922,8 @@ const CAMPI_PROFILO_PDF = Object.freeze([
 function aggiornaProfiloPdfDaDati(data, scope) {
   const normalizedScope = scope === "offer" ? "offer" : "current";
   const profile = PDF_PROFILE_STATE[normalizedScope] || (PDF_PROFILE_STATE[normalizedScope] = {});
+  delete profile.stimaIndicativa_luce;
+  delete profile.stimaIndicativa_gas;
   CAMPI_PROFILO_PDF.forEach((field) => {
     const value = pdfValoreContrattoCompletoPerCalcolo(data, field);
     if (value !== undefined) profile[field] = value;
