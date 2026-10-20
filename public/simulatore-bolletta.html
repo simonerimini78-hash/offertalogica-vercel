@@ -1907,8 +1907,12 @@
         if(commodities.length>1)html+=`<li class="section-line" data-align-key="receipt-commodity-${docIndex}-${commodity}"><span>${escapeHtml(commodityLabel(commodity))}</span><strong></strong></li>`;
         const part=real?null:receiptOfferPart(payload,docIndex,commodity);
         const proposedCSale=receiptVariableRow(source),proposedFSale=receiptFixedSaleRow(source);
-        const cSale=proposedCSale&&part&&Math.abs(receiptAmount(proposedCSale)-Number(part.materiaAttuale))<=.035?proposedCSale:null;
-        const fSale=proposedFSale&&part&&Math.abs(receiptAmount(proposedFSale)-Number(part.fissoAttuale))<=.035?proposedFSale:null;
+        // Una riga di vendita gia' identificata univocamente dal documento
+        // non va cancellata se il vecchio importo calcolato dal motore
+        // e' diverso dall'importo stampato. Il documento governa la vista;
+        // il motore fornisce solo il nuovo importo dell'offerta.
+        const cSale=part?proposedCSale:null;
+        const fSale=part?proposedFSale:null;
         // Prima del confronto, la bolletta reale mantiene le righe senza
         // richiedere che coincidano con i valori economici del motore.
         const originalConsumption=receiptSectionValue(source,"consumi");
@@ -1930,75 +1934,61 @@
         ];
         for(const section of sections){
           const rows=source.map((row,index)=>({...row,_sourceIndex:index})).filter((row)=>row.section===section.name&&receiptRelevantRow(row));
-          if(!rows.length&&!(part&&((section.name==="consumi"&&newVariable!==null)||(section.name==="fissa_potenza"&&newFixed!==null))))continue;
-          if(!real&&section.name==="altre_partite")continue; // gli sconti precedenti non si trasferiscono.
+          // Una fornitura non deve creare sezioni nuove solo perche' si
+          // seleziona un'offerta: i due scontrini usano le stesse righe.
+          if(!rows.length)continue;
           let sectionTotal=section.name==="consumi"?originalConsumption:section.name==="fissa_potenza"?originalFixed:receiptSectionValue(source,section.name);
-          if(!real&&section.name==="consumi")sectionTotal=sectionTotal!==null&&cDelta!==null?round(sectionTotal+cDelta):null;
-          if(!real&&section.name==="fissa_potenza")sectionTotal=sectionTotal!==null&&fDelta!==null?round(sectionTotal+fDelta):null;
+          if(!real&&section.name==="consumi"&&sectionTotal!==null&&cDelta!==null)sectionTotal=round(sectionTotal+cDelta);
+          if(!real&&section.name==="fissa_potenza"&&sectionTotal!==null&&fDelta!==null)sectionTotal=round(sectionTotal+fDelta);
           if(section.name==="canone_tv"||section.name==="altre_partite"){
             sectionTotal=rows.length?round(rows.reduce((sum,row)=>sum+receiptAmount(row),0)):null;
+            // Gli sconti della vecchia offerta non sono automaticamente
+            // trasferibili. Conserviamo le righe e le descrizioni, ma senza
+            // attribuire l'importo al confronto con la nuova offerta.
+            if(!real&&section.name==="altre_partite")sectionTotal=null;
           }
           html+=`<li class="receipt-section" data-align-key="receipt-${docIndex}-${commodity}-${section.name}"><span>${escapeHtml(section.title)}</span><strong>${escapeHtml(fmt(sectionTotal))}</strong></li>`;
-          let replacedVariable=false,replacedFixed=false;
           for(const row of rows){
             // L'intestazione senza importo non compare: le sottovoci
             // mantengono etichette, ordine e tariffe reali.
             const sectionName=section.name;
             let amount=receiptAmount(row),qty=row.quantity,price=row.unit_price;
             if(!real&&part&&sectionName==="consumi"&&cSale&&row._sourceIndex===source.indexOf(cSale)&&newVariable!==null){
-              amount=newVariable;replacedVariable=true;
-              if(priceQuantity>0){qty=`${number(priceQuantity,2)} ${receiptUnitForCommodity(commodity)}`;price=`× ${number(newVariable/priceQuantity,6)} ${receiptPriceUnitForCommodity(commodity)}`;}
+              amount=newVariable;
+              // Quantita' e descrizione sono copiate dal PDF; cambia solo
+              // il prezzo unitario applicato alla vendita della nuova offerta.
+              if(priceQuantity>0)price=`× ${number(newVariable/priceQuantity,6)} ${receiptPriceUnitForCommodity(commodity)}`;
             }else if(!real&&part&&sectionName==="fissa_potenza"&&fSale&&row._sourceIndex===source.indexOf(fSale)&&newFixed!==null){
-              amount=newFixed;replacedFixed=true;
-              if(Number.isFinite(fixedMonths)&&fixedMonths>0){qty=`${number(fixedMonths,2)} ${fixedMonths===1?"mese":"mesi"}`;price=`× ${number(newFixed/fixedMonths,6)} €/mese`;}
-            }else if(!real&&part&&sectionName==="consumi"&&cDelta!==null&&
+              amount=newFixed;
+              if(Number.isFinite(fixedMonths)&&fixedMonths>0)price=`× ${number(newFixed/fixedMonths,6)} €/mese`;
+            }else if(!real&&part&&sectionName==="consumi"&&cDelta!==null&&amount!==null&&
                 (row.kind==="subtotal"||row.kind==="section")&&/quota\s+(?:per\s+)?consum/i.test(row.label||"")){
               amount=round(amount+cDelta);
               if(priceQuantity>0)price=`× ${number(amount/priceQuantity,6)} ${receiptPriceUnitForCommodity(commodity)}`;
-            }else if(!real&&part&&sectionName==="fissa_potenza"&&fDelta!==null&&
+            }else if(!real&&part&&sectionName==="fissa_potenza"&&fDelta!==null&&amount!==null&&
                 ["subtotal","section"].includes(row.kind)&&/quota\s+fissa/i.test(row.label||"")&&!/potenz/i.test(row.label||"")){
               amount=round(amount+fDelta);
               if(Number.isFinite(fixedMonths)&&fixedMonths>0)price=`× ${number(amount/fixedMonths,6)} €/mese`;
-            }else if(!real&&part&&sectionName==="consumi"&&newVariable!==null&&
-                     cSale===null&&/vendita/i.test(normalizeReceiptLabel(row.label))){
-              // In caso di lettura contraddittoria la riga non deve essere
-              // presentata come prezzo della nuova offerta.
-              amount=null;price="—";
-            }else if(!real&&part&&sectionName==="fissa_potenza"&&newFixed!==null&&
-                     fSale===null&&/vendita|commercializzazione/i.test(normalizeReceiptLabel(row.label))&&
-                     !/potenz|kw/i.test(`${row.label||""} ${row.unit_price||""}`)){
-              amount=null;price="—";
-            }else if(!real&&part&&sectionName==="consumi"&&cDelta===null&&newVariable!==null&&
-                     ["subtotal","section"].includes(row.kind)&&/quota\s+(?:per\s+)?consum/i.test(row.label||"")){
-              amount=null;price="—";
-            }else if(!real&&part&&sectionName==="fissa_potenza"&&fDelta===null&&newFixed!==null&&
-                     ["subtotal","section"].includes(row.kind)&&/quota\s+fissa/i.test(row.label||"")){
-              amount=null;price="—";
+            }else if(!real&&sectionName==="altre_partite"){
+              amount=null; // sconto vecchia offerta non trasferito
             }
+            // Se il lettore non identifica una vendita univoca, preserva
+            // i dati originali e segnala il limite fuori dallo scontrino.
             html+=receiptDisplayRow(row,amount,qty,price,`receipt-row-${docIndex}-${commodity}-${row._sourceIndex}`);
-          }
-          // Quando manca una sottovoce univoca, mostra il dato calcolato
-          // separatamente, senza sostituire arbitrariamente altre righe.
-          if(!real&&part&&section.name==="consumi"&&!replacedVariable&&newVariable!==null){
-            const label="Vendita nuova offerta (dato del confronto)";
-            html+=receiptDisplayRow({label},newVariable,priceQuantity>0?`${number(priceQuantity,2)} ${receiptUnitForCommodity(commodity)}`:"",priceQuantity>0?`× ${number(newVariable/priceQuantity,6)} ${receiptPriceUnitForCommodity(commodity)}`:"",`receipt-new-sale-${docIndex}-${commodity}`);
-          }
-          if(!real&&part&&section.name==="fissa_potenza"&&!replacedFixed&&newFixed!==null){
-            const label="Quota fissa nuova offerta (dato del confronto)";
-            html+=receiptDisplayRow({label},newFixed,Number.isFinite(fixedMonths)?`${number(fixedMonths,2)} mesi`:"",Number.isFinite(fixedMonths)&&fixedMonths>0?`× ${number(newFixed/fixedMonths,6)} €/mese`:"",`receipt-new-fixed-${docIndex}-${commodity}`);
           }
         }
       }
       // Il totale del motore e' un valore complessivo del documento e
       // non un subtotale inventato della sola energia, specialmente con dual.
-      if(!real&&bill?.displayDiscounts?.length){
-        html+=`<li class="receipt-section" data-align-key="receipt-new-discount-${docIndex}"><span>Sconti applicati</span><strong>${escapeHtml(euro(-bill.displayDiscounts.reduce((sum,d)=>sum+Number(d.amount||0),0)))}</strong></li>`;
+      if(bill?.displayDiscounts?.length){
+        const discounted=real?null:-bill.displayDiscounts.reduce((sum,d)=>sum+Number(d.amount||0),0);
+        html+=`<li class="receipt-section" data-align-key="receipt-new-discount-${docIndex}"><span>Sconti nuova offerta</span><strong>${escapeHtml(fmt(discounted))}</strong></li>`;
         for(const [index,discount] of bill.displayDiscounts.entries()){
-          html+=receiptDisplayRow({label:String(discount.label||"Sconto nuova offerta")},-Number(discount.amount),"","",`receipt-discount-${docIndex}-${index}`);
+          html+=receiptDisplayRow({label:String(discount.label||"Sconto nuova offerta")},real?null:-Number(discount.amount),"","",`receipt-discount-${docIndex}-${index}`);
         }
       }
       const pay=real?numericValue(doc.total_amount_eur):numericValue(bill?.simulatedTotal);
-      html+=`<li class="receipt-grand-total" data-align-key="receipt-pay-${docIndex}"><span>${escapeHtml(real?"Totale da pagare letto":bill?"Totale da pagare simulato":"Totale non simulabile per questo documento")}</span><strong>${escapeHtml(Number.isFinite(pay)?euro(pay):"—")}</strong></li>`;
+      html+=`<li class="receipt-grand-total" data-align-key="receipt-pay-${docIndex}"><span>${escapeHtml(real||bill?"Totale da pagare":"Totale non simulabile per questo documento")}</span><strong>${escapeHtml(Number.isFinite(pay)?euro(pay):"—")}</strong></li>`;
       if(available.some((row)=>row.section==="altre_partite"&&receiptAmount(row)!==null&&!realBillDiscountRow(row))){
         html+=`<li class="bill-condition-row is-long" data-align-key="receipt-excluded-${docIndex}"><span>Voci non confrontate</span><strong>Non mostrate nel dettaglio; restano nel totale della fattura e non vengono modificate dal confronto.</strong></li>`;
       }
@@ -2008,6 +1998,38 @@
       html+=`<li class="receipt-grand-total" data-align-key="receipt-all-total"><span>Totale complessivo</span><strong>${escapeHtml(Number.isFinite(total)?euro(total):"—")}</strong></li>`;
     }
     return html;
+  }
+  function receiptComparisonWarning(payload){
+    if(!payload?.bills?.length||!payload?.summary)return "";
+    const reasons=[];
+    for(const bill of payload.bills){
+      const doc=state.docs[bill.documentIndex];
+      if(!doc)continue;
+      let visibleDelta=0,complete=true;
+      // Confronta il totale del motore con le due variazioni economiche
+      // esplicite, tenendo conto degli sconti realmente gestiti dal confronto.
+      visibleDelta-=realBillDiscountAdjustment(doc);
+      visibleDelta-=(bill.displayDiscounts||[]).reduce((sum,d)=>sum+Number(d.amount||0),0);
+      for(const part of bill.displayComponents||[]){
+        const rows=receiptSourceRowsForCommodity(doc,part.commodity);
+        const oldConsumption=receiptAmount(receiptVariableRow(rows));
+        const oldFixed=receiptAmount(receiptFixedSaleRow(rows));
+        if(oldConsumption===null||oldFixed===null){
+          // Non perdere le righe lette, ma non dichiarare applicata una
+          // sostituzione che non si puo' localizzare in modo univoco.
+          reasons.push(`Bolletta ${bill.documentIndex+1}, ${commodityLabel(part.commodity)}: almeno una voce di vendita o quota fissa non e' associabile in modo univoco; le voci non identificate restano come lette e il confronto di dettaglio e' parziale.`);
+          complete=false;break;
+        }
+        if(!Number.isFinite(part.materiaNuova)||!Number.isFinite(part.fissoNuovo)){complete=false;break;}
+        visibleDelta+=part.materiaNuova-oldConsumption+part.fissoNuovo-oldFixed;
+      }
+      if(complete&&bill.displayComponents?.length){
+        const engineDelta=Number(bill.simulatedTotal)-Number(bill.originalTotal);
+        if(Number.isFinite(engineDelta)&&Math.abs(engineDelta-visibleDelta)>.06)
+          reasons.push(`Bolletta ${bill.documentIndex+1}: il totale del confronto differisce di ${euro(Math.abs(engineDelta-visibleDelta))} da quello ottenuto cambiando esclusivamente prezzo di vendita e quota fissa. Il totale richiede verifica.`);
+      }
+    }
+    return reasons.join(" ");
   }
   function billRowsHtml({facts,side,payload=null,provider,offer}){
     const real=side==="real",conditions=real?billConditionRowsFromDocs():simulatedConditionRows(payload);
@@ -2138,7 +2160,12 @@
     $("virtual-doc-label").textContent=isSimulation?"Confronto storico":"Comparazione";$("virtual-bill-title").textContent=isSimulation?"La stessa bolletta":"Confronto con l'offerta";$("virtual-bill-subtitle").textContent=isSimulation?"Stesso periodo e stessi consumi, con un'offerta valida in quel periodo.":"Stessi consumi e stessa durata, usando le condizioni disponibili oggi.";$("virtual-total-label").textContent="Totale da pagare";$("saving-equation-caption").textContent=isSimulation?"Bolletta reale → bolletta ricalcolata":"Bolletta reale → comparazione offerta";renderHistory(payload.history||state.history);$("saving-box")?.setAttribute("aria-label",isSimulation?"Differenza tra bolletta reale e ricalcolata":"Differenza tra bolletta reale e comparazione con la nuova offerta");
     const saving=Number(payload.summary.saving)||0,savingBox=$("saving-box");savingBox.classList.toggle("is-negative",saving<0);$("saving-label").textContent=saving>=0?(isSimulation?"Risparmio nel confronto storico":"Differenza favorevole nel confronto"):(isSimulation?"Costo in più nel confronto storico":"Costo in più nel confronto");$("saving-total").textContent=euro(Math.abs(saving));$("saving-percent").textContent=`${number(Math.abs(payload.summary.savingPercent),1)}% ${saving>=0?"in meno":"in più"} sul periodo analizzato`;$("saving-equation").textContent=`${euro(payload.summary.originalTotal)} → ${euro(payload.summary.simulatedTotal)}`;
     $("offer-provider").textContent=payload.offer?.provider||"—";$("offer-name").textContent=payload.offer?.name||"—";$("offer-type").textContent=payload.offer?.type==="variabile"?"Prezzo variabile":payload.offer?.type==="misto"?"Prezzi misti":"Prezzo fisso";const prices=[];for(const commodity of ["luce","gas"]){const part=payload.breakdown?.[commodity];if(part)prices.push(`${commodityLabel(commodity)}: ${number(part.prezzoNuovo,6)} €/${commodity==="luce"?"kWh":"Smc"}`);}$("offer-price-line").innerHTML=`<strong>Prezzo applicato:</strong> ${prices.join(" · ")||"—"}`;
-    const note=$("bill-note");if(note){const oldDiscount=Number(payload.summary.realBillDiscountsExcluded)||0,newDiscount=Number(payload.summary.newOfferDiscounts)||0;const discountText=oldDiscount>0?` Gli sconti/bonus della bolletta reale (${euro(oldDiscount)}) non sono trasferiti.`:" Gli eventuali sconti della bolletta reale non vengono trasferiti.";const newDiscountText=newDiscount>0?` Sono applicati solo gli sconti/bonus verificabili della nuova offerta per ${euro(newDiscount)}.`:" Non risultano sconti della nuova offerta applicabili con dati verificabili.";note.innerHTML=`<strong>Nota:</strong>${discountText}${newDiscountText} ${isSimulation?"La nuova offerta era valida per l'intero periodo fatturato.":"Questo risultato è una comparazione e non ricostruisce una fattura storica del nuovo fornitore."}`;}const activate=$("activate-selected-offer");if(activate){activate.disabled=false;activate.setAttribute("aria-label",payload.offer?.source==="card"&&payload.offer?.cardActivation?`Attiva ${payload.offer?.name||"l'offerta"}`:"Torna alle offerte per scegliere la card da attivare");}
+    const note=$("bill-note");if(note){const oldDiscount=Number(payload.summary.realBillDiscountsExcluded)||0,newDiscount=Number(payload.summary.newOfferDiscounts)||0;const discountText=oldDiscount>0?` Gli sconti/bonus della bolletta reale (${euro(oldDiscount)}) non sono trasferiti.`:" Gli eventuali sconti della bolletta reale non vengono trasferiti.";const newDiscountText=newDiscount>0?` Sono applicati solo gli sconti/bonus verificabili della nuova offerta per ${euro(newDiscount)}.`:" Non risultano sconti della nuova offerta applicabili con dati verificabili.";note.innerHTML=`<strong>Nota:</strong>${discountText}${newDiscountText} ${isSimulation?"La nuova offerta era valida per l'intero periodo fatturato.":"Questo risultato è una comparazione e non ricostruisce una fattura storica del nuovo fornitore."}`;
+      const warning=receiptComparisonWarning(payload);
+      if(warning){
+        note.innerHTML+=` <strong>Verifica necessaria:</strong> ${escapeHtml(warning)}`;
+        $("virtual-total-label").textContent="Totale da pagare (da verificare)";
+      }}const activate=$("activate-selected-offer");if(activate){activate.disabled=false;activate.setAttribute("aria-label",payload.offer?.source==="card"&&payload.offer?.cardActivation?`Attiva ${payload.offer?.name||"l'offerta"}`:"Torna alle offerte per scegliere la card da attivare");}
   }
   function showSimulationError(message){
     const error=$("simulate-action-error");if(error){error.textContent=String(message||"");error.hidden=!message;}
