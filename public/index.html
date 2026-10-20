@@ -6120,7 +6120,7 @@ function avviaComparazioneDati() {
 }
 </script>
 <script>
-let MOTORE_CALCOLO_VERSION = "motore-v15-stime-progressive-2026-09-22";
+let MOTORE_CALCOLO_VERSION = "motore-v16-indici-catalogo-coerenti-2026-10-20";
 const DATI_CALCOLO_URLS = ["/data/calcolo-parametri.json", "data/calcolo-parametri.json"];
 const DATI_OFFERTE_URLS = ["/data/offerte-proposte.json", "data/offerte-proposte.json"];
 const DATI_ARERA_MENU_URLS = ["/data/offerte-arera-menu.json", "data/offerte-arera-menu.json"];
@@ -8324,6 +8324,7 @@ function normalizzaProvenienzaPrezzoArera(provenienza) {
     unitaMisura: String(provenienza.unitaMisura || "").trim(),
     ruolo: String(provenienza.ruolo || "").trim(),
     indiceApplicato: String(provenienza.indiceApplicato || "").trim().toLowerCase(),
+    spreadContrattuale: Number.isFinite(Number(provenienza.valore)) ? Number(provenienza.valore) : null,
     periodoValidita: periodo && Object.values(periodo).some(Boolean) ? periodo : null,
   };
   return Object.values(normalized).some(Boolean) ? normalized : null;
@@ -8455,11 +8456,36 @@ async function caricaOfferteProposte() {
   return false;
 }
 
-function normalizzaRigaAreraMenu(riga) {
+// Il valore economico delle offerte indicizzate non e un prezzo fisso:
+// lo ricostruiamo dall'indice ufficiale del catalogo e dallo spread contrattuale
+// estratto dallo stesso documento, su un'unica base temporale per il ranking.
+// Se uno dei dati necessari non e verificabile, la riga indicizzata non e classificabile.
+function prezzoIndicizzatoAreraCatalogo(riga, indiciCatalogo) {
+  if (riga?.tipo !== "variabile") return null;
+  if (String(riga.qualitaPrezzo || "") !== "indice_piu_spread_semantico") return null;
+  const chiave = String(riga.indiceRiferimento || "").trim().toLowerCase();
+  if (!["pun", "psv", "psbg"].includes(chiave)) return null;
+  const provenienza = riga.provenienzaPrezzo;
+  if (!provenienza || typeof provenienza !== "object") return null;
+  if (!["spread_corrente_selezionato", "prezzo_principale_selezionato"].includes(String(provenienza.ruolo || ""))) return null;
+  const unitaAttesa = riga.commodity === "luce" ? "03" : riga.commodity === "gas" ? "04" : "";
+  if (!unitaAttesa || String(provenienza.unitaMisuraCodice || "") !== unitaAttesa) return null;
+  if (String(provenienza.indiceApplicato || "").trim().toLowerCase() !== chiave) return null;
+  const spread = Number(provenienza.valore);
+  const indice = Number(indiciCatalogo?.[chiave]);
+  if (!Number.isFinite(spread) || spread < 0 || !Number.isFinite(indice) || indice <= 0) return null;
+  const totale = indice + spread;
+  return Number.isFinite(totale) && totale > 0 ? totale : null;
+}
+
+function normalizzaRigaAreraMenu(riga, indiciCatalogo = null) {
   if (!riga || typeof riga !== "object") return null;
-  const prezzo = numeroSicuro(riga.prezzo, NaN);
+  const prezzoRaw = numeroSicuro(riga.prezzo, NaN);
   const quotaFissaAnnua = numeroSicuro(riga.quotaFissaAnnua, NaN);
-  if (!riga.providerKey || !riga.commodity || !Number.isFinite(prezzo) || !Number.isFinite(quotaFissaAnnua)) return null;
+  const richiedeIndice = riga.tipo === "variabile" && indiciCatalogo !== null;
+  const prezzoIndicizzato = richiedeIndice ? prezzoIndicizzatoAreraCatalogo(riga, indiciCatalogo) : null;
+  const prezzo = richiedeIndice ? prezzoIndicizzato : prezzoRaw;
+  if (!riga.providerKey || !riga.commodity || !Number.isFinite(prezzo) || (richiedeIndice && prezzo <= 0) || !Number.isFinite(quotaFissaAnnua)) return null;
 
   return {
     providerKey: String(riga.providerKey || "").trim(),
@@ -8487,10 +8513,10 @@ function normalizzaRigaAreraMenu(riga) {
   };
 }
 
-function normalizzaRigaAreraDual(riga) {
+function normalizzaRigaAreraDual(riga, indiciCatalogo = null) {
   if (!riga || typeof riga !== "object" || riga.fornitura !== "dual") return null;
-  const luce = normalizzaRigaAreraMenu(riga.luce);
-  const gas = normalizzaRigaAreraMenu(riga.gas);
+  const luce = normalizzaRigaAreraMenu(riga.luce, indiciCatalogo);
+  const gas = normalizzaRigaAreraMenu(riga.gas, indiciCatalogo);
   const codiceLuce = String(riga.codiceOffertaLuce || "").trim();
   const codiceGas = String(riga.codiceOffertaGas || "").trim();
   if (!luce || !gas || luce.commodity !== "luce" || gas.commodity !== "gas") return null;
@@ -8546,18 +8572,19 @@ function applicaDatiAreraMenu(data) {
   const offerte = Array.isArray(data) ? data : data?.offerte;
   if (!Array.isArray(offerte)) return false;
 
+  const indiciCatalogo = data?.indiciUsati && typeof data.indiciUsati === "object" ? data.indiciUsati : {};
   const pulite = offerte
-    .map(normalizzaRigaAreraMenu)
+    .map((riga) => normalizzaRigaAreraMenu(riga, indiciCatalogo))
     .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType !== "business");
   if (!pulite.length) return false;
   const dualPulite = (Array.isArray(data?.offerteDual) ? data.offerteDual : [])
-    .map(normalizzaRigaAreraDual)
+    .map((riga) => normalizzaRigaAreraDual(riga, indiciCatalogo))
     .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType !== "business");
   const businessPulite = (Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : [])
-    .map(normalizzaRigaAreraMenu)
+    .map((riga) => normalizzaRigaAreraMenu(riga, indiciCatalogo))
     .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
   const dualBusinessPulite = (Array.isArray(data?.offerteDualBusiness) ? data.offerteDualBusiness : [])
-    .map(normalizzaRigaAreraDual)
+    .map((riga) => normalizzaRigaAreraDual(riga, indiciCatalogo))
     .filter((riga) => riga && riga.providerKey !== "axpo" && riga.customerType === "business");
 
   DATI_ARERA_MENU_META = {
@@ -9909,6 +9936,9 @@ function auditRiferimentoOfferta(voceOfferta, costoVoce) {
     dataInizioPrezzo: dataPortaleAudit(validitaPrezzo.dataInizio || riferimento.dataInizio),
     dataFinePrezzo: dataPortaleAudit(validitaPrezzo.dataFine || riferimento.dataFine),
     indice,
+    spreadContrattuale: riferimento.qualitaPrezzo === "indice_piu_spread_semantico" ? provenienza.spreadContrattuale : null,
+    prezzoStimato: Number.isFinite(Number(costoVoce?.prezzoVariabile)) ? Number(costoVoce.prezzoVariabile) : null,
+    valoreIndice: Number.isFinite(Number(indiceMeta?.valore)) ? Number(indiceMeta.valore) : null,
     periodoIndice: String(indiceMeta?.periodo || ""),
     statoIndice: String(indiceMeta?.stato || ""),
     fonteIndice: String(indiceMeta?.fonte || ""),
@@ -9953,6 +9983,10 @@ function htmlAuditCalcoloOfferta(offerta, costoOfferta) {
     if (fontePrezzo.length) dettagli.push(`Prezzo: ${fontePrezzo.join(" · ")}`);
 
     if (audit.indice) {
+      if (audit.spreadContrattuale !== null && audit.valoreIndice !== null && audit.prezzoStimato !== null) {
+        const unita = commodity === "luce" ? "€/kWh" : "€/Smc";
+        dettagli.push(`Prezzo indicizzato stimato: ${audit.indice.toUpperCase()} ${numeroItaliano(audit.valoreIndice, 6)} + spread ${numeroItaliano(audit.spreadContrattuale, 6)} = ${numeroItaliano(audit.prezzoStimato, 6)} ${unita}${audit.periodoIndice ? ` (indice ${audit.periodoIndice})` : ""}. Il valore futuro puo variare.`);
+      }
       const indiceDettaglio = [`Indice ${audit.indice.toUpperCase()}${audit.periodoIndice ? ` ${audit.periodoIndice}` : ""}`];
       if (audit.fonteIndice) indiceDettaglio.push(audit.fonteIndice);
       const dataIndice = formattaDataCatalogoCopertura(audit.acquisitoIndice);
@@ -11121,7 +11155,7 @@ function dettagliOfferta(offerta) {
     ? "Prezzo variabile (indicizzato)"
     : "Prezzo fisso (bloccato)";
   const notaPrezzo = offerta?.tipo === "variabile"
-    ? "Il valore unitario mostrato e il riferimento corrente usato per la stima e puo variare nel tempo."
+    ? "Il valore unitario e una stima costruita con l'ultimo indice disponibile e lo spread contrattuale, non un prezzo bloccato. Il costo dei prossimi 12 mesi puo cambiare con l'indice."
     : "Il valore unitario e trattato come fisso secondo le condizioni economiche dell'offerta.";
 
   if (offertaSeparataMultiFornitore(offerta)) {
