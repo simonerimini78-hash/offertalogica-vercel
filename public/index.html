@@ -8403,6 +8403,9 @@ function normalizzaVoceOfferta(voce) {
     sconti: normalizzaScontiArera(voce.sconti),
     condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(voce.condizioniRecessoAnticipato),
     riferimentoArera: normalizzaRiferimentoArera(voce.riferimentoArera),
+    spreadComprensivoPerdite: voce.spreadComprensivoPerdite !== null && voce.spreadComprensivoPerdite !== undefined
+      && Number.isFinite(Number(voce.spreadComprensivoPerdite)) && Number(voce.spreadComprensivoPerdite) >= 0
+      ? Number(voce.spreadComprensivoPerdite) : null,
   };
   if (voce.formula && typeof voce.formula === "object") {
     const formula = voce.formula;
@@ -9045,17 +9048,28 @@ function calcolaComponentiRegolateGas(consumo, regolate = {}) {
   };
 }
 
-function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumiFasce, prezziFasce, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity }) {
+function calcolaVoceEnergia({ consumo = 0, prezzoVariabile = 0, formula, consumiFasce, prezziFasce, quotaFissaAnnua = 0, quoteUniversaliAnnue = 0, componentiRegolate, tipoTariffa, commodity, prezzoStoricoScontrino = false, spreadComprensivoPerdite = null }) {
   const consumoProfilo = Math.max(0, numeroSicuro(consumo, 0));
   const tipoVoce = tipoPrezzoVoce({ formula }, tipoTariffa);
-  const moltiplicatoreEsplicito = Boolean(formula?.tipo === "indice_moltiplicatore_spread" && formula?.moltiplicatoreEsplicito);
-  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !moltiplicatoreEsplicito ? PERDITE_RETE_LUCE_VARIABILE : 1;
-  const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula });
-  const materiaFasce = commodity === "luce" ? calcolaMateriaPerFasce(consumiFasce, prezziFasce) : null;
+  // Il prezzo medio della vendita gia' fatturata nello Scontrino e' un
+  // corrispettivo storico effettivo, NON un PUN/spread netto da maggiorare.
+  const formulaEffettiva = prezzoStoricoScontrino ? null : formula;
+  const moltiplicatoreEsplicito = Boolean(formulaEffettiva?.tipo === "indice_moltiplicatore_spread" && formulaEffettiva?.moltiplicatoreEsplicito);
+  const fattorePerdite = commodity === "luce" && tipoVoce === "variabile" && !moltiplicatoreEsplicito && !prezzoStoricoScontrino ? PERDITE_RETE_LUCE_VARIABILE : 1;
+  const prezzoCalcolo = risolviPrezzoVariabile({ prezzoVariabile, formula: formulaEffettiva });
+  const materiaFasce = commodity === "luce" && !prezzoStoricoScontrino ? calcolaMateriaPerFasce(consumiFasce, prezziFasce) : null;
   const consumoFatturatoBase = materiaFasce?.consumoFatturato ?? consumoProfilo;
   const consumoFatturato = consumoFatturatoBase * fattorePerdite;
   const consumoRegolato = consumoFatturatoBase;
-  const quotaMateria = materiaFasce ? materiaFasce.quotaMateria * fattorePerdite : consumoFatturato * prezzoCalcolo;
+  // Quando lo spread e' esplicitamente "comprensivo perdite", incrementare
+  // solo l'indice (netto), mai una seconda volta lo spread gia' lordo.
+  const spreadLordo = Number(spreadComprensivoPerdite);
+  const spreadLordoValido = commodity === "luce" && tipoVoce === "variabile" && fattorePerdite > 1
+    && !prezzoStoricoScontrino && spreadComprensivoPerdite !== null
+    && Number.isFinite(spreadLordo) && spreadLordo >= 0 && prezzoCalcolo >= spreadLordo;
+  const quotaMateria = spreadLordoValido && !materiaFasce
+    ? consumoFatturatoBase * ((prezzoCalcolo - spreadLordo) * fattorePerdite + spreadLordo)
+    : materiaFasce ? materiaFasce.quotaMateria * fattorePerdite : consumoFatturato * prezzoCalcolo;
   const quotaFissaVendita = numeroSicuro(quotaFissaAnnua, 0);
   const quotaTecnicaProfilo = Math.max(0, numeroSicuro(quoteUniversaliAnnue, 0));
   const regolate = componentiRegolate || componentiRegolateVuote();
@@ -10959,6 +10973,7 @@ function leggiOffertaAttuale() {
       consumiFasce: fasceDaProfiloPdf("current", "consumo_luce"),
       prezziFasce: fasceDaProfiloPdf("current", "prezzo_luce"),
       formula: formulaDaProfiloPdf("current", "luce"),
+      prezzoStoricoScontrino: Boolean(PDF_PROFILE_STATE.current.prezzoStoricoScontrino_luce && !PDF_MANUAL_TOUCHED_FIELDS.has("in-luce-prezzo-att")),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-luce-fisso-att", "in-luce-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("luce"),
       componentiRegolate: componentiRegolateMaster("luce"),
@@ -10968,6 +10983,7 @@ function leggiOffertaAttuale() {
       tipoTariffa: leggiValore("in-gas-tipo-att", PARAMETRI_CALCOLO.profiloMedio.tipoPrezzo),
       prezzoVariabile: leggiNumero("in-gas-prezzo-att"),
       formula: formulaDaProfiloPdf("current", "gas"),
+      prezzoStoricoScontrino: Boolean(PDF_PROFILE_STATE.current.prezzoStoricoScontrino_gas && !PDF_MANUAL_TOUCHED_FIELDS.has("in-gas-prezzo-att")),
       quotaFissaAnnua: quotaFissaAnnuaDaCampo("in-gas-fisso-att", "in-gas-fisso-att-unita"),
       quoteUniversaliAnnue: maggiorazioneMaster("gas"),
       componentiRegolate: componentiRegolateMaster("gas"),
@@ -11042,6 +11058,7 @@ function offertaPropostaPerCalcolo(offerta, attuale) {
     luce: offerta.luce && usaLuce ? {
       consumo: attuale.luce.consumo,
       prezzoVariabile: offerta.luce.prezzoVariabile,
+      spreadComprensivoPerdite: offerta.luce.spreadComprensivoPerdite ?? null,
       formula: offerta.luce.formula,
       quotaFissaAnnua: offerta.luce.quotaFissaAnnua,
       quoteUniversaliAnnue: attuale.luce.quoteUniversaliAnnue,
@@ -17510,6 +17527,7 @@ function applicaDatiPdfAlBusiness(data) {
   aggiornaProfiloPdfDaDati(data, data.kind === "scheda_offerta" ? "offer" : "current");
   const selectedRows = arguments.length > 1 ? arguments[1] : null;
   if (Array.isArray(selectedRows)) {
+    pulisciCampiEconomiciPdfNonVerificati(data);
     applicaRigheAutocompilazionePdf(selectedRows);
     return;
   }
@@ -17518,6 +17536,7 @@ function applicaDatiPdfAlBusiness(data) {
   const taxId = safe("codice_fiscale");
   const providerLuce = safe("fornitore_luce");
   const providerGas = safe("fornitore_gas");
+  pulisciCampiEconomiciPdfNonVerificati(data);
   const power = safe("potenza_impegnata_kw");
   const luceConsumption = safe("consumo_luce_kwh");
   const lucePrice = safe("prezzo_luce_eur_kwh") ?? prezzoBollettaLuceDaContrattoPdf(data)?.value;
@@ -17659,7 +17678,7 @@ const PDF_AUTOFILL_FIELD_IDS = Object.freeze([
   "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-gas-fisso-att-unita",
   "in-luce-cons-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-luce-fisso-nuov-unita",
   "in-gas-cons-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov", "in-gas-fisso-nuov-unita",
-  "master-luce-potenza", "master-luce-tipo",
+  "master-luce-potenza", "master-luce-tipo", "in-luce-tipo-att", "in-gas-tipo-att",
   "business-ragione", "business-piva", "business-fornitore", "business-fornitore-gas",
   "business-potenza", "business-kwh", "business-prezzo-luce", "business-fisso-luce",
   "business-smc", "business-prezzo-gas", "business-fisso-gas",
@@ -17944,6 +17963,7 @@ function aggiornaProfiloPdfDaDati(data, scope) {
       const type = pdfSafeAutofillValue(data, `tipo_prezzo_${commodity}`);
       const priceEvidence = pdfContractFieldEntry(data, priceField);
       const fromReceipt = priceEvidence?.derivation?.type === "pdf_receipt_sales_unit_price";
+      profile[`prezzoStoricoScontrino_${commodity}`] = Boolean(fromReceipt);
       if ((fromReceipt || type === "variabile") && Number.isFinite(price) && price > 0
           && fixed !== undefined && Number.isFinite(Number(fixed)) && Number(fixed) >= 0) {
         // Per la fornitura corrente usa i prezzi storici delle componenti
@@ -19524,9 +19544,18 @@ function costoOffertaSulProfilo(offerta, attuale) {
   return calcolaOfferta(offertaPropostaPerCalcolo(offerta, attuale), offerta.tipo || "fisso").totale;
 }
 
+function spreadAreraGiaComprensivoPerdite(riga) {
+  if (riga?.commodity !== "luce" || riga?.tipo !== "variabile") return null;
+  const evidence = String(riga?.provenienzaPrezzo?.testoVicino || "");
+  if (!/spread.{0,35}comprensiv[oa].{0,20}perdit|comprensiv[oa].{0,20}perdit.{0,35}spread/i.test(evidence)) return null;
+  const spread = Number(riga?.provenienzaPrezzo?.valore);
+  return Number.isFinite(spread) && spread >= 0 ? spread : null;
+}
+
 function calcolaRigaAreraSuProfilo(riga, attuale) {
   const base = riga.commodity === "luce" ? attuale.luce : attuale.gas;
   return calcolaVoceEnergia({
+    spreadComprensivoPerdite: spreadAreraGiaComprensivoPerdite(riga),
     consumo: base.consumo,
     prezzoVariabile: riga.prezzo,
     quotaFissaAnnua: riga.quotaFissaAnnua,
@@ -19601,6 +19630,7 @@ function voceDaRigaArera(riga) {
   if (!riga) return null;
   return {
     prezzoVariabile: riga.prezzo,
+    spreadComprensivoPerdite: spreadAreraGiaComprensivoPerdite(riga),
     quotaFissaAnnua: riga.quotaFissaAnnua,
     sconti: normalizzaScontiArera(riga.sconti),
     condizioniRecessoAnticipato: normalizzaCondizioniRecessoArera(riga.condizioniRecessoAnticipato),
@@ -19964,6 +19994,24 @@ function gasMasterBucket(consumo) {
   return "1400";
 }
 
+function pulisciCampiEconomiciPdfNonVerificati(data) {
+  if (!data || data.kind !== "bolletta") return;
+  // Un vecchio importo nel modulo non deve apparire come nuovo risultato IA.
+  // Rispettare i campi effettivamente ritoccati dall'utente.
+  const candidate = [
+    ["luce", "quota_fissa_vendita_luce_eur_anno", "in-luce-fisso-att"],
+    ["gas", "quota_fissa_vendita_gas_eur_anno", "in-gas-fisso-att"],
+    ["luce", "prezzo_luce_eur_kwh", "in-luce-prezzo-att"],
+    ["gas", "prezzo_gas_eur_smc", "in-gas-prezzo-att"],
+  ];
+  for (const [commodity, field, id] of candidate) {
+    if (![commodity, "dual"].includes(String(data.commodity || ""))) continue;
+    if (pdfSafeAutofillValue(data, field) !== undefined) continue;
+    if (PDF_MANUAL_TOUCHED_FIELDS.has(id)) continue;
+    setField(id, "");
+  }
+}
+
 function applicaDatiPdfAlModulo(data) {
   if (data?.kind === "scheda_offerta") NUOVA_OFFERTA_AUTOMATICA = null;
   inizializzaSelectFornitoreGas();
@@ -19992,6 +20040,7 @@ function applicaDatiPdfAlModulo(data) {
   }
 
   if (Array.isArray(selectedRows)) {
+    pulisciCampiEconomiciPdfNonVerificati(data);
     applicaRigheAutocompilazionePdf(selectedRows);
     applicaDatiTecniciPdfAlModulo(data);
     
@@ -20005,6 +20054,7 @@ function applicaDatiPdfAlModulo(data) {
     return;
   }
 
+  pulisciCampiEconomiciPdfNonVerificati(data);
   const power = safe("potenza_impegnata_kw");
   if (power !== undefined) setField("master-luce-potenza", power);
   
@@ -20063,10 +20113,16 @@ function applicaDatiPdfAlModulo(data) {
   }
   if (gasPrice !== undefined) setField("in-gas-prezzo-att", gasPrice);
   if (gasFixed !== undefined) impostaQuotaFissaAnnua("in-gas-fisso-att", "in-gas-fisso-att-unita", gasFixed);
-  if (priceType !== undefined) {
-    setField("master-luce-tipo", priceType);
-    PDF_PROFILE_STATE.current.tipo_prezzo_luce = priceType;
-    PDF_PROFILE_STATE.current.tipo_prezzo_gas = priceType;
+  const tipoLuce = safe("tipo_prezzo_luce");
+  const tipoGas = safe("tipo_prezzo_gas");
+  if (tipoLuce !== undefined) {
+    setField("master-luce-tipo", tipoLuce);
+    setField("in-luce-tipo-att", tipoLuce);
+    PDF_PROFILE_STATE.current.tipo_prezzo_luce = tipoLuce;
+  }
+  if (tipoGas !== undefined) {
+    setField("in-gas-tipo-att", tipoGas);
+    PDF_PROFILE_STATE.current.tipo_prezzo_gas = tipoGas;
   }
   aggiornaIndicatoreProfiloPdf();
   aggiornaTestoPulsanteConfronto();
