@@ -5068,6 +5068,7 @@
                     <div class="input-group">
                         <label for="in-luce-tipo-att">Tipo prezzo attuale luce</label>
                         <select id="in-luce-tipo-att">
+                            <option value="">Da verificare</option>
                             <option value="fisso" selected>Prezzo fisso</option>
                             <option value="variabile">Prezzo variabile / indicizzato</option>
                         </select>
@@ -5100,6 +5101,7 @@
                     <div class="input-group">
                         <label for="in-gas-tipo-att">Tipo prezzo attuale gas</label>
                         <select id="in-gas-tipo-att">
+                            <option value="">Da verificare</option>
                             <option value="fisso" selected>Prezzo fisso</option>
                             <option value="variabile">Prezzo variabile / indicizzato</option>
                         </select>
@@ -16706,7 +16708,7 @@ function resetCampiPdfSlot(slot) {
     // I consumi della proposta appartengono al profilo della bolletta e non alla
     // scheda sintetica: non devono essere cancellati quando si sostituisce lo slot offer.
     ? ["nome-fornitore-nuov", "in-luce-prezzo-nuov", "in-luce-fisso-nuov", "in-gas-prezzo-nuov", "in-gas-fisso-nuov"]
-    : ["nome-fornitore-att", "nome-fornitore-gas-att", "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-luce-cons-nuov", "in-gas-cons-nuov"];
+    : ["nome-fornitore-att", "nome-fornitore-gas-att", "in-luce-tipo-att", "in-gas-tipo-att", "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att", "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att", "in-luce-cons-nuov", "in-gas-cons-nuov"];
   ids.forEach((id) => {
     clearField(id);
     PDF_MANUAL_TOUCHED_FIELDS.delete(id);
@@ -20121,6 +20123,7 @@ function applicaDatiPdfAlModulo(data) {
     PDF_PROFILE_STATE.current.tipo_prezzo_luce = tipoLuce;
   }
   if (tipoGas !== undefined) {
+    if (data.commodity === "gas") setField("master-luce-tipo", tipoGas);
     setField("in-gas-tipo-att", tipoGas);
     PDF_PROFILE_STATE.current.tipo_prezzo_gas = tipoGas;
   }
