@@ -20130,9 +20130,9 @@ function aggiornaRisparmioLandingDaPrimaPosizione() {
 }
 
 // v83 — card Switcho: CTA diretta + informazione separata sulla partnership
-const SWITCHO_ROUTING_VERSION = "switcho-v8-2026-09-16-provider-routing";
-const SWITCHO_LANDING_URL = "/switcho.html";
+const SWITCHO_ROUTING_VERSION = "switcho-v9-2026-10-21-direct-partner";
 const SWITCHO_PARTNER_URL = "https://bit.ly/Switcho-LuceGas-OffertaLogica";
+const SWITCHO_LANDING_URL = SWITCHO_PARTNER_URL;
 const OFFER_CARD_SWITCHO_DIRECT_MEDIA = false;
 
 function apriSwitchoDirettoDaOfferta(source = "offer_card", offer = null) {
@@ -21084,7 +21084,7 @@ if (document.readyState === "loading") {
                 <button type="button" class="lead-primary" id="assistance-rescue-success-close">Continua sul calcolatore</button>
             </div>
         </div>
-        <div class="assistance-rescue-note">Questo pulsante apre la pagina OffertaLogica dedicata alla collaborazione con Switcho. Da lì puoi scegliere se continuare su Switcho. I dati inseriti su OffertaLogica non vengono trasferiti automaticamente.</div>
+        <div class="assistance-rescue-note">Questo pulsante apre direttamente la landing Switcho dedicata a OffertaLogica. I dati inseriti su OffertaLogica non vengono trasferiti automaticamente.</div>
     </div>
 </div>
 
