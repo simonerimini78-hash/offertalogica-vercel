@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.101";
+  const VERSION = "0.12.104";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -13,6 +13,7 @@
   let opportunityRows = [];
   let opportunityTopicKeys = new Set();
   let plannerDecision = null;
+  let lastResearchRadarPayload = null;
   const expandedOpportunityIds = new Set();
   let socialPlanItems = [];
   let socialChannels = [];
@@ -240,7 +241,7 @@
               <p class="ol-muted">Scansione automatica sabato, domenica e lunedì dalle 08:00. Confronta web, Search Console, archivio articoli e strumenti OffertaLogica prima di proporre un nuovo contenuto.</p>
               <div class="ol-autopilot-pane" data-research-hint-editor>
                 <h5>Questo potrebbe essere il tema del prossimo articolo</h5>
-                <p class="ol-muted">Suggeriscilo al Radar: verrà verificato sul web e contro Search Console e archivio. Il suggerimento non aumenta il punteggio e non forza la pubblicazione.</p>
+                <p class="ol-muted">Suggeriscilo al Radar per verificarlo sul web e nell’archivio. Finché non scegli esplicitamente un tema, il suggerimento non forza la pubblicazione. La tua scelta ha priorità sulla graduatoria automatica per il prossimo articolo non ancora avviato.</p>
                 <div class="ol-autopilot-fields ol-autopilot-fields-compact">
                   <div class="ol-field">
                     <label for="autopilot-research-hint-topic">Tema da validare</label>
@@ -460,7 +461,10 @@
           ${review?.suggested_angle ? `<small><b>Possibile angolo:</b> ${esc(review.suggested_angle)}</small>` : ""}
           ${sources ? `<small><b>Fonti:</b> ${sources}</small>` : ""}
         </details>` : ""}
-        <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-research-hint-archive="${esc(hint.id || "")}">Rimuovi dalle ricerche</button></div>
+        <div class="ol-toolbar-group">
+          <button class="ol-button ol-button-primary ol-button-small" type="button" data-research-hint-select="${esc(hint.id || "")}">Scegli per il prossimo articolo</button>
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-research-hint-archive="${esc(hint.id || "")}">Rimuovi dalle ricerche</button>
+        </div>
       </div>`;
     };
     const primary = hints.slice(0, 3);
@@ -563,7 +567,10 @@
     const message = section.querySelector("[data-research-radar-message]");
     try {
       const payload = await endpoint("editorial-research-radar");
-      if (section.isConnected) renderResearchRadar(section, payload);
+      if (section.isConnected) {
+        lastResearchRadarPayload = payload;
+        renderResearchRadar(section, payload);
+      }
     } catch (error) {
       if (message) message.textContent = `Radar non disponibile: ${error.message}`;
       const button = section.querySelector("[data-research-radar-start]");
@@ -924,7 +931,7 @@
   function opportunityHeading(row) {
     const manual = manualIdeaMeta(row);
     if (manual) {
-      return `${esc(row.topic || "Senza titolo")} · Idea manuale · priorità ${esc(manualIdeaPriorityLabel(manual.priority))} · ${esc(opportunityStatusLabel(row.status))}`;
+      return `${esc(row.topic || "Senza titolo")} · ${manual.promoted_from_research_hint ? "Suggerimento scelto" : `Idea manuale · priorità ${esc(manualIdeaPriorityLabel(manual.priority))}`} · ${esc(opportunityStatusLabel(row.status))}`;
     }
     return `${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}`;
   }
@@ -937,7 +944,10 @@
       const editable = row.status !== "completed" && !row.target_article_id
         ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
         : "";
-      return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
+      const review = row?.evidence?.research_hint_selection?.last_review;
+      const reviewed = review ? `<small>Ultima verifica Radar prima della scelta: ${esc(researchHintVerdictLabel(review.verdict))} · ${Number(review.score || 0)}/100</small>${review.rationale ? `<small>${esc(review.rationale)}</small>` : ""}` : "";
+      const origin = manual.promoted_from_research_hint ? "suggerimento Radar scelto dalla Redazione" : "inserimento manuale";
+      return `<small>Origine: ${origin}${esc(deadline)}</small>${reviewed}${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
     }
     const radar = row?.evidence?.source === "research_radar" ? row.evidence.research_radar : null;
     if (radar) {
@@ -1731,7 +1741,7 @@
     }
     if (row.target_article_id) badges.push('<span class="ol-opportunity-badge is-locked">Articolo avviato</span>');
     badges.push(`<span class="ol-opportunity-badge">${esc(opportunityStatusLabel(row.status))}</span>`);
-    badges.push(`<span class="ol-opportunity-badge">${manual ? `Idea manuale · ${esc(manualIdeaPriorityLabel(manual.priority))}` : `Search Console · ${Number(row.score || 0)}/100`}</span>`);
+    badges.push(`<span class="ol-opportunity-badge">${manual ? (manual.promoted_from_research_hint ? "Suggerimento scelto" : `Idea manuale · ${esc(manualIdeaPriorityLabel(manual.priority))}`) : `Search Console · ${Number(row.score || 0)}/100`}</span>`);
     return badges.join("");
   }
 
@@ -1885,6 +1895,7 @@
     const manualSaveButton = event.target.closest("[data-manual-idea-save]");
     const researchHintSaveButton = event.target.closest("[data-research-hint-save]");
     const researchHintArchiveButton = event.target.closest("[data-research-hint-archive]");
+    const researchHintSelectButton = event.target.closest("[data-research-hint-select]");
     const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
@@ -1947,6 +1958,35 @@
         if (hintMessage) hintMessage.textContent = `Tema non inserito: ${error.message}`;
       } finally {
         researchHintSaveButton.disabled = false;
+      }
+      return;
+    }
+
+    if (researchHintSelectButton) {
+      const id = researchHintSelectButton.dataset.researchHintSelect || "";
+      const hintMessage = section.querySelector("[data-research-hint-message]");
+      if (!id || researchHintSelectButton.disabled) return;
+      const hint = (lastResearchRadarPayload?.research_hints || []).find((row) => String(row.id || "") === id);
+      const review = hint?.latest_review || null;
+      const previous = opportunityRows.find((row) => row.status === "selected" && !row.target_article_id);
+      const warning = !review
+        ? "Questo tema non è ancora stato verificato dal Radar. Vuoi sceglierlo comunque per il prossimo articolo?"
+        : ["SKIP_DUPLICATE", "UPDATE_EXISTING", "INSUFFICIENT_SIGNAL"].includes(String(review.verdict || ""))
+          ? `Il Radar ha segnalato “${researchHintVerdictLabel(review.verdict)}”. Vuoi comunque scegliere questo tema? I controlli editoriali restano obbligatori.`
+          : null;
+      if (warning && !window.confirm(warning)) return;
+      if (previous && !window.confirm(`Sostituire la scelta attiva “${previous.topic || "opportunità precedente"}” con “${hint?.topic || "questo tema"}”?`)) return;
+      researchHintSelectButton.disabled = true;
+      if (hintMessage) hintMessage.textContent = "Salvataggio della tua scelta editoriale…";
+      try {
+        await endpoint("select-editorial-research-hint", { method: "POST", body: { id } });
+        if (hintMessage) hintMessage.textContent = "Scelta salvata: questo tema precede Radar e Search Console per il prossimo articolo non ancora avviato.";
+        await loadResearchRadar(section);
+        await loadOpportunities(section, true);
+        await loadPlannerPreview(section, true);
+      } catch (error) {
+        if (hintMessage) hintMessage.textContent = `Scelta non completata: ${error.message}`;
+        researchHintSelectButton.disabled = false;
       }
       return;
     }

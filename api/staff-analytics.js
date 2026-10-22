@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.101";
+const VERSION = "0.12.104";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -1679,6 +1679,27 @@ async function createEditorialResearchHint(user, payload = {}) {
   return { created: true, hint };
 }
 
+async function selectEditorialResearchHint(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo tema non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = rows?.[0];
+  if (!current || !researchHintMeta(current)) throw new Error("Tema suggerito non trovato");
+  if (!["pending", "deferred"].includes(String(current.status || "")) || current.target_article_id) {
+    throw new Error("Il tema non è più disponibile come prossima scelta editoriale");
+  }
+
+  // La valutazione Radar informa la Redazione, ma non prevale su una scelta umana.
+  // Conserviamo l'ultimo verdetto e le sue fonti per consentire controlli editoriali.
+  const radar = await researchRadarPayload();
+  const latestReview = (radar.research_hints || []).find((hint) => hint.id === id)?.latest_review || null;
+  return selectEditorialOpportunity(user, id, {
+    origin: "manual",
+    reason: "Tema suggerito al Radar e scelto esplicitamente dalla Redazione: precede la graduatoria automatica.",
+    promoteResearchHint: { review: latestReview },
+  });
+}
+
 async function archiveEditorialResearchHint(user, payload = {}) {
   const id = String(payload.id || "").trim();
   if (!validUuid(id)) throw new Error("Identificativo tema non valido");
@@ -1803,6 +1824,9 @@ async function editorialPlannerPreview() {
       continue;
     }
     if (!manual) continue;
+    // Un suggerimento promosso e poi sostituito non deve tornare da solo in cima:
+    // la sua priorita' esiste solo finche' la scelta umana resta esplicitamente attiva.
+    if (manual.promoted_from_research_hint === true) continue;
     const priority = MANUAL_IDEA_PRIORITIES.has(String(manual.priority)) ? String(manual.priority) : "normal";
     candidates.push({
       source: "manual_idea",
@@ -2096,6 +2120,43 @@ async function selectEditorialOpportunity(user, idValue, options = {}) {
   }
 
   let evidence = current.evidence && typeof current.evidence === "object" ? { ...current.evidence } : {};
+  const promotedHint = options.promoteResearchHint || null;
+  if (promotedHint) {
+    if (!researchHintMeta(current) || !["pending", "deferred"].includes(String(current.status || ""))) {
+      throw new Error("Solo un suggerimento Radar ancora attivo può essere scelto da questo pannello");
+    }
+    const review = promotedHint.review && typeof promotedHint.review === "object" ? promotedHint.review : null;
+    const now = new Date().toISOString();
+    evidence = {
+      ...evidence,
+      source: "manual_idea",
+      manual_idea: {
+        schema_version: 1,
+        // Il comando di scelta e' prioritario grazie a selection.origin=manual e status=selected,
+        // non tramite un bonus permanente se la scelta viene poi sostituita.
+        priority: "normal",
+        deadline: null,
+        notes: cleanEditorialText(review?.suggested_angle, 1200),
+        created_at: now,
+        created_by: user.id,
+        updated_at: now,
+        updated_by: user.id,
+        promoted_from_research_hint: true,
+      },
+      research_hint_selection: {
+        chosen_at: now,
+        chosen_by: user.id,
+        last_review: review ? {
+          verdict: String(review.verdict || "INSUFFICIENT_SIGNAL"),
+          score: researchRadarClampScore(review.score),
+          rationale: cleanEditorialText(review.rationale, 1000),
+          suggested_angle: cleanEditorialText(review.suggested_angle, 1200),
+          source_urls: (Array.isArray(review.source_urls) ? review.source_urls : []).map(normalizedHttps).filter(Boolean).slice(0, 6),
+          reviewed_at: review.reviewed_at || null,
+        } : null,
+      },
+    };
+  }
   let liveSignal = null;
   if (evidence.source === "search_console" && evidence.topic_key) {
     const analysis = await analysisPayload().catch(() => null);
@@ -2149,6 +2210,7 @@ async function selectEditorialOpportunity(user, idValue, options = {}) {
     body: {
       status: "selected",
       opportunity_type: ["monitor", "update_article"].includes(String(current.opportunity_type || "")) ? "new_article" : current.opportunity_type,
+      ...(promotedHint ? { rationale: "Scelta esplicita della Redazione da un suggerimento analizzato dal Radar: priorità sulla selezione automatica. Verifiche editoriali e fonti restano obbligatorie." } : {}),
       evidence,
       decided_by: user.id,
       decided_at: now,
@@ -2516,6 +2578,90 @@ function articleImageGlobalDirection(article, opportunity, effectiveProfile) {
   return lines.join(" ");
 }
 
+// Memoria visiva read-only: solo immagini effettivamente pubblicate e approvate.
+// Non cambia piano, calendario, job, stati o politiche di pubblicazione.
+async function editorialRecentPublishedVisuals(articleId, limit = 10) {
+  try {
+    const articles = await serviceFetch(
+      `editorial_articles?select=id,title,featured_image_url,published_at&status=eq.published&featured_image_url=not.is.null&order=published_at.desc&limit=${Math.min(12, Math.max(1, limit))}`,
+    );
+    const valid = (articles || []).filter((row) => validUuid(row?.id) && row.id !== articleId && /^https:\/\//i.test(String(row.featured_image_url || "")));
+    if (!valid.length) return [];
+    const ids = valid.map((row) => encodeURIComponent(row.id)).join(",");
+    const opportunities = await serviceFetch(
+      `editorial_research_opportunities?select=target_article_id,evidence&target_article_id=in.(${ids})`,
+    );
+    const byId = new Map();
+    for (const opportunity of opportunities || []) {
+      const asset = opportunity?.evidence?.article_image?.current;
+      if (!asset?.url || !asset?.visual_brief || typeof asset.visual_brief !== "object") continue;
+      // Non usare come memoria una candidata sostituita o una descrizione non corrispondente alla foto pubblicata.
+      const article = valid.find((row) => row.id === opportunity.target_article_id);
+      if (!article || article.featured_image_url !== asset.url || String(asset.status || "") !== "approved") continue;
+      if (!byId.has(article.id)) byId.set(article.id, asset);
+    }
+    return valid.flatMap((article) => {
+      const asset = byId.get(article.id);
+      const brief = asset?.visual_brief;
+      if (!brief) return [];
+      const subject = cleanEditorialText(brief.primary_subject, 150);
+      const scene = cleanEditorialText(brief.visual_story, 190);
+      const environment = cleanEditorialText(brief.environment, 120);
+      if (!subject && !scene) return [];
+      return [{ subject, scene, environment, article_id: article.id }];
+    }).slice(0, limit);
+  } catch (error) {
+    // La diversificazione non deve mai fermare il ciclo editoriale se la lettura dello storico fallisce.
+    console.warn("editorial_recent_visual_memory_unavailable", String(error?.message || error));
+    return [];
+  }
+}
+
+// Evita anche le ripetizioni tra hero, Follow-up e post OffertaLogica dello stesso ciclo.
+// Si considerano soltanto asset social realmente generati, non bozze testuali non pubblicate.
+async function editorialCycleVisuals(articleId, currentPlanItemId = null) {
+  if (!validUuid(String(articleId || ""))) return [];
+  try {
+    const rows = await serviceFetch(
+      `editorial_research_opportunities?select=evidence&target_article_id=eq.${encodeURIComponent(articleId)}&limit=6`,
+    );
+    const seen = new Set();
+    const output = [];
+    for (const row of rows || []) {
+      const items = row?.evidence?.social_assets?.items;
+      if (!items || typeof items !== "object") continue;
+      for (const [id, asset] of Object.entries(items)) {
+        if (id === currentPlanItemId || !asset?.image?.url || String(asset?.image?.qa?.status || "") !== "passed" || !asset?.brief) continue;
+        const subject = cleanEditorialText(asset.brief.visual_subject, 150);
+        const scene = cleanEditorialText(asset.brief.visual_scene, 190);
+        if (!subject && !scene) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        output.push({ subject, scene, environment: "" });
+        if (output.length >= 4) return output;
+      }
+    }
+    return output;
+  } catch (error) {
+    console.warn("editorial_cycle_visual_memory_unavailable", String(error?.message || error));
+    return [];
+  }
+}
+
+function editorialRecentVisualDirections(memory, maxItems = 10) {
+  if (!Array.isArray(memory) || !memory.length) return "";
+  const lines = memory.slice(0, maxItems).map((item, index) => {
+    const parts = [item.subject, item.scene, item.environment].map((part) => cleanEditorialText(part, 190)).filter(Boolean);
+    return parts.length ? `${index + 1}. ${parts.join(" | ")}` : "";
+  }).filter(Boolean);
+  return lines.length ? [
+    "Scene visive delle recenti fotografie editoriali approvate, dalla piu' recente:",
+    ...lines,
+    "Evita di riproporre la stessa combinazione di protagonista, eta' rappresentata, gesto, ambiente e inquadratura; cerca un momento narrativo davvero differente ma fedele all'articolo.",
+    "Non cambiare arbitrariamente le persone coinvolte se il testo richiede una specifica condizione: la varieta' non deve creare rappresentazioni fuorvianti.",
+  ].join("\n") : "";
+}
+
 function editorialArticleVisualBriefSchema() {
   return {
     type: "object",
@@ -2532,7 +2678,7 @@ function editorialArticleVisualBriefSchema() {
   };
 }
 
-async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "", requestedProfile = "auto") {
+async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "", requestedProfile = "auto", recentVisuals = []) {
   const content = cleanEditorialText(article?.content, 5000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 1000);
   const extra = cleanEditorialText(guidance, 600);
@@ -2547,6 +2693,7 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
     `Profilo visivo richiesto: ${requested.label}.`,
     `Profilo visivo effettivo da seguire: ${effectiveProfile.label}.`,
     `Direzione visiva generale: ${articleImageGlobalDirection(article, opportunity, effectiveProfile.key)}.`,
+    editorialRecentVisualDirections(recentVisuals),
     extra ? `Indicazioni di rigenerazione: ${extra}.` : "",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
@@ -2564,6 +2711,8 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
         "Se compaiono documenti o fogli, devono restare di supporto, non frontali né leggibili.",
         "Evita lenti di ingrandimento, bollette palesemente finte, dashboard fasulle, moduli inventati e qualsiasi elemento che faccia percepire l'immagine come artificiale.",
         "Se il tema è astratto, usa una scena reale che renda visibile il problema concreto senza inventare dati o documenti.",
+        "Valuta la diversità dell\'intera galleria: evita di replicare la stessa persona-tipo seduta in cucina con bolletta, la stessa posa e la stessa espressione. Proponi un gesto e una scena diversi quando sono pertinenti.",
+        "Non ridurre automaticamente vulnerabilità a donne anziane preoccupate: considera anche persone diverse, aiuto familiare, contesti di orientamento o dettagli senza volti, solo se corretti rispetto all\'articolo.",
       ].join(" "),
       input,
       reasoning: { effort: "low" },
@@ -2600,7 +2749,7 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
   return brief;
 }
 
-function articleImagePrompt(article, opportunity, visualBrief, guidance = "", requestedProfile = "auto") {
+function articleImagePrompt(article, opportunity, visualBrief, guidance = "", requestedProfile = "auto", recentVisuals = []) {
   const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
   const extra = cleanEditorialText(guidance, 600);
   const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
@@ -2619,6 +2768,7 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     `Effective visual profile to follow: ${effectiveProfile.label}.`,
     `Profile direction: ${effectiveProfile.directive}.`,
     `Global editorial direction: ${globalDirection}.`,
+    editorialRecentVisualDirections(recentVisuals),
     `Primary visual subject: ${cleanEditorialText(visualBrief?.primary_subject, 300)}.`,
     `Environment: ${cleanEditorialText(visualBrief?.environment, 300)}.`,
     `Visual story: ${cleanEditorialText(visualBrief?.visual_story, 500)}.`,
@@ -2761,8 +2911,9 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "", r
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
-  const visualBrief = await buildEditorialArticleVisualBrief(article, opportunity, guidance, requestedProfile);
-  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile);
+  const recentVisuals = await editorialRecentPublishedVisuals(article?.id);
+  const visualBrief = await buildEditorialArticleVisualBrief(article, opportunity, guidance, requestedProfile, recentVisuals);
+  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile, recentVisuals);
   const requested = articleImageProfileByKey(requestedProfile);
   const effective = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
   const controller = new AbortController();
@@ -4744,6 +4895,8 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
     : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
   const destinationContent = cleanEditorialText(targetContext?.content, 6500);
+  const recentVisuals = await editorialRecentPublishedVisuals(article?.id);
+  const cycleVisuals = await editorialCycleVisuals(article?.id, item?.id);
   const input = [
     `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
@@ -4757,6 +4910,8 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
     targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
     destinationContent ? `Contenuto reale della pagina di destinazione: ${destinationContent}.` : "",
+    editorialRecentVisualDirections(recentVisuals),
+    cycleVisuals.length ? `Scene social già generate in questo ciclo da non duplicare: ${editorialRecentVisualDirections(cycleVisuals, 4)}` : "",
     masterVisualContext?.primary_subject ? `Riferimento visivo master - soggetto: ${cleanEditorialText(masterVisualContext.primary_subject, 320)}.` : "",
     masterVisualContext?.environment ? `Riferimento visivo master - ambiente: ${cleanEditorialText(masterVisualContext.environment, 320)}.` : "",
     masterVisualContext?.visual_story ? `Riferimento visivo master - storia visiva: ${cleanEditorialText(masterVisualContext.visual_story, 600)}.` : "",
@@ -4790,6 +4945,7 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi, formule promozionali generiche o dettagli non verificabili.",
         "Il visuale deve essere una nuova fotografia quadrata 1:1 pronta per la cover social OffertaLogica e deve appartenere allo stesso linguaggio visivo della hero approvata dell'articolo: autenticità, concretezza, luce credibile e scena leggibile.",
         "Non cercare la diversità a tutti i costi. Puoi cambiare momento, inquadratura, gesto o soggetto secondario, ma una variante social simile alla hero è preferibile a una fotografia diversa ma più debole, generica o artificiale.",
+        "Quando l\'articolo lo consente, varia protagonista, posa e ambiente rispetto alle foto recentemente approvate; preserva coerenza e qualità con la hero senza ricreare sistematicamente la stessa scena.",
         "visual_subject e visual_scene devono tradurre il significato del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi del settore.",
         "Se compaiono documenti, fogli, bollette o contratti devono restare secondari, non leggibili e credibili: mai frontali, mai costruiti come mockup, mai protagonisti se l'articolo non lo richiede davvero.",
         "Per related il visuale deve rappresentare il problema o l'attività concreta del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
@@ -5004,10 +5160,12 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
 }
 
 async function generateOpenAiSocialImage(article, item, target, brief, guidance = "") {
+  const recentVisuals = await editorialRecentPublishedVisuals(article?.id);
+  const cycleVisuals = await editorialCycleVisuals(article?.id, item?.id);
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
-  const prompt = editorialSocialImagePrompt(article, item, target, brief, guidance);
+  const prompt = [editorialSocialImagePrompt(article, item, target, brief, guidance), editorialRecentVisualDirections(recentVisuals), cycleVisuals.length ? `Previously generated social scenes in this cycle: ${editorialRecentVisualDirections(cycleVisuals, 4)}` : ""].filter(Boolean).join("\n");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
@@ -8540,6 +8698,11 @@ export default async function handler(req, res) {
     if (req.method === "POST" && action === "create-editorial-research-hint") {
       const result = await createEditorialResearchHint(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "select-editorial-research-hint") {
+      const opportunity = await selectEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
     }
 
     if (req.method === "POST" && action === "archive-editorial-research-hint") {
