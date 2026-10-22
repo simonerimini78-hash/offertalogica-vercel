@@ -9,6 +9,98 @@
       "providerLabel": "Greenius",
       "fornitore": "Greenius",
       "commodity": "gas",
+      "tipo": "fisso",
+      "nome": "LA STESSA GAS NATURALE",
+      "codice": "027184GSFML01XXXXX2610DOGFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-10",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "",
+      "prezzo": 0.867,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE",
+        "sourceDocument": "12_10_2026__11_11_2026__027184GSFML01XXXXX2610DOGFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "12_10_2026__11_11_2026__027184GSFML01XXXXX2610DOGFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|gas|027184GSFML01XXXXX2610DOGFIXCANA",
+        "sourceFile": "12_10_2026__11_11_2026__027184GSFML01XXXXX2610DOGFIXCANA.pdf",
+        "sourceHash": "25080c62e40f40ea0e9a47e6ee548c1b081c0caa8621ec1b57a759a5cdddc7f8",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.867,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|gas|027184GSFML01XXXXX2610DOGFIXCANA"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
       "tipo": "variabile",
       "nome": "CASA GIADA",
       "codice": "027184GNVML01XXXXX2609DOGPSVRESI",
@@ -59,7 +151,7 @@
         "commercialFamily": "casa giada",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESI",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESI.pdf",
-        "sourceHash": "91189e7387c53ca91ad2e255a3a0c3816c833a8e5c6a8dda0a9581d520cc3e3e",
+        "sourceHash": "3e1c432916b39c2098a0c98ae94d3aa2aa4b9640b798e5302ee518c35a030805",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -159,7 +251,7 @@
         "commercialFamily": "casa zaffiro",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESK",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESK.pdf",
-        "sourceHash": "588a772b616a73f071313b74099c1a5accc649088a8266191bf7df2bd4ec4cad",
+        "sourceHash": "ebf17e21fd8fee6e410b93d3d694faaa968d387155d4d5aa40b2708b19d3e774",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -259,7 +351,7 @@
         "commercialFamily": "casa rubino",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESL",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESL.pdf",
-        "sourceHash": "748df0b65a83f4ed50bdb4667f1f61aa3733583ba9bc2243772b59fccb58d92c",
+        "sourceHash": "a2013b36203065be5182aed4a622dcb13813c8dd4457f0463a2e32f0b79e304b",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -359,7 +451,7 @@
         "commercialFamily": "casa ambra",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESM",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESM.pdf",
-        "sourceHash": "af4289aacae6058bd3e2872f634928a618e9686bc43f051c1f6dfd9f8ad29f40",
+        "sourceHash": "3533226ca9511c3157083884887fc339724a333b378c4ae5b53634010840c393",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -459,7 +551,7 @@
         "commercialFamily": "casa opale",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESN.pdf",
-        "sourceHash": "247c34f0997c8e0842a10e4567ccb54e2783a0813c52c25b4556331c9b9fc3d9",
+        "sourceHash": "972d8c480b7f8f01425a2f4ed5fe8711e756620befb92ba5c84de494c41c234a",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -503,6 +595,106 @@
       ],
       "commercialFamily": "casa opale",
       "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA",
+      "codice": "027184GNVML01XXXXX2610DOGCAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-10",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.955,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread, CAP)",
+        "sourceDocument": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610DOGCAPRES2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610DOGCAPRES2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2610DOGCAPRES2",
+        "sourceFile": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610DOGCAPRES2.pdf",
+        "sourceHash": "2f4dfc8e185893297f60f10554fa46ccac80bd1a625014acc4043ad59b02e4de",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.843182,
+          "fixedPrice": null,
+          "spread": 0.145,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.955,
+            "unit": "EUR/Smc",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2610DOGCAPRES2"
     },
     {
       "providerKey": "greenius",
@@ -559,7 +751,7 @@
         "commercialFamily": "casa smeraldo",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609DOGPSVRESJ",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609DOGPSVRESJ.pdf",
-        "sourceHash": "ef0c9ccc987a07d79875d199ed9a4a52a1027ec7e072e7784668353001dfe873",
+        "sourceHash": "8f278294229c411755c44ac415eab916fef9af08a7fb012022b08287baa5aed8",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -609,6 +801,198 @@
       "providerLabel": "Greenius",
       "fornitore": "Greenius",
       "commodity": "luce",
+      "tipo": "fisso",
+      "nome": "LA STESSA ENERGIA ELETTRICA 24 MESI",
+      "codice": "027184ESFML01XXB2610DOE0FFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-10",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 24,
+      "indiceRiferimento": "",
+      "prezzo": 0.20317,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE comprensivo perdite",
+        "sourceDocument": "12_10_2026__11_11_2026__027184ESFML01XXB2610DOE0FFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "12_10_2026__11_11_2026__027184ESFML01XXB2610DOE0FFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|luce|027184ESFML01XXB2610DOE0FFIXCANA",
+        "sourceFile": "12_10_2026__11_11_2026__027184ESFML01XXB2610DOE0FFIXCANA.pdf",
+        "sourceHash": "2d09ceb3238085816d66206450eab72676d5b8c2bb6ec944238ecedf8ad38db1",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.20317,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "included"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": true,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|luce|027184ESFML01XXB2610DOE0FFIXCANA"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA 24 MESI",
+      "codice": "027184ENVML01XXB2610DOEF0CAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-10",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.215,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread netto perdite, CAP)",
+        "sourceDocument": "16_10_2026__15_11_2026__027184ENVML01XXB2610DOEF0CAPRES2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "16_10_2026__15_11_2026__027184ENVML01XXB2610DOEF0CAPRES2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|luce|027184ENVML01XXB2610DOEF0CAPRES2",
+        "sourceFile": "16_10_2026__15_11_2026__027184ENVML01XXB2610DOEF0CAPRES2.pdf",
+        "sourceHash": "811f5bc841f4b7c22fb76df00d63ae4cf5ef4052429cae17d6d6e5512f02d9ae",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.207542,
+          "fixedPrice": null,
+          "spread": 0.0295,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.215,
+            "unit": "EUR/kWh",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|luce|027184ENVML01XXB2610DOEF0CAPRES2"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
       "tipo": "variabile",
       "nome": "CASA GIADA",
       "codice": "027184ENVOL01XXX2609DOE01PORRESI",
@@ -633,7 +1017,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -641,7 +1025,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -658,8 +1042,8 @@
         ],
         "commercialFamily": "casa giada",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESI",
-        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI (1).pdf",
-        "sourceHash": "e0e22c12f10d7c7725c365e5ca71325448a8f11535cd0eb12523caeea4798c8d",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI.pdf",
+        "sourceHash": "552d53f15b5aa68babd830d8c3761faf6b2b1ff5d4d49bc801fbfe8be0d0726d",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -733,7 +1117,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -741,7 +1125,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -758,8 +1142,8 @@
         ],
         "commercialFamily": "casa zaffiro",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESK",
-        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK (1).pdf",
-        "sourceHash": "c22a6c798bd85edbda953ef7fc5c8d2e60668d35e693e42778f07ee2f8c818f9",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK.pdf",
+        "sourceHash": "cc12f8b6f7073b99bdda0308e6545dc06c15a453cb71dbac5dccdfeedf03ddc8",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -833,7 +1217,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -841,7 +1225,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -858,8 +1242,8 @@
         ],
         "commercialFamily": "casa rubino",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESL",
-        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL (1).pdf",
-        "sourceHash": "2909a26ca45f5d81a07503749919ee79e7f650503ac4fd4b03f5e137e4a7afad",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL.pdf",
+        "sourceHash": "6a997463a419d2ad41b8cf2d3d8807e24fcdaaf05d787c3bfc5515df7e15d450",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -933,7 +1317,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -941,7 +1325,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -958,8 +1342,8 @@
         ],
         "commercialFamily": "casa ambra",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESM",
-        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM (1).pdf",
-        "sourceHash": "ebf82ddf34e3ba0259fca6dfefc386f2b4d07d178b7ce584bb109d09186cd847",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM.pdf",
+        "sourceHash": "29c15e0b11d0b47323fdf34f1113f981eff834587de73deedffc359fe34e268b",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -1033,7 +1417,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -1041,7 +1425,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -1058,8 +1442,8 @@
         ],
         "commercialFamily": "casa opale",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESN",
-        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN (1).pdf",
-        "sourceHash": "83164e0f3f29369a6da22c8aa8307d625bdea3401fe45772621f5a1941ea21ef",
+        "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN.pdf",
+        "sourceHash": "372bf417695745095a57dde3d6a09c58d80da4058e0663053b4c375cc1354c3b",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -1133,7 +1517,7 @@
           "greenius"
         ],
         "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4.pdf"
       },
       "provenienzaQuotaFissa": {
         "sourceType": "partner_direct",
@@ -1141,7 +1525,7 @@
         "partnerKeys": [
           "greenius"
         ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf"
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4.pdf"
       },
       "sconti": [],
       "dettagliTecnici": {
@@ -1158,8 +1542,8 @@
         ],
         "commercialFamily": "casa pun",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4",
-        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4 (1).pdf",
-        "sourceHash": "aee26cf94df7035afcb8406b6969f5889fedf7a6fd125e677559b29e18555e54",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4.pdf",
+        "sourceHash": "a97bd5f899e8a0c8ee0d44da58b3fa00c60fe31d47d284b74735deed36ebfe87",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -1203,106 +1587,6 @@
       ],
       "commercialFamily": "casa pun",
       "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4"
-    },
-    {
-      "providerKey": "greenius",
-      "providerLabel": "Greenius",
-      "fornitore": "Greenius",
-      "commodity": "luce",
-      "tipo": "variabile",
-      "nome": "CASA SMERALDO",
-      "codice": "027184ESVOL01XXX2609DOE01PORRESJ",
-      "pivaVenditore": "04362490403",
-      "dataInizio": "",
-      "dataFine": "2027-01-12",
-      "customerType": "domestico",
-      "tipoClienteCodice": "PARTNER_DIRECT",
-      "tipoOffertaCodice": "PARTNER_DIRECT",
-      "durataMesi": null,
-      "indiceRiferimento": "pun",
-      "prezzo": 0.219542,
-      "quotaFissaAnnua": 132.0,
-      "url": "#",
-      "fonte": "CTE partner diretta GREENIUS",
-      "score": 900,
-      "qualitaPrezzo": "partner_cte_validata",
-      "provenienzaPrezzo": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "projectionRule": "indice corrente + spread netto perdite",
-        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf"
-      },
-      "provenienzaQuotaFissa": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf"
-      },
-      "sconti": [],
-      "dettagliTecnici": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "partners": [
-          {
-            "partnerKey": "greenius",
-            "partnerLabel": "GREENIUS"
-          }
-        ],
-        "commercialFamily": "casa smeraldo",
-        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ",
-        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ (1).pdf",
-        "sourceHash": "1df0c58726652d5bf915f156261437bdab23fa09b815c9571d09b18eb7823e23",
-        "economics": {
-          "indexName": "PUN",
-          "indexValueAtProjection": 0.207542,
-          "fixedPrice": null,
-          "spread": 0.012,
-          "annualFixedFee": 132.0,
-          "networkLosses": {
-            "rankingPriceConvention": "net"
-          },
-          "variableComponents": [],
-          "fixedComponents": [],
-          "cap": {
-            "enabled": false,
-            "value": null,
-            "unit": null,
-            "validForMonths": null,
-            "rule": null
-          },
-          "discounts": [
-            {
-              "name": "Bonus SDD",
-              "value": 12.0,
-              "unit": "EUR/anno",
-              "condition": "Pagamento tramite SDD",
-              "includedInRanking": false
-            }
-          ]
-        },
-        "requirements": {
-          "sdd": true,
-          "digitalInvoice": null,
-          "powerConstraints": null,
-          "geographicConstraints": null,
-          "other": []
-        }
-      },
-      "sourceType": "partner_direct",
-      "partnerKey": "greenius",
-      "partnerKeys": [
-        "greenius"
-      ],
-      "commercialFamily": "casa smeraldo",
-      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ"
     },
     {
       "providerKey": "liongreen",
@@ -1519,6 +1803,117 @@
       ],
       "commercialFamily": "family force 2026b",
       "canonicalKey": "04569010616|luce|039840ETVFL26XXFORCTPUN042026DOM"
+    },
+    {
+      "providerKey": "ondapiu",
+      "providerLabel": "Onda Più",
+      "fornitore": "Onda Più",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "GAS SMALL Family",
+      "codice": "025990GNVML01XX0AN0SMA0D0526MP0M",
+      "pivaVenditore": "01787510898",
+      "dataInizio": "2026-05-01",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 12,
+      "indiceRiferimento": "psv",
+      "prezzo": 1.063182,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta Onda Più",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ondapiu",
+        "partnerKeys": [
+          "ondapiu"
+        ],
+        "projectionRule": "indice corrente + spread",
+        "sourceDocument": "GAS SMALL Family (11).pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ondapiu",
+        "partnerKeys": [
+          "ondapiu"
+        ],
+        "sourceDocument": "GAS SMALL Family (11).pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "ondapiu",
+        "partnerKeys": [
+          "ondapiu"
+        ],
+        "partners": [
+          {
+            "partnerKey": "ondapiu",
+            "partnerLabel": "Onda Più"
+          }
+        ],
+        "commercialFamily": "small family",
+        "canonicalKey": "01787510898|gas|025990GNVML01XX0AN0SMA0D0526MP0M",
+        "sourceFile": "GAS SMALL Family (11).pdf",
+        "sourceHash": "4c8a9bd05473e4dda9782d000a0e8fcb28d3a7bfe89e734ae80bc5358ddb16d7",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.843182,
+          "fixedPrice": null,
+          "spread": 0.22,
+          "annualFixedFee": 144.0,
+          "economicCompleteness": "complete",
+          "knownPartialVariableAdder": null,
+          "unpricedComponents": [],
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "Spread gas CTE",
+              "value": 0.22,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [
+            {
+              "name": "Commercializzazione e vendita",
+              "value": 144.0,
+              "unit": "EUR/anno",
+              "rankingTreatment": "annual_fixed_fee"
+            }
+          ],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": null,
+          "digitalInvoice": true,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": [
+            "CTE Onda Più con bolletta digitale prevista dalle condizioni commerciali."
+          ]
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "ondapiu",
+      "partnerKeys": [
+        "ondapiu"
+      ],
+      "commercialFamily": "small family",
+      "canonicalKey": "01787510898|gas|025990GNVML01XX0AN0SMA0D0526MP0M"
     },
     {
       "providerKey": "ovenergy",
@@ -1818,7 +2213,7 @@
         "commercialFamily": "zaffiro business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN3",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN3.pdf",
-        "sourceHash": "06514e03d1066042f55cb721f6006d01defd3963ce7579b1d05f9405550c3343",
+        "sourceHash": "353e400effa9be8021c267f120aa77079b908b849788c3b83e77e94cac90d8b8",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -1931,7 +2326,7 @@
         "commercialFamily": "rubino business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN4",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN4.pdf",
-        "sourceHash": "c2179ed7a9b275ad5f7117699a42e1f2c7b73470cb303597e14fc4cde2c9c8f5",
+        "sourceHash": "85d2a56f8d8706b5572570abfb7b5190dcd6e75f747146fb27ce59599a68feda",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2044,7 +2439,7 @@
         "commercialFamily": "ambra business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN5",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN5.pdf",
-        "sourceHash": "d862094e17712fba40847d083bc6ce91c61962c6685699ed13464c537b3bf40b",
+        "sourceHash": "eae389cdcca2a1aa0e586b240a6ee12089ee4e2f3bd8cf7dce62ceae87b0db72",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2157,7 +2552,7 @@
         "commercialFamily": "ametista business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN6",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN6.pdf",
-        "sourceHash": "47bb7fea087bd3d60f9a75475742fabd7c9fc0906ff2bfba95e2d0329166e8a7",
+        "sourceHash": "6252df352d869ea0c9598c5ba065eb3cd095189dc41f5de403bc4c4d63547958",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2270,7 +2665,7 @@
         "commercialFamily": "smeraldo business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP1",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP1.pdf",
-        "sourceHash": "cb898d87094645a98dfafbe0260c19ec4acc808675763c9ff30763fbe8bae20c",
+        "sourceHash": "8bdef185925e92a44a294487b7448eca35a6e166f6bce04347eed45f1d655c84",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2396,7 +2791,7 @@
         "commercialFamily": "onice business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP2",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP2.pdf",
-        "sourceHash": "56f915687c1fd7f0cbb5882e6e149972ea6bb9a8913c271532a70926493eb038",
+        "sourceHash": "e206d361bdc056d8ea0ad7e5e297aebb8582dcf0e7900f9f087268248a6b0cf3",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2522,7 +2917,7 @@
         "commercialFamily": "zaffiro business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP3",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP3.pdf",
-        "sourceHash": "af62f8e9ec4ed1e611a4e2e8e0602f9c8454fc36a934507252fb090e7e4382b6",
+        "sourceHash": "936d7d8d8cbd8d63dc09db0bd4dedbdcabd352c842f6dccc7769e8e6d11d195f",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2648,7 +3043,7 @@
         "commercialFamily": "rubino business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP4",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP4.pdf",
-        "sourceHash": "cf005cd0c7da769c028594643d02e1929534006dcfd2ebee3c27bc166bbb1a2a",
+        "sourceHash": "9d14222432ed1ddf20385ebefdeae55179d0d9889a3caef1ca03804ac8413f75",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2774,7 +3169,7 @@
         "commercialFamily": "ambra business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP5",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP5.pdf",
-        "sourceHash": "03a493522594705d7ad613f94096f35fc28c817e043468a238f70404e6d7116b",
+        "sourceHash": "8fe2661ba1f4be8a1048d51f6a840c7d7449d71d360fd530eeefbcffc74743f5",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2900,7 +3295,7 @@
         "commercialFamily": "ametista business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP6",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP6.pdf",
-        "sourceHash": "b66dae446f8dbe1bca58506d42a1fe222b260b9e2a0e6c81231c921a29a361cf",
+        "sourceHash": "1129934b81ceedc32305c6e52829d2174f4af62744cd668f8a685e8ba6486e66",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -2977,6 +3372,119 @@
       "fornitore": "Greenius",
       "commodity": "gas",
       "tipo": "variabile",
+      "nome": "IN CONTROL BUSINESS",
+      "codice": "027184GNVML01XXXXX2610AUGCAPSOHK",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-10",
+      "customerType": "business",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.978,
+      "quotaFissaAnnua": 240.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread, CAP)",
+        "sourceDocument": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610AUGCAPSOHK.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610AUGCAPSOHK.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control business",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2610AUGCAPSOHK",
+        "sourceFile": "12_10_2026__15_11_2026__027184GNVML01XXXXX2610AUGCAPSOHK.pdf",
+        "sourceHash": "a67b394157491214dac5f602fca1306682551bf6f6b247014f6813fef5e74781",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.843182,
+          "fixedPrice": null,
+          "spread": 0.155,
+          "annualFixedFee": 240.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [
+            {
+              "name": "CCV variabile",
+              "value": 0.007946,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            },
+            {
+              "name": "Crediti carbonio",
+              "value": 0.019,
+              "unit": "EUR/Smc",
+              "rankingTreatment": "detail_only"
+            }
+          ],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.978,
+            "unit": "EUR/Smc",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 24.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control business",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2610AUGCAPSOHK"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
       "nome": "SMERALDO BUSINESS",
       "codice": "027184GSVML01XXXXX2609AUGPSVBSN1",
       "pivaVenditore": "04362490403",
@@ -3026,7 +3534,7 @@
         "commercialFamily": "smeraldo business",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN1",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN1.pdf",
-        "sourceHash": "446a7cb5103759ffb40af048932cf72ed387517238f125a59b4cf07d35188376",
+        "sourceHash": "d7f3087d442d5aa89ee8475bdd5c81d17204a244f5d4843fa77f7e01d583a325",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -3139,7 +3647,7 @@
         "commercialFamily": "onice business",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN2",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN2.pdf",
-        "sourceHash": "5b843a9c94cf9660a38cd1c1d82066ae252c8b79b2154f45a188c7587bd94bd5",
+        "sourceHash": "41007587aa2b0b9eeaa4a8e2a0f9f1127f93046a01269100ce9937a5715f2eff",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.843182,
@@ -3252,7 +3760,7 @@
         "commercialFamily": "zaffiro business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN3",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN3.pdf",
-        "sourceHash": "21ce356985f1a58a0b622bce9218d83a7b69d7bc274596551a1f9f0df280d96b",
+        "sourceHash": "040b022aa07a2aae68d78696b519b96da5b69dca9ebcfa4195af65196f4336a0",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3359,7 +3867,7 @@
         "commercialFamily": "ambra business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN5",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN5.pdf",
-        "sourceHash": "7e2367fde9322edceade37b816b01297dca909daf35fffc5b06d6a3523ad8b81",
+        "sourceHash": "67da8f1866fc071dff72370b44850adc08724e364af892c55ed7e5ae2b750c9e",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3466,7 +3974,7 @@
         "commercialFamily": "ametista business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN6",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN6.pdf",
-        "sourceHash": "e7d8ff90a4823f09908d7d1e8eb7b1794422a9d5f0f7cd679e64a18ceeb68b77",
+        "sourceHash": "ab771be20e7e55e4e457a4306dc2859e24d2ca320578320fb8029f1ed0e69d29",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3573,7 +4081,7 @@
         "commercialFamily": "opale business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN7",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN7.pdf",
-        "sourceHash": "ab50290b0c85b36b2638cb22597cb4635de42bda12e364bcf994eef9b494c440",
+        "sourceHash": "10c7152722cbdb2e74a424d92e89ccf20e32fdda77ff94098cc3a56abbdd5f2f",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3680,7 +4188,7 @@
         "commercialFamily": "smeraldo business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP1",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP1.pdf",
-        "sourceHash": "fc5d3927749e94258281cfa13593a8be876b410624404bb9ba1f1a627769c7aa",
+        "sourceHash": "adb02eb61410858a1231b734768909b294bd5ba090b140f3a5efc60acb7fa646",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3793,7 +4301,7 @@
         "commercialFamily": "onice business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP2",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP2.pdf",
-        "sourceHash": "1123d5c28b36b35050ec84e00bf603f2fa724b2ba325d8ef3dda6cb03d64046a",
+        "sourceHash": "489ca79f3b37bb8a27a86103dc4ffe5afe21baf5ef1a86a4fce8aa06ec955c8c",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -3906,7 +4414,7 @@
         "commercialFamily": "zaffiro business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP3",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP3.pdf",
-        "sourceHash": "08b21f705b19d706330b80d8afd857e46cba4910593b04a167b6e025e817b037",
+        "sourceHash": "1c2b074c80784a119695087c59a40e4213260f98fa01ef20edc865c61db96e2e",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4019,7 +4527,7 @@
         "commercialFamily": "rubino business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP4",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP4.pdf",
-        "sourceHash": "f99705c5e226a0e404af63de117bf16f1404800da815871a584d7e6c8030f6cc",
+        "sourceHash": "e62818e6fbe1cb63ea2b35e039550e3dae6831c31c2e95806f25292361a567a3",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4132,7 +4640,7 @@
         "commercialFamily": "ambra business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP5",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP5.pdf",
-        "sourceHash": "6d45926a216d166d7f2d8ef83af41994e08bd049d1d929413a9c2a6805ef2d91",
+        "sourceHash": "56f5102e9d481116bde817409174cb38f800ca225da6752d4b6a1e4139e0c52f",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4245,7 +4753,7 @@
         "commercialFamily": "ametista business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP6",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP6.pdf",
-        "sourceHash": "172ccaf71e24162fdffa59f8a4c08ff06cb61252192b6cdfb234f883d425b7a7",
+        "sourceHash": "24928c500f1faa7374461c028db9a9571a45180a3ed060968508f7a96a248df4",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4358,7 +4866,7 @@
         "commercialFamily": "opale business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP7",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP7.pdf",
-        "sourceHash": "6ed274ef4bd3b70d6d0c86cc97bf58abde1841d7576ed2485ccc69c106bffad1",
+        "sourceHash": "1d0ba91232d3adc8820e57983e70e3c4cd8e415e268cffbc02096412a032b282",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4471,7 +4979,7 @@
         "commercialFamily": "smeraldo business",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN1",
         "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN1.pdf",
-        "sourceHash": "3e099658f5577c14b20e33a2d78dfe904813ba5409e673684329768e24c39c36",
+        "sourceHash": "ba0c2ef65e697725a049267c4baa51b7ee0591ba7ca68bb8299750db2a430076",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4578,7 +5086,7 @@
         "commercialFamily": "onice business",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN2",
         "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN2.pdf",
-        "sourceHash": "49e9ada0c16d4328498a8400110de93641992471a5864e01a73906a625ab5b7f",
+        "sourceHash": "d99ea10cb600584da3c07634efd39767df35975d412c27d87d256e89942a32f9",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.207542,
@@ -4632,6 +5140,142 @@
     }
   ],
   "offerteParziali": [
+    {
+      "providerKey": "ondapiu",
+      "providerLabel": "Onda Più",
+      "fornitore": "Onda Più",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "LUCE Leggera Impresa",
+      "codice": "025990ENVFL01XX0AN0LEG0B0526P30M",
+      "codiciAlternativi": [
+        "AN0LEG0B0526P30M"
+      ],
+      "pivaVenditore": "01787510898",
+      "dataInizio": "2026-05-01",
+      "dataFine": "2026-12-31",
+      "customerType": "business",
+      "eligible": false,
+      "economicCompleteness": "partial",
+      "prezzo": null,
+      "prezzoParziale": null,
+      "quotaFissaAnnua": 180.0,
+      "indiceRiferimento": "pun",
+      "maggiorazioneVariabileNota": null,
+      "componentiNonValorizzate": [
+        "Applicazione perdite di rete al PUN",
+        "Dispacciamento TIDE"
+      ],
+      "componentiVariabiliNote": [
+        {
+          "name": "Prezzo energia venditore dichiarato in CTE",
+          "value": 0.0418,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Valore documentale dichiarato dalla CTE in combinazione con PUN GME."
+        },
+        {
+          "name": "Componente energia CTE perdite incluse",
+          "value": 0.0473,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Valore documentale; non aggregato al ranking finché la formula completa non è modellata."
+        }
+      ],
+      "componentiFisseNote": [
+        {
+          "name": "Commercializzazione e vendita",
+          "value": 180.0,
+          "unit": "EUR/anno",
+          "rankingTreatment": "annual_fixed_fee"
+        }
+      ],
+      "projectionRule": "componenti note separate; totale parziale non aggregato",
+      "exclusionReason": "CTE luce Onda Più normalizzata a fini documentali: la formula PUN, l'applicazione delle perdite di rete e il corrispettivo di dispacciamento non sono rappresentati integralmente dal ranking partner corrente.",
+      "sourceType": "partner_direct",
+      "partnerKey": "ondapiu",
+      "partnerKeys": [
+        "ondapiu"
+      ],
+      "partners": [
+        {
+          "partnerKey": "ondapiu",
+          "partnerLabel": "Onda Più"
+        }
+      ],
+      "commercialFamily": "leggera impresa",
+      "canonicalKey": "01787510898|luce|025990ENVFL01XX0AN0LEG0B0526P30M",
+      "sourceFile": "LUCE Leggera Impresa (18).pdf",
+      "sourceHash": "00a71543abdcb98bcd5d4431916bf5611ede92635675e2c0d553494cc65c5616"
+    },
+    {
+      "providerKey": "ondapiu",
+      "providerLabel": "Onda Più",
+      "fornitore": "Onda Più",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "LUCE SMALL Family",
+      "codice": "025990ENVFL01XX0AV0SMA0D0526P30M",
+      "codiciAlternativi": [
+        "AV0SMA0D0526P30M"
+      ],
+      "pivaVenditore": "01787510898",
+      "dataInizio": "2026-05-01",
+      "dataFine": "2026-12-31",
+      "customerType": "domestico",
+      "eligible": false,
+      "economicCompleteness": "partial",
+      "prezzo": null,
+      "prezzoParziale": null,
+      "quotaFissaAnnua": 146.0,
+      "indiceRiferimento": "pun",
+      "maggiorazioneVariabileNota": null,
+      "componentiNonValorizzate": [
+        "Applicazione perdite di rete al PUN",
+        "C_DISPD"
+      ],
+      "componentiVariabiliNote": [
+        {
+          "name": "Prezzo energia venditore dichiarato in CTE",
+          "value": 0.0396,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Valore documentale dichiarato dalla CTE in combinazione con PUN GME."
+        },
+        {
+          "name": "Componente energia CTE perdite incluse",
+          "value": 0.0451,
+          "unit": "EUR/kWh",
+          "rankingTreatment": "detail_only",
+          "note": "Valore documentale; non aggregato al ranking finché la formula completa non è modellata."
+        }
+      ],
+      "componentiFisseNote": [
+        {
+          "name": "Commercializzazione e vendita",
+          "value": 146.0,
+          "unit": "EUR/anno",
+          "rankingTreatment": "annual_fixed_fee"
+        }
+      ],
+      "projectionRule": "componenti note separate; totale parziale non aggregato",
+      "exclusionReason": "CTE luce Onda Più normalizzata a fini documentali: la formula PUN, l'applicazione delle perdite di rete e il corrispettivo di dispacciamento non sono rappresentati integralmente dal ranking partner corrente.",
+      "sourceType": "partner_direct",
+      "partnerKey": "ondapiu",
+      "partnerKeys": [
+        "ondapiu"
+      ],
+      "partners": [
+        {
+          "partnerKey": "ondapiu",
+          "partnerLabel": "Onda Più"
+        }
+      ],
+      "commercialFamily": "small family",
+      "canonicalKey": "01787510898|luce|025990ENVFL01XX0AV0SMA0D0526P30M",
+      "sourceFile": "LUCE SMALL Family (15) (1).pdf",
+      "sourceHash": "46277317de301ce6851954feeeb000a9722a6734db457f20305ddaf27597252f"
+    },
     {
       "providerKey": "ovenergy",
       "providerLabel": "OV Energy",
@@ -4818,10 +5462,10 @@
     }
   ],
   "statistiche": {
-    "fileAttiviLetti": 50,
-    "offertePrivateAttive": 17,
-    "offerteBusinessAttive": 25,
-    "offerteParzialiAttive": 2,
-    "offerteScaduteEscluse": 6
+    "fileAttiviLetti": 51,
+    "offertePrivateAttive": 21,
+    "offerteBusinessAttive": 26,
+    "offerteParzialiAttive": 4,
+    "offerteScaduteEscluse": 0
   }
 }
