@@ -7647,6 +7647,7 @@ let OFFERTE_ARERA_DUAL = [];
 let OFFERTE_ARERA_BUSINESS = [];
 let OFFERTE_ARERA_DUAL_BUSINESS = [];
 let OFFERTE_PARTNER_DIRETTE = [];
+let PARTNER_PROVIDER_CATALOGO = [];
 let NUOVA_OFFERTA_AUTOMATICA = null;
 let BLOCCO_AUTOFILL_NUOVA_OFFERTA = false;
 
@@ -8458,6 +8459,7 @@ function normalizzaOfferta(offerta, index) {
   return {
     id: offerta.id || index + 1,
     provider: offerta.provider || offerta.fornitore || "Fornitore",
+    providerKey: String(offerta.providerKey || "").trim(),
     nome: offerta.nome || offerta.offerta || "Offerta energia",
     tipo: offerta.tipo || "fisso",
     fornitura: offerta.fornitura || (luce && gas ? "dual" : "separate"),
@@ -8720,6 +8722,27 @@ function normalizzaRigaPartnerDiretta(riga) {
 function applicaDatiPartnerDirette(data) {
   const offerte = Array.isArray(data) ? data : data?.offerte;
   if (!Array.isArray(offerte)) return false;
+
+  const righeProvider = Array.isArray(data)
+    ? data
+    : [
+        ...(Array.isArray(data?.offerte) ? data.offerte : []),
+        ...(Array.isArray(data?.offerteBusiness) ? data.offerteBusiness : []),
+        ...(Array.isArray(data?.offerteParziali) ? data.offerteParziali : []),
+      ];
+
+  const providers = new Map();
+  righeProvider.forEach((riga) => {
+    const providerKey = String(riga?.providerKey || "").trim();
+    const providerLabel = String(
+      riga?.providerLabel || riga?.fornitore || providerKey
+    ).trim();
+
+    if (providerKey && providerLabel && !providers.has(providerKey)) {
+      providers.set(providerKey, { providerKey, providerLabel });
+    }
+  });
+  PARTNER_PROVIDER_CATALOGO = [...providers.values()];
 
   const pulite = offerte
     .map(normalizzaRigaPartnerDiretta)
@@ -11508,7 +11531,8 @@ const SWITCHO_VERIFIED_PROVIDER_KEYS_20260916 = new Set([
 
 function providerKeysPercorsoOfferta(offerta) {
   const keys = [];
-  const direct = chiaveFornitoreDaNome(offerta?.provider || offerta?.fornitore || "");
+  const direct = String(offerta?.providerKey || "").trim()
+    || chiaveFornitoreDaNome(offerta?.provider || offerta?.fornitore || "");
   if (direct) keys.push(direct);
   const componenti = offerta?.componentiSeparate || {};
   [componenti?.luce, componenti?.gas].forEach((voce) => {
@@ -12231,12 +12255,6 @@ function providerKeysArera() {
   ].filter(Boolean))].sort();
 }
 
-const PARTNER_PROVIDER_MENU_OPTIONS = [
-  { key: "greenius", label: "Greenius" },
-  { key: "liongreen", label: "Lion Green" },
-  { key: "ovenergy", label: "OV Energy" },
-];
-
 function providerCatalogoCorrenteOrdinati() {
   const providers = new Map();
   const upsert = (rawKey, rawLabel = "") => {
@@ -12259,17 +12277,57 @@ function providerCatalogoCorrenteOrdinati() {
     upsert(riga?.providerKey, riga?.providerLabel || riga?.fornitore);
   });
 
-  // I partner noti devono essere selezionabili anche prima che una nuova CTE
-  // approvata sia stata pubblicata nel catalogo partner del giorno.
-  PARTNER_PROVIDER_MENU_OPTIONS.forEach(({ key, label }) => upsert(key, label));
+  PARTNER_PROVIDER_CATALOGO.forEach(({ providerKey, providerLabel }) => {
+    upsert(providerKey, providerLabel);
+  });
 
   return [...providers.values()]
     .sort((a, b) => a.label.localeCompare(b.label, "it", { sensitivity: "base" }));
 }
 
+function aggiornaSelectFornitoriAttualiDaCatalogo() {
+  inizializzaSelectFornitoreGas();
+
+  const providers = [...PARTNER_PROVIDER_CATALOGO]
+    .filter((item) => item?.providerKey && item?.providerLabel)
+    .sort((a, b) => a.providerLabel.localeCompare(
+      b.providerLabel,
+      "it",
+      { sensitivity: "base" }
+    ));
+
+  ["nome-fornitore-att", "nome-fornitore-gas-att"].forEach((id) => {
+    const select = document.getElementById(id);
+    if (!select) return;
+
+    const selected = String(select.value || "");
+    const existing = new Set(
+      Array.from(select.options).map((option) => option.value)
+    );
+    const altro = Array.from(select.options)
+      .find((option) => option.value === "altro") || null;
+
+    providers.forEach(({ providerKey, providerLabel }) => {
+      if (existing.has(providerKey)) return;
+
+      const option = new Option(providerLabel, providerKey);
+      if (altro) select.insertBefore(option, altro);
+      else select.appendChild(option);
+
+      existing.add(providerKey);
+    });
+
+    if (selected && existing.has(selected)) {
+      select.value = selected;
+    }
+  });
+}
+
 function aggiornaSelectFornitoreNuovoDaCatalogo() {
+  aggiornaSelectFornitoriAttualiDaCatalogo();
+
   const select = document.getElementById("nome-fornitore-nuov");
-  if (!select || (!OFFERTE_ARERA_MENU.length && !OFFERTE_PARTNER_DIRETTE.length)) return false;
+  if (!select || (!OFFERTE_ARERA_MENU.length && !PARTNER_PROVIDER_CATALOGO.length)) return false;
 
   const selected = String(select.value || "");
   const providers = providerCatalogoCorrenteOrdinati();
@@ -12982,6 +13040,32 @@ function offertePartnerDiretteAttivabili(tipoTariffa, tipoFornitura, attuale) {
     .filter((offerta) => offertaCalcolabileConIndici(offerta));
 }
 
+function offertePartnerCatalogoRanking(tipoTariffa, tipoFornitura, attuale) {
+  const providerKeys = [...new Set(
+    OFFERTE_PARTNER_DIRETTE
+      .filter((riga) => riga.customerType !== "business")
+      .filter((riga) => riga.tipo === tipoTariffa)
+      .filter((riga) => rigaPartnerDirettaTemporalmenteValida(riga))
+      .map((riga) => riga.providerKey)
+      .filter(Boolean)
+  )];
+
+  return providerKeys
+    .map((providerKey) => offertaPartnerDirettaPerFornitore(
+      providerKey,
+      attuale,
+      tipoTariffa,
+      tipoFornitura
+    ))
+    .filter(Boolean)
+    .filter((offerta) => offertaCompatibileConRanking(
+      offerta,
+      tipoTariffa,
+      tipoFornitura
+    ))
+    .filter((offerta) => offertaCalcolabileConIndici(offerta));
+}
+
 // OFFERTALOGICA_PROVIDER_DEDUP_V3_20260719
 function ambitoEffettivoOfferta(offerta) {
   const haLuce = Boolean(offerta?.luce);
@@ -13085,22 +13169,39 @@ function costruisciOfferteRanking(attuale, tipoTariffa, tipoFornitura) {
   const tipiRanking = modalitaCalcolo === "media"
     ? (TIPO_PREZZO_RANKING_MEDIA === "tutte" ? ["fisso", "variabile"] : [TIPO_PREZZO_RANKING_MEDIA])
     : [tipoTariffa];
-  const daArera = tipiRanking.flatMap((tipo) => costruisciOfferteAreraRanking(attuale, tipo, tipoFornitura));
 
-  // Nel profilo medio di default mostriamo nello stesso ranking fisso e variabile,
-  // mantenendo invariati consumi, ambito di fornitura e motore di calcolo.
-  // Nei percorsi manuali/PDF la tendina "Tipo di Prezzo" resta invece vincolante.
-  //
-  // Nel dual ogni provider ARERA viene gia arricchito con l'eventuale percorso
-  // commerciale attivo. Evitiamo che una card partner sostituisca una composizione
-  // E+G economicamente migliore o una vera offerta D migliore dello stesso venditore.
-  const partnerDirette = tipoFornitura === "dual"
+  const daArera = tipiRanking.flatMap(
+    (tipo) => costruisciOfferteAreraRanking(attuale, tipo, tipoFornitura)
+  );
+
+  // Manteniamo invariato il comportamento delle offerte commerciali storiche.
+  const partnerCommerciali = tipoFornitura === "dual"
     ? []
-    : tipiRanking.flatMap((tipo) => offertePartnerDiretteAttivabili(tipo, tipoFornitura, attuale));
+    : tipiRanking.flatMap(
+        (tipo) => offertePartnerDiretteAttivabili(
+          tipo,
+          tipoFornitura,
+          attuale
+        )
+      );
 
-  // Il catalogo ARERA giornaliero alimenta sempre la parte economica.
-  // Il catalogo partner aggiunge soltanto i percorsi commerciali attivi.
-  return unisciOfferteCandidati(daArera, partnerDirette);
+  // Le CTE partner complete e validate diventano candidate economiche autonome.
+  // Non viene introdotta alcuna formula nuova: usano lo stesso motore e gli
+  // stessi indici gia' utilizzati dal comparatore.
+  const partnerCatalogo = tipiRanking.flatMap(
+    (tipo) => offertePartnerCatalogoRanking(
+      tipo,
+      tipoFornitura,
+      attuale
+    )
+  );
+
+  // Prima le CTE validate: a parita' di provider/tipo/ambito evitano una card
+  // duplicata proveniente da una sorgente commerciale generica.
+  return unisciOfferteCandidati(
+    daArera,
+    [...partnerCatalogo, ...partnerCommerciali]
+  );
 }
 
 // BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
@@ -19253,10 +19354,38 @@ function testoFornitoreNormalizzato(name) {
 function chiaveFornitoreDaNome(name) {
   const normalized = testoFornitoreNormalizzato(name);
   if (!normalized) return "";
+
   const exact = PROVIDER_MATCHERS.find(([key]) => normalized === key);
   if (exact) return exact[0];
-  const match = PROVIDER_MATCHERS.find(([, aliases]) => aliases.some((alias) => normalized.includes(alias)));
-  return match ? match[0] : "";
+
+  const match = PROVIDER_MATCHERS.find(
+    ([, aliases]) => aliases.some((alias) => normalized.includes(alias))
+  );
+  if (match) return match[0];
+
+  const compatta = (value) => String(value || "")
+    .toLowerCase()
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-z0-9]+/g, "");
+
+  const needle = compatta(name);
+  if (!needle) return "";
+
+  const partner = PARTNER_PROVIDER_CATALOGO.find((item) => {
+    const aliases = [
+      item?.providerKey,
+      item?.providerLabel,
+    ].map(compatta).filter(Boolean);
+
+    return aliases.some((alias) => (
+      alias === needle
+      || (alias.length >= 5 && needle.includes(alias))
+      || (needle.length >= 5 && alias.includes(needle))
+    ));
+  });
+
+  return String(partner?.providerKey || "");
 }
 
 function providerValue(name) {
@@ -19682,6 +19811,7 @@ function offertaPartnerDirettaPerFornitore(providerKey, attuale, tipoTariffa, ti
   return normalizzaOfferta({
     id: `partner-direct-${providerKey}-${tipoTariffa}-${tipoFornitura}-${luce?.codice || "no-luce"}-${gas?.codice || "no-gas"}`,
     provider: providerLabel,
+    providerKey,
     nome: stessaFamiglia
       ? `${providerLabel} - ${nomeBase} (luce + gas stesso fornitore)`
       : `${providerLabel} - ${nomeBase}`,
@@ -19807,7 +19937,10 @@ function aggiornaNuovaOffertaDaFornitore(options = {}) {
   // Questi cataloghi partner contengono CTE variabili, non offerte fisse.
   // Solo nel confronto per fornitore, se non esiste una proposta del tipo
   // scelto, seleziona una variabile compatibile e dichiara il cambio filtro.
-  if (!offerta && tipoTariffa === "fisso" && ["greenius", "ovenergy", "liongreen"].includes(providerKey)) {
+  const haPartnerVariabile = OFFERTE_PARTNER_DIRETTE.some((riga) => (
+    riga.providerKey === providerKey && riga.tipo === "variabile"
+  ));
+  if (!offerta && tipoTariffa === "fisso" && haPartnerVariabile) {
     const candidate = miglioreNuovaOffertaPerFornitore(providerKey, attuale, "variabile", tipoFornitura);
     if (candidate?.tipo === "variabile") {offerta = candidate;passaggioVariabile = true;}
   }
