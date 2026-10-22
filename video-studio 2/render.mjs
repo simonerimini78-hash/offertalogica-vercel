@@ -1,24 +1,19 @@
 #!/usr/bin/env node
 import { readFile, writeFile, mkdtemp, rename, rm, stat, access } from 'node:fs/promises';
-import { createRequire } from 'node:module';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
 import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
-  VIDEO_STUDIO_VERSION, FRAME, OFFICIAL_LOGO_SHA256, LOGO_PANEL,
+  VIDEO_STUDIO_VERSION, FRAME, OFFICIAL_LOGO_SHA256,
   validateJob, sha256,
 } from './core.mjs';
 
-const require = createRequire(import.meta.url);
-const sharp = require('sharp'); // dependency already declared in the project's package.json
+import { composeFrame } from './scene-graphics.mjs';
 const exec = promisify(execFile);
 const PROJECT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LOGO = join(PROJECT, 'public/assets/logo-offertalogica-header.png');
-const FONT = 'DejaVu Sans Bold'; // font installed in isolated render worker; not bundled
-const FONT_PX = 64;
-const TEXT_PADDING = 32;
 
 function assert(ok, message) { if (!ok) throw new Error(`VIDEO_STUDIO_QA: ${message}`); }
 function decodeArgs(args) {
@@ -36,42 +31,15 @@ function localPath(base, p) {
   assert(typeof p === 'string' && p && !/^(https?:|file:)/i.test(p), 'solo asset locali, non URL');
   return isAbsolute(p) ? p : resolve(base, p);
 }
-function xmlEscape(value) {
-  return value.replaceAll('&', '&amp;').replaceAll('<', '&lt;').replaceAll('>', '&gt;').replaceAll('"', '&quot;').replaceAll("'", '&apos;');
-}
 async function probe(file) {
   const { stdout } = await exec('ffprobe', ['-v', 'error', '-show_streams', '-show_format', '-of', 'json', file], { maxBuffer: 2 * 1024 * 1024, timeout: 20000 });
   return JSON.parse(stdout);
 }
-async function measureText(line) {
-  const meta = await sharp({ text: { text: line, font: `${FONT} ${FONT_PX}`, dpi: 72 } }).metadata();
-  return { width: meta.width, height: meta.height };
-}
 async function prepareScene(scene, isLast, base, temp, index, logoData) {
-  const image = localPath(base, scene.image);
-  const meta = await sharp(image).metadata();
-  assert(['jpeg', 'png', 'webp'].includes(meta.format), `scene ${scene.id}: formato foto non consentito`);
-  assert(meta.width >= FRAME.width && meta.height >= FRAME.height, `scene ${scene.id}: foto sotto 1080x1920`);
-  assert(Math.abs(meta.width / meta.height - FRAME.width / FRAME.height) < 0.001, `scene ${scene.id}: foto non 9:16 (ritagliare e proteggere soggetto prima del render)`);
-  const r = scene.text_region;
-  const texts = [];
-  for (const [i, line] of scene.text_lines.entries()) {
-    const dimensions = await measureText(line);
-    assert(dimensions.width <= r.width - TEXT_PADDING * 2, `scene ${scene.id}: riga ${i + 1} troppo larga (${dimensions.width}px > ${r.width - TEXT_PADDING * 2}px)`);
-    texts.push(`<text x="${r.x + r.width / 2}" y="${r.y + 65 + i * 80}" text-anchor="middle" font-family="DejaVu Sans" font-weight="700" font-size="${FONT_PX}" fill="#ffffff">${xmlEscape(line)}</text>`);
-  }
-  const panel = `<rect x="${r.x}" y="${r.y}" width="${r.width}" height="${r.height}" rx="22" fill="#14532d" fill-opacity=".82"/>`;
-  const brandPanel = isLast ? `<rect x="${LOGO_PANEL.x}" y="${LOGO_PANEL.y}" width="${LOGO_PANEL.width}" height="${LOGO_PANEL.height}" rx="25" fill="#ffffff" fill-opacity=".97"/>` : '';
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920">${panel}${brandPanel}${texts.join('')}</svg>`;
-  const layers = [{ input: Buffer.from(svg), top: 0, left: 0 }];
-  if (isLast) {
-    // Brand identity is composited from the exact project PNG, never recreated.
-    const resizedLogo = await sharp(logoData).resize({ width: 480 }).png().toBuffer();
-    layers.push({ input: resizedLogo, left: 301, top: 1213 });
-  }
+  const photoFile = localPath(base, scene.image);
+  if (scene.image_sha256) assert(sha256(await readFile(photoFile)) === scene.image_sha256.toLowerCase(), `scene ${scene.id}: asset fotografico cambiato dopo approvazione`);
   const path = join(temp, `scene-${String(index).padStart(2, '0')}.png`);
-  await sharp(image).resize(FRAME.width, FRAME.height, { fit: 'fill' }).composite(layers).png().toFile(path);
-  return path;
+  return composeFrame({ photoFile, scene, isLast, logoBytes: logoData, outputFile: path });
 }
 async function inspectAudio(job, base) {
   const path = localPath(base, job.music.file);

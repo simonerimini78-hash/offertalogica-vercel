@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 // Independent Video Studio release; does not change editorial/application versions.
-export const VIDEO_STUDIO_VERSION = '0.2.0';
+export const VIDEO_STUDIO_VERSION = '0.3.0';
 export const FRAME = Object.freeze({ width: 1080, height: 1920, fps: 30, durationMs: 15000 });
 export const OFFICIAL_LOGO_SHA256 = '5e14de4bf43d8d4fc42b0454e5cf94df4edb2c21ff2e1638bc73882a55b05830';
 export const LOGO_PANEL = Object.freeze({ x: 274, y: 1188, width: 534, height: 318 });
@@ -77,6 +77,7 @@ export function validateJob(job) {
     string(scene?.id, `scenes[${index}].id`, 100);
     string(scene?.editorial_goal, `scenes[${index}].editorial_goal`, 400);
     string(scene?.image, `scenes[${index}].image`, 1000);
+    if (scene.image_sha256 !== undefined) assert(/^[a-f0-9]{64}$/i.test(scene.image_sha256), `scene ${scene.id}: image_sha256 non valido`);
     assert(!sceneIds.has(scene.id), `scene duplicata: ${scene.id}`);
     sceneIds.add(scene.id);
     assert(Number.isInteger(scene.duration_ms) && scene.duration_ms >= 2000 && scene.duration_ms % 1000 === 0, `scene ${scene.id}: durata non valida (secondi interi, >=2)`);
