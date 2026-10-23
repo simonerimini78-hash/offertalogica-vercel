@@ -8697,6 +8697,54 @@ function formulaPartnerDirettaDaCte(riga) {
   return { tipo: "indice_spread", indice, spread };
 }
 
+// Eccezione documentale circoscritta alla CTE Onda Piu SMALL Family identificata
+// dal suo SHA-256: l'updater resta fail-closed e non viene modificato.
+// Per il ranking senza informazioni sul tipo di contatore si adotta lo scenario
+// monorario piu prudente previsto dalla CTE (0,0451 EUR/kWh perdite incluse).
+// Lo 0,0396 EUR/kWh e' la componente dichiarata per il caso con rilevazione
+// per fasce: non e' cumulabile con lo 0,0451.
+function rigaOndaSmallFamilyMonorariaDaCte(riga) {
+  if (!riga || riga.providerKey !== "ondapiu" || riga.partnerKey !== "ondapiu"
+    || riga.commodity !== "luce" || riga.customerType !== "domestico"
+    || riga.tipo !== "variabile" || riga.eligible !== false
+    || riga.economicCompleteness !== "partial"
+    || riga.codice !== "025990ENVFL01XX0AV0SMA0D0526P30M"
+    || riga.pivaVenditore !== "01787510898"
+    || riga.dataInizio !== "2026-05-01" || riga.dataFine !== "2026-12-31"
+    || riga.sourceHash !== "46277317de301ce6851954feeeb000a9722a6734db457f20305ddaf27597252f"
+    || riga.indiceRiferimento !== "pun" || riga.prezzo !== null
+    || !Array.isArray(riga.componentiVariabiliNote)
+    || !Array.isArray(riga.componentiNonValorizzate)
+    || !riga.componentiNonValorizzate.includes("C_DISPD")
+    || !riga.componentiNonValorizzate.includes("Applicazione perdite di rete al PUN")
+    || Number(riga.quotaFissaAnnua) !== 146) return null;
+
+  const valoreCte = (nome) => {
+    const componenti = riga.componentiVariabiliNote.filter((item) => item?.name === nome && item?.unit === "EUR/kWh");
+    return componenti.length === 1 ? Number(componenti[0].value) : NaN;
+  };
+  if (valoreCte("Prezzo energia venditore dichiarato in CTE") !== 0.0396) return null;
+  const componenteMonoraria = valoreCte("Componente energia CTE perdite incluse");
+  if (componenteMonoraria !== 0.0451) return null;
+  const pun = Number(INDICI_MERCATO.pun?.valore);
+  if (!Number.isFinite(pun) || pun <= 0) return null;
+
+  return {
+    ...riga,
+    prezzo: Number((pun + componenteMonoraria).toFixed(8)),
+    qualitaPrezzo: "partner_cte_validata",
+    scenarioCteOndaSmallMonorario: true,
+    dettagliTecnici: {
+      economics: {
+        indexName: "PUN",
+        indexValueAtProjection: pun,
+        spread: componenteMonoraria,
+        cap: { enabled: false },
+      },
+    },
+  };
+}
+
 function normalizzaRigaPartnerDiretta(riga) {
   const base = normalizzaRigaAreraMenu(riga);
   if (!base) return null;
@@ -8711,6 +8759,10 @@ function normalizzaRigaPartnerDiretta(riga) {
   return {
     ...base,
     formula,
+    // Solo per lo scenario monorario verificato: perdite applicate al PUN,
+    // mai una seconda volta alla componente gia' comprensiva delle perdite.
+    spreadComprensivoPerdite: riga.scenarioCteOndaSmallMonorario === true ? Number(formula?.spread) : null,
+    scenarioCteOndaSmallMonorario: riga.scenarioCteOndaSmallMonorario === true,
     sourceType: String(riga?.sourceType || "partner_direct").trim().toLowerCase(),
     partnerKey,
     partnerKeys,
@@ -8744,7 +8796,13 @@ function applicaDatiPartnerDirette(data) {
   });
   PARTNER_PROVIDER_CATALOGO = [...providers.values()];
 
-  const pulite = offerte
+  // Il catalogo generato continua a classificare la CTE come parziale;
+  // il solo frontend puo' includere questa specifica CTE nello scenario noto.
+  const codiciCompleti = new Set(offerte.map((riga) => String(riga?.codice || "").trim()));
+  const ondaSmallMonoraria = (Array.isArray(data?.offerteParziali) ? data.offerteParziali : [])
+    .map(rigaOndaSmallFamilyMonorariaDaCte)
+    .filter((riga) => riga && !codiciCompleti.has(riga.codice));
+  const pulite = [...offerte, ...ondaSmallMonoraria]
     .map(normalizzaRigaPartnerDiretta)
     .filter((riga) => riga && riga.customerType !== "business");
 
@@ -19681,6 +19739,7 @@ function voceDaRigaPartnerDiretta(riga) {
   return {
     prezzoVariabile: riga.prezzo,
     formula: riga.formula,
+    spreadComprensivoPerdite: riga.spreadComprensivoPerdite ?? null,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     sconti: normalizzaScontiArera(riga.sconti),
     riferimentoArera: null,
@@ -19694,6 +19753,7 @@ function costoRigaPartnerDirettaSuProfilo(riga, attuale) {
     consumo: base.consumo,
     prezzoVariabile: riga.prezzo,
     formula: riga.formula,
+    spreadComprensivoPerdite: riga.spreadComprensivoPerdite ?? null,
     quotaFissaAnnua: riga.quotaFissaAnnua,
     quoteUniversaliAnnue: base.quoteUniversaliAnnue,
     componentiRegolate: base.componentiRegolate,
@@ -19828,7 +19888,9 @@ function offertaPartnerDirettaPerFornitore(providerKey, attuale, tipoTariffa, ti
     gas: voceDaRigaPartnerDiretta(gas),
     descrizione: stessaFamiglia
       ? `CTE partner verificate: coppia luce e gas dello stesso fornitore e della stessa famiglia commerciale (${commercialFamily}). Non e' una dual contrattuale unica.`
-      : "CTE partner verificata usata per il confronto del fornitore selezionato.",
+      : luce?.scenarioCteOndaSmallMonorario
+        ? "Onda Più LUCE SMALL Family: confronto stimato con PUN medio nazionale + 0,0451 €/kWh (componente comprensiva di perdite). Perdite sul solo PUN e C_DISPD dalla regolazione comune. Il valore 0,0396 €/kWh e' previsto per la misura per fasce. Il bonus digitale di 6 €/anno non e' sottratto dalla stima."
+        : "CTE partner verificata usata per il confronto del fornitore selezionato.",
     fonte: `${DATI_PARTNER_DIRETTE_META.fonte}${codici ? `. Codici: ${codici}` : ""}`,
     aggiornataIl: DATI_PARTNER_DIRETTE_META.aggiornatoIl,
     certificazione: {
