@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 import { json } from "../lib/http.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.104";
+const VERSION = "0.12.105";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -4328,6 +4328,15 @@ async function editorialSocialPlanPayload() {
           evaluated_at: qa.evaluated_at || null,
         } : null,
       } : null,
+      manual_image_candidate: asset.manual_image_candidate?.url ? {
+        url: asset.manual_image_candidate.url,
+        alt_text: asset.manual_image_candidate.alt_text || null,
+        guidance: asset.manual_image_candidate.guidance || null,
+        qa: asset.manual_image_candidate.qa ? {
+          status: asset.manual_image_candidate.qa.status || null,
+          reason: asset.manual_image_candidate.qa.reason || null,
+        } : null,
+      } : null,
       card: asset.card?.url ? {
         url: asset.card.url,
         source: asset.card.source || null,
@@ -6053,6 +6062,135 @@ async function requestEditorialSocialRegeneration(user, payload = {}) {
   };
 }
 
+
+// Una candidata fotografica resta separata dagli asset correnti: il ciclo automatico
+// puo' continuare a pubblicare solo la card gia' pronta. Nessuna ripubblicazione implicita.
+async function generateEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  const guidance = cleanEditorialText(payload.guidance, 600);
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))) {
+    throw new Error("La rigenerazione fotografica e' prevista solo per Follow-up e Post OffertaLogica");
+  }
+  if (!["draft", "approved"].includes(String(item.status || ""))) {
+    throw new Error("Post gia' in pubblicazione o pubblicato: la foto non puo' essere sostituita nel post esistente");
+  }
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) {
+    throw new Error("Collegamento articolo/post non valido");
+  }
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id || String(article.status || "") !== "published") {
+    throw new Error("L'articolo collegato deve essere gia' pubblicato");
+  }
+  const asset = editorialSocialAssetsState(opportunity).items?.[itemId] || null;
+  if (!asset?.brief || !editorialSocialBriefHasCover(asset.brief) || !asset.image?.url) {
+    throw new Error("Attendi la preparazione della card social prima di rigenerare la fotografia");
+  }
+  const target = await editorialSocialAssetTarget(item);
+  const articleImage = articleImageState(opportunity);
+  const heroUrl = String(articleImage.current?.url || article.featured_image_url || "").trim();
+  if (!/^https:\/\//i.test(heroUrl)) throw new Error("Immagine approvata dell'articolo non disponibile");
+  const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance);
+  const objectPath = `autopilot/${article.id}/social/${itemId}/manual-${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+  const candidate = {
+    source: "generated", provider: "openai", generation_mode: "text_to_image",
+    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+    url: imageUrl, object_path: objectPath, mime_type: "image/jpeg",
+    size: EDITORIAL_SOCIAL_IMAGE_SIZE, quality: "high", model: generated.model,
+    prompt: generated.prompt, alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+    guidance, created_at: new Date().toISOString(),
+    qa: null,
+  };
+  try {
+    candidate.qa = await evaluateEditorialSocialImage(article, item, target, asset.brief, candidate, heroUrl);
+  } catch (error) {
+    candidate.qa = { status: "human_review_required", reason: `Verifica automatica non conclusa: ${String(error?.message || error).slice(0, 240)}` };
+  }
+  // La generazione puo' durare: prima di salvare rileggi gli stati. Se il post
+  // nel frattempo e' stato pubblicato, non cambiare alcun asset utilizzato.
+  const latestItems = await serviceFetch(`editorial_social_plan_items?select=id,status&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  if (!["draft", "approved"].includes(String(latestItems?.[0]?.status || ""))) {
+    throw new Error("Nel frattempo il post e' entrato in pubblicazione: la fotografia in uso non e' stata modificata");
+  }
+  const latestOppRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+  const latestOpp = latestOppRows?.[0] || null;
+  if (!latestOpp?.id) throw new Error("Opportunita' non disponibile");
+  const state = editorialSocialAssetsState(latestOpp);
+  const latestAsset = state.items?.[itemId] || null;
+  if (!latestAsset?.image?.url || !editorialSocialBriefHasCover(latestAsset.brief)) {
+    throw new Error("Nel frattempo la card e' cambiata: riprova dalla Redazione");
+  }
+  state.items[itemId] = { ...latestAsset, manual_image_candidate: candidate, updated_at: new Date().toISOString() };
+  await saveEditorialSocialAssetsState(user, latestOpp, state);
+  return { generated: true, social_plan_item_id: itemId, qa_status: candidate.qa.status, current_unchanged: true };
+}
+
+async function decideEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  const decision = String(payload.decision || "").trim();
+  if (!validUuid(itemId) || !["approve", "discard"].includes(decision)) throw new Error("Richiesta immagine social non valida");
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))) throw new Error("Post non valido");
+  if (!["draft", "approved"].includes(String(item.status || ""))) {
+    throw new Error("Il post e' gia' stato pubblicato o e' in pubblicazione: nessuna sostituzione effettuata");
+  }
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunita' non trovati");
+  const state = editorialSocialAssetsState(opportunity);
+  const asset = state.items?.[itemId] || null;
+  const candidate = asset?.manual_image_candidate || null;
+  if (!candidate?.url) throw new Error("Nessuna nuova fotografia da valutare");
+  if (decision === "discard") {
+    state.items[itemId] = { ...asset, manual_image_candidate: null, updated_at: new Date().toISOString() };
+    await saveEditorialSocialAssetsState(user, opportunity, state);
+    return { decision, current_unchanged: true };
+  }
+  if (String(candidate.qa?.status || "") !== "passed") {
+    throw new Error("La nuova fotografia non ha superato la verifica di qualita': rigenerala o scartala");
+  }
+  if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card non disponibile");
+  const card = await renderAndUploadEditorialSocialCard({
+    article, sourceImageUrl: candidate.url, postType: item.post_type,
+    title: asset.brief.cover_title, summary: asset.brief.cover_summary,
+    label: editorialSocialCoverLabel(item.post_type), storageSegment: `${itemId}-card`,
+  });
+  // Ricontrolla prima della sostituzione: non aggiornare card di post gia' pubblicati.
+  const latestItemRows = await serviceFetch(`editorial_social_plan_items?select=id,status&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  if (!["draft", "approved"].includes(String(latestItemRows?.[0]?.status || ""))) {
+    throw new Error("Pubblicazione gia' iniziata: l'immagine originale resta invariata");
+  }
+  const latestOppRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+  const latestOpp = latestOppRows?.[0] || null;
+  const latestState = editorialSocialAssetsState(latestOpp);
+  const current = latestState.items?.[itemId] || null;
+  if (!current || String(current.manual_image_candidate?.url || "") !== String(candidate.url)) {
+    throw new Error("La candidata e' cambiata: aggiorna la pagina e riprova");
+  }
+  const now = new Date().toISOString();
+  const image = { ...candidate, qa: { ...candidate.qa, status: "passed", approval_mode: "manual_editorial", approved_at: now, approved_by: user.id } };
+  delete image.guidance;
+  latestState.items[itemId] = {
+    ...current, image, card, manual_image_candidate: null, status: "ready", updated_at: now,
+    history: current.image?.url ? [...(Array.isArray(current.history) ? current.history : []), { ...current.image, outcome: "replaced_by_editor", archived_at: now }].slice(-4) : current.history,
+    card_history: current.card?.url ? [...(Array.isArray(current.card_history) ? current.card_history : []), { ...current.card, outcome: "replaced_by_editor", archived_at: now }].slice(-3) : current.card_history,
+  };
+  await saveEditorialSocialAssetsState(user, latestOpp, latestState);
+  return { decision, social_plan_item_id: itemId, ready: true, published: false };
+}
 
 async function reviewEditorialSocialImage(user, payload = {}) {
   const itemId = String(payload.id || "").trim();
@@ -8802,6 +8940,16 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "regenerate-editorial-social-plan-item") {
       const result = await requestEditorialSocialRegeneration(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-social-image-candidate") {
+      const result = await generateEditorialSocialImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "decide-editorial-social-image-candidate") {
+      const result = await decideEditorialSocialImageCandidate(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 

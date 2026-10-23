@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.104";
+  const VERSION = "0.12.105";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1403,6 +1403,10 @@
     const imageSource = String(socialAsset?.image?.source || "");
     const imageAttempt = Number(socialAsset?.image?.attempt || 0);
     const canReview = !["publishing", "published"].includes(String(row.status || ""));
+    const canRegeneratePhoto = ["draft", "approved"].includes(String(row.status || ""));
+    const candidate = socialAsset?.manual_image_candidate && typeof socialAsset.manual_image_candidate === "object" ? socialAsset.manual_image_candidate : null;
+    const candidateUrl = /^https:\/\//i.test(String(candidate?.url || "")) ? String(candidate.url) : "";
+    const candidateQa = String(candidate?.qa?.status || "");
     const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
     const imageMarkup = (socialImageUrl || articleImageUrl) ? `
       <div class="ol-autopilot-archive-item" style="margin-top:10px">
@@ -1414,6 +1418,15 @@
           ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Approva questa immagine</button>` : ""}
           ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
         </div>` : ""}
+        ${canRegeneratePhoto && socialImageUrl ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
+          <strong>Alternativa fotografica (senza ripubblicare)</strong>
+          <div class="ol-field" style="margin-top:8px"><label>Indicazioni per la nuova foto (facoltative)</label><textarea data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. non ripetere la donna anziana seduta in cucina; preferisci un altro gesto o una scena credibile diversa"></textarea></div>
+          <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}">Rigenera immagine fotografica HD</button></div>
+          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA non superata" : "Verifica necessaria")}</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
+          <div class="ol-toolbar-group" style="margin-top:8px">${candidateQa === "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">Approva nuova foto e card</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>` : ""}
+          <small data-social-image-message="${esc(id)}">La fotografia corrente resta invariata fino all'approvazione. Non cambia l'orario di pubblicazione.</small>
+        </div>` : ""}
+        ${!canReview ? '<small>Post già avviato o pubblicato: non è possibile sostituire la fotografia su Instagram/Facebook. Una nuova pubblicazione richiede una procedura separata per evitare duplicati.</small>' : ""}
         ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details style="margin-top:8px"><summary>Confronta con immagine articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
         ${socialCardUrl ? `<details style="margin-top:8px"><summary>Apri card OL Informa composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OL Informa" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
       </div>` : "";
@@ -1451,6 +1464,10 @@
     const list = section?.querySelector("[data-social-plan-list]");
     const message = section?.querySelector("[data-social-plan-message]");
     if (!list || !message) return;
+    // Con un'anteprima fotografica nuova non richiudere i dettagli che l'editor
+    // aveva aperto: deve poter confrontare e approvare senza cercare la card.
+    const openArticles = new Set([...list.querySelectorAll("details[open][data-article-history]")].map((node) => node.dataset.articleHistory));
+    const openPlanItems = new Set([...list.querySelectorAll("details[open][data-social-plan-item]")].map((node) => node.dataset.socialPlanItem));
     const records = articleHistoryRecords();
     if (!records.length) {
       list.innerHTML = '<p class="ol-muted">Nessun articolo ancora monitorato.</p>';
@@ -1485,6 +1502,12 @@
         </div>
       </details>`;
     }).join("");
+    for (const node of list.querySelectorAll("[data-article-history]")) {
+      if (openArticles.has(node.dataset.articleHistory)) node.open = true;
+    }
+    for (const node of list.querySelectorAll("[data-social-plan-item]")) {
+      if (openPlanItems.has(node.dataset.socialPlanItem)) node.open = true;
+    }
     message.textContent = `${numberIt(records.length)} articoli monitorati. Clicca una riga per vedere lo stato completo del ciclo di quell’articolo.`;
     renderCycleOverview(section);
   }
@@ -1908,6 +1931,8 @@
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
+    const socialImageGenerateButton = event.target.closest("[data-social-image-generate]");
+    const socialImageCandidateButton = event.target.closest("[data-social-image-candidate]");
     const socialImageReviewButton = event.target.closest("[data-social-image-review]");
     const socialPlanRegenerateButton = event.target.closest("[data-social-plan-regenerate]");
     const saveButton = event.target.closest("[data-save-opportunity]");
@@ -2243,6 +2268,46 @@
         const errorText = `Generazione non completata: ${error.message}`;
         if (message) message.textContent = errorText;
         await loadAutomationRuns(section).catch(() => {});
+      }
+      return;
+    }
+
+    if (socialImageGenerateButton) {
+      const id = socialImageGenerateButton.dataset.socialImageGenerate || "";
+      if (!id || socialImageGenerateButton.disabled) return;
+      const guidance = section.querySelector(`[data-social-image-guidance="${id}"]`)?.value || "";
+      const current = socialPlanItems.find((item) => item.id === id);
+      if (current?.social_asset?.manual_image_candidate?.url && !window.confirm("Sostituire la nuova anteprima? La fotografia attualmente in uso restera' invariata finche' non approvi quella nuova.")) return;
+      socialImageGenerateButton.disabled = true;
+      const notice = section.querySelector(`[data-social-image-message="${id}"]`);
+      if (notice) notice.textContent = "Creazione e verifica della nuova fotografia in corso…";
+      try {
+        await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, guidance } });
+        await loadSocialPlan(section);
+        const message = section.querySelector("[data-social-plan-message]");
+        if (message) message.textContent = "Nuova fotografia candidata pronta: controllala e approvala soltanto se ti convince.";
+      } catch (error) {
+        socialImageGenerateButton.disabled = false;
+        if (notice) notice.textContent = `Fotografia non generata: ${error.message}`;
+      }
+      return;
+    }
+
+    if (socialImageCandidateButton) {
+      const id = socialImageCandidateButton.dataset.socialImageCandidate || "";
+      const decision = socialImageCandidateButton.dataset.socialCandidateDecision || "";
+      if (!id || !["approve", "discard"].includes(decision) || socialImageCandidateButton.disabled) return;
+      if (decision === "approve" && !window.confirm("Approvare la nuova fotografia e ricomporre la card? Questa operazione NON ripubblica il post e non modifica il calendario.")) return;
+      socialImageCandidateButton.disabled = true;
+      const message = section.querySelector("[data-social-plan-message]");
+      if (message) message.textContent = decision === "approve" ? "Composizione della nuova card…" : "Scarto della fotografia candidata…";
+      try {
+        await endpoint("decide-editorial-social-image-candidate", { method: "POST", body: { id, decision } });
+        await loadSocialPlan(section);
+        if (message) message.textContent = decision === "approve" ? "Nuova foto e card approvate. Nessuna ripubblicazione eseguita." : "Anteprima scartata: la foto originale e' rimasta invariata.";
+      } catch (error) {
+        socialImageCandidateButton.disabled = false;
+        if (message) message.textContent = `Operazione non eseguita: ${error.message}`;
       }
       return;
     }
