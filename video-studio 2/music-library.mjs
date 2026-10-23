@@ -305,3 +305,28 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
   })().then(result => console.log(JSON.stringify(result, null, 2)))
     .catch(error => { console.error(error.message); process.exitCode = 1; });
 }
+
+// Resolve exactly the segment explicitly chosen by a human reviewer.
+// No implicit fallback to a different track or pending audio is permitted.
+export async function resolveApprovedSegment(root, { platform, mood, trackId, segmentId }) {
+  demand(PLATFORMS.has(platform) && MOODS.has(mood), 'piattaforma o mood non supportati');
+  txt(trackId, 'trackId', 120);
+  txt(segmentId, 'segmentId', 120);
+  const catalog = await readCatalog(root);
+  const track = catalog.tracks.find(t => t.id === trackId);
+  demand(track && isLicensed(track, platform), 'traccia non approvata o licenza non valida');
+  demand(Array.isArray(track.approved_moods) && track.approved_moods.includes(mood), 'mood non approvato per questa traccia');
+  const segment = track.segments.find(s => s.id === segmentId);
+  demand(segment?.status === 'approved' && Number.isInteger(segment.start_ms) &&
+    Number.isInteger(segment.end_ms) && segment.end_ms - segment.start_ms === WINDOW_MS &&
+    segment.end_ms <= track.duration_ms, 'segmento richiesto non approvato o fuori durata');
+  demand(HASH.test(track.sha256) && track.audio_file === `audio/${track.sha256}.mp3`, 'percorso audio incoerente');
+  const audioPath = join(pathRoot(root), track.audio_file);
+  demand(sha(await readFile(audioPath)) === track.sha256, 'asset audio modificato');
+  return {
+    track_id: track.id, title: track.title, file: audioPath, sha256: track.sha256,
+    track_status: 'approved', segment: structuredClone(segment),
+    license: structuredClone(track.license),
+    selection_reason: `segmento scelto esplicitamente dal revisore; mood ${mood}; piattaforma ${platform}; licenza verificata nel catalogo`,
+  };
+}
