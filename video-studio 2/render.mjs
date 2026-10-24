@@ -11,6 +11,7 @@ import {
 } from './core.mjs';
 
 import { composeFrame } from './scene-graphics.mjs';
+import { composePremiumFrame } from './premium-layout.mjs';
 const exec = promisify(execFile);
 const PROJECT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LOGO = join(PROJECT, 'public/assets/logo-offertalogica-header.png');
@@ -39,6 +40,9 @@ async function prepareScene(scene, isLast, base, temp, index, logoData) {
   const photoFile = localPath(base, scene.image);
   if (scene.image_sha256) assert(sha256(await readFile(photoFile)) === scene.image_sha256.toLowerCase(), `scene ${scene.id}: asset fotografico cambiato dopo approvazione`);
   const path = join(temp, `scene-${String(index).padStart(2, '0')}.png`);
+  if (scene.presentation?.mode === 'editorial_v1') {
+    return (await composePremiumFrame({ photoFile, scene, logoBytes: logoData, outputFile: path })).outputFile;
+  }
   return composeFrame({ photoFile, scene, isLast, logoBytes: logoData, outputFile: path });
 }
 async function inspectAudio(job, base) {
@@ -52,13 +56,15 @@ async function inspectAudio(job, base) {
   assert(Number.isFinite(durationMs) && durationMs >= job.music.segment.end_ms + 100, 'segmento oltre la durata del brano');
   return { path, durationMs };
 }
-async function renderVideo(images, musicFile, startMs, durations, output) {
+async function renderVideo(images, musicFile, startMs, durations, output, direction) {
   const args = ['-hide_banner', '-nostdin', '-y', '-loglevel', 'error'];
   images.forEach((file, i) => args.push('-loop', '1', '-framerate', `${FRAME.fps}`, '-t', `${durations[i] / 1000}`, '-i', file));
   args.push('-ss', `${startMs / 1000}`, '-t', '15', '-i', musicFile);
   const parts = images.map((_, i) => `[${i}:v]fps=${FRAME.fps},trim=duration=${durations[i] / 1000},setpts=PTS-STARTPTS,format=yuv420p[v${i}]`);
   parts.push(`${images.map((_, i) => `[v${i}]`).join('')}concat=n=${images.length}:v=1:a=0[outv]`);
-  parts.push(`[${images.length}:a]aresample=48000,atrim=duration=15,asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:st=0:d=0.12,afade=t=out:st=14.73:d=0.27,apad,atrim=duration=15[outa]`);
+  const fadeStart = direction ? direction.fade_start_ms / 1000 : 14.73;
+  const fadeLength = direction ? direction.fade_duration_ms / 1000 : 0.27;
+  parts.push(`[${images.length}:a]aresample=48000,atrim=duration=15,asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:st=0:d=0.12,afade=t=out:st=${fadeStart}:d=${fadeLength},apad,atrim=duration=15[outa]`);
   args.push('-filter_complex', parts.join(';'), '-map', '[outv]', '-map', '[outa]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', '30', '-frames:v', '450', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', '-f', 'mp4', output);
   await exec('ffmpeg', args, { maxBuffer: 8 * 1024 * 1024, timeout: 240000 });
 }
@@ -106,7 +112,7 @@ export async function produce({ jobPath, output }) {
   try {
     const images = [];
     for (let i = 0; i < job.scenes.length; i++) images.push(await prepareScene(job.scenes[i], i === job.scenes.length - 1, dirname(jobPath), temp, i, logoData));
-    await renderVideo(images, audio.path, job.music.segment.start_ms, job.scenes.map(s => s.duration_ms), outputTemp);
+    await renderVideo(images, audio.path, job.music.segment.start_ms, job.scenes.map(s => s.duration_ms), outputTemp, job.scenes[0]?.presentation?.mode === 'editorial_v1' ? job.music.direction : null);
     const format = await inspectOutput(outputTemp);
     const videoSha256 = sha256(await readFile(outputTemp));
     const jobSha256 = sha256(await readFile(jobPath));
@@ -116,7 +122,7 @@ export async function produce({ jobPath, output }) {
       sceneSources.push({
         id: scene.id, source_sha256: sha256(await readFile(sourceFile)),
         duration_ms: scene.duration_ms, text_lines: scene.text_lines,
-        text_region: scene.text_region, protected_regions: scene.protected_regions,
+        text_region: scene.text_region || null, presentation: scene.presentation || null, protected_regions: scene.protected_regions,
         claim_ids: scene.claim_ids,
       });
     }
@@ -126,6 +132,7 @@ export async function produce({ jobPath, output }) {
       format, logo_sha256: OFFICIAL_LOGO_SHA256, scenes: sceneSources,
       music_sha256: job.music.sha256, music_segment: structuredClone(job.music.segment),
       music_license_assertion: structuredClone(job.music.license),
+      music_direction: job.music.direction ? structuredClone(job.music.direction) : null,
       platform: job.platform, technical_status: 'passed', editorial_status: 'needs_human_review',
       review_requirements: [
         'verificare correttezza semantica di ogni testo rispetto all’articolo',

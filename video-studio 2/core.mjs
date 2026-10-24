@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 // Independent Video Studio release; does not change editorial/application versions.
-export const VIDEO_STUDIO_VERSION = '0.6.0';
+export const VIDEO_STUDIO_VERSION = '0.7.0';
 export const FRAME = Object.freeze({ width: 1080, height: 1920, fps: 30, durationMs: 15000 });
 export const OFFICIAL_LOGO_SHA256 = '5e14de4bf43d8d4fc42b0454e5cf94df4edb2c21ff2e1638bc73882a55b05830';
 export const LOGO_PANEL = Object.freeze({ x: 274, y: 1188, width: 534, height: 318 });
@@ -82,22 +82,28 @@ export function validateJob(job) {
     sceneIds.add(scene.id);
     assert(Number.isInteger(scene.duration_ms) && scene.duration_ms >= 2000 && scene.duration_ms % 1000 === 0, `scene ${scene.id}: durata non valida (secondi interi, >=2)`);
     assert(scene.image_reviewed_clean === true, `scene ${scene.id}: confermare foto senza testi/documenti fittizi`);
-    assert(Array.isArray(scene.text_lines) && scene.text_lines.length >= 1 && scene.text_lines.length <= 3, `scene ${scene.id}: testo da 1 a 3 righe`);
-    scene.text_lines.forEach((line, i) => string(line, `scene ${scene.id} text_lines[${i}]`, 100));
-    validRect(scene.text_region, `scene ${scene.id} text_region`);
-    assert(within(scene.text_region, TEXT_SAFE), `scene ${scene.id}: testo fuori safe area UI`);
-    assert(scene.text_region.height >= 90 + 78 * scene.text_lines.length, `scene ${scene.id}: altezza insufficiente per il testo`);
+    const premium = scene.presentation?.mode === 'editorial_v1';
+    if (scene.presentation !== undefined) {
+      assert(premium, `scene ${scene.id}: modalità composizione non supportata`);
+      assert(['hook','context','value','action','cta'].includes(scene.presentation.role), `scene ${scene.id}: ruolo narrativo non valido`);
+      assert(scene.presentation.subject_regions_reviewed === true, `scene ${scene.id}: aree soggetto da verificare`);
+    }
+    if (!premium) assert(Array.isArray(scene.text_lines) && scene.text_lines.length >= 1 && scene.text_lines.length <= 3, `scene ${scene.id}: testo da 1 a 3 righe`);
+    if (!premium) scene.text_lines.forEach((line, i) => string(line, `scene ${scene.id} text_lines[${i}]`, 100));
+    if (!premium) validRect(scene.text_region, `scene ${scene.id} text_region`);
+    if (!premium) assert(within(scene.text_region, TEXT_SAFE), `scene ${scene.id}: testo fuori safe area UI`);
+    if (!premium) assert(scene.text_region.height >= 90 + 78 * scene.text_lines.length, `scene ${scene.id}: altezza insufficiente per il testo`);
     assert(Array.isArray(scene.protected_regions), `scene ${scene.id}: protected_regions obbligatorio (può essere [])`);
     scene.protected_regions.forEach((box, i) => {
       validRect(box, `scene ${scene.id} protected_regions[${i}]`);
-      assert(!intersects(scene.text_region, box), `scene ${scene.id}: testo sovrapposto a soggetto protetto`);
+      if (!premium) assert(!intersects(scene.text_region, box), `scene ${scene.id}: testo sovrapposto a soggetto protetto`);
     });
     assert(Array.isArray(scene.claim_ids), `scene ${scene.id}: claim_ids obbligatorio`);
     assert(scene.claim_ids.every(id => claimIds.has(id)), `scene ${scene.id}: claim non presente nell'articolo`);
     if (scene.claim_ids.length) hasClaimScene = true;
     if (index === job.scenes.length - 1) {
-      assert(!intersects(scene.text_region, LOGO_PANEL), 'scena finale: testo sovrapposto al logo');
-      assert(scene.protected_regions.every(box => !intersects(box, LOGO_PANEL)), 'scena finale: logo sovrapposto al soggetto');
+      if (!premium) assert(!intersects(scene.text_region, LOGO_PANEL), 'scena finale: testo sovrapposto al logo');
+      if (!premium) assert(scene.protected_regions.every(box => !intersects(box, LOGO_PANEL)), 'scena finale: logo sovrapposto al soggetto');
     }
   }
   assert(hasClaimScene, 'nessuna scena richiama un claim verificabile');
@@ -118,5 +124,18 @@ export function validateJob(job) {
   }
   assert(Array.isArray(music.license.allowed_platforms) && music.license.allowed_platforms.includes(job.platform), 'licenza non autorizza la piattaforma scelta');
   assert(/^https:\/\//i.test(music.license.source_url) && /^https:\/\//i.test(music.license.license_url), 'URL licenza non HTTPS');
+  if (job.scenes.some(s => s.presentation?.mode === 'editorial_v1')) {
+    assert(job.scenes.every(s => s.presentation?.mode === 'editorial_v1'), 'modalità premium richiesta per tutte le scene');
+    assert(job.scenes[0].presentation.role === 'hook' && job.scenes.at(-1).presentation.role === 'cta', 'hook e CTA obbligatori');
+    const dir = music.direction;
+    assert(dir && Number.isInteger(dir.hook_cue_ms) && dir.hook_cue_ms >= 0 && dir.hook_cue_ms <= 2000, 'cue iniziale non verificato');
+    assert(Array.isArray(dir.change_cues_ms) && dir.change_cues_ms.length && dir.change_cues_ms.every(t => Number.isInteger(t) && t >= 2000 && t < 13000), 'cue di cambi scena mancanti');
+    assert(Number.isInteger(dir.fade_duration_ms) && dir.fade_duration_ms >= 800 && dir.fade_duration_ms <= 1500 &&
+      Number.isInteger(dir.fade_start_ms) && dir.fade_start_ms + dir.fade_duration_ms === FRAME.durationMs, 'fade finale non valido');
+    assert(dir.audition_reviewed === true && typeof dir.audition_reviewer === 'string' && dir.audition_reviewer.trim(), 'ascolto musicale non approvato');
+    const ctaStart = FRAME.durationMs - job.scenes.at(-1).duration_ms;
+    assert(dir.fade_start_ms - ctaStart >= 1000, "fade troppo vicino all'ingresso della CTA");
+  }
+
   return frozen;
 }
