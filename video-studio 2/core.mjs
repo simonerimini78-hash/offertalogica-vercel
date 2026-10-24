@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 // Independent Video Studio release; does not change editorial/application versions.
-export const VIDEO_STUDIO_VERSION = '0.5.0';
+export const VIDEO_STUDIO_VERSION = '0.6.0';
 export const FRAME = Object.freeze({ width: 1080, height: 1920, fps: 30, durationMs: 15000 });
 export const OFFICIAL_LOGO_SHA256 = '5e14de4bf43d8d4fc42b0454e5cf94df4edb2c21ff2e1638bc73882a55b05830';
 export const LOGO_PANEL = Object.freeze({ x: 274, y: 1188, width: 534, height: 318 });
