@@ -1,8 +1,8 @@
 {
-  "versioneDati": "partner-menu-2026-10-23-v1",
+  "versioneDati": "partner-menu-2026-10-24-v1",
   "schemaVersion": 1,
   "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; le offerte con condizioni economiche incomplete sono pubblicate separatamente e restano escluse dal ranking.",
-  "aggiornatoIl": "2026-10-23",
+  "aggiornatoIl": "2026-10-24",
   "offerte": [
     {
       "providerKey": "greenius",
