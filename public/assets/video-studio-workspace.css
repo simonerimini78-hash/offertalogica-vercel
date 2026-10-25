@@ -1,0 +1,16 @@
+/* Video Studio v1.0 — solo preparazione dei brief nel workspace autenticato. */
+.ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
+.ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
+.ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
+.ol-vs-form{max-width:950px}.ol-vs-form .ol-fieldset{margin:16px 0}
+.ol-vs-options{display:flex;flex-wrap:wrap;align-items:center;gap:18px;margin:8px 0 14px}
+.ol-vs-options label{display:inline-flex;align-items:center;gap:7px;font-weight:650}
+.ol-vs-options input[type=radio]{width:auto;accent-color:#2f855a}
+.ol-vs-options .ol-field{min-width:230px}.ol-vs-actions{margin:18px 0;flex-wrap:wrap}
+.ol-vs-output{border:1px solid #bdd4c4;background:#fff;border-radius:11px;padding:16px;margin:14px 0}
+.ol-vs-output h3{margin:0 0 10px}.ol-vs-output p{margin:7px 0}
+@media(max-width:1050px){.ol-editorial-sections-five{grid-template-columns:repeat(2,minmax(0,1fr))}}
+@media(max-width:620px){.ol-editorial-sections-five{grid-template-columns:1fr}.ol-vs-options{align-items:flex-start;flex-direction:column;gap:8px}}
+
+/* Il CSS principale imposta display:grid su .ol-form/.ol-field: hidden deve prevalere. */
+.ol-vs-form[hidden],.ol-vs-form [hidden],.ol-vs-output[hidden]{display:none!important}

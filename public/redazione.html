@@ -9,6 +9,7 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/editorial.css?v=0.12.43">
   <link rel="stylesheet" href="/assets/editorial-autopilot.css?v=0.12.66">
+  <link rel="stylesheet" href="/assets/video-studio-workspace.css?v=1.0.0">
 </head>
 <body data-editorial-view="review">
 <a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
@@ -24,7 +25,7 @@
     <div class="ol-shell">
       <div class="ol-eyebrow">Pannello redazione</div>
       <h1>Redazione OffertaLogica</h1>
-      <p>Articoli, Autopilota, ricerca e gestione sono separati in aree operative distinte.</p>
+      <p>Articoli, Autopilota, ricerca, gestione e Video Studio sono separati in aree operative distinte.</p>
     </div>
   </section>
 
@@ -54,11 +55,12 @@
           </div>
         </div>
 
-        <nav class="ol-editorial-sections" aria-label="Sezioni operative della Redazione">
+        <nav class="ol-editorial-sections ol-editorial-sections-five" aria-label="Sezioni operative della Redazione">
           <a class="ol-editorial-section-link ol-editorial-section-link-current" href="#editorial-articles"><span>1</span><strong>Articoli</strong><small>Scrivi, revisiona e pubblica</small></a>
           <a class="ol-editorial-section-link" href="#editorial-autopilot"><span>2</span><strong>Autopilota</strong><small>Regole, calendario e destinazioni</small></a>
           <a class="ol-editorial-section-link" href="#editorial-research"><span>3</span><strong>Ricerca e piano</strong><small>Segnali, opportunità e post</small></a>
           <a class="ol-editorial-section-link" href="#editorial-management"><span>4</span><strong>Gestione</strong><small>Profilo, persone e categorie</small></a>
+          <a class="ol-editorial-section-link" href="#editorial-video-studio"><span>5</span><strong>Video Studio</strong><small>Reel e suggerimenti creativi</small></a>
         </nav>
 
         <details class="ol-editorial-block ol-editorial-block-main ol-editorial-block-collapsible" id="editorial-articles">
@@ -274,6 +276,51 @@
             </div>
           </div>
         </section>
+
+        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-video-studio" data-vs-workspace>
+          <summary class="ol-editorial-block-head">
+            <span class="ol-editorial-block-number">5</span>
+            <div><p class="ol-editorial-block-kicker">Produzione video</p><h2>Video Studio</h2><p>Articoli, temi liberi e suggerimenti per i Reel.</p></div>
+            <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
+          </summary>
+          <div class="ol-editorial-block-body">
+            <div class="ol-vs-intro"><strong>Laboratorio v1.0 · Preparazione dei brief</strong><p>Qui puoi scegliere un articolo o scrivere un tema e indirizzare la regia. La generazione AI e il rendering MP4 dalla Redazione non sono ancora collegati: nessun Reel viene prodotto, approvato o pubblicato da questo modulo.</p></div>
+            <p class="ol-muted ol-small" data-vs-session-status role="status" aria-live="polite">Verifica accesso all'apertura della sezione.</p>
+            <form class="ol-form ol-vs-form" data-vs-brief-form hidden>
+              <fieldset class="ol-fieldset"><legend>1. Sorgente</legend>
+                <div class="ol-vs-options">
+                  <label><input type="radio" name="vs-source" value="article" checked> Articolo pubblicato</label>
+                  <label><input type="radio" name="vs-source" value="theme"> Tema libero</label>
+                </div>
+                <div class="ol-field" data-vs-article-wrap>
+                  <label for="vs-editorial-article">Articolo Editoriale</label>
+                  <select id="vs-editorial-article" data-vs-article><option value="">Seleziona un articolo</option></select>
+                  <div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-vs-refresh>Ricarica articoli</button></div>
+                  <small>Vengono letti soltanto gli articoli pubblicati visibili al tuo account. Nessuna modifica agli articoli.</small>
+                </div>
+                <div class="ol-field" data-vs-theme-wrap hidden>
+                  <label for="vs-editorial-theme">Tema del Reel</label>
+                  <input id="vs-editorial-theme" type="text" maxlength="180" placeholder="Es. Bolletta troppo alta?" autocomplete="off">
+                </div>
+              </fieldset>
+              <fieldset class="ol-fieldset"><legend>2. Indicazioni creative</legend>
+                <div class="ol-field"><label for="vs-editorial-suggestions">Suggerimenti al motore (facoltativi)</label>
+                  <textarea id="vs-editorial-suggestions" maxlength="1800" rows="4" placeholder="Es. Mostra una persona preoccupata, lascia il volto libero e concludi con un messaggio rassicurante."></textarea>
+                  <small>I suggerimenti orientano la creatività, non autorizzano dati o promesse non verificati.</small>
+                </div>
+                <div class="ol-vs-options">
+                  <div class="ol-field"><label for="vs-editorial-platform">Destinazione</label><select id="vs-editorial-platform"><option value="instagram_reel">Instagram Reel</option><option value="facebook_reel">Facebook Reel</option></select></div>
+                </div>
+              </fieldset>
+              <div class="ol-toolbar-group ol-vs-actions">
+                <button class="ol-button ol-button-primary" type="submit">Prepara brief</button>
+                <button class="ol-button ol-button-secondary" type="button" data-vs-download disabled>Scarica input JSON</button>
+              </div>
+              <div class="ol-alert" role="status" data-vs-feedback aria-live="polite" hidden></div>
+              <section class="ol-vs-output" data-vs-output hidden aria-live="polite"><h3>Brief preparato</h3><div data-vs-summary></div><p class="ol-muted ol-small">Questo è l'input del motore, non uno storyboard AI già generato. Nessuna immagine e nessun MP4 creati.</p></section>
+            </form>
+          </div>
+        </details>
       </div>
     </div>
   </section>
@@ -284,5 +331,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.107" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.0.0" defer></script>
 </body>
 </html>
