@@ -1,4 +1,4 @@
-/* Video Studio v1.0.3 — newsroom lab with automatic photo generation and browser preview. */
+/* Video Studio v1.0.4 — audiovisual browser montage review. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
@@ -43,3 +43,10 @@
 .ol-vs-scene-prompt pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}
 
 @media(max-width:720px){.ol-vs-preview-phone{width:min(100%,320px)}.ol-vs-preview-headline{font-size:20px}}
+
+/* Canvas storyboard montage: preview only, no MP4 export. */
+.ol-vs-preview-canvas{display:block;width:min(100%,360px);aspect-ratio:9/16;height:auto;border-radius:18px;background:#101f29;box-shadow:0 8px 24px rgba(15,23,42,.22)}
+.ol-vs-music-row{display:grid;gap:6px;margin:14px 0 8px}
+.ol-vs-music-row label{display:grid;gap:8px;font-weight:650;font-size:14px}
+.ol-vs-music-row input[type=file]{max-width:100%;font:inherit;font-size:13px}
+.ol-vs-music-row small{display:block;line-height:1.4}

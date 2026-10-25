@@ -1,4 +1,4 @@
-/* Video Studio v1.0.3 — automatic storyboard + photo previews with per-scene revision. */
+/* Video Studio v1.0.4 — AI scenes with audiovisual browser montage review (no MP4). */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -35,10 +35,11 @@
   let previewView = null;
   let activeRequests = 0;
   let batchRunning = false;
-  let previewTimer = null;
   let previewPlaying = false;
   let previewIndex = 0;
-  let previewPlayed = 0;
+  let previewFrameId = null;
+  let previewStartedAt = 0;
+  let soundtrackUrl = null;
   let preparing = false;
   const briefFields = [...form.querySelectorAll('input,select,textarea')];
 
@@ -63,14 +64,27 @@
   }
   function stopPreview() {
     previewPlaying = false;
-    if (previewTimer) {
-      clearTimeout(previewTimer);
-      previewTimer = null;
+    if (previewFrameId !== null) {
+      cancelAnimationFrame(previewFrameId);
+      previewFrameId = null;
     }
-    if (previewView?.playButton) previewView.playButton.textContent = 'Riproduci sequenza';
+    if (previewView?.musicAudio) {
+      previewView.musicAudio.pause();
+      previewView.musicAudio.volume = 1;
+    }
+    if (previewView?.playButton) previewView.playButton.textContent = 'Riproduci montaggio';
+  }
+  function releaseSoundtrack() {
+    stopPreview();
+    if (soundtrackUrl) URL.revokeObjectURL(soundtrackUrl);
+    soundtrackUrl = null;
+    if (previewView?.musicAudio) {
+      previewView.musicAudio.removeAttribute('src');
+      previewView.musicAudio.load();
+    }
   }
   function resetGeneratedOutput() {
-    stopPreview();
+    releaseSoundtrack();
     generation = null;
     sceneViews = [];
     progressView = null;
@@ -316,58 +330,186 @@
     progressView.note.textContent = 'Ogni rigenerazione consuma 1 azione AI del limite server (10 azioni/ora per utente admin).';
     syncControls();
   }
+  const MONTAGE_WIDTH = 720;
+  const MONTAGE_HEIGHT = 1280;
+  const MONTAGE_DURATION = 15;
+
+  function sceneAt(second) {
+    let start = 0;
+    for (let i = 0; i < sceneViews.length; i++) {
+      const duration = Number(sceneViews[i].scene.duration_ms) / 1000;
+      if (second < start + duration || i === sceneViews.length - 1) {
+        return {index: i, start, duration, local: Math.max(0, second - start)};
+      }
+      start += duration;
+    }
+    return {index: 0, start: 0, duration: 3, local: 0};
+  }
+  function wrapCanvasText(ctx, value, maxWidth, maxLines) {
+    const words = String(value || '').trim().split(/\s+/).filter(Boolean);
+    const result = [];
+    let line = '';
+    for (const word of words) {
+      const trial = line ? `${line} ${word}` : word;
+      if (ctx.measureText(trial).width > maxWidth && line) {
+        result.push(line);
+        line = word;
+      } else line = trial;
+    }
+    if (line) result.push(line);
+    if (result.length > maxLines) {
+      result.length = maxLines;
+      let last = result[maxLines - 1];
+      while (last.length && ctx.measureText(`${last}…`).width > maxWidth) last = last.slice(0, -1);
+      result[maxLines - 1] = `${last}…`;
+    }
+    return result;
+  }
+  function drawScenePhoto(ctx, index, zoomProgress, opacity) {
+    const image = sceneViews[index]?.image;
+    if (!image || !image.complete || !image.naturalWidth) return;
+    ctx.save();
+    ctx.globalAlpha = opacity;
+    ctx.beginPath();
+    ctx.rect(0, 0, MONTAGE_WIDTH, 918);
+    ctx.clip();
+    const scale = Math.min(710 / image.naturalWidth, 918 / image.naturalHeight) * (1.015 + zoomProgress * 0.02);
+    const w = image.naturalWidth * scale;
+    const h = image.naturalHeight * scale;
+    ctx.drawImage(image, (MONTAGE_WIDTH - w) / 2, (918 - h) / 2, w, h);
+    ctx.restore();
+  }
+  function renderMontageFrame(second) {
+    if (!previewView || !sceneViews.length) return;
+    const ctx = previewView.canvas.getContext('2d');
+    if (!ctx) return;
+    const t = Math.max(0, Math.min(MONTAGE_DURATION, second));
+    const segment = sceneAt(Math.min(14.999, t));
+    previewIndex = segment.index;
+    ctx.clearRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
+    ctx.fillStyle = '#101f29';
+    ctx.fillRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
+    drawScenePhoto(ctx, segment.index, Math.min(1, segment.local / segment.duration), 1);
+    // Fade between original photos, without generating or substituting other images.
+    if (segment.index > 0 && segment.local < 0.28) {
+      drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
+    }
+    ctx.fillStyle = '#112b33';
+    ctx.fillRect(0, 918, MONTAGE_WIDTH, 362);
+    ctx.fillStyle = '#33ad65';
+    ctx.fillRect(0, 918, MONTAGE_WIDTH, 5);
+    const scene = sceneViews[segment.index].scene;
+    ctx.fillStyle = '#a9e5be';
+    ctx.font = '700 23px system-ui, sans-serif';
+    ctx.fillText(`OFFERTALOGICA  ·  ${segment.index + 1}/4`, 45, 959);
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 49px system-ui, sans-serif';
+    const headingLines = wrapCanvasText(ctx, scene.headline, 630, 2);
+    headingLines.forEach((line, n) => ctx.fillText(line, 45, 1016 + n * 56));
+    ctx.font = '500 29px system-ui, sans-serif';
+    ctx.fillStyle = '#d9eae3';
+    const secondaryLines = wrapCanvasText(ctx, scene.secondary_text, 420, 2);
+    const secondaryStart = 1033 + headingLines.length * 56;
+    secondaryLines.forEach((line, n) => ctx.fillText(line, 45, secondaryStart + n * 38));
+    // The official brand artwork is drawn separately, never hallucinated by the image model.
+    if (previewView.logo.complete && previewView.logo.naturalWidth) {
+      const logo = previewView.logo;
+      ctx.fillStyle = '#ffffff';
+      ctx.fillRect(477, 1144, 208, 116);
+      const ratio = Math.min(190 / logo.naturalWidth, 106 / logo.naturalHeight);
+      ctx.drawImage(logo, 486 + (190 - logo.naturalWidth * ratio) / 2, 1148 + (106 - logo.naturalHeight * ratio) / 2,
+        logo.naturalWidth * ratio, logo.naturalHeight * ratio);
+    }
+    ctx.fillStyle = '#38b66e';
+    ctx.fillRect(0, 1272, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
+    previewView.meta.textContent = `Scena ${segment.index + 1}/4 · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Anteprima non esportabile`;
+  }
   function showPreview(index) {
     if (!previewView) return;
     const available = availablePreviewIndices();
-    if (!available.length) {
-      previewView.image.hidden = true;
-      previewView.empty.hidden = false;
-      previewView.empty.textContent = 'Le fotografie appariranno qui appena vengono generate.';
-      previewView.counter.textContent = 'Nessuna scena pronta';
-      previewView.headline.textContent = 'Anteprima browser non disponibile';
-      previewView.secondary.textContent = 'Genera almeno una fotografia per vedere la sequenza di controllo.';
-      previewView.meta.textContent = 'Non viene creato alcun MP4 da questa anteprima.';
-      previewView.playButton.disabled = true;
-      return;
-    }
-    if (!available.includes(index)) index = available[0];
-    previewIndex = index;
-    const view = sceneViews[index];
-    previewView.image.src = view.image.src;
-    previewView.image.hidden = false;
-    previewView.empty.hidden = true;
-    previewView.counter.textContent = `Scena ${index + 1}/4 · ${view.scene.role}`;
-    previewView.headline.textContent = view.scene.headline || 'Titolo scena';
-    previewView.secondary.textContent = view.scene.secondary_text || 'Controllo visivo della scena';
-    previewView.meta.textContent = `${Math.round((view.scene.duration_ms || 0) / 1000)}s · Sequenza browser senza audio, testo sovraimpresso o logo. Non è un MP4.`;
     previewView.playButton.disabled = available.length !== 4 || busy();
+    const scene = available.length ? (available.includes(index) ? index : available[0]) : 0;
+    const t = sceneViews.slice(0, scene).reduce((sum, item) => sum + (Number(item.scene.duration_ms) || 0), 0) / 1000;
+    if (!previewPlaying) renderMontageFrame(t);
+    previewView.musicHelp.textContent = soundtrackUrl
+      ? 'Traccia locale caricata per l’ascolto di prova. Non viene inviata al server né approvata per la pubblicazione.'
+      : 'La libreria di musiche approvate non è configurata. Scegli una traccia di cui disponi dei diritti per ascoltare il montaggio con musica.';
   }
-  function schedulePreviewStep() {
-    if (!previewPlaying) return;
-    const available = availablePreviewIndices();
-    if (available.length !== 4 || previewPlayed >= 4) {
+  function montageTick() {
+    if (!previewPlaying || !previewView) return;
+    const audio = previewView.musicAudio;
+    const elapsed = soundtrackUrl && !audio.paused ? audio.currentTime : (performance.now() - previewStartedAt) / 1000;
+    renderMontageFrame(elapsed);
+    if (soundtrackUrl) audio.volume = Math.max(0, Math.min(1, (15 - elapsed) / 1.2));
+    if (elapsed >= MONTAGE_DURATION) {
       stopPreview();
+      renderMontageFrame(MONTAGE_DURATION);
       return;
     }
-    const current = previewPlayed;
-    showPreview(current);
-    const duration = Number(sceneViews[current]?.scene?.duration_ms || 0);
-    previewTimer = setTimeout(() => {
-      previewPlayed += 1;
-      schedulePreviewStep();
-    }, duration);
+    previewFrameId = requestAnimationFrame(montageTick);
   }
-  function togglePreviewPlayback() {
+  async function togglePreviewPlayback() {
     if (!previewView) return;
     if (previewPlaying) {
       stopPreview();
       return;
     }
     if (availablePreviewIndices().length !== 4 || busy()) return;
-    previewPlayed = 0;
+    stopPreview();
+    previewStartedAt = performance.now();
+    if (soundtrackUrl) {
+      try {
+        previewView.musicAudio.currentTime = 0;
+        previewView.musicAudio.volume = 1;
+        await previewView.musicAudio.play();
+      } catch (e) {
+        previewView.musicHelp.textContent = `Riproduzione audio non disponibile nel browser: ${e.message}`;
+        return;
+      }
+    }
     previewPlaying = true;
-    previewView.playButton.textContent = 'Interrompi anteprima';
-    schedulePreviewStep();
+    previewView.playButton.textContent = 'Interrompi montaggio';
+    montageTick();
+  }
+  async function selectSoundtrack(file) {
+    releaseSoundtrack();
+    if (!previewView) return;
+    if (!file) {
+      showPreview(previewIndex);
+      return;
+    }
+    if (file.size > 25 * 1024 * 1024 || file.size === 0 ||
+        !(file.type.startsWith('audio/') || /\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(file.name))) {
+      previewView.musicHelp.textContent = 'Seleziona un file audio supportato di massimo 25 MB.';
+      previewView.musicInput.value = '';
+      return;
+    }
+    const candidateUrl = URL.createObjectURL(file);
+    try {
+      const audio = previewView.musicAudio;
+      await new Promise((resolve, reject) => {
+        const timer = setTimeout(() => { cleanup(); reject(Error('lettura audio scaduta')); }, 10000);
+        const onLoaded = () => { cleanup(); resolve(); };
+        const onError = () => { cleanup(); reject(Error('formato audio non supportato')); };
+        function cleanup() {
+          clearTimeout(timer);
+          audio.removeEventListener('loadedmetadata', onLoaded);
+          audio.removeEventListener('error', onError);
+        }
+        audio.addEventListener('loadedmetadata', onLoaded, {once:true});
+        audio.addEventListener('error', onError, {once:true});
+        audio.src = candidateUrl;
+        audio.load();
+      });
+      if (!(audio.duration >= 15)) throw Error('il brano deve durare almeno 15 secondi');
+      soundtrackUrl = candidateUrl;
+      showPreview(previewIndex);
+    } catch (e) {
+      URL.revokeObjectURL(candidateUrl);
+      previewView.musicAudio.removeAttribute('src');
+      previewView.musicInput.value = '';
+      previewView.musicHelp.textContent = `Traccia non utilizzabile: ${e.message}`;
+    }
   }
   function setSceneState(view, text, tone = 'neutral') {
     view.state.textContent = text;
@@ -385,55 +527,62 @@
       note: document.createElement('p'),
     };
     progressView.box.className = 'ol-vs-progress-box';
-    const progressTitle = textElement('h4', 'Elaborazione fotografica');
     progressView.count.className = 'ol-vs-progress-count';
     progressView.note.className = 'ol-muted ol-small';
-    progressView.box.append(progressTitle, progressView.count, progressView.note);
+    progressView.box.append(textElement('h4', 'Elaborazione fotografica'), progressView.count, progressView.note);
     realSummary.append(progressView.box);
 
     previewView = {
       box: document.createElement('section'),
       playButton: document.createElement('button'),
-      image: document.createElement('img'),
-      empty: document.createElement('div'),
-      counter: document.createElement('p'),
-      headline: document.createElement('h5'),
-      secondary: document.createElement('p'),
+      canvas: document.createElement('canvas'),
       meta: document.createElement('p'),
+      musicInput: document.createElement('input'),
+      musicHelp: document.createElement('small'),
+      musicAudio: document.createElement('audio'),
+      logo: new Image(),
     };
     previewView.box.className = 'ol-vs-preview-box';
     const previewHeader = document.createElement('div');
     previewHeader.className = 'ol-vs-preview-head';
     const previewIntro = document.createElement('div');
     previewIntro.append(
-      textElement('h4', 'Anteprima storyboard · 15 secondi'),
-      textElement('p', 'Sequenza visiva provvisoria, non un Reel MP4: niente musica, logo o composizione finale.'),
+      textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
+      textElement('p', 'Le quattro foto originali, i titoli, il logo e le transizioni vengono composti nel browser. È una bozza, non un MP4.'),
     );
     previewView.playButton.type = 'button';
-    previewView.playButton.className = 'ol-button ol-button-secondary ol-button-small';
-    previewView.playButton.textContent = 'Riproduci sequenza';
-    previewView.playButton.addEventListener('click', togglePreviewPlayback);
+    previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
+    previewView.playButton.textContent = 'Riproduci montaggio';
+    previewView.playButton.disabled = true;
+    previewView.playButton.addEventListener('click', () => { togglePreviewPlayback(); });
     previewHeader.append(previewIntro, previewView.playButton);
 
     const stage = document.createElement('div');
     stage.className = 'ol-vs-preview-stage';
-    const phone = document.createElement('div');
-    phone.className = 'ol-vs-preview-phone';
-    previewView.image.className = 'ol-vs-preview-image';
-    previewView.image.alt = 'Anteprima browser del Reel';
-    previewView.image.hidden = true;
-    previewView.empty.className = 'ol-vs-preview-empty';
-    previewView.counter.className = 'ol-vs-preview-counter';
-    previewView.headline.className = 'ol-vs-preview-headline';
-    previewView.secondary.className = 'ol-vs-preview-secondary';
+    previewView.canvas.width = MONTAGE_WIDTH;
+    previewView.canvas.height = MONTAGE_HEIGHT;
+    previewView.canvas.className = 'ol-vs-preview-canvas';
+    previewView.canvas.setAttribute('aria-label', 'Montaggio Reel in formato verticale 9:16');
+    stage.append(previewView.canvas);
+
+    const musicRow = document.createElement('div');
+    musicRow.className = 'ol-vs-music-row';
+    const musicLabel = document.createElement('label');
+    musicLabel.textContent = 'Musica per questa anteprima (file locale con diritti di utilizzo)';
+    previewView.musicInput.type = 'file';
+    previewView.musicInput.accept = 'audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac';
+    previewView.musicInput.addEventListener('change', () => {
+      selectSoundtrack(previewView.musicInput.files?.[0]);
+    });
+    previewView.musicHelp.className = 'ol-muted ol-small';
+    musicLabel.append(previewView.musicInput);
+    musicRow.append(musicLabel, previewView.musicHelp);
+    previewView.musicAudio.preload = 'metadata';
     previewView.meta.className = 'ol-vs-preview-meta';
-    const overlay = document.createElement('div');
-    overlay.className = 'ol-vs-preview-overlay';
-    overlay.append(previewView.counter, previewView.headline, previewView.secondary);
-    phone.append(previewView.image, previewView.empty);
-    stage.append(phone);
-    previewView.box.append(previewHeader, stage, overlay, previewView.meta);
+    previewView.box.append(previewHeader, stage, musicRow, previewView.meta);
     realSummary.append(previewView.box);
+    previewView.logo.addEventListener('load', () => { if (!previewPlaying) showPreview(previewIndex); });
+    previewView.logo.src = '/assets/logo-offertalogica-header.png';
     showPreview(0);
   }
   function createSceneCard(scene, index) {
@@ -452,6 +601,9 @@
     image.hidden = true;
     image.alt = `Fotografia proposta per scena ${index + 1}, da revisionare`;
     image.className = 'ol-vs-scene-photo';
+    image.addEventListener('load', () => {
+      if (!previewPlaying && previewView) showPreview(previewIndex);
+    });
 
     const actions = document.createElement('div');
     actions.className = 'ol-toolbar-group';
@@ -515,6 +667,7 @@
     return view;
   }
   async function requestPhoto(view, token, revisionNotes = '') {
+    stopPreview();
     view.running = true;
     view.error = '';
     let failure = null;
@@ -632,7 +785,7 @@
   });
   downloadButton.addEventListener('click', download);
   generateButton.addEventListener('click', generateCreative);
-  root.addEventListener('toggle', () => { if (root.open) initialize(); });
+  root.addEventListener('toggle', () => { if (root.open) initialize(); else stopPreview(); });
   document.querySelector('[href="#editorial-video-studio"]')?.addEventListener('click', () => {
     root.open = true;
     initialize();
