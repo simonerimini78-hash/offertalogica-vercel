@@ -6842,7 +6842,7 @@ let PARAMETRI_CALCOLO = {
 };
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
-const TESTO_METODOLOGIA_MEDIA_ARERA = "Quando non conosci i tuoi consumi, la comparazione usa un benchmark standardizzato: luce domestica residente 3 kW e 2.700 kWh/anno; gas domestico 1.400 Smc/anno. Il profilo territoriale tecnico attuale del benchmark gas e Milano/Lombardia. Non e una media geografica nazionale e non e una previsione della tua bolletta: serve a confrontare tutte le offerte sulla stessa base.";
+const TESTO_METODOLOGIA_MEDIA_ARERA = "Nella stima media confrontiamo le offerte usando lo stesso profilo: luce domestica residente (3 kW, 2.700 kWh/anno) e gas domestico (1.400 Smc/anno). Per il gas usiamo Milano/Lombardia come riferimento territoriale, non come media nazionale. Questa stima serve a confrontare le offerte, non a prevedere la tua bolletta.";
 
 const STIMA_DOCUMENTALE_STATE = {
   fallbacks: [],
@@ -11550,17 +11550,17 @@ function dettagliOfferta(offerta) {
     ? "Prezzo variabile (indicizzato)"
     : "Prezzo fisso (bloccato)";
   const notaPrezzo = offerta?.tipo === "variabile"
-    ? "Il valore unitario e una stima costruita con l'ultimo indice disponibile e lo spread contrattuale, non un prezzo bloccato. Il costo dei prossimi 12 mesi puo cambiare con l'indice."
+    ? "Il prezzo variabile è stimato usando l'ultimo indice disponibile e lo spread contrattuale. Non è bloccato: il costo dei prossimi 12 mesi può cambiare con l'indice."
     : "Il valore unitario e trattato come fisso secondo le condizioni economiche dell'offerta.";
 
   if (offertaSeparataMultiFornitore(offerta)) {
     return `${tipoPrezzo}. ${dettagliOffertaSeparata(offerta)} ${notaPrezzo} ${offerta.descrizione || ""}`.trim();
   }
   const luce = offerta.luce
-    ? `Luce: ${prezzoOffertaTesto(offerta.luce, "luce")} | Fisso vendita: ${euro(offerta.luce.quotaFissaAnnua)}`
+    ? `Luce: ${prezzoOffertaTesto(offerta.luce, "luce")} | Quota fissa di vendita: ${euro(offerta.luce.quotaFissaAnnua)}/anno`
     : "Luce non inclusa";
   const gas = offerta.gas
-    ? `Gas: ${prezzoOffertaTesto(offerta.gas, "gas")} | Fisso vendita: ${euro(offerta.gas.quotaFissaAnnua)}`
+    ? `Gas: ${prezzoOffertaTesto(offerta.gas, "gas")} | Quota fissa di vendita: ${euro(offerta.gas.quotaFissaAnnua)}/anno`
     : "Gas non incluso";
   return `${tipoPrezzo}. ${luce} | ${gas}. ${notaPrezzo} ${offerta.descrizione || ""}`.trim();
 }
