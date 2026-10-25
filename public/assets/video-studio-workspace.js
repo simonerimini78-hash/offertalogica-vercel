@@ -1,4 +1,4 @@
-/* Video Studio 1.0 — editorial brief intake only; no remote AI calls or writes. */
+/* Video Studio v1.0.1 — manual, server-gated real creative AI previews; no publication or SQL. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -21,9 +21,15 @@
   const downloadButton = qs('[data-vs-download]');
   const refreshButton = qs('[data-vs-refresh]');
   const submitButton = form.querySelector('[type="submit"]');
+  const generateButton = qs('[data-vs-generate]');
+  const realSection = qs('[data-vs-generated]');
+  const realSummary = qs('[data-vs-generated-summary]');
+  const sceneHolder = qs('[data-vs-scenes]');
   let articles = [];
   let brief = null;
   let checking = null;
+  let generation = null;
+  let working = false;
 
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
   const url = String(config.supabaseUrl || '').replace(/\/+$/, '');
@@ -40,6 +46,11 @@
   }
   function clearBrief() {
     brief = null;
+    generation = null;
+    generateButton.disabled = true;
+    realSection.hidden = true;
+    realSummary.replaceChildren();
+    sceneHolder.replaceChildren();
     downloadButton.disabled = true;
     output.hidden = true;
     summary.replaceChildren();
@@ -195,8 +206,78 @@
       };
       setSummary(brief);
       downloadButton.disabled = false;
-      message('Brief validato e preparato. Nessuna chiamata AI né generazione Reel è stata eseguita.');
+      generateButton.disabled = false;
+      message('Brief pronto. Premi «Genera storyboard AI» per eseguire la vera chiamata al motore.');
     } catch (e) { message(e.message,true); } finally { submitButton.disabled = false; }
+  }
+  async function labRequest(action, body, token, timeMs) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeMs);
+    try {
+      const response = await fetch(`/api/staff-analytics?action=${encodeURIComponent(action)}`, {
+        method: 'POST', headers:{'Content-Type':'application/json',Authorization:`Bearer ${token}`},
+        body:JSON.stringify(body), cache:'no-store', credentials:'same-origin', signal:controller.signal
+      });
+      const payload = await response.json().catch(() => null);
+      if (!response.ok || !payload?.ok) throw Error(payload?.error ||
+        (response.status===401 ? 'La generazione AI richiede un account amministratore.' :
+          `Servizio Video Studio non disponibile (${response.status}).`));
+      return payload.result;
+    } catch(e) {
+      if(e.name==='AbortError') throw Error('Tempo massimo della generazione superato. Riprova solo dopo avere controllato lo stato del servizio.');
+      throw e;
+    } finally {clearTimeout(timer);}
+  }
+  function textElement(tag,value) {const el=document.createElement(tag);el.textContent=value;return el;}
+  async function generateCreative() {
+    if(!brief || working) return;
+    working=true;generateButton.disabled=true;generation=null;
+    realSection.hidden=true;realSummary.replaceChildren();sceneHolder.replaceChildren();
+    message('Richiesta inviata al motore creativo reale. Nessuna generazione simulata.');
+    try {
+      const token=await requireEditor();
+      const data={platform:brief.input.platform,suggestions:brief.input.suggestions};
+      if(brief.mode==='article')data.article_id=brief.input.article.id;
+      else data.theme=brief.input.theme;
+      generation=await labRequest('video-studio-storyboard',data,token,110000);
+      if(generation?.plan?.scenes?.length!==4)throw Error('Storyboard generato non valido.');
+      realSummary.append(textElement('p',`Concept: ${generation.plan.concept}`),
+        textElement('p',`Pubblico: ${generation.plan.audience}`),
+        textElement('p',`Avvertenza editoriale: ${generation.plan.editorial_caution}`));
+      for(const [index,scene] of generation.plan.scenes.entries()) {
+        const card=document.createElement('article');card.className='ol-vs-scene-card';
+        card.append(textElement('h4',`Scena ${index+1} · ${scene.duration_ms/1000}s · ${scene.role}`),
+          textElement('p',`${scene.headline}${scene.secondary_text ? ' — '+scene.secondary_text : ''}`),
+          textElement('p',`Immagine: ${scene.visual_brief}`),
+          textElement('p',`Soggetto: ${scene.subject_description} · Emozione: ${scene.emotion}`),
+          textElement('p',`Posizione soggetto: ${scene.subject_side}`));
+        const photoButton=textElement('button','Genera fotografia originale');
+        photoButton.type='button';photoButton.className='ol-button ol-button-secondary ol-button-small';
+        const state=textElement('p','Nessuna fotografia generata.');state.className='ol-muted ol-small';
+        const image=document.createElement('img');image.hidden=true;image.alt=`Fotografia proposta per scena ${index+1}, da revisionare`;image.className='ol-vs-scene-photo';
+        const prompt=document.createElement('details');prompt.append(textElement('summary','Mostra prompt fotografico'));
+        const promptBody=textElement('pre','');prompt.append(promptBody);prompt.hidden=true;
+        photoButton.addEventListener('click', async () => {
+          if(working || !generation)return;
+          working=true;photoButton.disabled=true;state.textContent='Generazione fotografica reale richiesta…';
+          try {
+            const token=await requireEditor();
+            const result=await labRequest('video-studio-photo',{
+              input:generation.input,plan:generation.plan,receipt:generation.receipt,scene_index:index
+            },token,230000);
+            image.src=`data:${result.preview_mime};base64,${result.preview_base64}`;
+            image.hidden=false;promptBody.textContent=result.prompt;prompt.hidden=false;
+            state.textContent=`Generata · ${result.provider} · Anteprima non persistente, da verificare. Nessun MP4 creato.`;
+          } catch(e) {state.textContent=`BLOCCATO: ${e.message}`;photoButton.disabled=false;}
+          finally {working=false;}
+        });
+        card.append(photoButton,state,image,prompt);sceneHolder.append(card);
+      }
+      realSection.hidden=false;
+      message('Storyboard AI generato dal provider. Le fotografie vengono generate soltanto su richiesta, una per volta.');
+    } catch(e) {
+      message(`Generazione non riuscita: ${e.message}`,true);
+    } finally {working=false;generateButton.disabled=!brief;}
   }
   function download() {
     if (!brief) return;
@@ -217,6 +298,7 @@
     try { await loadArticles(await requireEditor()); } catch(e) {message(e.message,true);}
   });
   downloadButton.addEventListener('click',download);
+  generateButton.addEventListener('click',generateCreative);
   root.addEventListener('toggle', () => { if (root.open) initialize(); });
   document.querySelector('[href="#editorial-video-studio"]')?.addEventListener('click', () => {
     root.open = true; initialize();

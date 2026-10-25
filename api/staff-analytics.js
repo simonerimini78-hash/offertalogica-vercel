@@ -1,5 +1,6 @@
 import crypto from "node:crypto";
-import { json } from "../lib/http.js";
+import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
+import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
 const VERSION = "0.12.107";
@@ -9010,6 +9011,48 @@ export default async function handler(req, res) {
 
     const user = await authenticatedAdmin(req);
     if (!user) return json(res, 401, { ok: false, error: "Accesso amministratore richiesto" });
+
+    // Video Studio Lab: opt-in manual actions only. No autopilot, SQL or publishing.
+    if (req.method === "POST" && (action === "video-studio-storyboard" || action === "video-studio-photo")) {
+      if (!requireAllowedBrowserOrigin(req, res)) return;
+      if (process.env.VIDEO_STUDIO_LAB_ENABLED !== "1") {
+        return json(res, 503, { ok: false, error: "Video Studio AI non attivo: abilitazione server richiesta" });
+      }
+      // A persistent rate-limit store is mandatory on Vercel; fail closed if unavailable.
+      if (!(await enforceRateLimit(req, res, {
+        label: "vs-ai-lab", identifier: user.id, limit: 10, windowSeconds: 3600,
+      }))) return;
+      try {
+        const {createStoryboard, createPhoto} = await import("../video-studio/web-lab.mjs");
+        const payload = req.body;
+        if (!payload || Array.isArray(payload) || typeof payload !== "object" ||
+            Buffer.byteLength(JSON.stringify(payload)) > 210000) {
+          return json(res, 400, {ok:false,error:"Richiesta Video Studio non valida o troppo grande"});
+        }
+        let result;
+        if (action === "video-studio-storyboard") {
+          const readArticle = async (id) => {
+            if (!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(String(id)))
+              throw new Error("ID articolo non valido");
+            const rows = await editorialUserFetch(user,
+              `editorial_articles?select=id,title,slug,status,updated_at,category,content,sources&id=eq.${encodeURIComponent(id)}&status=eq.published&limit=1`);
+            return rows?.[0] || null;
+          };
+          result = await createStoryboard({userId:user.id, theme:payload.theme,articleId:payload.article_id,
+            suggestions:payload.suggestions,platform:payload.platform},{readArticle});
+        } else {
+          result = await createPhoto({userId:user.id, input:payload.input,plan:payload.plan,
+            receipt:payload.receipt,sceneIndex:payload.scene_index});
+        }
+        return json(res, 200, {ok:true,version:VERSION,result});
+      } catch (error) {
+        const message = String(error?.message || "Errore generazione AI");
+        console.warn("video_studio_lab_failed", {action, error:message.slice(0,240)});
+        // Never reflect upstream provider bodies, keys, internal SQL or stack traces.
+        return json(res, 422, {ok:false,error:message.startsWith("VIDEO_STUDIO_") ?
+          message.slice(0,200) : "Generazione non riuscita. Verifica configurazione e disponibilità del servizio."});
+      }
+    }
 
     if (req.method === "POST" && EDITORIAL_PAGE_UPDATE_ACTIONS.has(action)) {
       return json(res, 409, {

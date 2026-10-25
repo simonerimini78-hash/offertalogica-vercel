@@ -1,4 +1,4 @@
-/* Video Studio v1.0 — solo preparazione dei brief nel workspace autenticato. */
+/* Video Studio v1.0.1 — laboratorio AI autenticato e raccolta brief. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
@@ -14,3 +14,10 @@
 
 /* Il CSS principale imposta display:grid su .ol-form/.ol-field: hidden deve prevalere. */
 .ol-vs-form[hidden],.ol-vs-form [hidden],.ol-vs-output[hidden]{display:none!important}
+
+/* Video Studio v1.0.1: anteprime AI reali (non approvate). */
+.ol-vs-scene-card{border:1px solid #cfe0d4;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
+.ol-vs-scene-card h4{margin:0 0 10px}
+.ol-vs-scene-photo{max-width:360px;width:100%;height:auto;display:block;margin:12px 0;border-radius:8px}
+.ol-vs-scene-card details pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}
+.ol-vs-scene-card button{margin:8px 0}
