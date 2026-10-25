@@ -1,9 +1,9 @@
 #!/usr/bin/env node
-import { readFile, writeFile, mkdtemp, rename, rm, stat, access } from 'node:fs/promises';
+import { readFile, writeFile, mkdtemp, rename, rm, stat, access, realpath } from 'node:fs/promises';
 import { execFile } from 'node:child_process';
 import { promisify } from 'node:util';
 import { tmpdir } from 'node:os';
-import { dirname, extname, isAbsolute, join, resolve } from 'node:path';
+import { dirname, extname, isAbsolute, join, resolve, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   VIDEO_STUDIO_VERSION, FRAME, OFFICIAL_LOGO_SHA256,
@@ -12,6 +12,10 @@ import {
 
 import { composeFrame } from './scene-graphics.mjs';
 import { composePremiumFrame } from './premium-layout.mjs';
+import { renderCinematicScene } from './cinematic.mjs';
+import { createMobileReview } from './master-review.mjs';
+import { analyzeSegment, assessCutAlignment } from './audio-direction.mjs';
+import { evaluateQualityGates } from './quality-gates.mjs';
 const exec = promisify(execFile);
 const PROJECT = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 const LOGO = join(PROJECT, 'public/assets/logo-offertalogica-header.png');
@@ -68,6 +72,19 @@ async function renderVideo(images, musicFile, startMs, durations, output, direct
   args.push('-filter_complex', parts.join(';'), '-map', '[outv]', '-map', '[outa]', '-c:v', 'libx264', '-preset', 'veryfast', '-crf', '20', '-profile:v', 'high', '-pix_fmt', 'yuv420p', '-r', '30', '-frames:v', '450', '-c:a', 'aac', '-b:a', '192k', '-ar', '48000', '-ac', '2', '-movflags', '+faststart', '-f', 'mp4', output);
   await exec('ffmpeg', args, { maxBuffer: 8 * 1024 * 1024, timeout: 240000 });
 }
+
+async function renderCinematicVideo(clips, musicFile, startMs, output, direction, temp) {
+  const listing = join(temp, 'clips.txt');
+  // All clip paths are under our mkdtemp workspace, never external user data.
+  await writeFile(listing, clips.map(c=>`file '${c.outputFile.replaceAll("'", "'\\''")}'`).join('\n')+'\n');
+  const fadeStart=direction.fade_start_ms/1000, fadeLength=direction.fade_duration_ms/1000;
+  const fadeIn=(direction.opening_fade_ms ?? 120)/1000;
+  const filter=`[1:a]aresample=48000,atrim=duration=15,asetpts=PTS-STARTPTS,loudnorm=I=-16:TP=-1.5:LRA=11,afade=t=in:st=0:d=${fadeIn},afade=t=out:st=${fadeStart}:d=${fadeLength},apad,atrim=duration=15[outa]`;
+  await exec('ffmpeg',['-hide_banner','-nostdin','-y','-loglevel','error','-f','concat','-safe','0','-i',listing,
+    '-ss',String(startMs/1000),'-t','15','-i',musicFile,'-filter_complex',filter,'-map','0:v:0','-map','[outa]',
+    '-c:v','copy','-c:a','aac','-b:a','192k','-ar','48000','-ac','2','-t','15','-movflags','+faststart',output],
+    {maxBuffer:8*1024*1024,timeout:180000});
+}
 async function inspectOutput(output) {
   const info = await probe(output);
   const video = info.streams.find(s => s.codec_type === 'video');
@@ -98,22 +115,60 @@ async function inspectOutput(output) {
 }
 export async function produce({ jobPath, output }) {
   assert(output !== jobPath, 'output coincide con input');
-  for (const file of [output, `${output}.qa.json`, `${output}.snapshot.json`]) {
+  for (const file of [output, `${output}.qa.json`, `${output}.snapshot.json`, `${output}.mobile-review.jpg`]) {
     try { await access(file); throw new Error(`VIDEO_STUDIO_QA: esiste già ${file}; non sovrascrivo lavori precedenti`); }
     catch (error) { if (error.code !== 'ENOENT') throw error; }
   }
   const job = JSON.parse(await readFile(jobPath, 'utf8'));
   const { snapshot, fingerprint } = validateJob(job);
+  const cinematic = job.scenes[0]?.presentation?.mode === 'editorial_v2';
+  if(cinematic) {
+    const outputParent=await realpath(dirname(output));
+    const project=await realpath(PROJECT);
+    const rel=relative(project,outputParent);
+    assert(rel==='..'||rel.startsWith(`..${sep}`)||isAbsolute(rel),'output v2 deve restare fuori dal repository');
+  }
+  let gates = cinematic ? evaluateQualityGates(job) : null;
   const logoData = await readFile(LOGO);
   assert(sha256(logoData) === OFFICIAL_LOGO_SHA256, 'logo ufficiale modificato o non verificato');
   const audio = await inspectAudio(job, dirname(jobPath));
   const temp = await mkdtemp(join(tmpdir(), 'offertalogica-video-studio-'));
   const outputTemp = join(temp, 'render.mp4');
   try {
-    const images = [];
-    for (let i = 0; i < job.scenes.length; i++) images.push(await prepareScene(job.scenes[i], i === job.scenes.length - 1, dirname(jobPath), temp, i, logoData));
-    await renderVideo(images, audio.path, job.music.segment.start_ms, job.scenes.map(s => s.duration_ms), outputTemp, job.scenes[0]?.presentation?.mode === 'editorial_v1' ? job.music.direction : null);
+    let composition = null, musicalAlignment = null, review = null;
+    if (cinematic) {
+      const clips=[];
+      for (const [i,scene] of job.scenes.entries()) {
+        const photoFile=localPath(dirname(jobPath),scene.image);
+        if(scene.image_sha256)assert(sha256(await readFile(photoFile))===scene.image_sha256.toLowerCase(),`scene ${scene.id}: immagine modificata`);
+        clips.push(await renderCinematicScene({scene,photoFile,logoBytes:logoData,outputPrefix:join(temp,`cinematic-${i}`)}));
+      }
+      composition=clips.map((clip,i)=>({scene_id:job.scenes[i].id,layout:clip.layout,movement:clip.movement,animation:clip.animation}));
+      // Geometry and font sizes are copied from the *actual* compositor plan, not
+      // invented attestations. Human-review booleans remain false until reviewed.
+      const gateInput=structuredClone(job);
+      for(const [i,scene] of gateInput.scenes.entries()) {
+        const l=clips[i].layout, prior=scene.quality||{};
+        scene.quality={...prior,role:scene.presentation.role,headline:scene.presentation.headline,
+          secondary_text:scene.presentation.secondary_text||undefined,headline_font_px:l.titlePx,
+          secondary_font_px:l.secondPx,headline_region:l.titleRect,secondary_region:l.subRect,
+          protected_regions:scene.protected_regions,logo_sha256:OFFICIAL_LOGO_SHA256,logo_region:l.logoRect,
+          negative_space_reviewed:prior.negative_space_reviewed===true,
+          mobile_preview_reviewed:prior.mobile_preview_reviewed===true,
+          contrast_reviewed:prior.contrast_reviewed===true,
+          logo_visibility_reviewed:prior.logo_visibility_reviewed===true};
+      }
+      gates=evaluateQualityGates(gateInput);
+      if(job.production_mode==='master_review') assert(gates.quality_status!=='blocked',`gate di qualità: ${gates.issues.map(x=>x.code).slice(0,8).join(', ')}`);
+      await renderCinematicVideo(clips,audio.path,job.music.segment.start_ms,outputTemp,job.music.direction,temp);
+      musicalAlignment=assessCutAlignment(await analyzeSegment({file:audio.path,startMs:job.music.segment.start_ms}),job.scenes.map(s=>s.duration_ms));
+    } else {
+      const images=[];
+      for (let i=0;i<job.scenes.length;i++)images.push(await prepareScene(job.scenes[i],i===job.scenes.length-1,dirname(jobPath),temp,i,logoData));
+      await renderVideo(images,audio.path,job.music.segment.start_ms,job.scenes.map(s=>s.duration_ms),outputTemp,job.scenes[0]?.presentation?.mode==='editorial_v1'?job.music.direction:null);
+    }
     const format = await inspectOutput(outputTemp);
+    if(cinematic)review=await createMobileReview(outputTemp,job.scenes,temp);
     const videoSha256 = sha256(await readFile(outputTemp));
     const jobSha256 = sha256(await readFile(jobPath));
     const sceneSources = [];
@@ -134,6 +189,8 @@ export async function produce({ jobPath, output }) {
       music_license_assertion: structuredClone(job.music.license),
       music_direction: job.music.direction ? structuredClone(job.music.direction) : null,
       platform: job.platform, technical_status: 'passed', editorial_status: 'needs_human_review',
+      publication_authorized: false, pre_render_quality_gates: gates, composition, musical_alignment: musicalAlignment,
+      mobile_review: review ? {file: `${output}.mobile-review.jpg`, frames: review.frames, ui_overlay: review.ui_overlay, reviewed_by_human: false} : null,
       review_requirements: [
         'verificare correttezza semantica di ogni testo rispetto all’articolo',
         'verificare zone protette dichiarate e inquadratura effettiva',
@@ -142,6 +199,7 @@ export async function produce({ jobPath, output }) {
       ],
     };
     await rename(outputTemp, output);
+    if(review)await rename(review.file, `${output}.mobile-review.jpg`);
     await writeFile(`${output}.snapshot.json`, JSON.stringify({ fingerprint, article: snapshot }, null, 2), { flag: 'wx', mode: 0o600 });
     await writeFile(`${output}.qa.json`, JSON.stringify(qa, null, 2), { flag: 'wx', mode: 0o600 });
     return qa;

@@ -34,7 +34,7 @@ function svgText(list, x, top, size, gap, weight) {
 }
 export async function planPremiumLayout(scene) {
   const p=scene?.presentation;
-  check(p?.mode === 'editorial_v1', 'modalità editoriale non dichiarata');
+  check(['editorial_v1','editorial_v2'].includes(p?.mode), 'modalità editoriale non dichiarata');
   check(['hook','context','value','action','cta'].includes(p.role), 'ruolo narrativo assente');
   check(p.subject_regions_reviewed === true, 'revisione manuale delle aree soggetto mancante');
   check(typeof p.headline === 'string' && p.headline.trim() && p.headline.length <= 110 && p.headline.trim().split(/\s+/u).length <= 9, 'headline troppo lunga');
@@ -119,4 +119,29 @@ export async function composePremiumFrame({photoFile,scene,logoBytes,outputFile}
     {input:logo,left:l.logoRect.x,top:l.logoRect.y},
   ]).png().toFile(outputFile);
   return {outputFile,layout:l};
+}
+
+// v0.8.0: independently animated text and authentic brand layers.
+// Files are created only in the renderer's disposable workspace.
+export async function composeCinematicLayers({photoFile,scene,logoBytes,outputPrefix}) {
+  check(scene?.presentation?.mode==='editorial_v2','richiesta cinematografica non valida');
+  check(Buffer.isBuffer(logoBytes) && sha256(logoBytes)===OFFICIAL_LOGO_SHA256,'logo originale non verificato');
+  const meta=await sharp(photoFile).metadata();
+  check(meta.width===FRAME.width && meta.height===FRAME.height && ['png','jpeg','webp'].includes(meta.format),'fotografia non normalizzata');
+  const l=await planPremiumLayout(scene);
+  const make=async(name,svg)=>{
+    const path=`${outputPrefix}-${name}.png`;
+    await sharp(Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${FRAME.width}" height="${FRAME.height}">${svg}</svg>`)).png().toFile(path);
+    return path;
+  };
+  const titleH=Math.ceil(l.titleLines.length*l.titlePx*1.11);
+  const secondaryY=l.y+titleH+28;
+  const textVeil=(x,y,w,h)=>`<defs><linearGradient id="g" x1="0" x2="1"><stop offset="0" stop-color="#fff" stop-opacity="0.96"/><stop offset="0.76" stop-color="#fff" stop-opacity="0.93"/><stop offset="1" stop-color="#fff" stop-opacity="0"/></linearGradient><filter id="b"><feGaussianBlur stdDeviation="16"/></filter></defs><rect x="${x-18}" y="${y-14}" width="${w+36}" height="${h+28}" rx="44" fill="url(#g)" filter="url(#b)"/>`;
+  const title=await make('title',textVeil(l.x,l.y,l.width,titleH)+svgText(l.titleLines,l.x+18,l.y,l.titlePx,l.titlePx*1.11,'700'));
+  const secondary=l.secondaryLines.length?await make('secondary',textVeil(l.x,secondaryY,l.width,Math.ceil(l.secondaryLines.length*l.secondPx*1.19))+svgText(l.secondaryLines,l.x+18,secondaryY,l.secondPx,l.secondPx*1.19,'500')):null;
+  const authentic=await sharp(logoBytes).resize({width:l.logoW}).png().toBuffer();
+  const logoCanvas=Buffer.from(`<svg xmlns="http://www.w3.org/2000/svg" width="${FRAME.width}" height="${FRAME.height}"><defs><filter id="b"><feGaussianBlur stdDeviation="14"/></filter></defs><rect x="${l.logoRect.x-16}" y="${l.logoRect.y-12}" width="${l.logoRect.width+32}" height="${l.logoRect.height+24}" rx="24" fill="#fff" opacity="0.84" filter="url(#b)"/></svg>`);
+  const logoPath=`${outputPrefix}-brand.png`;
+  await sharp(logoCanvas).composite([{input:authentic,left:l.logoRect.x,top:l.logoRect.y}]).png().toFile(logoPath);
+  return {photoFile,title,secondary,logo:logoPath,layout:l};
 }

@@ -1,7 +1,7 @@
 import { createHash } from 'node:crypto';
 
 // Independent Video Studio release; does not change editorial/application versions.
-export const VIDEO_STUDIO_VERSION = '0.7.0';
+export const VIDEO_STUDIO_VERSION = '0.8.0';
 export const FRAME = Object.freeze({ width: 1080, height: 1920, fps: 30, durationMs: 15000 });
 export const OFFICIAL_LOGO_SHA256 = '5e14de4bf43d8d4fc42b0454e5cf94df4edb2c21ff2e1638bc73882a55b05830';
 export const LOGO_PANEL = Object.freeze({ x: 274, y: 1188, width: 534, height: 318 });
@@ -80,13 +80,18 @@ export function validateJob(job) {
     if (scene.image_sha256 !== undefined) assert(/^[a-f0-9]{64}$/i.test(scene.image_sha256), `scene ${scene.id}: image_sha256 non valido`);
     assert(!sceneIds.has(scene.id), `scene duplicata: ${scene.id}`);
     sceneIds.add(scene.id);
-    assert(Number.isInteger(scene.duration_ms) && scene.duration_ms >= 2000 && scene.duration_ms % 1000 === 0, `scene ${scene.id}: durata non valida (secondi interi, >=2)`);
+    const cinematic = scene.presentation?.mode === 'editorial_v2';
+    assert(Number.isInteger(scene.duration_ms) && scene.duration_ms >= 2000 && scene.duration_ms % (cinematic ? 100 : 1000) === 0, `scene ${scene.id}: durata non valida`);
     assert(scene.image_reviewed_clean === true, `scene ${scene.id}: confermare foto senza testi/documenti fittizi`);
-    const premium = scene.presentation?.mode === 'editorial_v1';
+    const premium = ['editorial_v1','editorial_v2'].includes(scene.presentation?.mode);
     if (scene.presentation !== undefined) {
       assert(premium, `scene ${scene.id}: modalità composizione non supportata`);
       assert(['hook','context','value','action','cta'].includes(scene.presentation.role), `scene ${scene.id}: ruolo narrativo non valido`);
       assert(scene.presentation.subject_regions_reviewed === true, `scene ${scene.id}: aree soggetto da verificare`);
+      if (cinematic) {
+        assert(['auto','static','gentle_zoom'].includes(scene.presentation.motion || 'auto'), `scene ${scene.id}: movimento non valido`);
+        assert(['hook','context','value','action','cta'].includes(scene.presentation.role), `scene ${scene.id}: funzione narrativa non valida`);
+      }
     }
     if (!premium) assert(Array.isArray(scene.text_lines) && scene.text_lines.length >= 1 && scene.text_lines.length <= 3, `scene ${scene.id}: testo da 1 a 3 righe`);
     if (!premium) scene.text_lines.forEach((line, i) => string(line, `scene ${scene.id} text_lines[${i}]`, 100));
@@ -124,8 +129,8 @@ export function validateJob(job) {
   }
   assert(Array.isArray(music.license.allowed_platforms) && music.license.allowed_platforms.includes(job.platform), 'licenza non autorizza la piattaforma scelta');
   assert(/^https:\/\//i.test(music.license.source_url) && /^https:\/\//i.test(music.license.license_url), 'URL licenza non HTTPS');
-  if (job.scenes.some(s => s.presentation?.mode === 'editorial_v1')) {
-    assert(job.scenes.every(s => s.presentation?.mode === 'editorial_v1'), 'modalità premium richiesta per tutte le scene');
+  if (job.scenes.some(s => ['editorial_v1','editorial_v2'].includes(s.presentation?.mode))) {
+    assert(job.scenes.every(s => s.presentation?.mode === job.scenes[0].presentation.mode), 'modalità composizione uguale per tutte le scene');
     assert(job.scenes[0].presentation.role === 'hook' && job.scenes.at(-1).presentation.role === 'cta', 'hook e CTA obbligatori');
     const dir = music.direction;
     assert(dir && Number.isInteger(dir.hook_cue_ms) && dir.hook_cue_ms >= 0 && dir.hook_cue_ms <= 2000, 'cue iniziale non verificato');
@@ -135,6 +140,14 @@ export function validateJob(job) {
     assert(dir.audition_reviewed === true && typeof dir.audition_reviewer === 'string' && dir.audition_reviewer.trim(), 'ascolto musicale non approvato');
     const ctaStart = FRAME.durationMs - job.scenes.at(-1).duration_ms;
     assert(dir.fade_start_ms - ctaStart >= 1000, "fade troppo vicino all'ingresso della CTA");
+    if(job.scenes[0].presentation.mode === 'editorial_v2') {
+      if(dir.opening_fade_ms !== undefined)assert(Number.isInteger(dir.opening_fade_ms)&&dir.opening_fade_ms>=100&&dir.opening_fade_ms<=2000,'crescendo iniziale audio fuori 100–2000 ms');
+      assert(['technical_preview','master_review'].includes(job.production_mode), 'indicare production_mode per v2');
+      let at=0; const cuts=[];
+      for(const scene of job.scenes.slice(0,-1)){at+=scene.duration_ms;cuts.push(at);}
+      assert(dir.change_cues_ms.length >= cuts.length && cuts.every(t=>dir.change_cues_ms.some(c=>Math.abs(c-t)<=220)), 'tagli non allineati ai cue dichiarati entro 220 ms');
+      assert(job.scenes.every(s=>s.presentation.headline?.trim()), 'headline v2 obbligatoria');
+    }
   }
 
   return frozen;
