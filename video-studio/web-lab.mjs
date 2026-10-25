@@ -1,10 +1,10 @@
-// V1.0.1: manual-only, stateless Video Studio creative lab. No SQL, worker or publishing.
+// V1.0.3: stateless manual-review lab; sequential photos are orchestrated by the Redazione UI.
 // All paid operations are behind the existing authenticated Admin API and a server flag.
 import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.0.1';
+export const VIDEO_STUDIO_LAB_VERSION = '1.0.3';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -59,20 +59,22 @@ export async function createStoryboard({userId, theme, articleId, suggestions=''
   if(plan.status!=='needs_human_review'||plan.scenes.length!==4)err('regia non revisionabile');
   return {input,plan,receipt:signProposal(userId,input,plan,{env,now}),trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
 }
-export async function createPhoto({userId,input,plan,receipt,sceneIndex},
+export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes=''},
   {generate=generatePhoto,env=process.env,now=Date.now(),sharpFactory}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   verifyProposal(userId,input,plan,receipt,{env,now});
   if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>3)err('indice scena non valido');
   const scene=plan.scenes[sceneIndex];
-  const result=await generate({article:{title:input.topic},scene,index:sceneIndex});
+  if(typeof revisionNotes!=='string'||revisionNotes.length>700)err('note revisione non valide');
+  const notes=revisionNotes.trim();
+  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,revisionNotes:notes});
   if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
   const sharp=sharpFactory || (await import('sharp')).default;
   // Response is a limited temporary browser preview, NOT a persistent master asset.
   const preview=await sharp(result.bytes).resize(720,1280,{fit:'cover'}).jpeg({quality:78}).toBuffer();
   if(preview.length > 1700000)err('anteprima troppo grande');
-  const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex});
+  const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,revisionNotes:notes});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),
     original_sha256:result.sha256,provider:result.provider,prompt,needs_human_review:true,stored:false,
-    publication_authorized:false};
+    publication_authorized:false,revision_notes:notes};
 }

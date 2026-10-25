@@ -1,4 +1,4 @@
-/* Video Studio v1.0.1 — laboratorio AI autenticato e raccolta brief. */
+/* Video Studio v1.0.3 — newsroom lab with automatic photo generation and browser preview. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
@@ -15,9 +15,31 @@
 /* Il CSS principale imposta display:grid su .ol-form/.ol-field: hidden deve prevalere. */
 .ol-vs-form[hidden],.ol-vs-form [hidden],.ol-vs-output[hidden]{display:none!important}
 
-/* Video Studio v1.0.1: anteprime AI reali (non approvate). */
+/* Scene and previews */
+.ol-vs-progress-box,.ol-vs-preview-box{border:1px solid #d9e7dd;border-radius:12px;background:#f8fbf9;padding:15px;margin:16px 0}
+.ol-vs-progress-box h4,.ol-vs-preview-box h4{margin:0 0 8px}
+.ol-vs-progress-count{font-weight:700;color:#1f4a31}
+.ol-vs-preview-head{display:flex;justify-content:space-between;gap:12px;align-items:flex-start;margin-bottom:12px;flex-wrap:wrap}
+.ol-vs-preview-head p{margin:4px 0 0;color:#51656d;font-size:14px}
+.ol-vs-preview-stage{display:flex;justify-content:center}
+.ol-vs-preview-phone{position:relative;width:min(280px,100%);aspect-ratio:9/16;border-radius:28px;overflow:hidden;background:#0f172a;box-shadow:0 10px 28px rgba(15,23,42,.18)}
+.ol-vs-preview-image{width:100%;height:100%;object-fit:cover;display:block}
+.ol-vs-preview-empty{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;padding:22px;text-align:center;color:#e2e8f0;font-weight:700;line-height:1.45}
+.ol-vs-preview-overlay{padding:12px 16px;margin-top:10px;background:#eef4ef;color:#1f2937;border-radius:9px}
+.ol-vs-preview-counter{margin:0 0 6px;font-size:12px;letter-spacing:.05em;text-transform:uppercase;opacity:.9}
+.ol-vs-preview-headline{margin:0;font-size:22px;line-height:1.06}
+.ol-vs-preview-secondary{margin:6px 0 0;font-size:13px;line-height:1.4;color:#334155}
+.ol-vs-preview-meta{margin:10px 0 0;color:#51656d;font-size:13px}
+
 .ol-vs-scene-card{border:1px solid #cfe0d4;border-radius:12px;padding:16px;margin:14px 0;background:#fff}
 .ol-vs-scene-card h4{margin:0 0 10px}
-.ol-vs-scene-photo{max-width:360px;width:100%;height:auto;display:block;margin:12px 0;border-radius:8px}
-.ol-vs-scene-card details pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}
-.ol-vs-scene-card button{margin:8px 0}
+.ol-vs-scene-photo{max-width:360px;width:100%;height:auto;display:block;margin:12px 0;border-radius:8px;box-shadow:0 8px 20px rgba(15,23,42,.08)}
+.ol-vs-scene-state{padding:9px 11px;border-radius:10px;background:#f4f6f8;color:#334155}
+.ol-vs-scene-state[data-tone="pending"]{background:#eef7f0;color:#1f4a31}
+.ol-vs-scene-state[data-tone="success"]{background:#effaf3;color:#155e3a}
+.ol-vs-scene-state[data-tone="error"]{background:#fff1f2;color:#9f1239}
+.ol-vs-scene-notes{margin-top:10px}
+.ol-vs-scene-notes textarea{min-height:96px;resize:vertical}
+.ol-vs-scene-prompt pre{white-space:pre-wrap;overflow-wrap:anywhere;font-size:.8rem}
+
+@media(max-width:720px){.ol-vs-preview-phone{width:min(100%,320px)}.ol-vs-preview-headline{font-size:20px}}
