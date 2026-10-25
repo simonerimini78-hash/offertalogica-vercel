@@ -917,6 +917,213 @@ def parse_ovenergy(path: Path, partner_key: str, partner_label: str, market_indi
     raise ValueError("CTE OV Energy non supportata")
 
 
+
+
+def parse_ondapiu(path: Path, partner_key: str, partner_label: str, market_indices: dict[str, float]) -> ParseResult:
+    text = extract_pdf_text_multi(path)
+    normalized = normalize_space(text)
+    head = normalize_space(text[:8000]).lower()
+
+    if "01787510898" not in text or "onda più" not in normalized.lower():
+        raise ValueError("CTE non riconosciuta come Onda Più")
+
+    short_code = first_match(r"Codice\s+Offerta\s*:?\s*([A-Z0-9]+)", text)
+    arera_code = first_match(r"Codice\s+ARERA\s*:?\s*([A-Z0-9]+)", text)
+    if not short_code or not arera_code or not arera_code.startswith("025990"):
+        raise ValueError("Codici offerta Onda Più incompleti")
+
+    known_names = (
+        "GAS SMALL Family",
+        "LUCE Leggera Impresa",
+        "LUCE SMALL Family",
+    )
+    offer_name = next(
+        (name for name in known_names if name.lower() in normalized.lower()),
+        None,
+    )
+    if not offer_name:
+        raise ValueError("Nome offerta Onda Più non riconosciuto")
+
+    validity = re.search(
+        r"(?:OFFERTA\s+(?:ENERGIA\s+ELETTRICA|GAS\s+NATURALE)\s+)?"
+        r"VALIDA\s+DAL\s+([0-9/.-]+)\s+AL\s+([0-9/.-]+)",
+        normalized,
+        re.I,
+    )
+    sale_from = parse_cte_date(validity.group(1)) if validity else None
+    sale_to = parse_cte_date(validity.group(2)) if validity else None
+    if not sale_from or not sale_to:
+        raise ValueError("Validità Onda Più non leggibile")
+
+    commodity = "gas" if offer_name.upper().startswith("GAS ") else "luce"
+
+    business_signal = "clienti con partita iva" in head
+    domestic_signal = "clienti finali domestici" in head
+    if business_signal == domestic_signal:
+        raise ValueError("Tipo cliente Onda Più non determinabile in modo univoco")
+    customer_type = "business" if business_signal else "domestico"
+
+    annual_fixed_fee = parse_number(
+        first_match(
+            r"Commercializzazione\s+e\s+vendita\s+([0-9.,]+)\s*"
+            r"(?:€|Euro)/(?:POD|PDR)/Anno",
+            text,
+        )
+    )
+    if annual_fixed_fee is None:
+        raise ValueError("Quota fissa Onda Più non leggibile")
+
+    all_arera_codes: list[str] = []
+    for code in re.findall(r"\b025990[A-Z0-9]+\b", text):
+        if code not in all_arera_codes:
+            all_arera_codes.append(code)
+
+    alternative_codes = [short_code] + [
+        code for code in all_arera_codes if code != arera_code
+    ]
+
+    fixed_components = [
+        annual_fixed_component(
+            "Commercializzazione e vendita",
+            annual_fixed_fee,
+        ),
+    ]
+
+    requirements_other = [
+        "CTE Onda Più con bolletta digitale prevista dalle condizioni commerciali.",
+    ]
+
+    if commodity == "gas":
+        spread = parse_number(
+            first_match(
+                r"Prezzo\s+gas\s+([0-9.,]+)\s*"
+                r"(?:€|Euro)/Smc\s*\+\s*PSV",
+                text,
+            )
+        )
+        if spread is None:
+            raise ValueError("Spread gas Onda Più non leggibile")
+
+        result = build_partner_payload(
+            path=path,
+            partner_key="ondapiu",
+            partner_label="Onda Più",
+            provider_key="ondapiu",
+            provider_label="Onda Più",
+            provider_vat="01787510898",
+            offer_code=arera_code,
+            offer_name=offer_name,
+            commercial_family_name=commercial_family(offer_name),
+            commodity="gas",
+            customer_type=customer_type,
+            sale_from=sale_from,
+            sale_to=sale_to,
+            conditions_duration_months=12,
+            index_name="PSV",
+            spread=spread,
+            annual_fixed_fee=annual_fixed_fee,
+            market_indices=market_indices,
+            variable_components=[
+                detail_component(
+                    "Spread gas CTE",
+                    spread,
+                    "EUR/Smc",
+                ),
+            ],
+            fixed_components=fixed_components,
+            requirements_other=requirements_other,
+            alternative_offer_codes=alternative_codes,
+        )
+
+        result.payload["requirements"]["digitalInvoice"] = True
+        result.payload["source"]["parser"] = "ondapiu-cte-v1"
+        return ParseResult(payload=result.payload, text=text)
+
+    stated_price = parse_number(
+        first_match(
+            r"Prezzo\s+energia\s+([0-9.,]+)\s*"
+            r"(?:€|Euro)/kWh\s*\+\s*PUN(?:\s+GME)?",
+            text,
+        )
+    )
+
+    stated_energy_component = parse_number(
+        first_match(
+            r"componente\s+energia\s+sar[àa]\s+pari\s+a\s+"
+            r"([0-9.,]+)\s*(?:€|Euro)/kWh\s+"
+            r"perdite\s+di\s+rete\s+incluse",
+            normalized,
+        )
+    )
+
+    if stated_price is None or stated_energy_component is None:
+        raise ValueError("Componenti luce Onda Più non leggibili")
+
+    if re.search(r"\bDISPD\b", text, re.I):
+        dispatching_label = "C_DISPD"
+    elif re.search(r"\bTIDE\b", text, re.I):
+        dispatching_label = "Dispacciamento TIDE"
+    else:
+        raise ValueError("Componente dispacciamento Onda Più non identificata")
+
+    exclusion = (
+        "CTE luce Onda Più normalizzata a fini documentali: la formula PUN, "
+        "l'applicazione delle perdite di rete e il corrispettivo di "
+        "dispacciamento non sono rappresentati integralmente dal ranking "
+        "partner corrente."
+    )
+    requirements_other.append(exclusion)
+
+    result = build_partner_payload(
+        path=path,
+        partner_key="ondapiu",
+        partner_label="Onda Più",
+        provider_key="ondapiu",
+        provider_label="Onda Più",
+        provider_vat="01787510898",
+        offer_code=arera_code,
+        offer_name=offer_name,
+        commercial_family_name=commercial_family(offer_name),
+        commodity="luce",
+        customer_type=customer_type,
+        sale_from=sale_from,
+        sale_to=sale_to,
+        conditions_duration_months=12,
+        index_name="PUN",
+        spread=None,
+        annual_fixed_fee=annual_fixed_fee,
+        market_indices=market_indices,
+        variable_components=[
+            detail_component(
+                "Prezzo energia venditore dichiarato in CTE",
+                stated_price,
+                "EUR/kWh",
+                "Valore documentale dichiarato dalla CTE in combinazione con PUN GME.",
+            ),
+            detail_component(
+                "Componente energia CTE perdite incluse",
+                stated_energy_component,
+                "EUR/kWh",
+                "Valore documentale; non aggregato al ranking finché la formula completa non è modellata.",
+            ),
+        ],
+        fixed_components=fixed_components,
+        requirements_other=requirements_other,
+        ranking_eligible=False,
+        exclusion_reason=exclusion,
+        alternative_offer_codes=alternative_codes,
+        known_partial_variable_adder=None,
+        unpriced_components=[
+            "Applicazione perdite di rete al PUN",
+            dispatching_label,
+        ],
+    )
+
+    result.payload["requirements"]["digitalInvoice"] = True
+    result.payload["economics"]["networkLosses"]["rankingPriceConvention"] = None
+    result.payload["source"]["parser"] = "ondapiu-cte-v1"
+    return ParseResult(payload=result.payload, text=text)
+
 def load_partner_metadata(partner_dir: Path) -> dict[str, Any]:
     path = partner_dir / PARTNER_METADATA_FILE
     if not path.is_file():
@@ -1312,6 +1519,8 @@ def parser_for_partner(path: Path, text_hint: str | None = None):
         return parse_lion_green
     if key == "ovenergy":
         return parse_ovenergy
+    if key in {"ondapi", "ondapiu"}:
+        return parse_ondapiu
     if text_hint and "GREENIUS Srl" in text_hint:
         return parse_greenius
     if text_hint and "FAMILY FORCE" in text_hint.upper():
