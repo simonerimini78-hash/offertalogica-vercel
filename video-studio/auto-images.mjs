@@ -4,14 +4,24 @@ const SHA = v=>createHash('sha256').update(v).digest('hex');
 export function photoPrompt({article,scene,index}) {
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>3)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
-  return `Photorealistic editorial photography, vertical 9:16 composition for an Italian information Reel.
-Topic: ${article.title.slice(0,180)}.
-Narrative scene ${index+1}: ${scene.editorial_goal.slice(0,220)}.
-Story context: ${String(scene.visual_brief||'').slice(0,320)}.
-Authentic natural photography, balanced natural lighting, documentary detail, coherent real-world objects.
-IMPORTANT: Do NOT draw any text, letters, typography, numbers, logos, watermarks, documents with legible content, brands, prices or fake screens.
-No people or faces in this automatic first-pass composition. One strong central or lower-half object subject, clear continuous negative space above and to its side for 1080px editorial captions and original OffertaLogica branding.
-Do not imitate existing photographs. No exaggerated reactions. No unsafe activities. No invented charts. Output is a proposed asset for human review, not automatically approved.`;
+  const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
+  const opposite=side==='left'?'right':side==='right'?'left':'upper';
+  const visual=String(scene.visual_brief||'').slice(0,500);
+  const person=String(scene.subject_description||'').slice(0,350);
+  const emotion=String(scene.emotion||'').slice(0,160);
+  return `Generate ONE original photorealistic vertical 9:16 editorial photograph for an Italian Reel.
+  Topic: ${article.title.slice(0,180)}.
+  Story scene ${index+1}, purpose: ${scene.editorial_goal.slice(0,220)}.
+  Visual scene: ${visual}.
+  Main subject: ${person||'a natural realistic situation relevant to the message'}.
+  Intended emotion: ${emotion||'credible and subtle'}.
+  People and clearly visible human faces are welcome when emotionally useful. No exaggerated or stereotyped reactions.
+  Place the principal subject on the ${side} side, with head, eyes, hands and important objects fully unobstructed.
+  Reserve generous NATURAL NEGATIVE SPACE toward the ${opposite} side and/or above for separate, large legible typography and authentic branding.
+  Consistent documentary lighting, convincing photographic details, creative and varied settings, no imitation of existing advertising photographs.
+  IMPORTANT: Output ONE standalone clean photo only. NO collage, storyboard, grid, multiple panels, timestamps, UI, speech bubbles, titles, captions, letters, printed legible text, numbers, logos, watermarks, fake receipts, bills with readable values, charts or fictitious screens.
+  Do not render the slogan, logo or any text inside the picture. All typography and branding will be added by the compositor later.
+  Proposed unreviewed visual asset only.`;
 }
 export async function generatePhoto({article,scene,index,apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
