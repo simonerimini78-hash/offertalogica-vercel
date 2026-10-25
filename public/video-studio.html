@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="robots" content="noindex,nofollow,noarchive">
+  <meta name="referrer" content="no-referrer">
+  <title>Video Studio | OffertaLogica</title>
+  <link rel="icon" href="/assets/logo-offertalogica-icon.png">
+  <link rel="stylesheet" href="/assets/video-studio.css?v=0.9.0">
+  <script src="/assets/editorial-config.js?v=0.12.15"></script>
+  <script src="/assets/video-studio.js?v=0.9.0" defer></script>
+</head>
+<body>
+  <header class="vs-header"><a href="/redazione.html"><img src="/assets/logo-offertalogica-header.png" alt="OffertaLogica"></a><nav><a href="/redazione.html">Redazione</a><strong>Video Studio <small>v0.9.0</small></strong></nav></header>
+  <main class="vs-main">
+    <h1>Video Studio</h1>
+    <p class="vs-lead">Progetti video indipendenti dall'Autopilota. Produzione e revisione; nessuna pubblicazione automatica abilitata.</p>
+    <div role="status" aria-live="polite" id="vs-message"></div>
+    <section class="vs-card" id="vs-login" hidden><h2>Sessione richiesta</h2><p>Accedi prima alla Redazione come editor o amministratore.</p><a href="/redazione.html">Apri Redazione</a></section>
+    <div id="vs-app" hidden>
+      <section class="vs-card"><h2>Nuovo Reel</h2><form id="vs-new"><div class="vs-grid">
+        <label>Articolo approvato <select id="vs-articles" required><option value="">Caricamento...</option></select></label>
+        <label>Destinazione <select id="vs-platform"><option value="instagram_reel">Instagram Reel</option><option value="facebook_reel">Facebook Reel</option></select></label>
+        <label>Tono <select id="vs-mood"><option value="informativo">Informativo</option><option value="spiegazione_pratica">Spiegazione pratica</option><option value="rassicurante">Rassicurante</option><option value="positivo">Positivo</option><option value="allerta">Allerta</option></select></label>
+      </div><button type="submit">Crea progetto e metti in coda</button><p class="vs-muted">Il worker video gira separatamente e richiede configurazione dell'admin. Foto e musica non sono mai approvate automaticamente.</p></form></section>
+      <section class="vs-card"><div class="vs-head"><h2>Archivio e calendario</h2><button type="button" id="vs-refresh" class="vs-secondary">Aggiorna</button></div><div id="vs-list" class="vs-list"></div></section>
+      <section class="vs-card" id="vs-detail" hidden><h2>Revisione del progetto</h2><div id="vs-detail-content"></div></section>
+    </div>
+  </main>
+</body>
+</html>
