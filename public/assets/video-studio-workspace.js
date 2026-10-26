@@ -1,4 +1,4 @@
-/* Video Studio v1.0.4 — AI scenes with audiovisual browser montage review (no MP4). */
+/* Video Studio v1.1.2 — private local music selection and downloadable browser draft. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -40,7 +40,21 @@
   let previewFrameId = null;
   let previewStartedAt = 0;
   let soundtrackUrl = null;
+  let soundtrackStart = 0;
+  let soundtrackFile = null;
+  let soundtrackLoadToken = 0;
+  let localTracks = []; // private files chosen explicitly by the editor, never uploaded
+  let previousAutomaticTrack = -1;
+  let automaticCounter = 0;
+  let exporting = false;
+  let exportDownloadUrl = null;
   let preparing = false;
+  const MAX_LOCAL_TRACKS = 12;
+  // Suggestions from the private review catalog, NOT approvals and NOT beat-accurate cues.
+  const REVIEW_CUES = Object.freeze({
+    'the-king-857': 16, 'close-up-1167': 78, 'curiosity-480': 13.75,
+    'im-fine-1002': 84.5, 'its-love-834': 2, 'raising-me-higher-34': 78.75,
+  });
   const briefFields = [...form.querySelectorAll('input,select,textarea')];
 
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
@@ -75,15 +89,20 @@
     if (previewView?.playButton) previewView.playButton.textContent = 'Riproduci montaggio';
   }
   function releaseSoundtrack() {
+    ++soundtrackLoadToken;
     stopPreview();
     if (soundtrackUrl) URL.revokeObjectURL(soundtrackUrl);
     soundtrackUrl = null;
+    soundtrackStart = 0;
+    soundtrackFile = null;
     if (previewView?.musicAudio) {
       previewView.musicAudio.removeAttribute('src');
       previewView.musicAudio.load();
     }
   }
   function resetGeneratedOutput() {
+    if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
+    exportDownloadUrl = null;
     releaseSoundtrack();
     generation = null;
     sceneViews = [];
@@ -113,7 +132,7 @@
     clearBrief();
   }
   function busy() {
-    return preparing || batchRunning || activeRequests > 0;
+    return preparing || batchRunning || activeRequests > 0 || exporting;
   }
   function syncControls() {
     const isBusy = busy();
@@ -127,6 +146,10 @@
       view.notesInput.disabled = isBusy && !view.running;
     });
     if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy;
+    if (previewView?.exportButton) previewView.exportButton.disabled = availablePreviewIndices().length !== 4 || isBusy;
+    if (previewView?.musicInput) previewView.musicInput.disabled = isBusy;
+    if (previewView?.musicChoice) previewView.musicChoice.disabled = isBusy || !localTracks.length;
+    if (previewView?.musicClear) previewView.musicClear.disabled = isBusy || !localTracks.length;
   }
   function beginRequest() {
     activeRequests += 1;
@@ -422,7 +445,7 @@
     }
     ctx.fillStyle = '#38b66e';
     ctx.fillRect(0, 1272, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
-    previewView.meta.textContent = `Scena ${segment.index + 1}/4 · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Anteprima non esportabile`;
+    previewView.meta.textContent = `Scena ${segment.index + 1}/4 · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Bozza scaricabile`;
   }
   function showPreview(index) {
     if (!previewView) return;
@@ -433,12 +456,12 @@
     if (!previewPlaying) renderMontageFrame(t);
     previewView.musicHelp.textContent = soundtrackUrl
       ? 'Traccia locale caricata per l’ascolto di prova. Non viene inviata al server né approvata per la pubblicazione.'
-      : 'La libreria di musiche approvate non è configurata. Scegli una traccia di cui disponi dei diritti per ascoltare il montaggio con musica.';
+      : 'Importa la libreria locale per assegnare automaticamente la musica. Senza un brano la bozza sarà muta.';
   }
   function montageTick() {
     if (!previewPlaying || !previewView) return;
     const audio = previewView.musicAudio;
-    const elapsed = soundtrackUrl && !audio.paused ? audio.currentTime : (performance.now() - previewStartedAt) / 1000;
+    const elapsed = soundtrackUrl && !audio.paused ? Math.max(0, audio.currentTime - soundtrackStart) : (performance.now() - previewStartedAt) / 1000;
     renderMontageFrame(elapsed);
     if (soundtrackUrl) audio.volume = Math.max(0, Math.min(1, (15 - elapsed) / 1.2));
     if (elapsed >= MONTAGE_DURATION) {
@@ -459,7 +482,7 @@
     previewStartedAt = performance.now();
     if (soundtrackUrl) {
       try {
-        previewView.musicAudio.currentTime = 0;
+        previewView.musicAudio.currentTime = soundtrackStart;
         previewView.musicAudio.volume = 1;
         await previewView.musicAudio.play();
       } catch (e) {
@@ -471,22 +494,78 @@
     previewView.playButton.textContent = 'Interrompi montaggio';
     montageTick();
   }
-  async function selectSoundtrack(file) {
-    releaseSoundtrack();
+  function reviewStartFor(file) {
+    const name = String(file?.name || '').toLowerCase();
+    const entry = Object.entries(REVIEW_CUES).find(([stem]) => name.includes(stem));
+    return entry ? entry[1] : 0;
+  }
+  function validLocalAudio(file) {
+    return file && file.size > 0 && file.size <= 25 * 1024 * 1024 &&
+      (file.type.startsWith('audio/') || /\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(file.name));
+  }
+  function refreshMusicChoices() {
     if (!previewView) return;
-    if (!file) {
+    const choice = previewView.musicChoice;
+    const previous = choice.value;
+    choice.replaceChildren(new Option('Automatica (rotazione dei brani)', 'auto'));
+    localTracks.forEach((file, i) => choice.add(new Option(file.name, `track:${i}`)));
+    choice.add(new Option('Nessuna musica', 'none'));
+    choice.value = [...choice.options].some(opt => opt.value === previous) ? previous : 'auto';
+    if (previewView.musicCount) previewView.musicCount.textContent = localTracks.length
+      ? `${localTracks.length} brani disponibili solo in questa sessione/browser. Non inviati al server.`
+      : 'Nessun brano importato. Seleziona gli MP3 della libreria privata dal tuo dispositivo.';
+    syncControls();
+  }
+  function autoTrackIndex() {
+    if (!localTracks.length) return -1;
+    const topic = `${brief?.input?.theme || brief?.input?.article?.title || ''}|${generation?.plan?.concept || ''}`;
+    let hash = 0;
+    for (const char of topic) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
+    let next = (hash + automaticCounter++) % localTracks.length;
+    if (localTracks.length > 1 && next === previousAutomaticTrack) next = (next + 1) % localTracks.length;
+    previousAutomaticTrack = next;
+    return next;
+  }
+  async function applyMusicChoice() {
+    if (!previewView) return;
+    const choice = previewView.musicChoice.value;
+    if (choice === 'none' || !localTracks.length) {
+      releaseSoundtrack();
       showPreview(previewIndex);
       return;
     }
-    if (file.size > 25 * 1024 * 1024 || file.size === 0 ||
-        !(file.type.startsWith('audio/') || /\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(file.name))) {
-      previewView.musicHelp.textContent = 'Seleziona un file audio supportato di massimo 25 MB.';
+    const index = choice === 'auto' ? autoTrackIndex() : Number(choice.replace('track:', ''));
+    const file = localTracks[index];
+    if (file) await selectSoundtrack(file, reviewStartFor(file));
+  }
+  async function importLocalTracks(files) {
+    if (busy()) return;
+    const selected = [...files];
+    if (!selected.length) return;
+    if (selected.length > MAX_LOCAL_TRACKS || selected.some(file => !validLocalAudio(file))) {
+      previewView.musicHelp.textContent = 'Importa da 1 a 12 file audio validi, massimo 25 MB ciascuno.';
       previewView.musicInput.value = '';
       return;
     }
+    localTracks = [...new Map(selected.map(file => [`${file.name}|${file.size}|${file.lastModified}`, file])).values()];
+    previousAutomaticTrack = -1;
+    automaticCounter = 0;
+    refreshMusicChoices();
+    previewView.musicChoice.value = 'auto';
+    await applyMusicChoice();
+  }
+  async function selectSoundtrack(file, requestedStart = 0) {
+    releaseSoundtrack();
+    if (!previewView || !file) return;
+    if (!validLocalAudio(file)) {
+      previewView.musicHelp.textContent = 'File audio non valido oppure superiore a 25 MB.';
+      return;
+    }
     const candidateUrl = URL.createObjectURL(file);
+    const token = soundtrackLoadToken;
+    const targetView = previewView;
     try {
-      const audio = previewView.musicAudio;
+      const audio = targetView.musicAudio;
       await new Promise((resolve, reject) => {
         const timer = setTimeout(() => { cleanup(); reject(Error('lettura audio scaduta')); }, 10000);
         const onLoaded = () => { cleanup(); resolve(); };
@@ -501,14 +580,133 @@
         audio.src = candidateUrl;
         audio.load();
       });
+      if (token !== soundtrackLoadToken || targetView !== previewView) {
+        URL.revokeObjectURL(candidateUrl);
+        return;
+      }
       if (!(audio.duration >= 15)) throw Error('il brano deve durare almeno 15 secondi');
+      soundtrackStart = Number.isFinite(requestedStart) && audio.duration >= requestedStart + 15.05 ? requestedStart : 0;
+      soundtrackFile = file;
       soundtrackUrl = candidateUrl;
       showPreview(previewIndex);
-    } catch (e) {
+      previewView.musicHelp.textContent = `${file.name} · estratto da ${soundtrackStart.toFixed(2)} s. Scelta per BOZZA, non licenza approvata. Puoi cambiare traccia.`;
+    } catch (error) {
       URL.revokeObjectURL(candidateUrl);
+      if (token !== soundtrackLoadToken || targetView !== previewView) return;
       previewView.musicAudio.removeAttribute('src');
+      previewView.musicAudio.load();
+      previewView.musicHelp.textContent = `Traccia non utilizzabile: ${error.message}`;
+    }
+  }
+  function clearLocalTracks() {
+    localTracks = [];
+    releaseSoundtrack();
+    if (previewView) {
       previewView.musicInput.value = '';
-      previewView.musicHelp.textContent = `Traccia non utilizzabile: ${e.message}`;
+      refreshMusicChoices();
+      showPreview(previewIndex);
+    }
+  }
+  function formatForRecorder() {
+    if (!window.MediaRecorder || !HTMLCanvasElement.prototype.captureStream) return null;
+    return [
+      ['video/mp4;codecs=avc1.42E01E,mp4a.40.2', 'mp4'],
+      ['video/webm;codecs=vp9,opus', 'webm'],
+      ['video/webm;codecs=vp8,opus', 'webm'],
+      ['video/webm', 'webm'],
+    ].find(([mime]) => MediaRecorder.isTypeSupported(mime)) || null;
+  }
+  async function exportMontage() {
+    if (!previewView || busy() || availablePreviewIndices().length !== 4) return;
+    const format = formatForRecorder();
+    if (!format) {
+      previewView.exportStatus.textContent = 'Esportazione non disponibile in questo browser. Usa una versione aggiornata di Chrome, Edge o Firefox.';
+      return;
+    }
+    stopPreview();
+    exporting = true;
+    syncControls();
+    const [mime, extension] = format;
+    let ctxAudio, audioSource, gainNode, capture;
+    let animationId = null;
+    let recorder;
+    try {
+      if (document.hidden) throw Error('mantieni aperta e visibile la scheda durante i 15 secondi di esportazione');
+      previewView.exportStatus.textContent = 'Esportazione della bozza in corso: mantieni questa scheda aperta e visibile per 15 secondi.';
+      capture = previewView.canvas.captureStream(25);
+      if (!capture.getVideoTracks().length) throw Error('cattura video non disponibile');
+      if (soundtrackFile) {
+        const AudioClass = window.AudioContext || window.webkitAudioContext;
+        if (!AudioClass) throw Error('Web Audio non supportato: impossibile includere la musica');
+        ctxAudio = new AudioClass();
+        const resume = ctxAudio.resume(); // initiate on the user's button click
+        const decoded = await ctxAudio.decodeAudioData(await soundtrackFile.arrayBuffer());
+        await resume;
+        if (decoded.duration < soundtrackStart + 15) throw Error('l’estratto musicale selezionato è troppo corto');
+        const destination = ctxAudio.createMediaStreamDestination();
+        gainNode = ctxAudio.createGain();
+        audioSource = ctxAudio.createBufferSource();
+        audioSource.buffer = decoded;
+        audioSource.connect(gainNode);
+        gainNode.connect(destination);
+        for (const track of destination.stream.getAudioTracks()) capture.addTrack(track);
+        if (!capture.getAudioTracks().length) throw Error('audio non acquisito');
+      }
+      // Start the recorder before the audio buffer so the first sample is not lost.
+      const chunks = [];
+      let recordingError = null;
+      recorder = new MediaRecorder(capture, {mimeType:mime, videoBitsPerSecond:3200000});
+      const completed = new Promise((resolve,reject) => {
+        recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
+        recorder.onerror = event => { recordingError = event.error || Error('registrazione interrotta'); };
+        recorder.onstop = () => resolve(new Blob(chunks, {type:recorder.mimeType || mime}));
+      });
+      renderMontageFrame(0);
+      recorder.start(500);
+      const start = ctxAudio ? ctxAudio.currentTime + 0.15 : performance.now()/1000 + 0.15;
+      if (audioSource) {
+        gainNode.gain.setValueAtTime(0.7, start);
+        gainNode.gain.setValueAtTime(0.7, start + 13.8);
+        gainNode.gain.linearRampToValueAtTime(0.001, start + 15);
+        audioSource.start(start, soundtrackStart, 15);
+      }
+      await new Promise((resolve,reject) => {
+        const onVisibility = () => { if (document.hidden) reject(Error('scheda nascosta durante la registrazione')); };
+        document.addEventListener('visibilitychange', onVisibility);
+        const tick = () => {
+          const elapsed = Math.max(0, (ctxAudio ? ctxAudio.currentTime : performance.now()/1000) - start);
+          renderMontageFrame(Math.min(15,elapsed));
+          if (elapsed >= 15) {
+            document.removeEventListener('visibilitychange', onVisibility);
+            resolve();
+          } else animationId = requestAnimationFrame(tick);
+        };
+        animationId = requestAnimationFrame(tick);
+      });
+      if (recorder.state === 'inactive') throw recordingError || Error('registrazione terminata in anticipo');
+      recorder.stop();
+      const videoBlob = await completed;
+      if (recordingError) throw recordingError;
+      if (videoBlob.size < 10000) throw Error('registrazione incompleta (file troppo piccolo)');
+      if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
+      exportDownloadUrl = URL.createObjectURL(videoBlob);
+      const anchor = previewView.exportLink;
+      anchor.href = exportDownloadUrl;
+      anchor.download = `OffertaLogica-Reel-Bozza-15s.${extension}`;
+      anchor.hidden = false;
+      anchor.textContent = `Scarica bozza ${extension.toUpperCase()} (${(videoBlob.size/1048576).toFixed(1)} MB)`;
+      previewView.exportStatus.textContent = `${extension.toUpperCase()} generato con ${soundtrackFile ? 'musica incorporata' : 'audio assente'}. È una BOZZA browser, non il master H.264/AAC approvato.`;
+      anchor.click();
+    } catch (error) {
+      previewView.exportStatus.textContent = `Esportazione non riuscita: ${error.message}`;
+    } finally {
+      if (animationId !== null) cancelAnimationFrame(animationId);
+      try { if (recorder?.state !== 'inactive') recorder.stop(); } catch {}
+      try { audioSource?.stop(); } catch {}
+      capture?.getTracks().forEach(track => track.stop());
+      if (ctxAudio) await ctxAudio.close().catch(() => {});
+      exporting = false;
+      syncControls();
     }
   }
   function setSceneState(view, text, tone = 'neutral') {
@@ -538,6 +736,12 @@
       canvas: document.createElement('canvas'),
       meta: document.createElement('p'),
       musicInput: document.createElement('input'),
+      musicChoice: document.createElement('select'),
+      musicClear: document.createElement('button'),
+      musicCount: document.createElement('small'),
+      exportButton: document.createElement('button'),
+      exportLink: document.createElement('a'),
+      exportStatus: document.createElement('small'),
       musicHelp: document.createElement('small'),
       musicAudio: document.createElement('audio'),
       logo: new Image(),
@@ -548,14 +752,19 @@
     const previewIntro = document.createElement('div');
     previewIntro.append(
       textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
-      textElement('p', 'Le quattro foto originali, i titoli, il logo e le transizioni vengono composti nel browser. È una bozza, non un MP4.'),
+      textElement('p', 'Bozza scaricabile con le quattro fotografie AI, testi, logo e musica incorporata quando selezionata. Non è un master per la pubblicazione.'),
     );
     previewView.playButton.type = 'button';
     previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
     previewView.playButton.textContent = 'Riproduci montaggio';
     previewView.playButton.disabled = true;
     previewView.playButton.addEventListener('click', () => { togglePreviewPlayback(); });
-    previewHeader.append(previewIntro, previewView.playButton);
+    previewView.exportButton.type = 'button';
+    previewView.exportButton.className = 'ol-button ol-button-secondary ol-button-small';
+    previewView.exportButton.textContent = 'Scarica montaggio video';
+    previewView.exportButton.disabled = true;
+    previewView.exportButton.addEventListener('click', () => { exportMontage(); });
+    previewHeader.append(previewIntro, previewView.playButton, previewView.exportButton);
 
     const stage = document.createElement('div');
     stage.className = 'ol-vs-preview-stage';
@@ -568,19 +777,35 @@
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
     const musicLabel = document.createElement('label');
-    musicLabel.textContent = 'Musica per questa anteprima (file locale con diritti di utilizzo)';
+    musicLabel.textContent = 'Libreria locale per le bozze (seleziona più MP3 insieme una volta per sessione)';
     previewView.musicInput.type = 'file';
+    previewView.musicInput.multiple = true;
     previewView.musicInput.accept = 'audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac';
-    previewView.musicInput.addEventListener('change', () => {
-      selectSoundtrack(previewView.musicInput.files?.[0]);
-    });
-    previewView.musicHelp.className = 'ol-muted ol-small';
+    previewView.musicInput.addEventListener('change', () => { importLocalTracks(previewView.musicInput.files || []); });
     musicLabel.append(previewView.musicInput);
-    musicRow.append(musicLabel, previewView.musicHelp);
+    const choiceLabel = document.createElement('label');
+    choiceLabel.textContent = 'Musica inserita nel Reel (automatica o modificabile)';
+    previewView.musicChoice.addEventListener('change', () => { applyMusicChoice(); });
+    choiceLabel.append(previewView.musicChoice);
+    previewView.musicClear.type = 'button';
+    previewView.musicClear.className = 'ol-button ol-button-secondary ol-button-small';
+    previewView.musicClear.textContent = 'Svuota libreria locale';
+    previewView.musicClear.addEventListener('click', clearLocalTracks);
+    previewView.musicCount.className = 'ol-muted ol-small';
+    previewView.musicHelp.className = 'ol-muted ol-small';
+    previewView.exportStatus.className = 'ol-muted ol-small';
+    previewView.exportStatus.setAttribute('role', 'status');
+    previewView.exportLink.className = 'ol-button ol-button-secondary ol-button-small';
+    previewView.exportLink.hidden = true;
+    previewView.exportLink.textContent = 'Scarica file pronto';
     previewView.musicAudio.preload = 'metadata';
+    musicRow.append(musicLabel, choiceLabel, previewView.musicClear, previewView.musicCount,
+      previewView.musicHelp, previewView.exportStatus, previewView.exportLink);
     previewView.meta.className = 'ol-vs-preview-meta';
     previewView.box.append(previewHeader, stage, musicRow, previewView.meta);
     realSummary.append(previewView.box);
+    refreshMusicChoices();
+    if (localTracks.length) applyMusicChoice();
     previewView.logo.addEventListener('load', () => { if (!previewPlaying) showPreview(previewIndex); });
     previewView.logo.src = '/assets/logo-offertalogica-header.png';
     showPreview(0);
