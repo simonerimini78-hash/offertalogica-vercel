@@ -1,10 +1,10 @@
-// V1.0.3: stateless manual-review lab; sequential photos are orchestrated by the Redazione UI.
+// V1.1.1: narrative mini-story lab; sequential photos remain manually reviewable.
 // All paid operations are behind the existing authenticated Admin API and a server flag.
 import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.0.3';
+export const VIDEO_STUDIO_LAB_VERSION = '1.1.1';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -45,8 +45,16 @@ export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Da
   if(!validUUID(userId)||!receipt||!Number.isSafeInteger(receipt.expiresAt)||receipt.expiresAt<=now||receipt.expiresAt>now+MAX_FUTURE_MS||!/^[a-f\d]{64}$/.test(receipt.signature||''))err('ricevuta storyboard assente, alterata o scaduta');
   const expected=hmac(tokenData({userId,input,plan,expiresAt:receipt.expiresAt}),secret(env));
   if(!crypto.timingSafeEqual(Buffer.from(receipt.signature,'hex'),Buffer.from(expected,'hex')))err('la proposta è stata modificata: rigenerare lo storyboard');
-  if(plan?.status!=='needs_human_review'||plan?.publication_authorized!==false||!Array.isArray(plan.scenes)||plan.scenes.length!==4)err('storyboard non approvato o non valido');
-  for(const [i,s] of plan.scenes.entries()) if(s.role!==ROLES[i]||s.id!==`scene_${i+1}`||typeof s.editorial_goal!=='string'||s.editorial_goal.length>600)err('contenuto scena non valido');
+  if(plan?.status!=='needs_human_review'||plan?.publication_authorized!==false||!Array.isArray(plan.scenes)||plan.scenes.length!==4)
+    err('storyboard non approvato o non valido');
+  if(plan.creative_schema_version!==2||plan.visual_uniqueness_status!=='pending_image_and_history_checks'||
+    typeof plan.story_logline!=='string'||!plan.story_logline.trim()||typeof plan.episode_angle!=='string'||!plan.episode_angle.trim())
+    err('storyboard narrativo non valido: rigenerare');
+  for(const [i,s] of plan.scenes.entries()) {
+    if(s.role!==ROLES[i]||s.id!==`scene_${i+1}`||typeof s.editorial_goal!=='string'||s.editorial_goal.length>600||
+      !String(s.narrative_action||'').trim()||!String(s.setting||'').trim()||!String(s.shot_type||'').trim())
+      err('contenuto scena non valido');
+  }
   return true;
 }
 export async function createStoryboard({userId, theme, articleId, suggestions='',platform='instagram_reel'},
@@ -67,13 +75,13 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   const scene=plan.scenes[sceneIndex];
   if(typeof revisionNotes!=='string'||revisionNotes.length>700)err('note revisione non valide');
   const notes=revisionNotes.trim();
-  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,revisionNotes:notes});
+  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
   const sharp=sharpFactory || (await import('sharp')).default;
   // Response is a limited temporary browser preview, NOT a persistent master asset.
   const preview=await sharp(result.bytes).resize(720,1280,{fit:'cover'}).jpeg({quality:78}).toBuffer();
   if(preview.length > 1700000)err('anteprima troppo grande');
-  const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,revisionNotes:notes});
+  const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),
     original_sha256:result.sha256,provider:result.provider,prompt,needs_human_review:true,stored:false,
     publication_authorized:false,revision_notes:notes};
