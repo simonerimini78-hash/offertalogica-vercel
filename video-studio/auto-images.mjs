@@ -49,6 +49,9 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
   Generate NEW pixels from the textual idea alone: NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
+  CRITICAL PRODUCT AUTHENTICITY: Never depict a front-facing phone, tablet or computer screen with any visible contents, symbols, dashboards, offers, graphs or imaginary brand UI.
+  If the scene involves someone using a device, show the BACK of the display, an oblique angle that does not reveal the screen, or the device outside the frame.
+  If a real OffertaLogica interface is needed, the editor will place an editor-supplied, genuine screenshot as a SEPARATE layer in the video compositor; do not approximate it or create plausible substitute pixels.
   IMPORTANT: Output ONE standalone clean photo only. NO collage, storyboard, grid, multiple panels, timestamps, UI, speech bubbles, titles, captions, letters, printed legible text, numbers, logos, watermarks, fake receipts, bills with readable values, charts or fictitious screens.
   Do not render the slogan, logo or any text inside the picture. All typography and branding will be added by the compositor later.
   ${notes ? `Human revision guidance: ${notes}. Respect these requested corrections while keeping the scene editorially coherent.` : 'No additional human revision guidance for this attempt.'}

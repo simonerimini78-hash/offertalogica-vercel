@@ -1,4 +1,4 @@
-/* Video Studio v1.1.3 — cinematic full-frame layout; music and browser download retained. */
+/* Video Studio v1.1.4 — private browser music library and real product screen inserts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -43,18 +43,39 @@
   let soundtrackStart = 0;
   let soundtrackFile = null;
   let soundtrackLoadToken = 0;
-  let localTracks = []; // private files chosen explicitly by the editor, never uploaded
+  let localTracks = []; // Private editor MP3s, local browser only; never transferred to our servers.
+  let musicLibraryEpoch = 0;
+  let musicPersistedOnDevice = false;
+  let verifiedProductScreen = null;
+  let productScreenUrl = null;
+  const MUSIC_DB_NAME = 'offertalogica.video-studio.music.v1';
+  const MUSIC_STORE = 'editor-libraries';
+  const MAX_SCREEN_BYTES = 8 * 1024 * 1024;
   let previousAutomaticTrack = -1;
   let automaticCounter = 0;
   let exporting = false;
   let exportDownloadUrl = null;
   let preparing = false;
   const MAX_LOCAL_TRACKS = 12;
-  // Suggestions from the private review catalog, NOT approvals and NOT beat-accurate cues.
-  const REVIEW_CUES = Object.freeze({
-    'the-king-857': 16, 'close-up-1167': 78, 'curiosity-480': 13.75,
-    'im-fine-1002': 84.5, 'its-love-834': 2, 'raising-me-higher-34': 78.75,
-  });
+  // Filename/hash-prefix identification for the 11 private MP3s. Never means licensed/approved.
+  // Cues are unreviewed 15-second candidates, not beat-synchronized markers.
+  const MUSIC_INDEX = Object.freeze([
+    {title:'The King',stem:'the-king-857',hash:'d8a4b4280081e92e48',cue:16,moods:['positivo']},
+    {title:'Close Up',stem:'close-up-1167',hash:'a7f05a29d07a84d380',cue:78,moods:['informativo']},
+    {title:'Curiosity',stem:'curiosity-480',hash:'181e91737f341ca61a',cue:13.75,moods:['informativo']},
+    {title:"I'm Fine",stem:'im-fine-1002',hash:'cee0e8584bc8e7de7f',cue:84.5,moods:['rassicurante']},
+    {title:"It's Love",stem:'its-love-834',hash:'c69dc74479239f6344',cue:2,moods:['rassicurante']},
+    {title:'Raising Me Higher',stem:'raising-me-higher-34',hash:'619b82cea299230cca',cue:78.75,moods:['positivo']},
+    {title:'What About Action?',stem:'what-about-action-474',hash:'4bcd99a13f3d71c6d3',cue:14.75,moods:['positivo','informativo']},
+    {title:"Dirty Thinkin'",stem:'dirty-thinkin-989',hash:'e36220dbbaf56e0380',cue:72.75,moods:['positivo','informativo']},
+    {title:'Driving Ambition',stem:'driving-ambition-32',hash:'e3c88488e65b8c87a6',cue:73.25,moods:['rassicurante','positivo']},
+    {title:'Tech House vibes',stem:'tech-house-vibes-130',hash:'95972c602ff0686e29',cue:82.25,moods:['informativo']},
+    {title:'Expressive Courage',stem:'expressive-courage-468',hash:'403cd5b74ae9c47799',cue:76.5,moods:['positivo','informativo']},
+  ]);
+  function musicMeta(file) {
+    const name = String(file?.name || '').toLowerCase();
+    return MUSIC_INDEX.find(track => name.includes(track.stem) || name.includes(track.hash)) || null;
+  }
   const briefFields = [...form.querySelectorAll('input,select,textarea')];
 
   const config = window.OFFERTALOGICA_EDITORIAL_CONFIG || {};
@@ -104,6 +125,7 @@
     if (exportDownloadUrl) URL.revokeObjectURL(exportDownloadUrl);
     exportDownloadUrl = null;
     releaseSoundtrack();
+    clearProductScreen();
     generation = null;
     sceneViews = [];
     progressView = null;
@@ -150,6 +172,13 @@
     if (previewView?.musicInput) previewView.musicInput.disabled = isBusy;
     if (previewView?.musicChoice) previewView.musicChoice.disabled = isBusy || !localTracks.length;
     if (previewView?.musicClear) previewView.musicClear.disabled = isBusy || !localTracks.length;
+    if (previewView?.productInput) previewView.productInput.disabled = isBusy;
+    if (previewView?.productChoice) previewView.productChoice.disabled = isBusy;
+    if (previewView?.productConfirmed) previewView.productConfirmed.disabled = isBusy || !verifiedProductScreen;
+    if (previewView?.exportButton && previewView.musicChoice) {
+      const selectedSilent = previewView.musicChoice.value === 'none';
+      previewView.exportButton.disabled ||= !soundtrackFile && !selectedSilent;
+    }
   }
   function beginRequest() {
     activeRequests += 1;
@@ -404,6 +433,88 @@
       side === 'right' ? {x: 420, y: 285, width: 585, logoX: 670} :
         {x: 84, y: 240, width: 912, logoX: 635};
   }
+  function drawProductScreenFrame(ctx, view) {
+    const image = verifiedProductScreen?.image;
+    if (!image) return;
+    ctx.fillStyle = '#11283b';
+    ctx.fillRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
+    // Real, editor-supplied product pixels only. Preserve aspect ratio; never fabricate UI.
+    const box = {x:62, y:565, width:956, height:870};
+    const scale = Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight);
+    const w = image.naturalWidth * scale, h = image.naturalHeight * scale;
+    const x = (MONTAGE_WIDTH - w) / 2, y = box.y + (box.height - h) / 2;
+    ctx.fillStyle = '#f9fafb';
+    ctx.beginPath();
+    ctx.roundRect(x - 18, y - 18, w + 36, h + 36, 24);
+    ctx.fill();
+    ctx.drawImage(image, x, y, w, h);
+    const scene = view.scene;
+    ctx.fillStyle = '#ffffff';
+    ctx.font = '800 91px system-ui, sans-serif';
+    ctx.textBaseline = 'alphabetic';
+    ctx.textAlign = 'left';
+    const lines = wrapCanvasText(ctx, scene.headline, 950, 3);
+    lines.forEach((line, i) => ctx.fillText(line, 65, 180 + i * 108));
+    const subtitle = String(scene.secondary_text || '').trim();
+    if (subtitle) {
+      ctx.font = '500 47px system-ui, sans-serif';
+      const sublines = wrapCanvasText(ctx, subtitle, 930, 2);
+      sublines.forEach((line, i) => ctx.fillText(line, 65, 445 + i * 55));
+    }
+    // Explicitly a user-provided screenshot; no claim that an AI-generated device is genuine.
+    ctx.font = '500 35px system-ui, sans-serif';
+    ctx.fillStyle = '#cde5f1';
+    ctx.fillText('Schermata fornita dalla Redazione', 66, 1530);
+    const logo = previewView?.logo;
+    if (logo?.complete && logo.naturalWidth && logo.naturalHeight) {
+      const logoW = 420, logoH = logoW * logo.naturalHeight / logo.naturalWidth;
+      ctx.fillStyle = 'rgba(255,255,255,0.96)';
+      ctx.beginPath();
+      ctx.roundRect(65, 1616, logoW + 42, logoH + 36, 20);
+      ctx.fill();
+      ctx.drawImage(logo, 86, 1634, logoW, logoH);
+    }
+  }
+  function productScreenActive(index) {
+    return Boolean(verifiedProductScreen && previewView?.productConfirmed?.checked &&
+      Number(previewView?.productChoice?.value) === index);
+  }
+  function clearProductScreen() {
+    if (productScreenUrl) URL.revokeObjectURL(productScreenUrl);
+    productScreenUrl = null;
+    verifiedProductScreen = null;
+  }
+  async function loadProductScreen(file) {
+    if (!previewView || busy()) return;
+    clearProductScreen();
+    previewView.productConfirmed.checked = false;
+    if (!file) { showPreview(previewIndex); return; }
+    if (file.size > MAX_SCREEN_BYTES || file.size < 1024 ||
+      !['image/png', 'image/jpeg', 'image/webp'].includes(file.type)) {
+      previewView.productHelp.textContent = 'Usa uno screenshot PNG/JPEG/WebP autentico, massimo 8 MB.';
+      return;
+    }
+    productScreenUrl = URL.createObjectURL(file);
+    const expectedUrl = productScreenUrl;
+    const image = new Image();
+    try {
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(Error('immagine non leggibile'));
+        image.src = expectedUrl;
+      });
+      if (productScreenUrl !== expectedUrl) return;
+      if (image.naturalWidth < 450 || image.naturalHeight < 300)
+        throw Error('screenshot troppo piccolo');
+      verifiedProductScreen = {image, file};
+      previewView.productHelp.textContent = 'Seleziona la scena e conferma che lo screenshot è autentico e attuale.';
+    } catch (error) {
+      if (productScreenUrl === expectedUrl) clearProductScreen();
+      previewView.productHelp.textContent = `Schermata non accettata: ${error.message}`;
+    }
+    syncControls();
+    showPreview(previewIndex);
+  }
   function drawScenePhoto(ctx, index, zoomProgress, opacity) {
     const image = sceneViews[index]?.image;
     if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
@@ -513,17 +624,21 @@
     ctx.clearRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
     ctx.fillStyle = '#101f29';
     ctx.fillRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
-    drawScenePhoto(ctx, segment.index, Math.min(1, segment.local / segment.duration), 1);
-    if (segment.index > 0 && segment.local < 0.28) {
-      drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
+    if (productScreenActive(segment.index)) {
+      drawProductScreenFrame(ctx, sceneViews[segment.index]);
+    } else {
+      drawScenePhoto(ctx, segment.index, Math.min(1, segment.local / segment.duration), 1);
+      if (segment.index > 0 && segment.local < 0.28 && !productScreenActive(segment.index - 1)) {
+        drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
+      }
+      drawCinematicOverlay(ctx, sceneViews[segment.index]);
     }
-    drawCinematicOverlay(ctx, sceneViews[segment.index]);
     // Thin timeline belongs to the editing PREVIEW only, not the exported video.
     if (!exporting) {
       ctx.fillStyle = '#38b66e';
       ctx.fillRect(0, MONTAGE_HEIGHT - 8, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
     }
-    previewView.meta.textContent = `Scena ${segment.index + 1}/${sceneViews.length} · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Bozza 1080×1920`;
+    previewView.meta.textContent = `Scena ${segment.index + 1}/${sceneViews.length} · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'musica' : 'senza musica'} · Bozza 1080×1920`;
   }
   function showPreview(index) {
     if (!previewView) return;
@@ -534,7 +649,8 @@
     if (!previewPlaying) renderMontageFrame(t);
     previewView.musicHelp.textContent = soundtrackUrl
       ? 'Traccia locale caricata per l’ascolto di prova. Non viene inviata al server né approvata per la pubblicazione.'
-      : 'Importa la libreria locale per assegnare automaticamente la musica. Senza un brano la bozza sarà muta.';
+      : 'Importa una volta gli MP3 privati: restano salvati su questo dispositivo. Senza musica la bozza non si esporta (salvo scelta esplicita).';
+    syncControls();
   }
   function montageTick() {
     if (!previewPlaying || !previewView) return;
@@ -572,35 +688,98 @@
     previewView.playButton.textContent = 'Interrompi montaggio';
     montageTick();
   }
-  function reviewStartFor(file) {
-    const name = String(file?.name || '').toLowerCase();
-    const entry = Object.entries(REVIEW_CUES).find(([stem]) => name.includes(stem));
-    return entry ? entry[1] : 0;
-  }
+  function reviewStartFor(file) { return musicMeta(file)?.cue ?? 0; }
   function validLocalAudio(file) {
     return file && file.size > 0 && file.size <= 25 * 1024 * 1024 &&
       (file.type.startsWith('audio/') || /\.(mp3|m4a|wav|aac|ogg|flac)$/i.test(file.name));
+  }
+  function musicOwnerId() { return getSession()?.user?.id || null; }
+  function openMusicDb() {
+    if (!window.indexedDB) return Promise.reject(Error('memoria locale non disponibile'));
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(MUSIC_DB_NAME, 1);
+      req.onupgradeneeded = () => {
+        if (!req.result.objectStoreNames.contains(MUSIC_STORE))
+          req.result.createObjectStore(MUSIC_STORE, {keyPath:'userId'});
+      };
+      req.onsuccess = () => resolve(req.result);
+      req.onerror = () => reject(req.error || Error('impossibile accedere alla memoria locale'));
+      req.onblocked = () => reject(Error('archivio occupato da un’altra scheda'));
+    });
+  }
+  async function musicDbOperation(mode, work) {
+    const db = await openMusicDb();
+    try {
+      return await new Promise((resolve, reject) => {
+        const tx = db.transaction(MUSIC_STORE, mode);
+        const req = work(tx.objectStore(MUSIC_STORE));
+        let result;
+        req.onsuccess = () => {result = req.result;};
+        req.onerror = () => reject(req.error || Error('operazione memoria fallita'));
+        tx.oncomplete = () => resolve(result);
+        tx.onerror = () => reject(tx.error || Error('errore nel salvataggio'));
+        tx.onabort = () => reject(tx.error || Error('memoria locale piena o non disponibile'));
+      });
+    } finally { db.close(); }
+  }
+  async function restoreMusicLibrary() {
+    const epoch = ++musicLibraryEpoch;
+    const userId = musicOwnerId();
+    if (!userId) return;
+    try {
+      const record = await musicDbOperation('readonly', store => store.get(userId));
+      if (epoch !== musicLibraryEpoch || !previewView || localTracks.length) return;
+      const files = Array.isArray(record?.files) ? record.files : [];
+      localTracks = files.slice(0, MAX_LOCAL_TRACKS).filter(validLocalAudio);
+      musicPersistedOnDevice = Boolean(localTracks.length);
+      refreshMusicChoices();
+      if (localTracks.length) {
+        previewView.musicChoice.value = 'auto';
+        await applyMusicChoice();
+      }
+    } catch (error) {
+      if (epoch === musicLibraryEpoch && previewView)
+        previewView.musicCount.textContent = `Memoria MP3 non accessibile: ${error.message}. Importa i brani manualmente.`;
+    }
+  }
+  async function persistMusicLibrary(files) {
+    const userId = musicOwnerId();
+    if (!userId) throw Error('sessione editoriale assente');
+    await musicDbOperation('readwrite', store => store.put({userId, files}));
   }
   function refreshMusicChoices() {
     if (!previewView) return;
     const choice = previewView.musicChoice;
     const previous = choice.value;
-    choice.replaceChildren(new Option('Automatica (rotazione dei brani)', 'auto'));
-    localTracks.forEach((file, i) => choice.add(new Option(file.name, `track:${i}`)));
+    choice.replaceChildren(new Option('Automatica (tono della storia)', 'auto'));
+    localTracks.forEach((file, i) => choice.add(new Option(musicMeta(file)?.title || file.name, `track:${i}`)));
     choice.add(new Option('Nessuna musica', 'none'));
     choice.value = [...choice.options].some(opt => opt.value === previous) ? previous : 'auto';
     if (previewView.musicCount) previewView.musicCount.textContent = localTracks.length
-      ? `${localTracks.length} brani disponibili solo in questa sessione/browser. Non inviati al server.`
-      : 'Nessun brano importato. Seleziona gli MP3 della libreria privata dal tuo dispositivo.';
+      ? `${localTracks.length} MP3 ${musicPersistedOnDevice ? 'salvati su questo dispositivo' : 'disponibili in questa sessione'}. Nessun upload al server.`
+      : 'Nessun MP3 disponibile. Importa una volta gli 11 brani per memorizzarli su questo dispositivo.';
     syncControls();
+  }
+  function storyMusicMood() {
+    const narrative = `${generation?.plan?.concept || ''} ${generation?.plan?.story_logline || ''} ${generation?.plan?.story_outcome || ''}`.toLowerCase();
+    if (/fiducia|rassicur|seren|tranquil|sicurez|solliev|famigl|difficolt|preoccup|problema|bollett/.test(narrative))
+      return 'rassicurante';
+    if (/spieg|tutorial|informaz|confront|verific|analiz|capir|passagg|consigli/.test(narrative))
+      return 'informativo';
+    return 'positivo';
   }
   function autoTrackIndex() {
     if (!localTracks.length) return -1;
     const topic = `${brief?.input?.theme || brief?.input?.article?.title || ''}|${generation?.plan?.concept || ''}`;
     let hash = 0;
     for (const char of topic) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
-    let next = (hash + automaticCounter++) % localTracks.length;
-    if (localTracks.length > 1 && next === previousAutomaticTrack) next = (next + 1) % localTracks.length;
+    const mood = storyMusicMood();
+    const matching = localTracks.map((file, i) => ({file, i})).filter(({file}) =>
+      musicMeta(file)?.moods.includes(mood));
+    const choices = matching.length ? matching.map(item => item.i) : localTracks.map((_, i) => i);
+    let next = choices[(hash + automaticCounter++) % choices.length];
+    if (choices.length > 1 && next === previousAutomaticTrack)
+      next = choices[(choices.indexOf(next) + 1) % choices.length];
     previousAutomaticTrack = next;
     return next;
   }
@@ -625,7 +804,15 @@
       previewView.musicInput.value = '';
       return;
     }
+    ++musicLibraryEpoch; // Never overwrite a fresh import with a pending IndexedDB restore.
     localTracks = [...new Map(selected.map(file => [`${file.name}|${file.size}|${file.lastModified}`, file])).values()];
+    try {
+      await persistMusicLibrary(localTracks);
+      musicPersistedOnDevice = true;
+    } catch (error) {
+      musicPersistedOnDevice = false;
+      previewView.musicHelp.textContent = `Salvataggio locale non riuscito (${error.message}). I brani saranno persi chiudendo il browser.`;
+    }
     previousAutomaticTrack = -1;
     automaticCounter = 0;
     refreshMusicChoices();
@@ -676,8 +863,18 @@
       previewView.musicHelp.textContent = `Traccia non utilizzabile: ${error.message}`;
     }
   }
-  function clearLocalTracks() {
+  async function clearLocalTracks() {
+    ++musicLibraryEpoch;
+    const userId = musicOwnerId();
+    if (userId) {
+      try { await musicDbOperation('readwrite', store => store.delete(userId)); }
+      catch (error) {
+        if (previewView) previewView.musicHelp.textContent = `Impossibile cancellare la libreria persistente: ${error.message}`;
+        return;
+      }
+    }
     localTracks = [];
+    musicPersistedOnDevice = false;
     releaseSoundtrack();
     if (previewView) {
       previewView.musicInput.value = '';
@@ -699,6 +896,10 @@
     const format = formatForRecorder();
     if (!format) {
       previewView.exportStatus.textContent = 'Esportazione non disponibile in questo browser. Usa una versione aggiornata di Chrome, Edge o Firefox.';
+      return;
+    }
+    if (!soundtrackFile && previewView.musicChoice.value !== 'none') {
+      previewView.exportStatus.textContent = 'Nessun brano automatico disponibile: importa la libreria o scegli esplicitamente “Nessuna musica”.';
       return;
     }
     stopPreview();
@@ -822,6 +1023,10 @@
       exportStatus: document.createElement('small'),
       musicHelp: document.createElement('small'),
       musicAudio: document.createElement('audio'),
+      productInput: document.createElement('input'),
+      productChoice: document.createElement('select'),
+      productConfirmed: document.createElement('input'),
+      productHelp: document.createElement('small'),
       logo: new Image(),
     };
     previewView.box.className = 'ol-vs-preview-box';
@@ -855,7 +1060,7 @@
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
     const musicLabel = document.createElement('label');
-    musicLabel.textContent = 'Libreria locale per le bozze (seleziona più MP3 insieme una volta per sessione)';
+    musicLabel.textContent = 'Libreria musicale privata (importazione una tantum su questo browser)';
     previewView.musicInput.type = 'file';
     previewView.musicInput.multiple = true;
     previewView.musicInput.accept = 'audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac';
@@ -867,7 +1072,7 @@
     choiceLabel.append(previewView.musicChoice);
     previewView.musicClear.type = 'button';
     previewView.musicClear.className = 'ol-button ol-button-secondary ol-button-small';
-    previewView.musicClear.textContent = 'Svuota libreria locale';
+    previewView.musicClear.textContent = 'Cancella libreria salvata';
     previewView.musicClear.addEventListener('click', clearLocalTracks);
     previewView.musicCount.className = 'ol-muted ol-small';
     previewView.musicHelp.className = 'ol-muted ol-small';
@@ -880,10 +1085,35 @@
     musicRow.append(musicLabel, choiceLabel, previewView.musicClear, previewView.musicCount,
       previewView.musicHelp, previewView.exportStatus, previewView.exportLink);
     previewView.meta.className = 'ol-vs-preview-meta';
-    previewView.box.append(previewHeader, stage, musicRow, previewView.meta);
+    // Verified, editor-supplied screenshot is a separate composited scene, never AI-generated UI.
+    const productRow = document.createElement('div');
+    productRow.className = 'ol-vs-music-row';
+    const screenLabel = document.createElement('label');
+    screenLabel.textContent = 'Schermata reale OffertaLogica (facoltativa, per una scena dimostrativa)';
+    previewView.productInput.type = 'file';
+    previewView.productInput.accept = 'image/png,image/jpeg,image/webp';
+    previewView.productInput.addEventListener('change', () => loadProductScreen(previewView.productInput.files?.[0]));
+    screenLabel.append(previewView.productInput);
+    const screenSceneLabel = document.createElement('label');
+    screenSceneLabel.textContent = 'Scena da sostituire con la schermata reale';
+    for (let i = 0; i < 4; i++) previewView.productChoice.add(new Option(`Scena ${i + 1}`, String(i)));
+    previewView.productChoice.value = '2';
+    previewView.productChoice.addEventListener('change', () => showPreview(Number(previewView.productChoice.value)));
+    screenSceneLabel.append(previewView.productChoice);
+    const confirmLabel = document.createElement('label');
+    previewView.productConfirmed.type = 'checkbox';
+    previewView.productConfirmed.disabled = true;
+    previewView.productConfirmed.addEventListener('change', () => showPreview(Number(previewView.productChoice.value)));
+    confirmLabel.append(previewView.productConfirmed,
+      document.createTextNode(' Confermo che questa è una schermata autentica e attuale del servizio'));
+    previewView.productHelp.className = 'ol-muted ol-small';
+    previewView.productHelp.textContent = 'Carica solo schermate effettive del servizio, senza dati personali. Le immagini AI non attestano l’autenticità dell’interfaccia.';
+    productRow.append(screenLabel, screenSceneLabel, confirmLabel, previewView.productHelp);
+    previewView.box.append(previewHeader, stage, musicRow, productRow, previewView.meta);
     realSummary.append(previewView.box);
     refreshMusicChoices();
     if (localTracks.length) applyMusicChoice();
+    else restoreMusicLibrary();
     previewView.logo.addEventListener('load', () => { if (!previewPlaying) showPreview(previewIndex); });
     previewView.logo.src = '/assets/logo-offertalogica-header.png';
     showPreview(0);
