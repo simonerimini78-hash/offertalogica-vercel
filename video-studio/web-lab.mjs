@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.1.1';
+export const VIDEO_STUDIO_LAB_VERSION = '1.1.3';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -78,8 +78,13 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   const result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
   const sharp=sharpFactory || (await import('sharp')).default;
-  // Response is a limited temporary browser preview, NOT a persistent master asset.
-  const preview=await sharp(result.bytes).resize(720,1280,{fit:'cover'}).jpeg({quality:78}).toBuffer();
+  // Keep the source 1080x1920 detail for the full-frame browser draft.
+  // Bound the JSON payload as before; this is still a temporary, NON-persistent preview.
+  let preview;
+  for (const quality of [86, 80, 74]) {
+    preview = await sharp(result.bytes).resize(1080,1920,{fit:'cover'}).jpeg({quality,mozjpeg:true}).toBuffer();
+    if (preview.length <= 1700000) break;
+  }
   if(preview.length > 1700000)err('anteprima troppo grande');
   const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),

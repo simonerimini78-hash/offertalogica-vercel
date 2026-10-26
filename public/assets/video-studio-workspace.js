@@ -1,4 +1,4 @@
-/* Video Studio v1.1.2 — private local music selection and downloadable browser draft. */
+/* Video Studio v1.1.3 — cinematic full-frame layout; music and browser download retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -353,8 +353,8 @@
     progressView.note.textContent = 'Ogni rigenerazione consuma 1 azione AI del limite server (10 azioni/ora per utente admin).';
     syncControls();
   }
-  const MONTAGE_WIDTH = 720;
-  const MONTAGE_HEIGHT = 1280;
+  const MONTAGE_WIDTH = 1080;
+  const MONTAGE_HEIGHT = 1920;
   const MONTAGE_DURATION = 15;
 
   function sceneAt(second) {
@@ -388,64 +388,142 @@
     }
     return result;
   }
+  // Cinematic composition in the SAME 9:16 image, not in a second panel.
+  // Subject side is a composition hint, not a verified face/object bounding box.
+  // Reviewers can override it per scene without regenerating a paid photograph.
+  function scenePlacement(view) {
+    const requested = view?.layoutPreference || 'auto';
+    if (requested !== 'auto') return requested;
+    if (view?.scene?.subject_side === 'left') return 'right';
+    if (view?.scene?.subject_side === 'right') return 'left';
+    return 'top';
+  }
+  function cinematicLayout(view) {
+    const side = scenePlacement(view);
+    return side === 'left' ? {x: 80, y: 285, width: 680, logoX: 99} :
+      side === 'right' ? {x: 420, y: 285, width: 585, logoX: 670} :
+        {x: 84, y: 240, width: 912, logoX: 635};
+  }
   function drawScenePhoto(ctx, index, zoomProgress, opacity) {
     const image = sceneViews[index]?.image;
-    if (!image || !image.complete || !image.naturalWidth) return;
+    if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
     ctx.save();
     ctx.globalAlpha = opacity;
-    ctx.beginPath();
-    ctx.rect(0, 0, MONTAGE_WIDTH, 918);
-    ctx.clip();
-    const scale = Math.min(710 / image.naturalWidth, 918 / image.naturalHeight) * (1.015 + zoomProgress * 0.02);
+    // Full-bleed cover, never letterbox. Small centred movement only (no blind pan).
+    const scale = Math.max(MONTAGE_WIDTH / image.naturalWidth, MONTAGE_HEIGHT / image.naturalHeight) *
+      (1.008 + zoomProgress * 0.014);
     const w = image.naturalWidth * scale;
     const h = image.naturalHeight * scale;
-    ctx.drawImage(image, (MONTAGE_WIDTH - w) / 2, (918 - h) / 2, w, h);
+    ctx.drawImage(image, (MONTAGE_WIDTH - w) / 2, (MONTAGE_HEIGHT - h) / 2, w, h);
     ctx.restore();
+  }
+  function wrapOverlayLines(ctx, text, maxWidth) {
+    const lines = [];
+    let line = '';
+    for (const word of String(text || '').trim().split(/\s+/u).filter(Boolean)) {
+      const candidate = line ? `${line} ${word}` : word;
+      if (line && ctx.measureText(candidate).width > maxWidth) {
+        lines.push(line);
+        line = word;
+      } else line = candidate;
+    }
+    if (line) lines.push(line);
+    return lines;
+  }
+  function drawCinematicOverlay(ctx, view) {
+    const {scene} = view;
+    const placement = cinematicLayout(view);
+    const x = placement.x;
+    const maxWidth = placement.width;
+    let titleSize = scene.role === 'hook' ? 100 : 90;
+    let titleLines = [];
+    do {
+      ctx.font = `800 ${titleSize}px system-ui, sans-serif`;
+      titleLines = wrapOverlayLines(ctx, scene.headline, maxWidth - 38);
+      if (titleLines.length <= 3 && titleLines.every(l => ctx.measureText(l).width <= maxWidth - 38)) break;
+      titleSize -= 6;
+    } while (titleSize >= 58);
+    const titleLineHeight = Math.round(titleSize * 1.12);
+    const titleHeight = titleLines.length * titleLineHeight;
+    let secondarySize = 54;
+    let secondaryLines = [];
+    const subtitle = String(scene.secondary_text || '').trim();
+    if (subtitle) {
+      do {
+        ctx.font = `500 ${secondarySize}px system-ui, sans-serif`;
+        secondaryLines = wrapOverlayLines(ctx, subtitle, maxWidth - 40);
+        if (secondaryLines.length <= 2 && secondaryLines.every(l => ctx.measureText(l).width <= maxWidth - 40)) break;
+        secondarySize -= 4;
+      } while (secondarySize >= 34);
+    }
+    const secondaryLineHeight = Math.round(secondarySize * 1.22);
+    const secondaryHeight = secondaryLines.length ? 30 + secondaryLines.length * secondaryLineHeight : 0;
+    const groupHeight = titleHeight + secondaryHeight + 38;
+    const y = Math.min(810, placement.y + Math.max(0, 385 - groupHeight) * 0.12);
+    // White blurred veil, as in the v0.8 cinematic rendering, instead of a footer strip.
+    const veilX = Math.max(46, x - 34);
+    const veilY = y - 42;
+    const veilW = Math.min(MONTAGE_WIDTH - veilX - 40, maxWidth + 75);
+    const veilH = groupHeight + 52;
+    ctx.save();
+    ctx.shadowColor = 'rgba(255,255,255,0.80)';
+    ctx.shadowBlur = 35;
+    ctx.fillStyle = 'rgba(255,255,255,0.78)';
+    ctx.beginPath();
+    ctx.roundRect(veilX, veilY, veilW, veilH, 40);
+    ctx.fill();
+    ctx.restore();
+    ctx.textAlign = 'left';
+    ctx.textBaseline = 'alphabetic';
+    ctx.fillStyle = '#102b3d';
+    ctx.font = `800 ${titleSize}px system-ui, sans-serif`;
+    const base = y + titleSize;
+    titleLines.forEach((line, n) => ctx.fillText(line, x, base + n * titleLineHeight));
+    if (secondaryLines.length) {
+      ctx.fillStyle = '#173347';
+      ctx.font = `500 ${secondarySize}px system-ui, sans-serif`;
+      const first = y + titleHeight + 40 + secondarySize;
+      secondaryLines.forEach((line, n) => ctx.fillText(line, x, first + n * secondaryLineHeight));
+    }
+    // Authentic image-based wordmark: never ask the image model to draw it.
+    if (previewView.logo.complete && previewView.logo.naturalWidth && previewView.logo.naturalHeight) {
+      const logo = previewView.logo;
+      const logoW = scene.role === 'cta' ? 380 : 340;
+      const logoH = logoW * logo.naturalHeight / logo.naturalWidth;
+      const logoX = Math.min(MONTAGE_WIDTH - logoW - 68, placement.logoX);
+      const logoY = Math.min(1210 - logoH, y + groupHeight + 44);
+      ctx.save();
+      ctx.shadowColor = 'rgba(255,255,255,0.82)';
+      ctx.shadowBlur = 29;
+      ctx.fillStyle = 'rgba(255,255,255,0.82)';
+      ctx.beginPath();
+      ctx.roundRect(logoX - 18, logoY - 12, logoW + 36, logoH + 24, 22);
+      ctx.fill();
+      ctx.restore();
+      ctx.drawImage(logo, logoX, logoY, logoW, logoH);
+    }
   }
   function renderMontageFrame(second) {
     if (!previewView || !sceneViews.length) return;
     const ctx = previewView.canvas.getContext('2d');
     if (!ctx) return;
     const t = Math.max(0, Math.min(MONTAGE_DURATION, second));
-    const segment = sceneAt(Math.min(14.999, t));
+    const segment = sceneAt(Math.min(MONTAGE_DURATION - 0.001, t));
     previewIndex = segment.index;
     ctx.clearRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
     ctx.fillStyle = '#101f29';
     ctx.fillRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
     drawScenePhoto(ctx, segment.index, Math.min(1, segment.local / segment.duration), 1);
-    // Fade between original photos, without generating or substituting other images.
     if (segment.index > 0 && segment.local < 0.28) {
       drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
     }
-    ctx.fillStyle = '#112b33';
-    ctx.fillRect(0, 918, MONTAGE_WIDTH, 362);
-    ctx.fillStyle = '#33ad65';
-    ctx.fillRect(0, 918, MONTAGE_WIDTH, 5);
-    const scene = sceneViews[segment.index].scene;
-    ctx.fillStyle = '#a9e5be';
-    ctx.font = '700 23px system-ui, sans-serif';
-    ctx.fillText(`OFFERTALOGICA  ·  ${segment.index + 1}/4`, 45, 959);
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 49px system-ui, sans-serif';
-    const headingLines = wrapCanvasText(ctx, scene.headline, 630, 2);
-    headingLines.forEach((line, n) => ctx.fillText(line, 45, 1016 + n * 56));
-    ctx.font = '500 29px system-ui, sans-serif';
-    ctx.fillStyle = '#d9eae3';
-    const secondaryLines = wrapCanvasText(ctx, scene.secondary_text, 420, 2);
-    const secondaryStart = 1033 + headingLines.length * 56;
-    secondaryLines.forEach((line, n) => ctx.fillText(line, 45, secondaryStart + n * 38));
-    // The official brand artwork is drawn separately, never hallucinated by the image model.
-    if (previewView.logo.complete && previewView.logo.naturalWidth) {
-      const logo = previewView.logo;
-      ctx.fillStyle = '#ffffff';
-      ctx.fillRect(477, 1144, 208, 116);
-      const ratio = Math.min(190 / logo.naturalWidth, 106 / logo.naturalHeight);
-      ctx.drawImage(logo, 486 + (190 - logo.naturalWidth * ratio) / 2, 1148 + (106 - logo.naturalHeight * ratio) / 2,
-        logo.naturalWidth * ratio, logo.naturalHeight * ratio);
+    drawCinematicOverlay(ctx, sceneViews[segment.index]);
+    // Thin timeline belongs to the editing PREVIEW only, not the exported video.
+    if (!exporting) {
+      ctx.fillStyle = '#38b66e';
+      ctx.fillRect(0, MONTAGE_HEIGHT - 8, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
     }
-    ctx.fillStyle = '#38b66e';
-    ctx.fillRect(0, 1272, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
-    previewView.meta.textContent = `Scena ${segment.index + 1}/4 · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Bozza scaricabile`;
+    previewView.meta.textContent = `Scena ${segment.index + 1}/${sceneViews.length} · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'audio locale' : 'senza musica'} · Bozza 1080×1920`;
   }
   function showPreview(index) {
     if (!previewView) return;
@@ -632,7 +710,7 @@
     let recorder;
     try {
       if (document.hidden) throw Error('mantieni aperta e visibile la scheda durante i 15 secondi di esportazione');
-      previewView.exportStatus.textContent = 'Esportazione della bozza in corso: mantieni questa scheda aperta e visibile per 15 secondi.';
+      previewView.exportStatus.textContent = 'Esportazione bozza 1080×1920 in corso: mantieni questa scheda aperta e visibile.';
       capture = previewView.canvas.captureStream(25);
       if (!capture.getVideoTracks().length) throw Error('cattura video non disponibile');
       if (soundtrackFile) {
@@ -655,7 +733,7 @@
       // Start the recorder before the audio buffer so the first sample is not lost.
       const chunks = [];
       let recordingError = null;
-      recorder = new MediaRecorder(capture, {mimeType:mime, videoBitsPerSecond:3200000});
+      recorder = new MediaRecorder(capture, {mimeType:mime, videoBitsPerSecond:6000000});
       const completed = new Promise((resolve,reject) => {
         recorder.ondataavailable = event => { if (event.data?.size) chunks.push(event.data); };
         recorder.onerror = event => { recordingError = event.error || Error('registrazione interrotta'); };
@@ -752,7 +830,7 @@
     const previewIntro = document.createElement('div');
     previewIntro.append(
       textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
-      textElement('p', 'Bozza scaricabile con le quattro fotografie AI, testi, logo e musica incorporata quando selezionata. Non è un master per la pubblicazione.'),
+      textElement('p', 'Fotografie a tutto schermo con testo e logo sovrapposti. Puoi spostare il layout di ogni scena; bozza con musica incorporata, non master pubblicabile.'),
     );
     previewView.playButton.type = 'button';
     previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
@@ -857,6 +935,21 @@
     const promptBody = textElement('pre', '');
     prompt.append(promptBody);
 
+    const layoutWrap = document.createElement('div');
+    layoutWrap.className = 'ol-field ol-vs-layout-placement';
+    const layoutLabel = document.createElement('label');
+    layoutLabel.setAttribute('for', `vs-scene-layout-${index}`);
+    layoutLabel.textContent = 'Posizione testo e logo sulla fotografia';
+    const layoutSelect = document.createElement('select');
+    layoutSelect.id = `vs-scene-layout-${index}`;
+    for (const [value, label] of [['auto','Automatica (lato libero della scena)'],['top','In alto'],
+      ['left','A sinistra'],['right','A destra']]) {
+      const option = document.createElement('option');
+      option.value = value;
+      option.textContent = label;
+      layoutSelect.append(option);
+    }
+    layoutWrap.append(layoutLabel, layoutSelect);
     const view = {
       scene,
       index,
@@ -865,6 +958,7 @@
       image,
       actionButton,
       notesInput,
+      layoutPreference: 'auto',
       prompt,
       promptBody,
       attempts: 0,
@@ -872,6 +966,11 @@
       error: '',
       running: false,
     };
+    layoutSelect.addEventListener('change', () => {
+      if (exporting) return;
+      view.layoutPreference = layoutSelect.value;
+      if (!previewPlaying && previewView) showPreview(index);
+    });
     actionButton.addEventListener('click', async () => {
       if (busy() || !generation) return;
       actionButton.disabled = true;
@@ -887,7 +986,7 @@
     });
     updateSceneActionLabel(view);
     actions.append(actionButton);
-    card.append(heading, lead, visual, subject, side, state, image, notesWrap, actions, prompt);
+    card.append(heading, lead, visual, subject, side, state, image, layoutWrap, notesWrap, actions, prompt);
     sceneHolder.append(card);
     return view;
   }
