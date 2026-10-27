@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.107";
+const VERSION = "0.12.108";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -36,6 +36,8 @@ const MANUAL_IDEA_TYPES = new Set(["new_article"]);
 const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
 const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
 const EDITORIAL_AI_HTTP_TIMEOUT_MS = 45000;
+const EDITORIAL_JOB_MAX_AGE_MS = 90 * 60 * 1000;
+const EDITORIAL_RECOVERY_BLOCK_MS = 7 * 24 * 60 * 60 * 1000;
 const EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS = 240000;
 const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
 const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
@@ -1782,6 +1784,10 @@ async function updateManualEditorialIdea(user, payload = {}) {
   return opportunity;
 }
 
+function editorialRecoveryTopicKey(topic) {
+  return String(topic || "").normalize("NFKC").trim().toLocaleLowerCase("it-IT").replace(/\s+/g, " ").slice(0, 240);
+}
+
 async function editorialPlannerPreview() {
   const settingsRows = await serviceFetch(
     "editorial_automation_settings?select=id,enabled,execution_mode,minimum_opportunity_score,allow_no_publish,max_articles_per_cycle,timezone&id=eq.1&limit=1",
@@ -1792,11 +1798,17 @@ async function editorialPlannerPreview() {
     : 60;
 
   const savedRows = await serviceFetch(
-    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected)&order=created_at.asc&limit=100`,
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,rejected)&order=created_at.desc&limit=200`,
   );
   const candidates = [];
+  // Non riproporre immediatamente un tema scartato dal recupero fonti.
+  const excludedTopics = new Set((savedRows || [])
+    .filter((row) => Date.parse(row?.evidence?.autopilot_recovery?.blocked_until || "") > Date.now())
+    .map((row) => editorialRecoveryTopicKey(row.topic)).filter(Boolean));
 
   for (const row of savedRows || []) {
+    if (excludedTopics.has(editorialRecoveryTopicKey(row.topic))) continue;
+    if (row.status === "rejected") continue;
     const savedType = String(row.opportunity_type || "");
     if (!MANUAL_IDEA_TYPES.has(savedType) && savedType !== "update_article") continue;
     const manual = manualIdeaMeta(row);
@@ -1872,81 +1884,52 @@ async function editorialPlannerPreview() {
     }
     return true;
   });
-  const topSearchSignal = searchSignals.find((signal) => Number(signal.score || 0) >= minimumScore) || null;
-  if (topSearchSignal) {
+  const qualifiedSearch = searchSignals.filter((signal) =>
+    Number(signal.score || 0) >= minimumScore && !excludedTopics.has(editorialRecoveryTopicKey(signal.topic))
+  ).slice(0, 8);
+  for (const signal of qualifiedSearch) {
     candidates.push({
-      source: "search_console",
-      id: null,
-      topic: topSearchSignal.topic,
-      opportunity_type: "research_candidate",
-      priority: null,
-      deadline: null,
-      score: Number(topSearchSignal.score || 0),
-      status: "live_signal",
-      created_at: null,
-      rank: 200,
+      source: "search_console", id: null, topic: signal.topic,
+      opportunity_type: "research_candidate", priority: null, deadline: null,
+      score: Number(signal.score || 0), status: "live_signal", created_at: null, rank: 200,
       reason: `Segnale Search Console sopra la soglia ${minimumScore}/100.`,
-      topic_key: topSearchSignal.topic_key,
-      metrics: topSearchSignal.metrics,
-      fallback_below_threshold: false,
+      topic_key: signal.topic_key, metrics: signal.metrics, fallback_below_threshold: false,
     });
   }
 
   const radar = await researchRadarPayload(archive).catch(() => ({ candidates: [] }));
   const radarAll = Array.isArray(radar?.candidates) ? radar.candidates : [];
   const radarEligible = radarAll.filter((candidate) => candidate?.eligible_for_selection
-    && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || "")));
-  const topRadarSignal = radarEligible.find((candidate) => Number(candidate.score || 0) >= minimumScore) || null;
-  if (topRadarSignal) {
+    && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || ""))
+    && !excludedTopics.has(editorialRecoveryTopicKey(candidate.topic)));
+  const qualifiedRadar = radarEligible.filter((candidate) => Number(candidate.score || 0) >= minimumScore).slice(0, 8);
+  for (const candidate of qualifiedRadar) {
     candidates.push({
-      source: "research_radar",
-      id: null,
-      topic: topRadarSignal.topic,
-      opportunity_type: "research_candidate",
-      priority: null,
-      deadline: null,
-      score: Number(topRadarSignal.score || 0),
-      status: "live_signal",
-      created_at: null,
-      rank: 200,
-      reason: `Radar web ${topRadarSignal.editorial_action === "NEW_ANGLE" ? "con nuovo angolo" : "su tema nuovo"} sopra la soglia ${minimumScore}/100.`,
-      radar_key: topRadarSignal.radar_key,
-      radar_candidate: topRadarSignal,
-      fallback_below_threshold: false,
+      source: "research_radar", id: null, topic: candidate.topic,
+      opportunity_type: "research_candidate", priority: null, deadline: null,
+      score: Number(candidate.score || 0), status: "live_signal", created_at: null, rank: 200,
+      reason: `Radar web ${candidate.editorial_action === "NEW_ANGLE" ? "con nuovo angolo" : "su tema nuovo"} sopra la soglia ${minimumScore}/100.`,
+      radar_key: candidate.radar_key, radar_candidate: candidate, fallback_below_threshold: false,
     });
   }
 
-  const hasQualifiedAutomatic = Boolean(topSearchSignal || topRadarSignal);
+  const hasQualifiedAutomatic = Boolean(qualifiedSearch.length || qualifiedRadar.length);
   if (!hasQualifiedAutomatic && !Boolean(settings.allow_no_publish)) {
-    const fallbackSearch = searchSignals.find((signal) => signal?.topic_key && signal?.topic) || null;
-    const fallbackRadar = radarEligible[0] || null;
-    const fallbackOptions = [];
-    if (fallbackSearch) fallbackOptions.push({
-      source: "search_console",
-      topic: fallbackSearch.topic,
-      opportunity_type: "research_candidate",
-      score: Number(fallbackSearch.score || 0),
-      status: "live_signal",
-      rank: 50,
-      reason: `Nessun segnale automatico raggiunge la soglia ${minimumScore}/100: candidato Search Console di ripiego.`,
-      topic_key: fallbackSearch.topic_key,
-      metrics: fallbackSearch.metrics,
-      fallback_below_threshold: true,
-    });
-    if (fallbackRadar) fallbackOptions.push({
-      source: "research_radar",
-      topic: fallbackRadar.topic,
-      opportunity_type: "research_candidate",
-      score: Number(fallbackRadar.score || 0),
-      status: "live_signal",
-      rank: 50,
-      reason: `Nessun segnale automatico raggiunge la soglia ${minimumScore}/100: candidato radar web di ripiego.`,
-      radar_key: fallbackRadar.radar_key,
-      radar_candidate: fallbackRadar,
-      fallback_below_threshold: true,
-    });
-    fallbackOptions.sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
-    if (fallbackOptions[0]) candidates.push(fallbackOptions[0]);
+    for (const signal of searchSignals.filter((row) => row?.topic_key && row?.topic
+      && !excludedTopics.has(editorialRecoveryTopicKey(row.topic))).slice(0, 8)) {
+      candidates.push({ source: "search_console", topic: signal.topic,
+        opportunity_type: "research_candidate", score: Number(signal.score || 0),
+        status: "live_signal", rank: 50,
+        reason: `Candidato Search Console di ripiego sotto soglia ${minimumScore}/100.`,
+        topic_key: signal.topic_key, metrics: signal.metrics, fallback_below_threshold: true });
+    }
+    for (const candidate of radarEligible.slice(0, 8)) {
+      candidates.push({ source: "research_radar", topic: candidate.topic,
+        opportunity_type: "research_candidate", score: Number(candidate.score || 0),
+        status: "live_signal", rank: 50,
+        reason: `Candidato Radar web di ripiego sotto soglia ${minimumScore}/100.`,
+        radar_key: candidate.radar_key, radar_candidate: candidate, fallback_below_threshold: true });
+    }
   }
 
   candidates.sort(plannerCandidateComparator);
@@ -3484,6 +3467,7 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
   const radarSources = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls.slice(0, 6) : [];
   const radarTools = Array.isArray(radarEvidence?.related_targets) ? radarEvidence.related_targets.slice(0, 4) : [];
   const revisionText = cleanEditorialText(revisionNotes, 3000);
+  const sourceRetry = Number(opportunity?.evidence?.autopilot_recovery?.source_retry_count || 0) > 0;
   const revisionBaseline = revisionMode || revisionText
     ? {
         title: cleanEditorialText(article?.title, 180),
@@ -3516,7 +3500,7 @@ async function startOpenAiEditorialPackage({ opportunity, article, categories, t
   const revisionBlock = revisionBaseline
     ? `\nINDICAZIONI DI REVISIONE REDAZIONE: ${revisionText || "mantieni le modifiche manuali già presenti e completa/rafforza la bozza senza perderle"}\nBOZZA ATTUALE DA REVISIONARE:\nTitolo: ${revisionBaseline.title || ""}\nSommario: ${revisionBaseline.excerpt || ""}\nSEO title: ${revisionBaseline.seo_title || ""}\nSEO description: ${revisionBaseline.seo_description || ""}\nFonti correnti: ${revisionBaseline.sources || ""}\nContenuto:\n${revisionBaseline.content || ""}\n`
     : "";
-  const input = `ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}${revisionBlock}\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const input = `${sourceRetry ? "SECONDO TENTATIVO FONTI: la precedente ricerca non ha superato il QA. Esegui una NUOVA ricerca web, consulta almeno due URL HTTPS distinti e riportali nel campo sources esattamente come verificati, preferendo una fonte istituzionale. Se non trovi due fonti attendibili non inventarle.\n" : ""}ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}${revisionBlock}\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
   const payload = await openAiResponseRequest("", {
     method: "POST",
     body: {
@@ -4044,13 +4028,16 @@ async function checkEditorialArticlePackage(user, payload = {}) {
   }
 
   let validated;
-  let sourceUrls;
+  let sourceUrls = [];
+  let generatedSourceUrls = [];
   try {
     const text = responseOutputText(response);
     if (!text) throw new Error("La generazione non ha restituito contenuto strutturato");
     let generated;
     try { generated = JSON.parse(text); }
     catch { throw new Error("Risposta editoriale non interpretabile"); }
+    generatedSourceUrls = (Array.isArray(generated?.sources) ? generated.sources : [])
+      .map((source) => normalizedHttps(source?.url)).filter(Boolean).slice(0, 20);
     const currentWebSourceUrls = responseSourceUrls(response);
     const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
     const radarSourceUrls = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls : [];
@@ -4062,7 +4049,16 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     const now = new Date().toISOString();
     const nextEvidence = {
       ...evidenceBase,
-      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: String(error?.message || error).slice(0, 2000) },
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now,
+        last_error: String(error?.message || error).slice(0, 2000),
+        qa_source_diagnostics: {
+          observed_count: new Set(sourceUrls.map(sourceUrlKey).filter(Boolean)).size,
+          declared_count: generatedSourceUrls.length,
+          matched_count: generatedSourceUrls.filter((url) => sourceUrls.some((observed) => sourceUrlKey(observed) === sourceUrlKey(url))).length,
+          observed_urls: sourceUrls.slice(0, 12),
+          declared_urls: generatedSourceUrls.slice(0, 12),
+        },
+      },
     };
     await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
       method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
@@ -4100,7 +4096,7 @@ async function checkEditorialArticlePackage(user, payload = {}) {
       schema_version: 2,
       status: "draft_ready_for_review",
       generated_at: now,
-      generated_by: user.id,
+      generated_by: job.started_by || user.id,
       model: job.model || editorialAiModel(),
       response_id: job.response_id,
       article_fingerprint_sha256: articleFingerprint,
@@ -7080,12 +7076,135 @@ async function schedulerResumeResearch(user, settings, runs) {
   return schedulerProcessResearchRun(run, user, settings);
 }
 
+async function schedulerMarkStaleArticleJob(opportunity, job) {
+  const now = new Date().toISOString();
+  const message = "Job AI oltre 90 minuti senza completamento: archiviato per consentire il recupero. La risposta remota potrebbe ancora arrivare, ma non verra applicata.";
+  const evidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal",
+    body: { evidence: { ...evidence, article_generation_job: {
+      ...job, status: "failed", checked_at: now, finished_at: now, last_error: message,
+    } }, updated_at: now },
+  });
+  await automationRunFinish(job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: job.source } } : null, "failed", {
+    article_id: job.article_id || opportunity.target_article_id || null,
+    last_error: message,
+    details: { version: VERSION, source: job.source, opportunity_id: opportunity.id,
+      reason: "article_generation_timeout", publication_performed: false },
+  });
+  return message;
+}
+
+async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
+  const reason = cleanEditorialText(errorMessage, 600);
+  const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const previous = previousEvidence.autopilot_recovery && typeof previousEvidence.autopilot_recovery === "object"
+    ? previousEvidence.autopilot_recovery : {};
+  const now = new Date().toISOString();
+  const sourceRetryCount = Number(previous.source_retry_count || 0);
+  const currentResponseId = String(previousEvidence.article_generation_job?.response_id || "");
+  const secondSearchNotYetStarted = sourceRetryCount < 1
+    || (sourceRetryCount === 1 && previous.first_failed_response_id === currentResponseId);
+  const platforms = await editorialEnabledSocialPlatforms();
+
+  if (secondSearchNotYetStarted) {
+    // Un errore di avvio della seconda ricerca non deve diventare un falso QA.
+    // Il numero di ripartenze resta limitato per evitare loop e costi indefiniti.
+    const attempts = Number(previous.retry_start_attempts || 0);
+    if (attempts >= 3) return { action: "article_sources_retry_start_failed",
+      opportunity_id: opportunity.id, reason: "second_search_could_not_start" };
+    // Il secondo pacchetto avvia una nuova Responses API con web_search obbligatoria.
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+      method: "PATCH", prefer: "return=minimal",
+      body: { evidence: { ...previousEvidence, autopilot_recovery: {
+        ...previous, schema_version: 1, source_retry_count: 1,
+        first_failed_response_id: previous.first_failed_response_id || currentResponseId,
+        retry_start_attempts: attempts + 1,
+        retry_started_at: now, first_error: previous.first_error || reason,
+      } }, updated_at: now },
+    });
+    const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms });
+    return { action: "article_sources_second_search", opportunity_id: opportunity.id,
+      source_retry_count: 1, result };
+  }
+
+  // Non cancellare la vecchia bozza: lo storico resta consultabile e nessun articolo
+  // privo di fonti puo raggiungere la pubblicazione automatica.
+  const blockedUntil = new Date(Date.now() + EDITORIAL_RECOVERY_BLOCK_MS).toISOString();
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal", body: {
+      status: "rejected",
+      evidence: { ...previousEvidence, autopilot_recovery: {
+        ...previous, schema_version: 1, status: "source_qa_exhausted",
+        blocked_until: blockedUntil, blocked_at: now, last_error: reason,
+      } }, updated_at: now,
+    },
+  });
+
+  // Ricalcola la graduatoria, escludendo il tema appena fallito e quelli gia
+  // esclusi in precedenza, prima di creare la bozza dell'alternativa.
+  const settings = await automationSchedulerSettings();
+  if (!settings?.enabled) return { action: "article_sources_no_alternative_scheduler_disabled",
+    opportunity_id: opportunity.id };
+  const next = await schedulerSelectOpportunity(user, settings);
+  if (!next?.id || next.id === opportunity.id || next.status !== "selected" || next.opportunity_type !== "new_article") {
+    return { action: "article_sources_no_eligible_alternative", opportunity_id: opportunity.id,
+      reason: "all_available_topics_exhausted_or_ineligible" };
+  }
+  const result = await generateEditorialArticlePackage(user, { id: next.id, platforms });
+  return { action: "article_sources_next_topic", previous_opportunity_id: opportunity.id,
+    opportunity_id: next.id, result };
+}
+
 async function schedulerResumeArticleGeneration(user) {
   const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
   for (const opportunity of rows || []) {
     const job = opportunity?.evidence?.article_generation_job;
-    if (job?.source !== "scheduler" || !job?.response_id || !["queued", "in_progress"].includes(String(job.status || ""))) continue;
-    const result = await checkEditorialArticlePackage(user, { id: opportunity.id });
+    if (!job?.response_id || !["scheduler", "manual_controlled_run"].includes(String(job.source || ""))) continue;
+    // Anche un browser o un'altra richiesta puo' aver gia registrato il QA failed:
+    // il tick lo recupera comunque, senza pretendere che sia ancora in_progress.
+    if (job.source === "scheduler" && job.status === "failed"
+      && String(job.last_error || "").startsWith("QA fonti fallito:")
+      && Date.now() - Date.parse(job.started_at || "") < 48 * 60 * 60 * 1000
+      && opportunity.evidence?.autopilot_recovery?.status !== "source_qa_exhausted") {
+      return schedulerRecoverArticleSources(user, opportunity, job.last_error);
+    }
+    if (!["queued", "in_progress"].includes(String(job.status || ""))) continue;
+    // Se la Redazione sta gia interrogando il job manuale, il cron non deve
+    // completare in parallelo lo stesso pacchetto e creare piani duplicati.
+    if (job.source === "manual_controlled_run") {
+      const lastCheck = Date.parse(job.checked_at || job.started_at || "");
+      if (Number.isFinite(lastCheck) && Date.now() - lastCheck < 2 * 60 * 1000) continue;
+    }
+
+    let result;
+    let errorMessage = null;
+    try {
+      result = await checkEditorialArticlePackage(user, { id: opportunity.id });
+    } catch (error) {
+      // Una rete temporaneamente irraggiungibile NON equivale a un QA fallito.
+      const refreshed = (await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`))?.[0];
+      if (String(refreshed?.evidence?.article_generation_job?.status || "") !== "failed") throw error;
+      errorMessage = String(refreshed?.evidence?.article_generation_job?.last_error || error.message || error);
+    }
+    if (!errorMessage && result?.pending) {
+      const startedAt = Date.parse(job.started_at || "");
+      if (Number.isFinite(startedAt) && Date.now() - startedAt > EDITORIAL_JOB_MAX_AGE_MS) {
+        errorMessage = await schedulerMarkStaleArticleJob(opportunity, job);
+      }
+    }
+    if (errorMessage) {
+      // Un errore globale di configurazione o del provider non giustifica nuovi
+      // tentativi su altri temi; solo QA fonti e job scaduti consentono il recupero.
+      const sourceRelated = errorMessage.startsWith("QA fonti fallito:")
+        || errorMessage.startsWith("Job AI oltre 90 minuti");
+      if (job.source === "scheduler" && sourceRelated) {
+        const refreshed = (await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`))?.[0];
+        return schedulerRecoverArticleSources(user, refreshed || opportunity, errorMessage);
+      }
+      return { action: "article_generation_failed", opportunity_id: opportunity.id,
+        source: job.source, error: errorMessage };
+    }
     return { action: "article_generation_check", opportunity_id: opportunity.id, result };
   }
   return null;

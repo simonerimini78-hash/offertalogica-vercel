@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.107";
+  const VERSION = "0.12.108";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1526,6 +1526,11 @@
       research_plan: "ricerca e scelta opportunità completate",
       article_generation_started: "generazione bozza avviata",
       article_generation_check: "controllo generazione bozza",
+      article_sources_second_search: "seconda ricerca web sullo stesso tema",
+      article_sources_next_topic: "QA fonti fallito due volte: generazione del tema successivo",
+      article_sources_no_eligible_alternative: "nessun altro tema verificabile disponibile",
+      article_sources_retry_start_failed: "nuova ricerca non avviata: intervento necessario",
+      article_generation_failed: "generazione bozza fallita",
       image_candidate_generated: "immagine articolo generata",
       image_qa_passed: "QA immagine articolo superata",
       article_intro_social_copy_generated: "testo social dell’articolo preparato",
@@ -2256,7 +2261,14 @@
           const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms, revision_notes: revisionNotes } });
           result = payload?.result;
         }
+        const browserCheckStarted = Date.now();
         while (result?.pending) {
+          // Il lavoro resta sul server; non bloccare indefinitamente la UI.
+          if (Date.now() - browserCheckStarted > 20 * 60 * 1000) {
+            if (message) message.textContent = "Generazione ancora in verifica: il controllo continua lato server. Lo stato verra aggiornato dalla Redazione; non avviare un nuovo job.";
+            await Promise.all([loadOpportunities(section, true), loadAutomationRuns(section)]);
+            return;
+          }
           if (message) message.textContent = result.status === "queued"
             ? "Generazione avviata e in coda. La pagina controlla automaticamente lo stato…"
             : "Ricerca web e generazione editoriale in corso in background…";
@@ -2913,6 +2925,15 @@
     });
     ensureCard();
     enforceArticleOnlySettings();
+    // Il dashboard non deve restare congelato dopo un reload: aggiornamento leggero
+    // senza interrompere l'editing attivo o i pannelli gia aperti.
+    window.setInterval(() => {
+      const section = document.querySelector("[data-search-console-card]");
+      const focused = document.activeElement;
+      if (!section?.isConnected || document.hidden ||
+          (focused && section.contains(focused) && ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
+      Promise.all([loadAutomationRuns(section), loadOpportunities(section, true)]).catch(() => {});
+    }, 60000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
