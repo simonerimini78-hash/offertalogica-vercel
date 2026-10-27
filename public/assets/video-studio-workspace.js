@@ -1,4 +1,4 @@
-/* Video Studio v1.1.4 — private browser music library and real product screen inserts. */
+/* Video Studio v1.1.5 — server-side private soundtrack selection, with local fallback. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -43,7 +43,12 @@
   let soundtrackStart = 0;
   let soundtrackFile = null;
   let soundtrackLoadToken = 0;
-  let localTracks = []; // Private editor MP3s, local browser only; never transferred to our servers.
+  let localTracks = []; // Optional private browser fallback; never uploaded to our servers.
+  const remoteTracks = new Map(); // At most three downloaded tracks in memory, never public URLs.
+  let musicSelectionEpoch = 0;
+  let musicLoading = false;
+  const MUSIC_STORAGE_BUCKET = 'video-studio-music';
+  const MAX_REMOTE_BYTES = 10 * 1024 * 1024;
   let musicLibraryEpoch = 0;
   let musicPersistedOnDevice = false;
   let verifiedProductScreen = null;
@@ -60,17 +65,17 @@
   // Filename/hash-prefix identification for the 11 private MP3s. Never means licensed/approved.
   // Cues are unreviewed 15-second candidates, not beat-synchronized markers.
   const MUSIC_INDEX = Object.freeze([
-    {title:'The King',stem:'the-king-857',hash:'d8a4b4280081e92e48',cue:16,moods:['positivo']},
-    {title:'Close Up',stem:'close-up-1167',hash:'a7f05a29d07a84d380',cue:78,moods:['informativo']},
-    {title:'Curiosity',stem:'curiosity-480',hash:'181e91737f341ca61a',cue:13.75,moods:['informativo']},
-    {title:"I'm Fine",stem:'im-fine-1002',hash:'cee0e8584bc8e7de7f',cue:84.5,moods:['rassicurante']},
-    {title:"It's Love",stem:'its-love-834',hash:'c69dc74479239f6344',cue:2,moods:['rassicurante']},
-    {title:'Raising Me Higher',stem:'raising-me-higher-34',hash:'619b82cea299230cca',cue:78.75,moods:['positivo']},
-    {title:'What About Action?',stem:'what-about-action-474',hash:'4bcd99a13f3d71c6d3',cue:14.75,moods:['positivo','informativo']},
-    {title:"Dirty Thinkin'",stem:'dirty-thinkin-989',hash:'e36220dbbaf56e0380',cue:72.75,moods:['positivo','informativo']},
-    {title:'Driving Ambition',stem:'driving-ambition-32',hash:'e3c88488e65b8c87a6',cue:73.25,moods:['rassicurante','positivo']},
-    {title:'Tech House vibes',stem:'tech-house-vibes-130',hash:'95972c602ff0686e29',cue:82.25,moods:['informativo']},
-    {title:'Expressive Courage',stem:'expressive-courage-468',hash:'403cd5b74ae9c47799',cue:76.5,moods:['positivo','informativo']},
+    {title:'The King',stem:'the-king-857',hash:'d8a4b4280081e92e48',sha256:'d8a4b4280081e92e48a6a3e0034a1e7acd4abb19b41aefb772e92d058cb7f724',size:4373527,cue:16,moods:['positivo']},
+    {title:'Close Up',stem:'close-up-1167',hash:'a7f05a29d07a84d380',sha256:'a7f05a29d07a84d38072ccd2b35204bca812db86e75b2a837e71cc144d3e739b',size:3045294,cue:78,moods:['informativo']},
+    {title:'Curiosity',stem:'curiosity-480',hash:'181e91737f341ca61a',sha256:'181e91737f341ca61a1641b2955cc794fa6276ca0854d06266d55841d655a24b',size:3613867,cue:13.75,moods:['informativo']},
+    {title:"I'm Fine",stem:'im-fine-1002',hash:'cee0e8584bc8e7de7f',sha256:'cee0e8584bc8e7de7f31f0aaef45d109693ea1905db7ff845171751cd8e75880',size:3330592,cue:84.5,moods:['rassicurante']},
+    {title:"It's Love",stem:'its-love-834',hash:'c69dc74479239f6344',sha256:'c69dc74479239f63442a369891a57c7f9a05236a7090e4b694057c13f3843cf9',size:3092180,cue:2,moods:['rassicurante']},
+    {title:'Raising Me Higher',stem:'raising-me-higher-34',hash:'619b82cea299230cca',sha256:'619b82cea299230cca5beac36d049291a1cb2be8ce0afdafda3e06fb30d06525',size:3126333,cue:78.75,moods:['positivo']},
+    {title:'What About Action?',stem:'what-about-action-474',hash:'4bcd99a13f3d71c6d3',sha256:'4bcd99a13f3d71c6d356c2459f6f585f0d3f91ca8912aeef81ac626b8c8e3133',size:3747466,cue:14.75,moods:['positivo','informativo']},
+    {title:"Dirty Thinkin'",stem:'dirty-thinkin-989',hash:'e36220dbbaf56e0380',sha256:'e36220dbbaf56e0380bb106e32779b1832fa8f4bd8d40edcaf15b07a17bb9a8f',size:2854705,cue:72.75,moods:['positivo','informativo']},
+    {title:'Driving Ambition',stem:'driving-ambition-32',hash:'e3c88488e65b8c87a6',sha256:'e3c88488e65b8c87a6f06120983ce2cb12ea3aeba99f8cadb7ee5d6d284ef2c6',size:3270947,cue:73.25,moods:['rassicurante','positivo']},
+    {title:'Tech House vibes',stem:'tech-house-vibes-130',hash:'95972c602ff0686e29',sha256:'95972c602ff0686e298792f45b384f0e15477f3cf983f05dd98fd5e5d965eed6',size:3276082,cue:82.25,moods:['informativo']},
+    {title:'Expressive Courage',stem:'expressive-courage-468',hash:'403cd5b74ae9c47799',sha256:'403cd5b74ae9c47799ed0042dfea9e3da6d8822433cbaf09c051d7a534e6383c',size:3087090,cue:76.5,moods:['positivo','informativo']},
   ]);
   function musicMeta(file) {
     const name = String(file?.name || '').toLowerCase();
@@ -167,10 +172,10 @@
       view.actionButton.disabled = !generation || isBusy || view.running;
       view.notesInput.disabled = isBusy && !view.running;
     });
-    if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy;
-    if (previewView?.exportButton) previewView.exportButton.disabled = availablePreviewIndices().length !== 4 || isBusy;
+    if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
+    if (previewView?.exportButton) previewView.exportButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
     if (previewView?.musicInput) previewView.musicInput.disabled = isBusy;
-    if (previewView?.musicChoice) previewView.musicChoice.disabled = isBusy || !localTracks.length;
+    if (previewView?.musicChoice) previewView.musicChoice.disabled = isBusy || musicLoading;
     if (previewView?.musicClear) previewView.musicClear.disabled = isBusy || !localTracks.length;
     if (previewView?.productInput) previewView.productInput.disabled = isBusy;
     if (previewView?.productChoice) previewView.productChoice.disabled = isBusy;
@@ -648,8 +653,8 @@
     const t = sceneViews.slice(0, scene).reduce((sum, item) => sum + (Number(item.scene.duration_ms) || 0), 0) / 1000;
     if (!previewPlaying) renderMontageFrame(t);
     previewView.musicHelp.textContent = soundtrackUrl
-      ? 'Traccia locale caricata per l’ascolto di prova. Non viene inviata al server né approvata per la pubblicazione.'
-      : 'Importa una volta gli MP3 privati: restano salvati su questo dispositivo. Senza musica la bozza non si esporta (salvo scelta esplicita).';
+      ? 'Traccia della libreria pronta per la bozza. È audio di revisione, non approvazione alla pubblicazione.'
+      : 'Attendo una traccia dalla libreria privata. La bozza non viene esportata muta per errore.';
     syncControls();
   }
   function montageTick() {
@@ -733,13 +738,10 @@
       localTracks = files.slice(0, MAX_LOCAL_TRACKS).filter(validLocalAudio);
       musicPersistedOnDevice = Boolean(localTracks.length);
       refreshMusicChoices();
-      if (localTracks.length) {
-        previewView.musicChoice.value = 'auto';
-        await applyMusicChoice();
-      }
+      // Restored files are fallback only; server catalogue is authoritative for automatic selection.
     } catch (error) {
       if (epoch === musicLibraryEpoch && previewView)
-        previewView.musicCount.textContent = `Memoria MP3 non accessibile: ${error.message}. Importa i brani manualmente.`;
+        previewView.musicCount.textContent = `Memoria locale facoltativa non accessibile: ${error.message}.`;
     }
   }
   async function persistMusicLibrary(files) {
@@ -752,13 +754,53 @@
     const choice = previewView.musicChoice;
     const previous = choice.value;
     choice.replaceChildren(new Option('Automatica (tono della storia)', 'auto'));
-    localTracks.forEach((file, i) => choice.add(new Option(musicMeta(file)?.title || file.name, `track:${i}`)));
+    MUSIC_INDEX.forEach((track, i) => choice.add(new Option(track.title, `track:${i}`)));
+    localTracks.forEach((file, i) => choice.add(new Option(`File locale: ${musicMeta(file)?.title || file.name}`, `local:${i}`)));
     choice.add(new Option('Nessuna musica', 'none'));
     choice.value = [...choice.options].some(opt => opt.value === previous) ? previous : 'auto';
-    if (previewView.musicCount) previewView.musicCount.textContent = localTracks.length
-      ? `${localTracks.length} MP3 ${musicPersistedOnDevice ? 'salvati su questo dispositivo' : 'disponibili in questa sessione'}. Nessun upload al server.`
-      : 'Nessun MP3 disponibile. Importa una volta gli 11 brani per memorizzarli su questo dispositivo.';
+    if (previewView.musicCount) previewView.musicCount.textContent =
+      `Catalogo privato: ${MUSIC_INDEX.length} titoli; verifica file al primo utilizzo. ` +
+      (localTracks.length ? `${localTracks.length} file locali facoltativi.` : 'Nessun caricamento manuale richiesto.');
     syncControls();
+  }
+  // Download only the chosen MP3. The existing Storage RLS decides whether this
+  // authenticated editor may read it; no signed/public URL or new /api endpoint.
+  async function privateMusicFile(track) {
+    if (remoteTracks.has(track.sha256)) return remoteTracks.get(track.sha256);
+    if (!url || !publicKey) throw Error('Configurazione Supabase della Redazione assente');
+    const token = await requireEditor();
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    let response;
+    try {
+      response = await fetch(
+        `${url}/storage/v1/object/authenticated/${MUSIC_STORAGE_BUCKET}/audio/${track.sha256}.mp3`,
+        {headers: {apikey: publicKey, Authorization: `Bearer ${token}`},
+          cache: 'no-store', signal: controller.signal});
+      if (!response.ok) {
+        if (response.status === 401 || response.status === 403)
+          throw Error('lettura musicale non autorizzata: verificare RLS e sessione editoriale');
+        if (response.status === 404)
+          throw Error('archivio musicale privato non ancora installato o file mancante');
+        throw Error(`Storage musicale non disponibile (HTTP ${response.status})`);
+      }
+      const reportedSize = Number(response.headers.get('content-length') || 0);
+      if (reportedSize > MAX_REMOTE_BYTES) throw Error('file musicale supera il limite previsto');
+      const bytes = await response.arrayBuffer();
+      if (!bytes.byteLength || bytes.byteLength > MAX_REMOTE_BYTES || bytes.byteLength !== track.size)
+        throw Error('dimensione MP3 diversa dal catalogo verificato');
+      if (!crypto?.subtle) throw Error('verifica integrità MP3 non supportata dal browser');
+      const digest = await crypto.subtle.digest('SHA-256', bytes);
+      const actualSha = Array.from(new Uint8Array(digest), b => b.toString(16).padStart(2, '0')).join('');
+      if (actualSha !== track.sha256) throw Error('hash SHA-256 non corrispondente al brano originale');
+      const file = new File([bytes], `mixkit-${track.stem}.mp3`, {type:'audio/mpeg'});
+      if (remoteTracks.size >= 3) remoteTracks.delete(remoteTracks.keys().next().value);
+      remoteTracks.set(track.sha256, file);
+      return file;
+    } catch (e) {
+      if (e?.name === 'AbortError') throw Error('tempo di caricamento della musica esaurito');
+      throw e;
+    } finally { clearTimeout(timeout); }
   }
   function storyMusicMood() {
     const narrative = `${generation?.plan?.concept || ''} ${generation?.plan?.story_logline || ''} ${generation?.plan?.story_outcome || ''}`.toLowerCase();
@@ -769,14 +811,12 @@
     return 'positivo';
   }
   function autoTrackIndex() {
-    if (!localTracks.length) return -1;
     const topic = `${brief?.input?.theme || brief?.input?.article?.title || ''}|${generation?.plan?.concept || ''}`;
     let hash = 0;
     for (const char of topic) hash = ((hash * 31) + char.charCodeAt(0)) >>> 0;
     const mood = storyMusicMood();
-    const matching = localTracks.map((file, i) => ({file, i})).filter(({file}) =>
-      musicMeta(file)?.moods.includes(mood));
-    const choices = matching.length ? matching.map(item => item.i) : localTracks.map((_, i) => i);
+    const matching = MUSIC_INDEX.map((track, i) => ({track, i})).filter(({track}) => track.moods.includes(mood));
+    const choices = (matching.length ? matching : MUSIC_INDEX.map((track, i) => ({track, i}))).map(item => item.i);
     let next = choices[(hash + automaticCounter++) % choices.length];
     if (choices.length > 1 && next === previousAutomaticTrack)
       next = choices[(choices.indexOf(next) + 1) % choices.length];
@@ -785,15 +825,49 @@
   }
   async function applyMusicChoice() {
     if (!previewView) return;
-    const choice = previewView.musicChoice.value;
-    if (choice === 'none' || !localTracks.length) {
-      releaseSoundtrack();
-      showPreview(previewIndex);
-      return;
+    const targetView = previewView;
+    const epoch = ++musicSelectionEpoch;
+    const choice = targetView.musicChoice.value;
+    releaseSoundtrack(); // Never leave the previously selected track attached during a switch.
+    if (choice === 'none') { showPreview(previewIndex); syncControls(); return; }
+    musicLoading = true;
+    targetView.musicHelp.textContent = 'Selezione e verifica della musica in corso…';
+    syncControls();
+    try {
+      let file, cue = 0, source = 'libreria privata';
+      if (choice.startsWith('local:')) {
+        file = localTracks[Number(choice.slice(6))];
+        if (!file) throw Error('MP3 locale non più disponibile');
+        cue = reviewStartFor(file);
+        source = 'file locale';
+      } else {
+        const index = choice === 'auto' ? autoTrackIndex() : Number(choice.slice(6));
+        const track = MUSIC_INDEX[index];
+        if (!track) throw Error('selezione musicale non valida');
+        cue = track.cue;
+        try {
+          file = await privateMusicFile(track);
+        } catch (remoteError) {
+          const fallback = localTracks.find(candidate => musicMeta(candidate)?.sha256 === track.sha256);
+          if (!fallback) throw remoteError;
+          file = fallback;
+          source = 'copia locale di sicurezza';
+        }
+      }
+      if (epoch !== musicSelectionEpoch || targetView !== previewView) return;
+      await selectSoundtrack(file, cue);
+      if (!soundtrackFile) throw Error('brano non decodificabile o non riproducibile');
+      if (epoch === musicSelectionEpoch && targetView === previewView)
+        targetView.musicHelp.textContent = `${musicMeta(file)?.title || file.name} · ${source} · estratto da ${soundtrackStart.toFixed(2)} s. Puoi cambiare traccia.`;
+    } catch (error) {
+      if (epoch === musicSelectionEpoch && targetView === previewView)
+        targetView.musicHelp.textContent = `Musica automatica non disponibile: ${error.message}. Esportazione bloccata finché manca l’audio.`;
+    } finally {
+      if (epoch === musicSelectionEpoch && targetView === previewView) {
+        musicLoading = false;
+        syncControls();
+      }
     }
-    const index = choice === 'auto' ? autoTrackIndex() : Number(choice.replace('track:', ''));
-    const file = localTracks[index];
-    if (file) await selectSoundtrack(file, reviewStartFor(file));
   }
   async function importLocalTracks(files) {
     if (busy()) return;
@@ -892,14 +966,14 @@
     ].find(([mime]) => MediaRecorder.isTypeSupported(mime)) || null;
   }
   async function exportMontage() {
-    if (!previewView || busy() || availablePreviewIndices().length !== 4) return;
+    if (!previewView || busy() || musicLoading || availablePreviewIndices().length !== 4) return;
     const format = formatForRecorder();
     if (!format) {
       previewView.exportStatus.textContent = 'Esportazione non disponibile in questo browser. Usa una versione aggiornata di Chrome, Edge o Firefox.';
       return;
     }
     if (!soundtrackFile && previewView.musicChoice.value !== 'none') {
-      previewView.exportStatus.textContent = 'Nessun brano automatico disponibile: importa la libreria o scegli esplicitamente “Nessuna musica”.';
+      previewView.exportStatus.textContent = 'Brano automatico non disponibile: controllare che lo storage privato sia attivo e accessibile alla Redazione.';
       return;
     }
     stopPreview();
@@ -1060,7 +1134,7 @@
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
     const musicLabel = document.createElement('label');
-    musicLabel.textContent = 'Libreria musicale privata (importazione una tantum su questo browser)';
+    musicLabel.textContent = 'MP3 locali alternativi (facoltativo; catalogo automatico sul server)';
     previewView.musicInput.type = 'file';
     previewView.musicInput.multiple = true;
     previewView.musicInput.accept = 'audio/*,.mp3,.m4a,.wav,.aac,.ogg,.flac';
@@ -1072,7 +1146,7 @@
     choiceLabel.append(previewView.musicChoice);
     previewView.musicClear.type = 'button';
     previewView.musicClear.className = 'ol-button ol-button-secondary ol-button-small';
-    previewView.musicClear.textContent = 'Cancella libreria salvata';
+    previewView.musicClear.textContent = 'Cancella MP3 locali';
     previewView.musicClear.addEventListener('click', clearLocalTracks);
     previewView.musicCount.className = 'ol-muted ol-small';
     previewView.musicHelp.className = 'ol-muted ol-small';
@@ -1112,8 +1186,12 @@
     previewView.box.append(previewHeader, stage, musicRow, productRow, previewView.meta);
     realSummary.append(previewView.box);
     refreshMusicChoices();
-    if (localTracks.length) applyMusicChoice();
-    else restoreMusicLibrary();
+    // The server music library is loaded automatically even on a new device.
+    // Restore local MP3s only as an optional fallback; no import is required.
+    const currentView = previewView;
+    restoreMusicLibrary().finally(() => {
+      if (currentView === previewView) applyMusicChoice();
+    });
     previewView.logo.addEventListener('load', () => { if (!previewPlaying) showPreview(previewIndex); });
     previewView.logo.src = '/assets/logo-offertalogica-header.png';
     showPreview(0);
