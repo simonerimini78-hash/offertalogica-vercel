@@ -18,6 +18,11 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
+  const lighting = scene.role === 'cta'
+    ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
+    : index === 0
+      ? 'Start with credible natural daylight or gently neutral window light appropriate to the problem; avoid artificial orange tint or exaggerated drama.'
+      : 'Use believable natural or ambient light with moderate variation; keep continuity with the previous scene and let the story become gradually more reassuring when appropriate.';
   const protagonist = String(story?.protagonist_profile || scene.protagonist_profile || '').slice(0,360);
   const episodeAngle = String(story?.episode_angle || '').slice(0,220);
   const logline = String(story?.story_logline || '').slice(0,380);
@@ -46,6 +51,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   Place the principal subject on the ${side} side, with head, eyes, hands and important objects fully unobstructed.
   Reserve generous NATURAL NEGATIVE SPACE toward the ${opposite} side and/or above for separate, large legible typography and authentic branding.
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
+  Cinematic lighting direction for this specific beat: ${lighting}
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
   Generate NEW pixels from the textual idea alone: NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.

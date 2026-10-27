@@ -1,4 +1,4 @@
-/* Video Studio v1.1.5 — server-side private soundtrack selection, with local fallback. */
+/* Video Studio v1.1.6 — cinematic type, adaptive placement, private soundtrack. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -422,21 +422,159 @@
     }
     return result;
   }
-  // Cinematic composition in the SAME 9:16 image, not in a second panel.
-  // Subject side is a composition hint, not a verified face/object bounding box.
-  // Reviewers can override it per scene without regenerating a paid photograph.
+  // Text must be set into the image, never on a fixed opaque white card.
+  // Pixel salience and the editorial subject-side hint help choose a quiet region;
+  // they do NOT constitute certified face/object detection. The editor can override.
   function scenePlacement(view) {
     const requested = view?.layoutPreference || 'auto';
     if (requested !== 'auto') return requested;
     if (view?.scene?.subject_side === 'left') return 'right';
     if (view?.scene?.subject_side === 'right') return 'left';
-    return 'top';
+    return 'auto';
   }
-  function cinematicLayout(view) {
-    const side = scenePlacement(view);
-    return side === 'left' ? {x: 80, y: 285, width: 680, logoX: 99} :
-      side === 'right' ? {x: 420, y: 285, width: 585, logoX: 670} :
-        {x: 84, y: 240, width: 912, logoX: 635};
+  function photoSalience(view) {
+    const image = view?.image;
+    if (!image?.complete || !image.naturalWidth) return null;
+    if (view._salienceImage === image.src) return view._salience || null;
+    view._salienceImage = image.src;
+    view._salience = null;
+    try {
+      const tiny = document.createElement('canvas');
+      tiny.width = 108; tiny.height = 192;
+      const c = tiny.getContext('2d', {willReadFrequently:true});
+      if (!c) return null;
+      const zoom = Math.max(tiny.width / image.naturalWidth, tiny.height / image.naturalHeight);
+      const w = image.naturalWidth * zoom, h = image.naturalHeight * zoom;
+      c.drawImage(image, (tiny.width-w)/2, (tiny.height-h)/2, w, h);
+      const {data} = c.getImageData(0, 0, 108, 192);
+      const mass = new Float32Array(108*192);
+      const lum = new Float32Array(108*192);
+      for (let y=0; y<192; y++) for (let x=0; x<108; x++) {
+        const i=y*108+x, j=i*4;
+        const r=data[j], g=data[j+1], b=data[j+2];
+        const gray=(0.2126*r+0.7152*g+0.0722*b)/255;
+        lum[i]=gray;
+        const skin=r>75 && g>44 && b>22 && r>g+10 && r>b+15 && g>b*0.72 && g<b*2.1;
+        mass[i] = (skin ? 0.65 : 0) + (Math.max(r,g,b)-Math.min(r,g,b))/255*0.12;
+      }
+      for (let y=1; y<191; y++) for (let x=1; x<107; x++) {
+        const i=y*108+x;
+        mass[i] += Math.min(1.2, (Math.abs(lum[i+1]-lum[i-1])+
+          Math.abs(lum[i+108]-lum[i-108]))*1.7);
+      }
+      view._salience = {mass,lum};
+      return view._salience;
+    } catch { return null; }
+  }
+  function quietness(view, rect) {
+    const photo = photoSalience(view);
+    if (!photo) return 0;
+    const x0=Math.max(0, Math.floor(rect.x/10)), x1=Math.min(107, Math.ceil((rect.x+rect.width)/10));
+    const y0=Math.max(0, Math.floor(rect.y/10)), y1=Math.min(191, Math.ceil((rect.y+rect.height)/10));
+    let sum=0, samples=0;
+    for (let y=y0; y<y1; y+=2) for (let x=x0; x<x1; x+=2) {
+      sum+=photo.mass[y*108+x]; samples++;
+    }
+    return samples ? sum/samples : 0;
+  }
+  function intersects(a,b,pad=0) {
+    return a.x < b.x+b.width+pad && a.x+a.width+pad > b.x &&
+      a.y < b.y+b.height+pad && a.y+a.height+pad > b.y;
+  }
+  async function detectSceneFaces(view, source) {
+    if (typeof window.FaceDetector !== 'function') return;
+    try {
+      const detector=new window.FaceDetector({fastMode:true,maxDetectedFaces:6});
+      const detected=await detector.detect(view.image);
+      if (view.image.src!==source) return;
+      const image=view.image;
+      const cover=Math.max(1080/image.naturalWidth,1920/image.naturalHeight);
+      const offsetX=(1080-image.naturalWidth*cover)/2;
+      const offsetY=(1920-image.naturalHeight*cover)/2;
+      view._faceBoxes=detected.map(face=>({
+        x:offsetX+face.boundingBox.x*cover,
+        y:offsetY+face.boundingBox.y*cover,
+        width:face.boundingBox.width*cover,
+        height:face.boundingBox.height*cover,
+      }));
+      view._compositionKey=null;
+      if (!previewPlaying && previewView) showPreview(view.index);
+    } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
+  }
+  function fitSceneCopy(ctx,scene,width) {
+    let size=scene.role==='hook' ? 88 : 83, lines=[];
+    for (;size>=56;size-=4) {
+      ctx.font=`800 ${size}px system-ui, sans-serif`;
+      lines=wrapOverlayLines(ctx,scene.headline,width);
+      if (lines.length<=3 && lines.every(line=>ctx.measureText(line).width<=width)) break;
+    }
+    lines=wrapCanvasText(ctx,scene.headline,width,3);
+    const subtitle=String(scene.secondary_text||'').trim();
+    let detailSize=47, detail=[];
+    if (subtitle) for (;detailSize>=32;detailSize-=3) {
+      ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+      detail=wrapOverlayLines(ctx,subtitle,width);
+      if (detail.length<=2 && detail.every(line=>ctx.measureText(line).width<=width)) break;
+    }
+    if(detail.length>3) detail=wrapCanvasText(ctx,subtitle,width,3);
+    const titleStep=Math.round(size*1.15), detailStep=Math.round(detailSize*1.23);
+    const height=lines.length*titleStep+(detail.length?28+detail.length*detailStep:0);
+    return {lines,size,titleStep,detail,detailSize,detailStep,height};
+  }
+  function compositionForScene(ctx,view) {
+    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}`;
+    if (view._compositionKey===key && view._composition) return view._composition;
+    const mode=scenePlacement(view);
+    const choices=[
+      {side:'left',x:76,y:290,width:420},
+      {side:'right',x:575,y:290,width:420},
+      {side:'left',x:76,y:945,width:420},
+      {side:'right',x:530,y:945,width:385},
+      {side:'top',x:83,y:270,width:914},
+      {side:'bottom',x:83,y:990,width:700},
+    ];
+    const preferred=mode==='auto' ? 'top' : mode;
+    let ranked=[];
+    for(const choice of choices) {
+      if (view.layoutPreference!=='auto' && choice.side!==view.layoutPreference) continue;
+      const copy=fitSceneCopy(ctx,view.scene,choice.width);
+      const y=Math.min(choice.y,1530-copy.height);
+      const bounds={x:choice.x-8,y:y-12,width:choice.width+12,height:copy.height+28};
+      // Favour the side opposite the subject, then prefer areas with less detail.
+      const sideBias=mode==='auto' ? (choice.side==='top'?0:0.20) :
+        (choice.side===preferred ? -0.30 : 0.85);
+      const upperBodyPenalty=(bounds.x<730 && bounds.x+bounds.width>350 &&
+        bounds.y<860 && bounds.y+bounds.height>400) ? 0.12:0;
+      const faces=view._faceBoxes || [];
+      const facePenalty=faces.some(face=>intersects(face,bounds,62)) ? 50 : 0;
+      const score=quietness(view,bounds)*1.85+sideBias+upperBodyPenalty+facePenalty+
+        (choice.y>900?0.05:0);
+      ranked.push({choice,copy,y,bounds,score});
+    }
+    ranked.sort((a,b)=>a.score-b.score);
+    const selected=ranked[0] || {choice:choices[0],copy:fitSceneCopy(ctx,view.scene,560),y:290,
+      bounds:{x:72,y:290,width:580,height:330}};
+    const image=previewView?.logo;
+    const logoW=view.scene.role==='cta'?258:228;
+    const logoH=image?.naturalWidth ? Math.round(logoW*image.naturalHeight/image.naturalWidth):131;
+    const logos=[
+      {x:72,y:1370,width:logoW,height:logoH},
+      {x:1080-logoW-166,y:1370,width:logoW,height:logoH},
+      {x:72,y:195,width:logoW,height:logoH},
+      {x:1080-logoW-166,y:195,width:logoW,height:logoH},
+    ].filter(rect=>!intersects(rect,selected.bounds,42));
+    logos.sort((a,b)=>{
+      const risk=rect=>quietness(view,rect)+
+        ((view._faceBoxes||[]).some(face=>intersects(face,rect,45))?50:0)+
+        ((view.scene.subject_side==='right' && rect.x>530) ||
+         (view.scene.subject_side==='left' && rect.x<350) ? 2 : 0);
+      return risk(a)-risk(b);
+    });
+    const logo=logos[0] || {x:1080-logoW-166,y:1370,width:logoW,height:logoH};
+    const plan={...selected,logo};
+    view._compositionKey=key;
+    view._composition=plan;
+    return plan;
   }
   function drawProductScreenFrame(ctx, view) {
     const image = verifiedProductScreen?.image;
@@ -525,9 +663,11 @@
     if (!image || !image.complete || !image.naturalWidth || !image.naturalHeight) return;
     ctx.save();
     ctx.globalAlpha = opacity;
-    // Full-bleed cover, never letterbox. Small centred movement only (no blind pan).
+    // A restrained Ken Burns move; full-bleed cover, no blind panning onto faces.
+    const finalScene = index === sceneViews.length - 1;
+    const travel = finalScene ? (1 - zoomProgress) : zoomProgress;
     const scale = Math.max(MONTAGE_WIDTH / image.naturalWidth, MONTAGE_HEIGHT / image.naturalHeight) *
-      (1.008 + zoomProgress * 0.014);
+      (1.010 + travel * (finalScene ? 0.024 : 0.036));
     const w = image.naturalWidth * scale;
     const h = image.naturalHeight * scale;
     ctx.drawImage(image, (MONTAGE_WIDTH - w) / 2, (MONTAGE_HEIGHT - h) / 2, w, h);
@@ -546,77 +686,85 @@
     if (line) lines.push(line);
     return lines;
   }
-  function drawCinematicOverlay(ctx, view) {
-    const {scene} = view;
-    const placement = cinematicLayout(view);
-    const x = placement.x;
-    const maxWidth = placement.width;
-    let titleSize = scene.role === 'hook' ? 100 : 90;
-    let titleLines = [];
-    do {
-      ctx.font = `800 ${titleSize}px system-ui, sans-serif`;
-      titleLines = wrapOverlayLines(ctx, scene.headline, maxWidth - 38);
-      if (titleLines.length <= 3 && titleLines.every(l => ctx.measureText(l).width <= maxWidth - 38)) break;
-      titleSize -= 6;
-    } while (titleSize >= 58);
-    const titleLineHeight = Math.round(titleSize * 1.12);
-    const titleHeight = titleLines.length * titleLineHeight;
-    let secondarySize = 54;
-    let secondaryLines = [];
-    const subtitle = String(scene.secondary_text || '').trim();
-    if (subtitle) {
-      do {
-        ctx.font = `500 ${secondarySize}px system-ui, sans-serif`;
-        secondaryLines = wrapOverlayLines(ctx, subtitle, maxWidth - 40);
-        if (secondaryLines.length <= 2 && secondaryLines.every(l => ctx.measureText(l).width <= maxWidth - 40)) break;
-        secondarySize -= 4;
-      } while (secondarySize >= 34);
+  function transparentBrandLogo() {
+    const picture=previewView?.logo;
+    if (!picture?.complete || !picture.naturalWidth) return null;
+    if (previewView._logoTransparent) return previewView._logoTransparent;
+    try {
+      const canvas=document.createElement('canvas');
+      canvas.width=picture.naturalWidth;
+      canvas.height=picture.naturalHeight;
+      const c=canvas.getContext('2d', {willReadFrequently:true});
+      c.drawImage(picture,0,0);
+      const pixels=c.getImageData(0,0,canvas.width,canvas.height);
+      for(let i=0;i<pixels.data.length;i+=4) {
+        const r=pixels.data[i],g=pixels.data[i+1],b=pixels.data[i+2];
+        const min=Math.min(r,g,b),spread=Math.max(r,g,b)-min;
+        if(min>224 && spread<26)
+          pixels.data[i+3]=Math.round(pixels.data[i+3]*Math.min(1,(255-min)/31));
+      }
+      c.putImageData(pixels,0,0);
+      previewView._logoTransparent=canvas;
+      return canvas;
+    } catch { return picture; }
+  }
+  function drawCinematicOverlay(ctx,view) {
+    const {scene}=view;
+    const {choice,copy,y,bounds,logo}=compositionForScene(ctx,view);
+    // A soft, edge-less local gradient keeps the photograph visible.
+    const photo=photoSalience(view);
+    let brightness=0.52;
+    if (photo) {
+      let sum=0,count=0;
+      for(let iy=Math.floor(bounds.y/10);iy<Math.min(191,Math.floor((bounds.y+bounds.height)/10));iy+=4)
+        for(let ix=Math.floor(bounds.x/10);ix<Math.min(107,Math.floor((bounds.x+bounds.width)/10));ix+=4) {
+          sum+=photo.lum[iy*108+ix];count++;
+        }
+      if(count) brightness=sum/count;
     }
-    const secondaryLineHeight = Math.round(secondarySize * 1.22);
-    const secondaryHeight = secondaryLines.length ? 30 + secondaryLines.length * secondaryLineHeight : 0;
-    const groupHeight = titleHeight + secondaryHeight + 38;
-    const y = Math.min(810, placement.y + Math.max(0, 385 - groupHeight) * 0.12);
-    // White blurred veil, as in the v0.8 cinematic rendering, instead of a footer strip.
-    const veilX = Math.max(46, x - 34);
-    const veilY = y - 42;
-    const veilW = Math.min(MONTAGE_WIDTH - veilX - 40, maxWidth + 75);
-    const veilH = groupHeight + 52;
+    const lightText=brightness<0.52;
+    const ink=lightText?'#ffffff':'#102b3b';
+    const outline=lightText?'rgba(8,17,26,0.70)':'rgba(255,255,255,0.66)';
+    const cX=choice.x+choice.width/2,cY=y+copy.height/2;
+    const fade=ctx.createRadialGradient(cX,cY,26,cX,cY,Math.max(choice.width,copy.height)*0.86);
+    fade.addColorStop(0,lightText?'rgba(4,15,24,0.47)':'rgba(255,255,255,0.44)');
+    fade.addColorStop(0.52,lightText?'rgba(4,15,24,0.24)':'rgba(255,255,255,0.20)');
+    fade.addColorStop(1,'rgba(0,0,0,0)');
     ctx.save();
-    ctx.shadowColor = 'rgba(255,255,255,0.80)';
-    ctx.shadowBlur = 35;
-    ctx.fillStyle = 'rgba(255,255,255,0.78)';
-    ctx.beginPath();
-    ctx.roundRect(veilX, veilY, veilW, veilH, 40);
-    ctx.fill();
-    ctx.restore();
-    ctx.textAlign = 'left';
-    ctx.textBaseline = 'alphabetic';
-    ctx.fillStyle = '#102b3d';
-    ctx.font = `800 ${titleSize}px system-ui, sans-serif`;
-    const base = y + titleSize;
-    titleLines.forEach((line, n) => ctx.fillText(line, x, base + n * titleLineHeight));
-    if (secondaryLines.length) {
-      ctx.fillStyle = '#173347';
-      ctx.font = `500 ${secondarySize}px system-ui, sans-serif`;
-      const first = y + titleHeight + 40 + secondarySize;
-      secondaryLines.forEach((line, n) => ctx.fillText(line, x, first + n * secondaryLineHeight));
+    ctx.fillStyle=fade;
+    ctx.fillRect(Math.max(0,choice.x-120),Math.max(0,y-125),
+      Math.min(1080-choice.x+120,choice.width+240),copy.height+250);
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    ctx.lineJoin='round';ctx.miterLimit=2;
+    const drawLine=(text,x,yy,font,isDetail=false)=>{
+      ctx.font=font;
+      ctx.lineWidth=isDetail?3.5:5;
+      ctx.strokeStyle=outline;
+      ctx.strokeText(text,x,yy);
+      ctx.shadowColor=lightText?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.5)';
+      ctx.shadowBlur=7;
+      ctx.fillStyle=ink;
+      ctx.fillText(text,x,yy);
+      ctx.shadowBlur=0;
+    };
+    const baseline=y+copy.size;
+    for(let i=0;i<copy.lines.length;i++)
+      drawLine(copy.lines[i],choice.x,baseline+i*copy.titleStep,`800 ${copy.size}px system-ui, sans-serif`);
+    if(copy.detail.length) {
+      const first=y+copy.lines.length*copy.titleStep+28+copy.detailSize;
+      for(let i=0;i<copy.detail.length;i++)
+        drawLine(copy.detail[i],choice.x,first+i*copy.detailStep,
+          `500 ${copy.detailSize}px system-ui, sans-serif`,true);
     }
-    // Authentic image-based wordmark: never ask the image model to draw it.
-    if (previewView.logo.complete && previewView.logo.naturalWidth && previewView.logo.naturalHeight) {
-      const logo = previewView.logo;
-      const logoW = scene.role === 'cta' ? 380 : 340;
-      const logoH = logoW * logo.naturalHeight / logo.naturalWidth;
-      const logoX = Math.min(MONTAGE_WIDTH - logoW - 68, placement.logoX);
-      const logoY = Math.min(1210 - logoH, y + groupHeight + 44);
+    ctx.restore();
+    // Place the authentic logo separately, no opaque white tile.
+    if(previewView?.logo?.complete && previewView.logo.naturalWidth) {
       ctx.save();
-      ctx.shadowColor = 'rgba(255,255,255,0.82)';
-      ctx.shadowBlur = 29;
-      ctx.fillStyle = 'rgba(255,255,255,0.82)';
-      ctx.beginPath();
-      ctx.roundRect(logoX - 18, logoY - 12, logoW + 36, logoH + 24, 22);
-      ctx.fill();
+      ctx.shadowColor='rgba(255,255,255,0.82)';
+      ctx.shadowBlur=11;
+      ctx.drawImage(transparentBrandLogo() || previewView.logo,
+        logo.x,logo.y,logo.width,logo.height);
       ctx.restore();
-      ctx.drawImage(logo, logoX, logoY, logoW, logoH);
     }
   }
   function renderMontageFrame(second) {
@@ -635,6 +783,14 @@
       drawScenePhoto(ctx, segment.index, Math.min(1, segment.local / segment.duration), 1);
       if (segment.index > 0 && segment.local < 0.28 && !productScreenActive(segment.index - 1)) {
         drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
+      }
+      if (sceneViews[segment.index]?.scene?.role === 'cta') {
+        // A subtle golden-hour finishing light on the CTA, not a replacement photo.
+        const glow=ctx.createLinearGradient(0,0,0,MONTAGE_HEIGHT);
+        glow.addColorStop(0,'rgba(245,186,115,0)');
+        glow.addColorStop(1,'rgba(245,171,83,0.12)');
+        ctx.fillStyle=glow;
+        ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
       }
       drawCinematicOverlay(ctx, sceneViews[segment.index]);
     }
@@ -1109,7 +1265,7 @@
     const previewIntro = document.createElement('div');
     previewIntro.append(
       textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
-      textElement('p', 'Fotografie a tutto schermo con testo e logo sovrapposti. Puoi spostare il layout di ogni scena; bozza con musica incorporata, non master pubblicabile.'),
+      textElement('p', 'Fotografie a tutto schermo, testi liberi e sfumature morbide (senza riquadri). Verifica che testi e logo non coprano il soggetto; puoi correggere il lato scena per scena.'),
     );
     previewView.playButton.type = 'button';
     previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
@@ -1251,7 +1407,7 @@
     const layoutSelect = document.createElement('select');
     layoutSelect.id = `vs-scene-layout-${index}`;
     for (const [value, label] of [['auto','Automatica (lato libero della scena)'],['top','In alto'],
-      ['left','A sinistra'],['right','A destra']]) {
+      ['left','A sinistra'],['right','A destra'],['bottom','In basso']]) {
       const option = document.createElement('option');
       option.value = value;
       option.textContent = label;
@@ -1277,6 +1433,7 @@
     layoutSelect.addEventListener('change', () => {
       if (exporting) return;
       view.layoutPreference = layoutSelect.value;
+      view._compositionKey = null;
       if (!previewPlaying && previewView) showPreview(index);
     });
     actionButton.addEventListener('click', async () => {
@@ -1316,7 +1473,15 @@
         revision_notes: revisionNotes || undefined,
       }, token, 230000);
       view.result = result;
+      view._compositionKey = null;
+      view._salienceImage = null;
+      view._faceBoxes = null;
       view.image.src = `data:${result.preview_mime};base64,${result.preview_base64}`;
+      view.image.addEventListener('load', () => {
+        view._compositionKey = null;
+        if (!previewPlaying && previewView) showPreview(view.index);
+        detectSceneFaces(view, view.image.src);
+      }, {once:true});
       view.image.hidden = false;
       view.promptBody.textContent = result.prompt;
       view.prompt.hidden = false;
