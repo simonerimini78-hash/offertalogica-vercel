@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.108";
+const VERSION = "0.12.109";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -3765,6 +3765,9 @@ async function generateEditorialArticlePackage(user, payload = {}) {
       article_id: article.id,
       article_fingerprint_sha256: currentFingerprint,
       automation_run_id: run?.id || null,
+      // Identificativo dello slot settimanale: resta aperto fino al QA conclusivo.
+      scheduler_slot_run_id: runSource === "scheduler" && validUuid(String(payload.scheduler_slot_run_id || ""))
+        ? String(payload.scheduler_slot_run_id) : null,
       platforms,
       automatic_publish: false,
       source: runSource,
@@ -3924,6 +3927,27 @@ async function resumeEditorialAutomaticCycle(user, payload = {}) {
   };
 }
 
+async function schedulerFinishArticlePrepareSlot(job, status, stage, errorMessage = null) {
+  const slotRunId = String(job?.scheduler_slot_run_id || "");
+  if (!validUuid(slotRunId) || job?.source !== "scheduler") return;
+  const rows = await serviceFetch(`editorial_automation_runs?select=id,run_type,status,details,opportunity_id,article_id&id=eq.${encodeURIComponent(slotRunId)}&limit=1`);
+  const slotRun = rows?.[0];
+  if (!slotRun || slotRun.run_type !== "article_prepare"
+    || slotRun?.details?.source !== "scheduler"
+    || !slotRun?.details?.scheduler_key
+    || !["running", "failed", "success"].includes(String(slotRun.status || ""))) return;
+  // Non modificare uno slot gia' concluso: richieste di polling concorrenti non
+  // devono sovrascrivere un esito registrato in precedenza.
+  if (slotRun.status !== "running") return;
+  await automationRunFinish(slotRun, status, {
+    opportunity_id: validUuid(String(job.opportunity_id || "")) ? job.opportunity_id : (slotRun.opportunity_id || null),
+    article_id: job.article_id || slotRun.article_id || null,
+    last_error: status === "failed" ? String(errorMessage || "Generazione non completata").slice(0, 2000) : null,
+    details: { ...slotRun.details, stage, completed_opportunity_id: job.opportunity_id || null,
+      publication_performed: false, generation_finished_at: new Date().toISOString() },
+  });
+}
+
 async function checkEditorialArticlePackage(user, payload = {}) {
   const id = String(payload.id || "").trim();
   if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
@@ -3982,7 +4006,8 @@ async function checkEditorialArticlePackage(user, payload = {}) {
     const now = new Date().toISOString();
     const nextEvidence = {
       ...evidenceBase,
-      article_generation_job: { ...job, status: status || "failed", checked_at: now, finished_at: now, last_error: String(message).slice(0, 2000) },
+      article_generation_job: { ...job, status: "failed", remote_status: status || "unknown",
+        checked_at: now, finished_at: now, last_error: String(message).slice(0, 2000) },
     };
     await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
       method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
@@ -4139,6 +4164,8 @@ async function checkEditorialArticlePackage(user, payload = {}) {
         background: true,
       },
     });
+    // Lo slot automatico e' completato soltanto DOPO che contenuto e QA sono salvati.
+    await schedulerFinishArticlePrepareSlot({ ...job, opportunity_id: id }, "success", "draft_ready_for_review");
     return {
       pending: false,
       status: "completed",
@@ -6702,11 +6729,20 @@ async function schedulerPublishRequestedSocialRegeneration(user) {
   return null;
 }
 
-async function automationRunsPayload() {
-  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=100");
-  return { ok: true, version: VERSION, runs: rows || [] };
+async function schedulerGlobalHeartbeatRun() {
+  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,created_at,details&run_type=eq.maintenance&order=created_at.desc&limit=14");
+  return (rows || []).find((run) => run?.details?.kind === "scheduler_heartbeat") || null;
 }
 
+async function automationRunsPayload() {
+  const [rows, heartbeatRun] = await Promise.all([
+    serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=100"),
+    schedulerGlobalHeartbeatRun(),
+  ]);
+  return { ok: true, version: VERSION,
+    runs: (rows || []).filter((run) => run?.details?.kind !== "scheduler_heartbeat"),
+    heartbeat: heartbeatRun?.details?.heartbeat || null };
+}
 
 function automationCronSecretEqual(left, right) {
   const a = Buffer.from(String(left || ""));
@@ -6715,20 +6751,6 @@ function automationCronSecretEqual(left, right) {
 }
 
 async function automationPersistTickState(result = null, error = null) {
-  let opportunityId = String(result?.opportunity_id || "").trim();
-  let opportunity = null;
-
-  if (validUuid(opportunityId)) {
-    const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence&id=eq.${encodeURIComponent(opportunityId)}&limit=1`);
-    opportunity = rows?.[0] || null;
-  } else {
-    const rows = await serviceFetch("editorial_research_opportunities?select=id,evidence&status=eq.selected&target_article_id=not.is.null&order=updated_at.desc&limit=1");
-    opportunity = rows?.[0] || null;
-    opportunityId = String(opportunity?.id || "").trim();
-  }
-
-  if (!validUuid(opportunityId) || !opportunity?.id) return;
-  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? { ...opportunity.evidence } : {};
   const now = new Date().toISOString();
   const heartbeat = {
     at: now,
@@ -6739,11 +6761,20 @@ async function automationPersistTickState(result = null, error = null) {
     error: error ? String(error?.message || error).slice(0, 800) : null,
     version: VERSION,
   };
-  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunityId)}`, {
-    method: "PATCH",
-    prefer: "return=minimal",
-    body: { evidence: { ...evidence, scheduler_heartbeat: heartbeat } },
-  });
+  const existing = await schedulerGlobalHeartbeatRun();
+  const day = schedulerLocalParts("Europe/Rome").date; // Giorno operativo, indipendente dall'opportunita'.
+  const body = { status: error ? "failed" : "success", started_at: now, finished_at: now,
+    details: { kind: "scheduler_heartbeat", day, heartbeat } };
+  if (existing?.id && existing?.details?.day === day) {
+    await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(existing.id)}`, {
+      method: "PATCH", prefer: "return=minimal", body,
+    });
+  } else {
+    await serviceFetch("editorial_automation_runs", {
+      method: "POST", prefer: "return=minimal",
+      body: { ...body, run_type: "maintenance", scheduled_for: now },
+    });
+  }
 }
 
 async function automationCronAuthorized(req) {
@@ -7102,7 +7133,9 @@ async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
     ? previousEvidence.autopilot_recovery : {};
   const now = new Date().toISOString();
   const sourceRetryCount = Number(previous.source_retry_count || 0);
-  const currentResponseId = String(previousEvidence.article_generation_job?.response_id || "");
+  const currentJob = previousEvidence.article_generation_job || {};
+  const schedulerSlotRunId = String(currentJob.scheduler_slot_run_id || "");
+  const currentResponseId = String(currentJob.response_id || "");
   const secondSearchNotYetStarted = sourceRetryCount < 1
     || (sourceRetryCount === 1 && previous.first_failed_response_id === currentResponseId);
   const platforms = await editorialEnabledSocialPlatforms();
@@ -7111,8 +7144,11 @@ async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
     // Un errore di avvio della seconda ricerca non deve diventare un falso QA.
     // Il numero di ripartenze resta limitato per evitare loop e costi indefiniti.
     const attempts = Number(previous.retry_start_attempts || 0);
-    if (attempts >= 3) return { action: "article_sources_retry_start_failed",
-      opportunity_id: opportunity.id, reason: "second_search_could_not_start" };
+    if (attempts >= 3) {
+      await schedulerFinishArticlePrepareSlot(currentJob, "failed", "second_search_could_not_start", reason);
+      return { action: "article_sources_retry_start_failed",
+        opportunity_id: opportunity.id, reason: "second_search_could_not_start" };
+    }
     // Il secondo pacchetto avvia una nuova Responses API con web_search obbligatoria.
     await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
       method: "PATCH", prefer: "return=minimal",
@@ -7123,7 +7159,8 @@ async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
         retry_started_at: now, first_error: previous.first_error || reason,
       } }, updated_at: now },
     });
-    const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms });
+    const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms,
+      scheduler_slot_run_id: schedulerSlotRunId });
     return { action: "article_sources_second_search", opportunity_id: opportunity.id,
       source_retry_count: 1, result };
   }
@@ -7144,14 +7181,18 @@ async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
   // Ricalcola la graduatoria, escludendo il tema appena fallito e quelli gia
   // esclusi in precedenza, prima di creare la bozza dell'alternativa.
   const settings = await automationSchedulerSettings();
-  if (!settings?.enabled) return { action: "article_sources_no_alternative_scheduler_disabled",
-    opportunity_id: opportunity.id };
+  if (!settings?.enabled) {
+    await schedulerFinishArticlePrepareSlot(currentJob, "failed", "scheduler_disabled", reason);
+    return { action: "article_sources_no_alternative_scheduler_disabled", opportunity_id: opportunity.id };
+  }
   const next = await schedulerSelectOpportunity(user, settings);
   if (!next?.id || next.id === opportunity.id || next.status !== "selected" || next.opportunity_type !== "new_article") {
+    await schedulerFinishArticlePrepareSlot(currentJob, "failed", "sources_exhausted", reason);
     return { action: "article_sources_no_eligible_alternative", opportunity_id: opportunity.id,
       reason: "all_available_topics_exhausted_or_ineligible" };
   }
-  const result = await generateEditorialArticlePackage(user, { id: next.id, platforms });
+  const result = await generateEditorialArticlePackage(user, { id: next.id, platforms,
+    scheduler_slot_run_id: schedulerSlotRunId });
   return { action: "article_sources_next_topic", previous_opportunity_id: opportunity.id,
     opportunity_id: next.id, result };
 }
@@ -7201,6 +7242,9 @@ async function schedulerResumeArticleGeneration(user) {
       if (job.source === "scheduler" && sourceRelated) {
         const refreshed = (await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`))?.[0];
         return schedulerRecoverArticleSources(user, refreshed || opportunity, errorMessage);
+      }
+      if (job.source === "scheduler") {
+        await schedulerFinishArticlePrepareSlot(job, "failed", "generation_failed", errorMessage);
       }
       return { action: "article_generation_failed", opportunity_id: opportunity.id,
         source: job.source, error: errorMessage };
@@ -7961,8 +8005,16 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
       };
       if (opportunity.opportunity_type === "new_article") {
         const enabledPlatforms = await editorialEnabledSocialPlatforms();
-        const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms: enabledPlatforms });
-        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: result.article_id || null, details: { ...details, ...selectionDetails, stage: "background_started", opportunity_id: opportunity.id, slot_only: true } });
+        const result = await generateEditorialArticlePackage(user, {
+          id: opportunity.id, platforms: enabledPlatforms, scheduler_slot_run_id: run.id,
+        });
+        // PATCH dei soli metadati: status resta "running" finche' il QA non termina.
+        await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+          method: "PATCH", prefer: "return=minimal",
+          body: { opportunity_id: opportunity.id, article_id: result.article_id || null,
+            details: { ...details, ...selectionDetails, stage: "background_started",
+              opportunity_id: opportunity.id, slot_only: true, response_id: result.response_id || null } },
+        });
         return { action: "article_generation_started", opportunity_id: opportunity.id, result };
       }
       await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
@@ -8056,6 +8108,45 @@ async function schedulerProcessSlot(slot, user, settings, runs, local) {
   }
 }
 
+async function schedulerRecoverOrphanedPrepareSlot(runs) {
+  const now = Date.now();
+  const orphan = (runs || []).find((run) =>
+    run.run_type === "article_prepare" && run.status === "running"
+    && run?.details?.source === "scheduler"
+    && run?.details?.stage === "background_started"
+    && Number.isFinite(Date.parse(run.started_at || run.created_at || ""))
+    && now - Date.parse(run.started_at || run.created_at || "") > EDITORIAL_JOB_MAX_AGE_MS
+  );
+  if (!orphan) return null;
+  // Il pacchetto potrebbe essere stato salvato correttamente prima di un errore
+  // nel solo aggiornamento dello slot. Non trasformare un QA riuscito in fallimento.
+  if (validUuid(String(orphan.opportunity_id || ""))) {
+    const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence,target_article_id&` +
+      `id=eq.${encodeURIComponent(orphan.opportunity_id)}&limit=1`);
+    const opportunity = rows?.[0] || null;
+    const job = opportunity?.evidence?.article_generation_job || {};
+    const generation = opportunity?.evidence?.article_generation || {};
+    if (job.status === "completed" && generation.status === "draft_ready_for_review"
+      && validUuid(String(opportunity?.target_article_id || ""))) {
+      await schedulerFinishArticlePrepareSlot({ ...job, source: "scheduler",
+        scheduler_slot_run_id: orphan.id, opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id }, "success", "draft_ready_for_review");
+      return { action: "article_prepare_orphan_completed", opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id };
+    }
+  }
+  const reason = "Slot preparazione scaduto senza esito definitivo dopo 90 minuti";
+  await automationRunFinish(orphan, "failed", {
+    opportunity_id: orphan.opportunity_id || null,
+    article_id: orphan.article_id || null,
+    last_error: reason,
+    details: { ...(orphan.details || {}), stage: "expired_without_final_qa",
+      expired_at: new Date().toISOString(), publication_performed: false },
+  });
+  return { action: "article_prepare_orphan_recovered", opportunity_id: orphan.opportunity_id || null,
+    article_id: orphan.article_id || null, reason };
+}
+
 async function editorialAutopilotTick() {
   const settings = await automationSchedulerSettings();
   if (!settings?.enabled) return { ok: true, version: VERSION, active: false, action: "disabled" };
@@ -8067,6 +8158,9 @@ async function editorialAutopilotTick() {
 
   const generation = await schedulerResumeArticleGeneration(user);
   if (generation) return { ok: true, version: VERSION, active: true, ...generation };
+
+  const orphan = await schedulerRecoverOrphanedPrepareSlot(runs);
+  if (orphan) return { ok: true, version: VERSION, active: true, ...orphan };
 
   const image = await schedulerPrepareMissingImage(user);
   if (image) return { ok: true, version: VERSION, active: true, ...image };

@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.108";
+  const VERSION = "0.12.109";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -18,6 +18,7 @@
   let socialPlanItems = [];
   let socialChannels = [];
   let automationRuns = [];
+  let schedulerGlobalHeartbeat = null;
   let automationRunsExpanded = false;
   const ARTICLE_IMAGE_PROFILES = [
     { value: "auto", label: "Auto editoriale (consigliata)", hint: "Sceglie automaticamente il profilo più adatto all'articolo." },
@@ -1526,6 +1527,8 @@
       research_plan: "ricerca e scelta opportunità completate",
       article_generation_started: "generazione bozza avviata",
       article_generation_check: "controllo generazione bozza",
+      article_prepare_orphan_recovered: "slot bloccato recuperato dopo timeout",
+      article_prepare_orphan_completed: "slot concluso: bozza gia pronta e verificata",
       article_sources_second_search: "seconda ricerca web sullo stesso tema",
       article_sources_next_topic: "QA fonti fallito due volte: generazione del tema successivo",
       article_sources_no_eligible_alternative: "nessun altro tema verificabile disponibile",
@@ -1557,14 +1560,12 @@
   }
 
   function schedulerHeartbeatMarkup(cycle, steps) {
-    const opportunity = opportunityRows.find((row) => String(row?.id || "") === String(cycle?.opportunityId || "")) || null;
-    const heartbeat = opportunity?.evidence?.scheduler_heartbeat && typeof opportunity.evidence.scheduler_heartbeat === "object"
-      ? opportunity.evidence.scheduler_heartbeat
-      : null;
+    // Heartbeat globale restituito dal backend: non dipende dal ciclo selezionato.
+    const heartbeat = schedulerGlobalHeartbeat;
     const currentStep = steps.find((step) => step.tone !== "success") || null;
-    const phase = currentStep ? currentStep.title : "Ciclo completo";
+    const phase = !cycle ? "Nessun ciclo attivo" : currentStep ? currentStep.title : "Ciclo completo";
     if (!heartbeat?.at) {
-      return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota</strong><small>Fase corrente: ${esc(phase)}. Il prossimo heartbeat registrerà qui l’orario effettivo e l’azione eseguita.</small></div>`;
+      return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota</strong><small>Fase corrente: ${esc(phase)}. Il backend non ha ancora registrato un heartbeat globale; verificare il cron.</small></div>`;
     }
 
     const lastMs = Date.parse(heartbeat.at);
@@ -1584,7 +1585,7 @@
     if (!box) return;
     const cycle = currentEditorialCycle();
     if (!cycle) {
-      box.innerHTML = '<strong>Ciclo articolo attuale</strong><p class="ol-muted">Nessun ciclo con opportunità selezionata è ancora registrato.</p>';
+      box.innerHTML = `<strong>Ciclo articolo attuale</strong>${schedulerHeartbeatMarkup(null, [])}<p class="ol-muted">Nessun ciclo con opportunità selezionata è ancora registrato.</p>`;
       return;
     }
     const steps = [
@@ -1696,9 +1697,11 @@
     try {
       const payload = await endpoint("editorial-automation-runs");
       automationRuns = Array.isArray(payload?.runs) ? payload.runs : [];
+      schedulerGlobalHeartbeat = payload?.heartbeat || null;
       renderAutomationRuns(section);
     } catch {
       automationRuns = [];
+      schedulerGlobalHeartbeat = null;
       renderAutomationRuns(section);
     }
   }
