@@ -1,4 +1,4 @@
-/* Video Studio v1.1.7 — signed sequential photo references; cinematic layout and music unchanged. */
+/* Video Studio v1.1.8 — mobile-first copy and logo composed as one protected visual unit. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -502,122 +502,147 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
+  // A headline is a mobile-first message, not a paragraph: two lines at most.
+  // Long editorial text remains in the storyboard; only the on-screen copy is shortened.
   function fitSceneCopy(ctx,scene,width) {
-    let size=scene.role==='hook' ? 88 : 83, lines=[];
-    for (;size>=56;size-=4) {
+    const headline=String(scene.headline||'').trim();
+    const isCta=scene.role==='cta';
+    let size=isCta?112:(scene.role==='hook'?108:100);
+    let lines=[];
+    for (;size>=76;size-=4) {
       ctx.font=`800 ${size}px system-ui, sans-serif`;
-      lines=wrapOverlayLines(ctx,scene.headline,width);
-      if (lines.length<=3 && lines.every(line=>ctx.measureText(line).width<=width)) break;
+      lines=wrapOverlayLines(ctx,headline,width);
+      if (lines.length<=2 && lines.every(line=>ctx.measureText(line).width<=width)) break;
     }
-    lines=wrapCanvasText(ctx,scene.headline,width,3);
-    const subtitle=String(scene.secondary_text||'').trim();
-    let detailSize=47, detail=[];
-    if (subtitle) for (;detailSize>=32;detailSize-=3) {
+    if (size<76) size=76;
+    ctx.font=`800 ${size}px system-ui, sans-serif`;
+    const complete=wrapOverlayLines(ctx,headline,width);
+    const titleTruncated=complete.length>2 || complete.some(line=>ctx.measureText(line).width>width);
+    lines=titleTruncated?wrapCanvasText(ctx,headline,width,2):complete;
+    const secondary=String(scene.secondary_text||'').trim();
+    let detailSize=isCta?46:48,detail=[];
+    if (secondary) {
+      for(;detailSize>=37;detailSize-=2) {
+        ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+        detail=wrapOverlayLines(ctx,secondary,width);
+        if(detail.length<=2 && detail.every(line=>ctx.measureText(line).width<=width)) break;
+      }
+      if(detailSize<37) detailSize=37;
       ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
-      detail=wrapOverlayLines(ctx,subtitle,width);
-      if (detail.length<=2 && detail.every(line=>ctx.measureText(line).width<=width)) break;
+      detail=wrapCanvasText(ctx,secondary,width,2);
     }
-    if(detail.length>3) detail=wrapCanvasText(ctx,subtitle,width,3);
-    const titleStep=Math.round(size*1.15), detailStep=Math.round(detailSize*1.23);
-    const height=lines.length*titleStep+(detail.length?28+detail.length*detailStep:0);
-    return {lines,size,titleStep,detail,detailSize,detailStep,height};
+    ctx.font=`800 ${size}px system-ui, sans-serif`;
+    const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
+    ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+    const detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
+    const titleStep=Math.round(size*1.14);
+    const detailStep=Math.round(detailSize*1.23);
+    const titleHeight=lines.length?size+(lines.length-1)*titleStep:0;
+    const detailHeight=detail.length?detailSize+(detail.length-1)*detailStep:0;
+    const textHeight=titleHeight+(detail.length?26+detailHeight:0);
+    return {lines,size,titleStep,detail,detailSize,detailStep,
+      titleHeight,textHeight,titleTruncated,titleWidth,detailWidth};
   }
   function compositionForScene(ctx,view) {
-    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}`;
+    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view._faceBoxes?.length||0}`;
     if (view._compositionKey===key && view._composition) return view._composition;
     const mode=scenePlacement(view);
     const choices=[
-      {side:'left',x:76,y:290,width:420},
-      {side:'right',x:575,y:290,width:420},
-      {side:'left',x:76,y:945,width:420},
-      {side:'right',x:530,y:945,width:385},
-      {side:'top',x:83,y:270,width:914},
-      {side:'bottom',x:83,y:990,width:700},
+      {side:'top',x:76,y:260,width:918},
+      {side:'bottom',x:76,y:990,width:918},
+      {side:'left',x:76,y:265,width:555},
+      {side:'right',x:465,y:265,width:540},
+      {side:'left',x:76,y:990,width:555},
+      {side:'right',x:465,y:990,width:540},
     ];
-    const preferred=mode==='auto' ? 'top' : mode;
     let ranked=[];
+    const image=previewView?.logo;
+    const isCta=view.scene.role==='cta';
+    // Logo and headline form one unit; on CTA the action label leads into the logo.
+    const logoW=isCta?290:230;
+    const logoH=image?.naturalWidth ? Math.round(logoW*image.naturalHeight/image.naturalWidth) : Math.round(logoW*.552);
+    const actionSize=isCta?43:0;
     for(const choice of choices) {
-      if (view.layoutPreference!=='auto' && choice.side!==view.layoutPreference) continue;
+      if(view.layoutPreference!=='auto' && choice.side!==view.layoutPreference) continue;
       const copy=fitSceneCopy(ctx,view.scene,choice.width);
-      const y=Math.min(choice.y,1530-copy.height);
-      const bounds={x:choice.x-8,y:y-12,width:choice.width+12,height:copy.height+28};
-      // Favour the side opposite the subject, then prefer areas with less detail.
-      const sideBias=mode==='auto' ? (choice.side==='top'?0:0.20) :
-        (choice.side===preferred ? -0.30 : 0.85);
-      const upperBodyPenalty=(bounds.x<730 && bounds.x+bounds.width>350 &&
-        bounds.y<860 && bounds.y+bounds.height>400) ? 0.12:0;
-      const faces=view._faceBoxes || [];
-      const facePenalty=faces.some(face=>intersects(face,bounds,62)) ? 50 : 0;
-      const score=quietness(view,bounds)*1.85+sideBias+upperBodyPenalty+facePenalty+
-        (choice.y>900?0.05:0);
-      ranked.push({choice,copy,y,bounds,score});
+      const actionWidth=isCta?Math.round(actionSize*3.65):0;
+      const footerHeight=Math.max(logoH,actionSize)+20;
+      const groupHeight=copy.textHeight+24+footerHeight;
+      const y=Math.min(choice.y,1535-groupHeight);
+      if(y<200) continue;
+      const inkWidth=Math.min(choice.width,Math.max(copy.titleWidth,copy.detailWidth,
+        logoW+(isCta?actionWidth+16:0)));
+      const textBounds={x:choice.x-8,y:y-14,width:inkWidth+16,height:copy.textHeight+28};
+      const footerY=y+copy.textHeight+24;
+      const logo={x:choice.x+(isCta?actionWidth+16:0),y:footerY,width:logoW,height:logoH};
+      if(logo.x+logo.width>1010) continue;
+      const bounds={x:choice.x-14,y:y-16,width:Math.max(inkWidth+28,logo.x+logo.width-choice.x+28),height:groupHeight+22};
+      const faces=view._faceBoxes||[];
+      const facePenalty=faces.some(face=>intersects(face,bounds,70))?80:0;
+      const busyArea=quietness(view,bounds);
+      // Large readable headlines outrank arbitrary left/right placement.
+      const sizePenalty=(112-copy.size)*.018+(copy.titleTruncated?2.7:0);
+      const preference=(mode!=='auto' && choice.side===mode)?-.34:0;
+      const footerOverlap=faces.some(face=>intersects(face,logo,62))?35:0;
+      const score=busyArea*2.4+facePenalty+footerOverlap+sizePenalty+preference+
+        (choice.side==='bottom'?.13:0);
+      ranked.push({choice,copy,y,bounds,textBounds,logo,actionSize,footerY,score});
     }
     ranked.sort((a,b)=>a.score-b.score);
-    const selected=ranked[0] || {choice:choices[0],copy:fitSceneCopy(ctx,view.scene,560),y:290,
-      bounds:{x:72,y:290,width:580,height:330}};
-    const image=previewView?.logo;
-    const logoW=view.scene.role==='cta'?258:228;
-    const logoH=image?.naturalWidth ? Math.round(logoW*image.naturalHeight/image.naturalWidth):131;
-    const logos=[
-      {x:72,y:1370,width:logoW,height:logoH},
-      {x:1080-logoW-166,y:1370,width:logoW,height:logoH},
-      {x:72,y:195,width:logoW,height:logoH},
-      {x:1080-logoW-166,y:195,width:logoW,height:logoH},
-    ].filter(rect=>!intersects(rect,selected.bounds,42));
-    logos.sort((a,b)=>{
-      const risk=rect=>quietness(view,rect)+
-        ((view._faceBoxes||[]).some(face=>intersects(face,rect,45))?50:0)+
-        ((view.scene.subject_side==='right' && rect.x>530) ||
-         (view.scene.subject_side==='left' && rect.x<350) ? 2 : 0);
-      return risk(a)-risk(b);
-    });
-    const logo=logos[0] || {x:1080-logoW-166,y:1370,width:logoW,height:logoH};
-    const plan={...selected,logo};
+    // This fallback is only for an unsupported manual location, not for normal scenes.
+    const selected=ranked[0]||(()=>{
+      const choice=choices[0],copy=fitSceneCopy(ctx,view.scene,choice.width);
+      const footerY=260+copy.textHeight+24;
+      return {choice,copy,y:260,bounds:{x:65,y:245,width:945,height:copy.textHeight+logoH+70},
+        logo:{x:choice.x,y:footerY,width:logoW,height:logoH},footerY,actionSize,score:0};
+    })();
     view._compositionKey=key;
-    view._composition=plan;
-    return plan;
+    view._composition=selected;
+    return selected;
   }
   function drawProductScreenFrame(ctx, view) {
-    const image = verifiedProductScreen?.image;
-    if (!image) return;
-    ctx.fillStyle = '#11283b';
-    ctx.fillRect(0, 0, MONTAGE_WIDTH, MONTAGE_HEIGHT);
-    // Real, editor-supplied product pixels only. Preserve aspect ratio; never fabricate UI.
-    const box = {x:62, y:565, width:956, height:870};
-    const scale = Math.min(box.width / image.naturalWidth, box.height / image.naturalHeight);
-    const w = image.naturalWidth * scale, h = image.naturalHeight * scale;
-    const x = (MONTAGE_WIDTH - w) / 2, y = box.y + (box.height - h) / 2;
-    ctx.fillStyle = '#f9fafb';
-    ctx.beginPath();
-    ctx.roundRect(x - 18, y - 18, w + 36, h + 36, 24);
-    ctx.fill();
-    ctx.drawImage(image, x, y, w, h);
-    const scene = view.scene;
-    ctx.fillStyle = '#ffffff';
-    ctx.font = '800 91px system-ui, sans-serif';
-    ctx.textBaseline = 'alphabetic';
-    ctx.textAlign = 'left';
-    const lines = wrapCanvasText(ctx, scene.headline, 950, 3);
-    lines.forEach((line, i) => ctx.fillText(line, 65, 180 + i * 108));
-    const subtitle = String(scene.secondary_text || '').trim();
-    if (subtitle) {
-      ctx.font = '500 47px system-ui, sans-serif';
-      const sublines = wrapCanvasText(ctx, subtitle, 930, 2);
-      sublines.forEach((line, i) => ctx.fillText(line, 65, 445 + i * 55));
+    const image=verifiedProductScreen?.image;
+    if(!image) return;
+    ctx.fillStyle='#11283b';
+    ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
+    // Verified product screenshot, never an AI-invented interface.
+    const box={x:62,y:650,width:956,height:785};
+    const scale=Math.min(box.width/image.naturalWidth,box.height/image.naturalHeight);
+    const w=image.naturalWidth*scale,h=image.naturalHeight*scale;
+    const x=(MONTAGE_WIDTH-w)/2,y=box.y+(box.height-h)/2;
+    ctx.fillStyle='#f9fafb';
+    ctx.beginPath();ctx.roundRect(x-18,y-18,w+36,h+36,24);ctx.fill();
+    ctx.drawImage(image,x,y,w,h);
+    const headline=String(view.scene.headline||'').trim();
+    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    let size=102,lines=[];
+    for(;size>=76;size-=4) {
+      ctx.font=`800 ${size}px system-ui, sans-serif`;
+      lines=wrapOverlayLines(ctx,headline,936);
+      if(lines.length<=2) break;
     }
-    // Explicitly a user-provided screenshot; no claim that an AI-generated device is genuine.
-    ctx.font = '500 35px system-ui, sans-serif';
-    ctx.fillStyle = '#cde5f1';
-    ctx.fillText('Schermata fornita dalla Redazione', 66, 1530);
-    const logo = previewView?.logo;
-    if (logo?.complete && logo.naturalWidth && logo.naturalHeight) {
-      const logoW = 420, logoH = logoW * logo.naturalHeight / logo.naturalWidth;
-      ctx.fillStyle = 'rgba(255,255,255,0.96)';
-      ctx.beginPath();
-      ctx.roundRect(65, 1616, logoW + 42, logoH + 36, 20);
-      ctx.fill();
-      ctx.drawImage(logo, 86, 1634, logoW, logoH);
+    if(lines.length>2) lines=wrapCanvasText(ctx,headline,936,2);
+    const titleHeight=size+(lines.length-1)*Math.round(size*1.14);
+    ctx.fillStyle='#ffffff';
+    lines.forEach((line,i)=>ctx.fillText(line,72,140+size+i*Math.round(size*1.14)));
+    const subtitle=String(view.scene.secondary_text||'').trim();
+    const subY=158+titleHeight;
+    if(subtitle) {
+      ctx.font='500 42px system-ui, sans-serif';
+      const sublines=wrapCanvasText(ctx,subtitle,930,2);
+      sublines.forEach((line,i)=>ctx.fillText(line,72,subY+50+i*52));
     }
+    // The brand closes the header message, rather than floating at the bottom.
+    const logo=transparentBrandLogo()||previewView?.logo;
+    if(logo?.width||logo?.naturalWidth) {
+      const logoW=242,logoH=logoW*(logo.naturalHeight||logo.height)/(logo.naturalWidth||logo.width);
+      const logoY=Math.min(640-logoH,subY+(subtitle?132:28));
+      ctx.shadowColor='rgba(255,255,255,.60)';ctx.shadowBlur=8;
+      ctx.drawImage(logo,72,logoY,logoW,logoH);ctx.shadowBlur=0;
+    }
+    ctx.font='500 32px system-ui, sans-serif';
+    ctx.fillStyle='#cde5f1';
+    ctx.fillText('Schermata verificata dalla Redazione',72,1515);
   }
   function productScreenActive(index) {
     return Boolean(verifiedProductScreen && previewView?.productConfirmed?.checked &&
@@ -711,62 +736,55 @@
   }
   function drawCinematicOverlay(ctx,view) {
     const {scene}=view;
-    const {choice,copy,y,bounds,logo}=compositionForScene(ctx,view);
-    // A soft, edge-less local gradient keeps the photograph visible.
+    const {choice,copy,y,bounds,logo,footerY,actionSize}=compositionForScene(ctx,view);
     const photo=photoSalience(view);
-    let brightness=0.52;
-    if (photo) {
+    let brightness=.52;
+    if(photo) {
       let sum=0,count=0;
-      for(let iy=Math.floor(bounds.y/10);iy<Math.min(191,Math.floor((bounds.y+bounds.height)/10));iy+=4)
-        for(let ix=Math.floor(bounds.x/10);ix<Math.min(107,Math.floor((bounds.x+bounds.width)/10));ix+=4) {
+      for(let iy=Math.max(0,Math.floor(bounds.y/10));iy<Math.min(191,Math.floor((bounds.y+bounds.height)/10));iy+=4)
+        for(let ix=Math.max(0,Math.floor(bounds.x/10));ix<Math.min(107,Math.floor((bounds.x+bounds.width)/10));ix+=4) {
           sum+=photo.lum[iy*108+ix];count++;
         }
       if(count) brightness=sum/count;
     }
-    const lightText=brightness<0.52;
+    const lightText=brightness<.52;
     const ink=lightText?'#ffffff':'#102b3b';
-    const outline=lightText?'rgba(8,17,26,0.70)':'rgba(255,255,255,0.66)';
-    const cX=choice.x+choice.width/2,cY=y+copy.height/2;
-    const fade=ctx.createRadialGradient(cX,cY,26,cX,cY,Math.max(choice.width,copy.height)*0.86);
-    fade.addColorStop(0,lightText?'rgba(4,15,24,0.47)':'rgba(255,255,255,0.44)');
-    fade.addColorStop(0.52,lightText?'rgba(4,15,24,0.24)':'rgba(255,255,255,0.20)');
+    const outline=lightText?'rgba(8,17,26,.72)':'rgba(255,255,255,.78)';
+    const centreX=bounds.x+bounds.width/2,centreY=bounds.y+bounds.height/2;
+    const fade=ctx.createRadialGradient(centreX,centreY,25,centreX,centreY,Math.max(bounds.width,bounds.height)*.85);
+    fade.addColorStop(0,lightText?'rgba(4,15,24,.50)':'rgba(255,255,255,.48)');
+    fade.addColorStop(.58,lightText?'rgba(4,15,24,.24)':'rgba(255,255,255,.22)');
     fade.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.save();
-    ctx.fillStyle=fade;
-    ctx.fillRect(Math.max(0,choice.x-120),Math.max(0,y-125),
-      Math.min(1080-choice.x+120,choice.width+240),copy.height+250);
+    ctx.save();ctx.fillStyle=fade;
+    ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
     ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
     const drawLine=(text,x,yy,font,isDetail=false)=>{
       ctx.font=font;
       ctx.lineWidth=isDetail?3.5:5;
-      ctx.strokeStyle=outline;
-      ctx.strokeText(text,x,yy);
-      ctx.shadowColor=lightText?'rgba(0,0,0,0.55)':'rgba(255,255,255,0.5)';
-      ctx.shadowBlur=7;
-      ctx.fillStyle=ink;
-      ctx.fillText(text,x,yy);
-      ctx.shadowBlur=0;
+      ctx.strokeStyle=outline;ctx.strokeText(text,x,yy);
+      ctx.shadowColor=lightText?'rgba(0,0,0,.60)':'rgba(255,255,255,.54)';
+      ctx.shadowBlur=8;ctx.fillStyle=ink;ctx.fillText(text,x,yy);ctx.shadowBlur=0;
     };
     const baseline=y+copy.size;
-    for(let i=0;i<copy.lines.length;i++)
-      drawLine(copy.lines[i],choice.x,baseline+i*copy.titleStep,`800 ${copy.size}px system-ui, sans-serif`);
+    copy.lines.forEach((line,i)=>drawLine(line,choice.x,baseline+i*copy.titleStep,
+      `800 ${copy.size}px system-ui, sans-serif`));
     if(copy.detail.length) {
-      const first=y+copy.lines.length*copy.titleStep+28+copy.detailSize;
-      for(let i=0;i<copy.detail.length;i++)
-        drawLine(copy.detail[i],choice.x,first+i*copy.detailStep,
-          `500 ${copy.detailSize}px system-ui, sans-serif`,true);
+      const first=y+copy.titleHeight+26+copy.detailSize;
+      copy.detail.forEach((line,i)=>drawLine(line,choice.x,first+i*copy.detailStep,
+        `500 ${copy.detailSize}px system-ui, sans-serif`,true));
+    }
+    // The CTA is an action immediately completed by the authentic brand mark.
+    if(scene.role==='cta') {
+      drawLine('ENTRA IN',choice.x,footerY+actionSize+22,
+        `800 ${actionSize}px system-ui, sans-serif`,true);
+    }
+    const brand=transparentBrandLogo()||previewView?.logo;
+    if(brand && (brand.width||brand.naturalWidth)) {
+      ctx.shadowColor='rgba(255,255,255,.75)';ctx.shadowBlur=11;
+      ctx.drawImage(brand,logo.x,logo.y,logo.width,logo.height);
     }
     ctx.restore();
-    // Place the authentic logo separately, no opaque white tile.
-    if(previewView?.logo?.complete && previewView.logo.naturalWidth) {
-      ctx.save();
-      ctx.shadowColor='rgba(255,255,255,0.82)';
-      ctx.shadowBlur=11;
-      ctx.drawImage(transparentBrandLogo() || previewView.logo,
-        logo.x,logo.y,logo.width,logo.height);
-      ctx.restore();
-    }
   }
   function renderMontageFrame(second) {
     if (!previewView || !sceneViews.length) return;
