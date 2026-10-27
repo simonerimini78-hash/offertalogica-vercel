@@ -9137,7 +9137,8 @@ export default async function handler(req, res) {
             suggestions:payload.suggestions,platform:payload.platform},{readArticle});
         } else {
           result = await createPhoto({userId:user.id, input:payload.input,plan:payload.plan,
-            receipt:payload.receipt,sceneIndex:payload.scene_index,revisionNotes:payload.revision_notes});
+            receipt:payload.receipt,sceneIndex:payload.scene_index,revisionNotes:payload.revision_notes,
+            references:payload.references});
         }
         return json(res, 200, {ok:true,version:VERSION,result});
       } catch (error) {

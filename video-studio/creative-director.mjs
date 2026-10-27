@@ -51,9 +51,9 @@ In episode_angle scegli l'angolo specifico di questa storia; in story_logline ra
 in story_outcome spiega che cosa cambia davvero, senza promettere risultati non provati.
 protagonist_profile descrive dettagli visivi stabili del protagonista ricorrente, se presente (età adulta indicativa, capelli, abito e accessori);
 può essere stringa vuota se la storia non ha un protagonista umano. Un personaggio ricorrente è consentito e incoraggiato quando utile.
-Le 4 scene devono mostrare AZIONI e composizioni DISTINTE anche quando ricorre la stessa persona:
+Progetta TUTTA la progressione narrativa PRIMA di decidere le fotografie. Ogni scena deve introdurre un cambiamento osservabile: problema reale, ricerca motivata, azione concreta, esito proporzionato. Non confondere una CTA con una soluzione.\nLe 4 scene devono mostrare AZIONI e composizioni DISTINTE anche quando ricorre la stessa persona:
 indica narrative_action (azione osservabile), continuity_link (causa/legame con la scena precedente, vuoto solo nella prima),
-setting, shot_type e key_object (può essere vuoto). Non scambiare solo colori, pose o sfondi lasciando invariata la situazione.
+setting, shot_type e key_object (può essere vuoto). Non scambiare solo colori, pose o sfondi lasciando invariata la situazione. Mantieni stabile l'identità del protagonista (capelli, occhiali, abbigliamento) e scegli un'inquadratura diversa per ogni scena. La luce evolve in modo plausibile, con finale più caldo soltanto quando coerente. Compila continuity_link con il nesso causa-effetto concreto e non con formule vaghe.
 Evita quattro bollette in mano o quattro immagini della stessa scrivania. In visual_brief specifica ambientazione, azione, inquadratura e cambiamento della scena.
 Fotografie AI ORIGINALI create per il Reel: le fotografie dell'articolo o dei post sono solo contesto, MAI asset da copiare o riutilizzare.
 Non riproporre immagini pubblicitarie riconoscibili, scene standard ripetute né identità di persone reali tratte dalle fonti.
@@ -132,7 +132,7 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.1.1-candidate',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.1.7-candidate',input_type:input.input_type,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,

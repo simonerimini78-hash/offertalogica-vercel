@@ -1,4 +1,4 @@
-/* Video Studio v1.1.6 — cinematic type, adaptive placement, private soundtrack. */
+/* Video Studio v1.1.7 — signed sequential photo references; cinematic layout and music unchanged. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -169,7 +169,8 @@
     downloadButton.disabled = !brief || isBusy;
     briefFields.forEach(field => { field.disabled = isBusy; });
     sceneViews.forEach(view => {
-      view.actionButton.disabled = !generation || isBusy || view.running;
+      view.actionButton.disabled = !generation || isBusy || view.running ||
+        (view.index>0 && sceneViews.slice(0,view.index).some(prev=>!prev.result?.continuity_reference));
       view.notesInput.disabled = isBusy && !view.running;
     });
     if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
@@ -1456,6 +1457,13 @@
     return view;
   }
   async function requestPhoto(view, token, revisionNotes = '') {
+    // Scene 1 defines identity; every later scene needs an authentic frame from THIS storyboard.
+    const previous=sceneViews.slice(0,view.index);
+    if(previous.some(frame=>!frame.result?.continuity_reference))
+      throw Error('Genera prima le scene precedenti per garantire la continuità visiva.');
+    const references=view.index===0?[]:view.index===1?
+      [previous[0].result.continuity_reference]:
+      [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     stopPreview();
     view.running = true;
     view.error = '';
@@ -1471,7 +1479,24 @@
         receipt: generation.receipt,
         scene_index: view.index,
         revision_notes: revisionNotes || undefined,
+        references,
       }, token, 230000);
+      // Regenerating an earlier frame invalidates all later generations tied to its old identity.
+      if(view.result) {
+        for(const dependent of sceneViews.slice(view.index+1)) {
+          dependent.result=null;
+          dependent.image.removeAttribute('src');
+          dependent.image.hidden=true;
+          dependent.prompt.hidden=true;
+          dependent._compositionKey=null;
+          dependent._salienceImage=null;
+          dependent._faceBoxes=null;
+          dependent.error='';
+          setSceneState(dependent,'La scena precedente è cambiata: rigenera questa fotografia.', 'pending');
+          updateSceneActionLabel(dependent);
+        }
+        message('Scena aggiornata: rigenera anche le successive per preservare la continuità.');
+      }
       view.result = result;
       view._compositionKey = null;
       view._salienceImage = null;

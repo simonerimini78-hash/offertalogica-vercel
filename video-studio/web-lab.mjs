@@ -1,10 +1,10 @@
-// V1.1.1: narrative mini-story lab; sequential photos remain manually reviewable.
+// V1.1.7: signed sequential visual references; all photos remain manually reviewable.
 // All paid operations are behind the existing authenticated Admin API and a server flag.
 import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.1.3';
+export const VIDEO_STUDIO_LAB_VERSION = '1.1.7';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -67,7 +67,57 @@ export async function createStoryboard({userId, theme, articleId, suggestions=''
   if(plan.status!=='needs_human_review'||plan.scenes.length!==4)err('regia non revisionabile');
   return {input,plan,receipt:signProposal(userId,input,plan,{env,now}),trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
 }
-export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes=''},
+const MAX_REFERENCE_BYTES=35000;
+function signReference(userId,receipt,sceneIndex,bytes,env) {
+  const sha256=sha(bytes);
+  return {scene_index:sceneIndex,jpeg_base64:bytes.toString('base64'),sha256,
+    signature:hmac(`${userId}:${receipt.signature}:${sceneIndex}:${sha256}`,secret(env))};
+}
+function verifyReferences(refs,sceneIndex,userId,receipt,env) {
+  const expected=sceneIndex===0?[]:sceneIndex===1?[0]:[0,sceneIndex-1];
+  if(!Array.isArray(refs)||refs.length!==expected.length)err('servono le fotografie precedenti per mantenere il personaggio');
+  return refs.map((ref,i)=>{
+    if(ref?.scene_index!==expected[i]||typeof ref.jpeg_base64!=='string'||
+      ref.jpeg_base64.length>Math.ceil(MAX_REFERENCE_BYTES*4/3)+4||
+      !/^[A-Za-z0-9+/]+={0,2}$/.test(ref.jpeg_base64)||
+      !/^[a-f\d]{64}$/.test(ref.sha256||'')||!/^[a-f\d]{64}$/.test(ref.signature||''))
+      err('riferimento scena non valido');
+    const bytes=Buffer.from(ref.jpeg_base64,'base64');
+    if(bytes.length<1000||bytes.length>MAX_REFERENCE_BYTES||sha(bytes)!==ref.sha256 ||
+      bytes[0]!==0xff||bytes[1]!==0xd8)err('immagine di riferimento alterata');
+    const expectedSignature=hmac(`${userId}:${receipt.signature}:${expected[i]}:${ref.sha256}`,secret(env));
+    if(!crypto.timingSafeEqual(Buffer.from(ref.signature,'hex'),Buffer.from(expectedSignature,'hex')))
+      err('riferimento scena non autorizzato: rigenerare lo storyboard');
+    return bytes;
+  });
+}
+async function continuityThumbnail(bytes,sharp) {
+  for(const quality of [66,54,42]) {
+    const result=await sharp(bytes).rotate().resize(256,455,{fit:'cover'}).jpeg({quality}).toBuffer();
+    if(result.length<=MAX_REFERENCE_BYTES)return result;
+  }
+  err('riferimento fotografico troppo grande');
+}
+async function perceptualDHash(bytes,sharp) {
+  const {data}=await sharp(bytes).resize(9,8,{fit:'fill'}).grayscale().raw().toBuffer({resolveWithObject:true});
+  let bits=0n;
+  for(let y=0;y<8;y++)for(let x=0;x<8;x++) {
+    bits=(bits<<1n)|BigInt(data[y*9+x]>data[y*9+x+1]?1:0);
+  }
+  return bits;
+}
+function bitDistance(a,b) {let v=a^b,n=0;while(v){v&=v-1n;n++;}return n;}
+async function meanPixelDifference(a,b,sharp) {
+  async function pixels(bytes) {
+    return sharp(bytes).resize(24,24,{fit:'fill'}).removeAlpha().raw().toBuffer();
+  }
+  const x=await pixels(a),y=await pixels(b);
+  if(x.length!==y.length)err('controllo visivo immagini non disponibile');
+  let diff=0;
+  for(let i=0;i<x.length;i++)diff+=Math.abs(x[i]-y[i]);
+  return diff/(255*x.length);
+}
+export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes='',references=[]},
   {generate=generatePhoto,env=process.env,now=Date.now(),sharpFactory}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   verifyProposal(userId,input,plan,receipt,{env,now});
@@ -75,9 +125,22 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   const scene=plan.scenes[sceneIndex];
   if(typeof revisionNotes!=='string'||revisionNotes.length>700)err('note revisione non valide');
   const notes=revisionNotes.trim();
-  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
+  const referenceImages=verifyReferences(references,sceneIndex,userId,receipt,env);
+  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,
+    revisionNotes:notes,referenceImages});
   if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
   const sharp=sharpFactory || (await import('sharp')).default;
+  // Actual candidate-image similarity gate: do not propagate almost identical frames.
+  if(referenceImages.length) {
+    const candidate=await perceptualDHash(result.bytes,sharp);
+    for(const reference of referenceImages) {
+      if(bitDistance(candidate,await perceptualDHash(reference,sharp))<=3 &&
+        await meanPixelDifference(result.bytes,reference,sharp)<0.035)
+        err('immagine quasi identica alla precedente: rigenerare con una nuova inquadratura');
+    }
+  }
+  const anchor=await continuityThumbnail(result.bytes,sharp);
+  const continuity_reference=signReference(userId,receipt,sceneIndex,anchor,env);
   // Keep the source 1080x1920 detail for the full-frame browser draft.
   // Bound the JSON payload as before; this is still a temporary, NON-persistent preview.
   let preview;
@@ -87,7 +150,7 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   }
   if(preview.length > 1700000)err('anteprima troppo grande');
   const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
-  return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),
+  return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),continuity_reference,
     original_sha256:result.sha256,provider:result.provider,prompt,needs_human_review:true,stored:false,
     publication_authorized:false,revision_notes:notes};
 }

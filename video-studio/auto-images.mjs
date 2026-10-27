@@ -9,7 +9,7 @@ function cleanRevisionNotes(value) {
   return notes.replace(/\s+/g, ' ');
 }
 
-export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
+export function photoPrompt({article,scene,index,story=null,revisionNotes='',referenceImages=[]}) {
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>3)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
   const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
@@ -18,6 +18,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
+  const referenceGuide = index > 0 ? `REFERENCE IMAGES: ${referenceImages.length ? 'Input image 1 is the visual identity anchor from scene 1; if there is a second image, it is the immediately preceding scene for context.' : 'Reference images required but not supplied.'} Use references ONLY to preserve the fictional recurring protagonist, styling and plausible continuity. Do not reproduce a previous shot, background composition, pose, facial expression or action. This is a NEW moment of the story.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
   const lighting = scene.role === 'cta'
     ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
     : index === 0
@@ -44,6 +45,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   Visual scene: ${visual}.
   Main subject: ${person||'a natural realistic situation relevant to the message'}.
   Stable recurring-protagonist description (if present): ${protagonist || 'No recurring human protagonist is required'}.
+  ${referenceGuide}
   Keep the same protagonist recognizable when relevant, but DO NOT repeat a pose, action, location-and-shot combination or a near-identical composition across scenes.
   This photograph must represent ONLY scene ${index+1} of the mini-story, not four isolated ads or panels.
   Intended emotion: ${emotion||'credible and subtle'}.
@@ -53,7 +55,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
   Cinematic lighting direction for this specific beat: ${lighting}
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
-  Generate NEW pixels from the textual idea alone: NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
+  Generate a NEW original scene from the story, using only authenticated frames from THIS Reel for continuity when supplied. NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
   CRITICAL PRODUCT AUTHENTICITY: Never depict a front-facing phone, tablet or computer screen with any visible contents, symbols, dashboards, offers, graphs or imaginary brand UI.
   If the scene involves someone using a device, show the BACK of the display, an oblique angle that does not reveal the screen, or the device outside the frame.
@@ -63,21 +65,43 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes=''}) {
   ${notes ? `Human revision guidance: ${notes}. Respect these requested corrections while keeping the scene editorially coherent.` : 'No additional human revision guidance for this attempt.'}
   Proposed unreviewed visual asset only.`;
 }
-export async function generatePhoto({article,scene,index,story=null,revisionNotes='',apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch}) {
+// Only server-verified, thumbnail-sized references from the same signed storyboard are accepted.
+export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch,sharpFactory=null}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
-  const prompt = photoPrompt({article,scene,index,story,revisionNotes});
-  const response=await fetchImpl('https://api.openai.com/v1/images/generations',{
-    method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-    body:JSON.stringify({model,prompt,size:'1024x1536',quality:'high',output_format:'png',n:1}),
-    signal:AbortSignal.timeout(180000)
-  });
+  if(index>0 && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
+    referenceImages.some(ref=>!Buffer.isBuffer(ref)||ref.length>35000||ref.length<1000)))
+    throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
+  const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages});
+  let response;
+  if(index===0) {
+    response=await fetchImpl('https://api.openai.com/v1/images/generations',{
+      method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
+      body:JSON.stringify({model,prompt,size:'1024x1536',quality:'high',output_format:'png',n:1}),
+      signal:AbortSignal.timeout(180000)
+    });
+  } else {
+    // Native Node FormData/Blob. Never send previous full-sized originals over the browser API.
+    const form = new FormData();
+    form.append('model',model);
+    form.append('prompt',prompt);
+    form.append('size','1024x1536');
+    form.append('quality','high');
+    form.append('output_format','png');
+    form.append('n','1');
+    for(const [i,bytes] of referenceImages.entries()) {
+      form.append('image[]',new Blob([bytes],{type:'image/jpeg'}),`scene-reference-${i+1}.jpg`);
+    }
+    response=await fetchImpl('https://api.openai.com/v1/images/edits',{
+      method:'POST',headers:{Authorization:`Bearer ${apiKey}`},body:form,
+      signal:AbortSignal.timeout(180000)
+    });
+  }
   const json=await response.json().catch(()=>null);
   if(!response.ok)throw new Error(`VIDEO_STUDIO_IMAGE: HTTP ${response.status}: ${String(json?.error?.message||'').slice(0,300)}`);
   if(!json?.data?.[0]?.b64_json)throw new Error('VIDEO_STUDIO_IMAGE: risposta senza immagine');
   const original=Buffer.from(json.data[0].b64_json,'base64');
   if(original.length>40*1024*1024||original.length<1000)throw new Error('VIDEO_STUDIO_IMAGE: payload non valido');
-  // Sharp is an existing project dependency; used only by the dedicated worker.
-  const {default:sharp}=await import('sharp');
+  const sharp=sharpFactory || (await import('sharp')).default;
   const normalized=await sharp(original).rotate().resize(1080,1920,{fit:'cover',position:'centre'}).png().toBuffer();
   return {bytes:normalized,sha256:SHA(normalized),provider:model,prompt_fingerprint:SHA(prompt)};
 }
