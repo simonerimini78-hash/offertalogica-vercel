@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.113";
+const VERSION = "0.12.114";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2662,6 +2662,19 @@ function editorialPhotoArtDirection() {
   ].join(" ");
 }
 
+// Regia visuale autonoma: libera nella narrazione, vincolata alla veridicita'.
+// Non impone un set fotografico fisso ne' trasforma tutti i temi in ritratti.
+function editorialAutonomousVisualDirection() {
+  return [
+    "AUTONOMOUS VISUAL DIRECTION: read the article or post and extract its ONE specific central idea before choosing any image. Act as a commercial editorial photographer and art director: invent the most meaningful realistic scene independently, rather than illustrating isolated keywords or repeating familiar stock compositions.",
+    "HUMAN EMOTION WHEN RELEVANT: for consumer choices, savings, bills, family finances and daily-life consequences, prefer an authentic lifestyle moment with one or more believable adults whose natural expression and action communicate the real concern, decision, relief or discovery. Avoid generic people simply staring at paperwork, posing at a laptop, or smiling without an evident reason.",
+    "TECHNICAL SUBJECT EXCEPTION: if the actual article is about hail on solar panels, a meter, an installed heating system, or a physical event, let that subject and its real environment dominate. Do not add a person solely to satisfy a lifestyle template; human interaction is useful only if it makes the topic clearer.",
+    "LIGHT AND CAMERA: in homes use welcoming, naturally warm diffused window daylight, or physically plausible warm lamps in the evening; soft shadow transitions, tactile textures, lifelike skin, neutral whites and warm but realistic colors. Compose with deliberate photographic perspective, documentary 35mm-lens character where appropriate, a sharp narrative focal point and subtle background bokeh. Avoid cold flat stock lighting and artificial amber filters.",
+    "REALISTIC DETAILS: use only relevant everyday objects that help communicate the story at a glance. No fake readable bills, invented amounts, brands, logos or interface screens, giant floating text, 3D icons, abstract graphs or decorative magnifying glasses. OffertaLogica pages may appear legibly only through separately approved real screenshots, never fabricated by text-to-image.",
+    "CREATIVE VARIETY: freely choose people, environment, moment, distance and viewpoint from the specific article; avoid recycling the same person-at-a-table composition across different stories. The image must remain immediately understandable on mobile and visually inviting without looking like staged advertising.",
+  ].join(" ");
+}
+
 function editorialArticleVisualBriefSchema() {
   return {
     type: "object",
@@ -2693,11 +2706,11 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
     content ? `Contenuto: ${content}.` : "",
     notes ? `Note redazione: ${notes}.` : "",
     `Profilo visivo richiesto dall'editor: ${requested.label}.`,
-    `Profilo suggerito automaticamente (non vincolante per soggetto e scena): ${effectiveProfile.label}.`,
+    requested.key !== "auto" ? `Profilo visivo esplicito da rispettare: ${requested.label}.` : "Regia automatica autonoma: nessun soggetto o ambiente preimpostato.",
     "Il titolo e il contenuto decidono il concetto visivo, non il profilo automatico: individua il problema, la scelta, il risultato o l'oggetto tecnico realmente centrali per il consumatore.",
     editorDirected
       ? "La direzione dell'editor decide soggetto, presenza di persone, ambiente, luce e inquadratura. Non sostituirla con un preset di persona alla scrivania o una cucina. Mantieni i vincoli fattuali e di autenticita'."
-      : "Fotografia immersiva e credibile: soggetto dominante, luce naturale espressiva, profondita' cinematografica e ambiente vissuto pertinente. Niente scene stock piatte o inquadrature impersonali dall'alto.",
+      : "Scegli una scena in autonomia dopo aver compreso l'articolo: presenza umana autentica per decisioni e problemi quotidiani; dispositivo o evento come protagonista quando e' il vero tema. Fotografia coinvolgente e credibile, non una formula stock.",
     !editorDirected ? editorialRecentVisualDirections(recentVisuals) : "",
     !editorDirected && extra ? `Indicazioni di rigenerazione: ${extra}.` : "",
   ].filter(Boolean).join(" ");
@@ -2709,8 +2722,8 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
         "Sei il photo editor e art director di una testata italiana per consumatori. Devi creare un brief per UNA immagine orizzontale fotografica, coinvolgente e veritiera, non un collage o un reel.",
         "Prima comprendi la domanda reale a cui l'articolo risponde; quindi individua il singolo momento, oggetto o confronto che rende VISIBILE il problema o il vantaggio per il lettore in un secondo. Non illustrare semplicemente una parola del titolo.",
         editorDirected ? "L'editor ha gia' scelto una direzione creativa: rispettala nei dettagli visivi concreti (soggetto, persone o assenza di persone, azione, ambiente, luce, inquadratura). Non cambiarla per un automatismo di scenario o un brief precedente; correggi solo dettagli che contraddicono i fatti, la sicurezza o l'autenticita'." : "",
-        !editorDirected ? "Se riguarda rincari, conguagli onerosi o sorprese in bolletta, e' adatta una persona chiaramente preoccupata o sorpresa in una casa accogliente, con un gesto legato alla spesa. Il documento non deve per forza essere sul tavolo: deve risultare comprensibile la causa dell'emozione." : "",
-        !editorDirected ? "Se riguarda confronto di offerte o simulazione di costi, rappresenta il gesto concreto del confronto o della verifica in un ambiente credibile. In questa generazione solo testuale non e' fornito alcuno screenshot approvato: un eventuale schermo deve restare non leggibile, senza ricostruire offerte, risultati, interfacce o tariffe. Non usare trading, borsa o fogli di calcolo astratti." : "",
+        !editorDirected ? editorialAutonomousVisualDirection() : "",
+        !editorDirected ? "Per offerte e confronti scegli il momento piu' espressivo e specifico, senza imporre documenti, tavoli, laptop o pose predefinite. Eventuali display devono essere illeggibili: nessuno screenshot autentico e' stato fornito." : "",
         "Se riguarda contatori o letture, il dispositivo specifico deve dominare e essere ben illuminato. Se riguarda POD/PDR, evidenzia l'area pertinente di bolletta o contratto; non confondere POD/PDR con la matricola del contatore. Se riguarda un'azione procedurale, mostra l'azione corretta in modo riconoscibile.",
         !editorDirected ? "Scegli una scena immersiva e specifica: protagonista riconoscibile, distanza e punto di vista intenzionali, profondita' fotografica, dettagli materiali credibili. Nei contesti domestici richiedi luce naturale calda e DIFFUSA, ombre morbide e atmosfera accogliente senza filtro arancione; per grandine, maltempo, impianti e scene tecniche rispetta la luce reale del contesto." : "",
         "Le persone possono avere espressioni forti, credibili e coerenti con l'articolo; non imporre ritratti o cucine per articoli dove un oggetto tecnico o uno schermo spiega meglio il contenuto. Non usare la calcolatrice come scorciatoia visiva generica.",
@@ -2766,6 +2779,7 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
   const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180).join("; ");
   const editorDirected = directionMode === "editor" && Boolean(extra);
   const requested = articleImageProfileByKey(requestedProfile);
+  const autonomous = !editorDirected && requested.key === "auto";
   const effectiveProfile = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
 
   // Il titolo e' il segnale prioritario: una parola in un lungo sommario non deve imporre la scena.
@@ -2860,8 +2874,10 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     editorDirected
       ? "CREATIVE DECISION: the editor has already defined the scene. Express the selected subject and moment clearly without replacing the art direction with an automatic subject or scenario. Check only that it does not misrepresent the article."
       : "CREATIVE DECISION — Follow these stages in order: (1) Identify the specific consumer question and its concrete consequence; (2) select the single visual subject and moment that communicates that answer within one second; (3) compose an immersive photograph where that subject is unmistakable; (4) apply attention-grabbing but credible lighting and color. Never reduce the title to a generic keyword illustration.",
-    editorDirected ? "CREATIVE AUTHORITY: the editor has specified the scene. Reproduce that direction faithfully in subject, people/absence of people, environment, action, light and camera position. The title still constrains factual accuracy, but automatic scene presets must NOT replace an editorial decision." : `Chosen visual storytelling scenario: ${scenario}.`,
-    ...(editorDirected ? [] : sceneDirections[scenario]),
+    editorDirected
+      ? "CREATIVE AUTHORITY: follow the editor's selected scene without substituting automatic presets."
+      : autonomous ? editorialAutonomousVisualDirection() : `Chosen visual storytelling scenario: ${scenario}.`,
+    ...(editorDirected || autonomous ? [] : sceneDirections[scenario]),
     editorDirected
       ? "VISUAL IMPACT: follow the editor's requested lighting, palette, composition and camera viewpoint. Aim for believable professional photography with one clear subject and without accidentally hiding important details; do not impose warm kitchens, dramatic faces or cinematic tones unless requested."
       : "VISUAL IMPACT: choose the article's decisive subject and compose an arresting but credible editorial photograph. For domestic consumer situations use naturally warm, DIFFUSED window daylight with soft transitions and a lived-in, welcoming feeling; add tactile detail and cinematic depth without artificially darkening the scene. For meters, systems, storms or exterior subjects keep truthful lighting and make the actual subject dominant.",
@@ -2874,11 +2890,11 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     "TRUTHFULNESS: any cost advantage is only a conceptual illustration unless the article provides verified comparable prices; do not invent euro figures, guaranteed savings, suppliers, actual regulator results, POD/PDR numbers, logos, official documents or measured consumption. If brief and scene direction conflict, retain all factual constraints but prioritize the article's consumer-facing meaning over generic props.",
     `Requested visual profile: ${requested.label}.`,
     editorDirected ? `EDITOR'S EXPLICIT ART DIRECTION (highest creative priority): ${extra}.` : "",
-    `Automatically inferred profile: ${effectiveProfile.label}.`,
+    !autonomous ? `Automatically inferred profile: ${effectiveProfile.label}.` : "",
     editorDirected
       ? "Profiles and the prepared brief may support the editor's selected subject and scene but may not replace them. Keep only factual and authenticity constraints when they conflict with the editor's artistic choices."
       : requested.key === "auto"
-        ? "The automatically inferred profile is advisory ONLY: do not default to a warm portrait for every domestic topic or to technical graphics for index/spread/variable-price topics. The article-specific storytelling scenario above decides the protagonist."
+        ? "The autonomous creative direction and the article meaning decide the scene. No warm-human, office, desk or document preset should determine the protagonist."
         : `User-selected profile should guide the atmosphere where compatible with truthful, instantly understandable portrayal: ${requested.directive}.`,
     !editorDirected ? `Prepared brief — proposed subject: ${cleanEditorialText(visualBrief?.primary_subject, 300)}.` : "",
     !editorDirected ? `Prepared brief — environment: ${cleanEditorialText(visualBrief?.environment, 300)}.` : "",
@@ -5088,15 +5104,15 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     destinationContent ? `Contenuto reale della pagina di destinazione: ${destinationContent}.` : "",
     editorialRecentVisualDirections(recentVisuals),
     cycleVisuals.length ? `Scene social già generate in questo ciclo da non duplicare: ${editorialRecentVisualDirections(cycleVisuals, 4)}` : "",
-    masterVisualContext?.primary_subject ? `Riferimento visivo master - soggetto: ${cleanEditorialText(masterVisualContext.primary_subject, 320)}.` : "",
-    masterVisualContext?.environment ? `Riferimento visivo master - ambiente: ${cleanEditorialText(masterVisualContext.environment, 320)}.` : "",
-    masterVisualContext?.visual_story ? `Riferimento visivo master - storia visiva: ${cleanEditorialText(masterVisualContext.visual_story, 600)}.` : "",
-    masterVisualContext?.action ? `Riferimento visivo master - azione: ${cleanEditorialText(masterVisualContext.action, 320)}.` : "",
+
+
+
+
     masterVisualContext?.mood ? `Riferimento visivo master - atmosfera: ${cleanEditorialText(masterVisualContext.mood, 240)}.` : "",
     masterVisualContext?.lighting ? `Riferimento visivo master - luce: ${cleanEditorialText(masterVisualContext.lighting, 240)}.` : "",
-    masterVisualContext?.composition ? `Riferimento visivo master - composizione: ${cleanEditorialText(masterVisualContext.composition, 320)}.` : "",
+
     Array.isArray(masterVisualContext?.authenticity_cues) ? `Segnali di autenticità da preservare: ${cleanEditorialStringList(masterVisualContext.authenticity_cues, 6, 180).join("; ")}.` : "",
-    Array.isArray(masterVisualContext?.must_preserve) ? `Elementi visivi da preservare nel linguaggio del ciclo: ${cleanEditorialStringList(masterVisualContext.must_preserve, 6, 180).join("; ")}.` : "",
+
     Array.isArray(masterVisualContext?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(masterVisualContext.must_avoid, 8, 180).join("; ")}.` : "",
     qualityGuidance ? `Correzione obbligatoria richiesta dalla revisione precedente: ${cleanEditorialText(qualityGuidance, 900)}.` : "",
   ].filter(Boolean).join(" ");
@@ -5121,9 +5137,9 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi, formule promozionali generiche o dettagli non verificabili.",
         "Il visuale deve essere una nuova fotografia quadrata 1:1 pronta per la cover social OffertaLogica e deve appartenere allo stesso linguaggio visivo della hero approvata dell'articolo: autenticità, concretezza, luce credibile e scena leggibile.",
         "Individua un solo soggetto fotografico che renda specifico il post. Per casa e bollette preferisci luce naturale calda e morbida, toni accoglienti e ombre diffuse; per impianti, grandine o maltempo preserva la luce fisicamente plausibile. Non usare persone, tavoli, calcolatrici o lenti come sostituti automatici del tema.",
-        "Non cercare la diversità a tutti i costi. Puoi cambiare momento, inquadratura, gesto o soggetto secondario, ma una variante social simile alla hero è preferibile a una fotografia diversa ma più debole, generica o artificiale.",
+        "La hero approvata e' riferimento di qualita' fotografica, NON di personaggio, stanza, gesto o scena da ripetere. Scegli autonomamente la scena piu' espressiva del messaggio specifico del post; varia quando serve, senza forzare un risultato artificiale.",
         "Quando l\'articolo lo consente, varia protagonista, posa e ambiente rispetto alle foto recentemente approvate; preserva coerenza e qualità con la hero senza ricreare sistematicamente la stessa scena.",
-        "visual_subject e visual_scene devono tradurre il significato del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi del settore.",
+        "visual_subject e visual_scene devono tradurre il significato specifico del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi. Preferisci momenti lifestyle umani ed emotivamente leggibili per scelte domestiche; per grandine, contatori e impianti prevale il soggetto tecnico reale senza persone aggiunte artificialmente.",
         "Se compaiono documenti, fogli, bollette o contratti devono restare secondari, non leggibili e credibili: mai frontali, mai costruiti come mockup, mai protagonisti se l'articolo non lo richiede davvero.",
         "Per related il visuale deve rappresentare il problema o l'attività concreta del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
       ].join(" "),
@@ -5298,7 +5314,6 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
   const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
   const master = brief?.master_visual_context && typeof brief.master_visual_context === "object" ? brief.master_visual_context : null;
   const masterAuthenticity = cleanEditorialStringList(master?.authenticity_cues, 6, 180).join("; ");
-  const masterPreserve = cleanEditorialStringList(master?.must_preserve, 6, 180).join("; ");
   const masterAvoid = cleanEditorialStringList(master?.must_avoid, 8, 180).join("; ");
   const extra = cleanEditorialText(guidance, 600);
   return [
@@ -5309,24 +5324,18 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     target ? `OffertaLogica destination context: ${cleanEditorialText(target.label, 180)}.` : "",
     `Primary visual subject for this post: ${cleanEditorialText(brief?.visual_subject, 320)}.`,
     `Visual scene for this post: ${cleanEditorialText(brief?.visual_scene, 600)}.`,
-    master?.primary_subject ? `Approved-cycle visual reference - main subject: ${cleanEditorialText(master.primary_subject, 320)}.` : "",
-    master?.environment ? `Approved-cycle visual reference - environment: ${cleanEditorialText(master.environment, 320)}.` : "",
-    master?.visual_story ? `Approved-cycle visual reference - visual story: ${cleanEditorialText(master.visual_story, 600)}.` : "",
-    master?.human_presence ? `Approved-cycle visual reference - human presence: ${cleanEditorialText(master.human_presence, 320)}.` : "",
-    master?.action ? `Approved-cycle visual reference - action: ${cleanEditorialText(master.action, 320)}.` : "",
     master?.mood ? `Approved-cycle visual reference - mood: ${cleanEditorialText(master.mood, 240)}.` : "",
     master?.lighting ? `Approved-cycle visual reference - lighting: ${cleanEditorialText(master.lighting, 240)}.` : "",
-    master?.composition ? `Approved-cycle visual reference - composition: ${cleanEditorialText(master.composition, 320)}.` : "",
     masterAuthenticity ? `Authenticity cues to preserve: ${masterAuthenticity}.` : "",
-    masterPreserve ? `Visual qualities to preserve across the cycle: ${masterPreserve}.` : "",
     masterAvoid ? `Master visual risks to avoid: ${masterAvoid}.` : "",
     mustShow ? `Elements that must be visible for this post: ${mustShow}.` : "",
     mustAvoid ? `Elements to avoid for this post: ${mustAvoid}.` : "",
     extra ? `Regeneration guidance: ${extra}.` : "",
     "Composition: square 1:1 social-feed image with one immediately understandable focal point, a strong but natural crop, believable perspective and natural or practical lighting.",
     editorialPhotoArtDirection(),
+    editorialAutonomousVisualDirection(),
     "Translate the meaning of the post into a real situation, action or decision. Do not merely illustrate obvious keywords from the article.",
-    "A coherent variant of the approved article visual language is preferred over forced novelty. Change the moment, crop or secondary details only when this preserves or improves authenticity, relevance and editorial impact.",
+    "Retain the hero's credible photographic standard, but choose the subject, person, gesture, room and composition independently for this post. Avoid repeats unless the narrative demands them.",
     "If people appear, use natural body language and a believable activity; avoid posed stock-advertising expressions, artificial concern gestures or generic lifestyle staging.",
     "If papers, bills, contracts or structured documents appear, keep them secondary, partially visible and unreadable. Never make a fake-looking document the main subject and never create front-facing mockups full of invented fields.",
     "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays.",
@@ -5491,7 +5500,7 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
     Array.isArray(master?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(master.must_avoid, 8, 180).join("; ")}.` : "",
     "Criteri obbligatori: pertinenza specifica all'articolo e al post, scena comprensibile a colpo d'occhio, autenticità fotografica, qualità editoriale da feed, capacità di attirare l'attenzione senza sembrare pubblicità, assenza di elementi fuorvianti o palesemente sintetici.",
     "Per interni domestici verifica luce naturale CALDA e MORBIDA, ombre diffuse, bianchi e incarnati realistici e atmosfera accogliente: un tavolo marrone sotto luce fredda/dura non basta. La luce fredda o tempestosa e' appropriata per maltempo o scena tecnica, se coerente con il tema. Se il visual ignora la regia luminosa valuta social_quality e clickworthy come false e spiega la causa visibile.",
-    "coherent_with_master_visual è vero se la nuova immagine appartiene allo stesso linguaggio editoriale della hero per realismo, concretezza, luce, gesto/scena e credibilità, anche quando soggetto secondario o inquadratura cambiano.",
+    "coherent_with_master_visual è vero se la nuova immagine mantiene la qualità fotografica e credibilità della hero: soggetto, gesto, persona, stanza e inquadratura possono essere diversi.",
     "generic_stock è vero se la scena è intercambiabile con molti altri articoli, troppo posata, pubblicitaria o costruita attorno a cliché generici.",
     "fake_document_risk è vero se bollette, contratti, moduli o fogli risultano centrali, frontali, artificialmente leggibili o palesemente inventati. Se i documenti sono secondari, parziali e non leggibili, non penalizzarli.",
     "quality_not_materially_worse_than_article_image è vero solo se la prima immagine non mostra un calo evidente di realismo, composizione, credibilità o forza editoriale rispetto alla seconda.",
@@ -5504,7 +5513,7 @@ async function evaluateEditorialSocialImage(article, item, target, brief, image,
       model: editorialAiModel(),
       instructions: [
         "Agisci come photo editor social senior e severo. La priorità è qualità editoriale e attinenza, non la novità a tutti i costi.",
-        "Usa la hero approvata come benchmark visivo. Una variante molto diversa ma più debole deve essere bocciata; una variante coerente e simile può essere approvata.",
+        "Usa la hero approvata esclusivamente come benchmark di qualità fotografica. Non premiare la somiglianza di protagonista, stanza o gesto: giudica pertinenza specifica, chiarezza emotiva, luce credibile e autonomia narrativa del post.",
         "Non approvare immagini genericamente pertinenti, stock, artificiali o con documenti sintetici protagonisti.",
       ].join(" "),
       input: [{
