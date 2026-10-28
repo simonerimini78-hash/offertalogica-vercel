@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.114";
+  const VERSION = "0.12.115";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1396,7 +1396,10 @@
     const imageQa = socialAsset?.image?.qa && typeof socialAsset.image.qa === "object" ? socialAsset.image.qa : null;
     const imageQaStatus = String(imageQa?.status || "");
     const imageState = imageQaStatus === "passed"
-      ? "Approvata"
+      ? ((socialAsset?.image?.source === "article_image_fallback" || imageQa?.approval_mode?.includes("fallback"))
+        ? "Fallback editoriale — non una nuova QA fotografica"
+        : imageQa?.approval_mode === "manual_editorial" ? "Approvazione manuale — senza nuova QA"
+        : imageQa?.approval_mode === "manual_editorial_after_passed_qa" ? "Approvata dopo QA superata" : "QA superata")
       : imageQaStatus === "failed"
         ? "QA fallita"
         : imageQaStatus === "human_review_required"
@@ -1411,7 +1414,7 @@
     const candidateUrl = /^https:\/\//i.test(String(candidate?.url || "")) ? String(candidate.url) : "";
     const candidateQa = String(candidate?.qa?.status || "");
     const candidateAttempts = Number(candidate?.attempt_count || 1);
-    const canApproveCandidate = candidate?.manual_approval_allowed === true;
+    const canApproveCandidate = candidate?.manual_approval_allowed === true && candidateQa === "passed";
     const canCorrectCandidate = candidateQa === "failed" && candidateAttempts < 3;
     const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
     const imageMarkup = (socialImageUrl || articleImageUrl) ? `
@@ -1426,11 +1429,11 @@
         </div>` : ""}
         ${canRegeneratePhoto && socialImageUrl ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
           <strong>Alternativa fotografica (senza ripubblicare)</strong>
-          <small>La nuova foto viene valutata rispetto all'articolo, al post e alle tue indicazioni, non alla somiglianza con la foto precedente.</small>
+          <small>Una generazione e una QA per clic. Dopo una bocciatura puoi scegliere se eseguire una correzione: la foto corrente rimane invariata.</small>
           <div class="ol-field" style="margin-top:8px"><label>Indicazioni per la nuova foto (facoltative)</label><textarea data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. non ripetere la donna anziana seduta in cucina; preferisci un altro gesto o una scena credibile diversa"></textarea></div>
           <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}">Rigenera immagine fotografica HD</button></div>
-          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? (canApproveCandidate ? "QA estetica non superata" : "QA sostanziale non superata") : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
-          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">${candidateQa === "passed" ? "Approva nuova foto e card" : "Approva comunque — scelta editoriale"}</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate && candidateQa !== "passed" ? `<small>Non approvabile: la QA segnala problemi di pertinenza, chiarezza, informazioni fuorvianti oppure non ha concluso la verifica.</small>` : ""}` : ""}
+          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA non superata" : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
+          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">Approva nuova foto e card</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate && candidateQa !== "passed" ? `<small>Non approvabile: la fotografia non supera tutti i criteri QA. Puoi correggerla (un tentativo per clic) oppure scartarla.</small>` : ""}` : ""}
           <small data-social-image-message="${esc(id)}">La fotografia corrente resta invariata fino all'approvazione. Non cambia l'orario di pubblicazione.</small>
         </div>` : ""}
         ${!canReview ? '<small>Post già avviato o pubblicato: non è possibile sostituire la fotografia su Instagram/Facebook. Una nuova pubblicazione richiede una procedura separata per evitare duplicati.</small>' : ""}
@@ -2304,13 +2307,7 @@
       const notice = section.querySelector(`[data-social-image-message="${id}"]`);
       if (notice) notice.textContent = "Creazione e verifica della nuova fotografia in corso…";
       try {
-        let result = await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, guidance } });
-        while (result?.qa_status === "failed" && result?.auto_correction_available && result?.candidate_url) {
-          if (notice) notice.textContent = `QA non superata: correzione mirata ${Number(result.attempt_count || 1)}/2 in corso…`;
-          result = await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: {
-            id, auto_correct: true, based_on: result.candidate_url,
-          } });
-        }
+        await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, guidance } });
         await loadSocialPlan(section);
         const message = section.querySelector("[data-social-plan-message]");
         if (message) message.textContent = "Nuova fotografia candidata pronta: controllala e approvala soltanto se ti convince.";
@@ -2331,13 +2328,7 @@
       const notice = section.querySelector(`[data-social-image-message="${id}"]`);
       if (notice) notice.textContent = "Correzione della fotografia in corso, sulla base della QA…";
       try {
-        let result = await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, auto_correct: true, based_on: candidate.url } });
-        while (result?.qa_status === "failed" && result?.auto_correction_available && result?.candidate_url) {
-          if (notice) notice.textContent = `QA non superata: ulteriore correzione ${Number(result.attempt_count || 1)}/2…`;
-          result = await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: {
-            id, auto_correct: true, based_on: result.candidate_url,
-          } });
-        }
+        await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, auto_correct: true, based_on: candidate.url } });
         await loadSocialPlan(section);
         const message = section.querySelector("[data-social-plan-message]");
         if (message) message.textContent = "Correzioni concluse. La fotografia attuale resta invariata finché non approvi la candidata.";
