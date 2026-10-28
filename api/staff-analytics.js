@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.109";
+const VERSION = "0.12.110";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2764,9 +2764,9 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     : isOffer && isComparison ? "offer_comparison"
     : isCode ? "identifier"
     : isMeter ? "meter"
+    : isProcedure ? "procedure"
     : isCostPressure && (isBill || /luce|gas|energi|prezz|cost/.test(headline)) ? "cost_problem"
     : isBill ? "bill_explainer"
-    : isProcedure ? "procedure"
     : isPlant ? "physical_system"
     : isOffer ? "offer_explainer"
     : isComparison ? "choice"
