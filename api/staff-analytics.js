@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.110";
+const VERSION = "0.12.111";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2689,14 +2689,14 @@ async function buildEditorialArticleVisualBrief(article, opportunity, guidance =
         "Sei il photo editor e art director di una testata italiana per consumatori. Devi creare un brief per UNA immagine orizzontale fotografica, coinvolgente e veritiera, non un collage o un reel.",
         "Prima comprendi la domanda reale a cui l'articolo risponde; quindi individua il singolo momento, oggetto o confronto che rende VISIBILE il problema o il vantaggio per il lettore in un secondo. Non illustrare semplicemente una parola del titolo.",
         "Se riguarda rincari, conguagli onerosi o sorprese in bolletta, e' adatta una persona chiaramente preoccupata o sorpresa in una casa accogliente, con un gesto legato alla spesa. Il documento non deve per forza essere sul tavolo: deve risultare comprensibile la causa dell'emozione.",
-        "Se riguarda confronto di offerte o simulazione di costi, e' adatta una fotografia con computer in primo piano e interfaccia SEMPLIFICATA e dichiaratamente illustrativa: due opzioni ben distinte, verde per uno scenario piu' conveniente e rosso per uno piu' costoso, se questo confronto e' coerente con il testo. Non trasformarlo in trading, borsa, grafici finanziari o fogli di calcolo astratti.",
+        "Se riguarda confronto di offerte o simulazione di costi, rappresenta il gesto concreto del confronto o della verifica in un ambiente credibile. In questa generazione solo testuale non e' fornito alcuno screenshot approvato: un eventuale schermo deve restare non leggibile, senza ricostruire offerte, risultati, interfacce o tariffe. Non usare trading, borsa o fogli di calcolo astratti.",
         "Se riguarda contatori o letture, il dispositivo specifico deve dominare e essere ben illuminato. Se riguarda POD/PDR, evidenzia l'area pertinente di bolletta o contratto; non confondere POD/PDR con la matricola del contatore. Se riguarda un'azione procedurale, mostra l'azione corretta in modo riconoscibile.",
         "Scegli una scena immersiva come la fotografia di un momento vissuto: soggetto vicino e nitido, luce naturale espressiva, ambienti credibili, profondita' tra primo piano e sfondo, atmosfera calda quando utile. Una scena tecnica puo' avere luce piu' fredda ma deve restare chiara e leggibile, mai cupa gratuitamente.",
         "Le persone possono avere espressioni forti, credibili e coerenti con l'articolo; non imporre ritratti o cucine per articoli dove un oggetto tecnico o uno schermo spiega meglio il contenuto. Non usare la calcolatrice come scorciatoia visiva generica.",
         "I documenti possono ESSERE il soggetto principale quando l'articolo spiega precisamente la bolletta o un dato da individuarvi. In altri casi restano subordinati al vero concetto visivo. Evita fogli generici su un tavolo visti dall'alto e lenti di ingrandimento decorative.",
-        "Le interfacce illustrative sono consentite soltanto dentro dispositivi fotografati, quando spiegano un confronto o un simulatore, con due esiti chiari e pochi elementi grandi. Non simulare portali ufficiali, schermate ARERA, fornitori reali, risparmi garantiti, percentuali, importi, codici identificativi o dati personali non supportati dal testo.",
+        "Non generare interfacce leggibili o schede offerte sintetiche, neppure all'interno di schermi fotografati: non abbiamo fornito un asset di riferimento verificato. Se serve un dispositivo, mostra gesti e contesto autentici con display neutro, fuori fuoco o non visibile. Non simulare portali ufficiali, schermate ARERA, offerte, risultati, percentuali, importi, codici o dati personali.",
         "I campi must_show devono descrivere elementi visibili pertinenti al contenuto e alle sue conseguenze; must_avoid deve escludere i fraintendimenti specifici del caso. Non inserire come elementi obbligatori dettagli inventati o tecnicismi decorativi.",
-        "Niente titoli sovrapposti, banner, loghi, etichette pubblicitarie fuori dalla scena o false infografiche. Un'interfaccia semplificata sullo schermo fotografato e' un elemento della scena, non un'infografica esterna.",
+        "Niente titoli sovrapposti, banner, loghi, etichette pubblicitarie fuori dalla scena o false infografiche. Una schermata OffertaLogica autentica puo' essere inserita solo da una fase separata che utilizzi uno screenshot reale approvato; questa generazione text-to-image non dispone di tale sorgente.",
         "La qualita' puo' essere cinematografica e visivamente persuasiva senza rendere il contenuto promozionale o fuorviante: rifiuta foto stock anonime e pose senza relazione causale con il tema.",
         "Diversifica ambienti, punti di vista e protagonisti rispetto alle immagini recenti, senza sacrificare la pertinenza e senza trasformare sistematicamente i problemi economici in ritratti stereotipati di donne anziane.",
       ].join(" "),
@@ -2748,7 +2748,7 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
   // Il titolo e' il segnale prioritario: una parola in un lungo sommario non deve imporre la scena.
   const headline = title.toLocaleLowerCase("it");
   const context = `${headline} ${summary.toLocaleLowerCase("it")}`;
-  const isSimulator = /simulat|simulazion|stima(?:re|ta|to|zione)?\s+(?:della?\s+)?spes|preventiv|calcol(?:are|o|atrice)\s+(?:la\s+)?bollett/.test(headline);
+  const isSimulator = /simul(?:a|at|azion)|stima(?:re|ta|to|zione)?\s+(?:della?\s+)?spes|preventiv|calcol(?:are|o|atrice)\s+(?:la\s+)?bollett/.test(headline);
   const isOffer = /offert|tariff|pian[oi]\s+(?:luce|gas|energetic)|fornitor|contratt|prezzo\s+(?:fiss|variabil)|spread|indice\s+(?:pun|psv)|quota\s+fiss|mercato\s+libero/.test(context);
   const isComparison = /confront|compar|paragon|scegl|scelt|convenien|miglior|risparmi|valut|quale\s+(?:offert|tariff|fornitor)|differenz/.test(headline);
   const isCode = /\bpod\b|\bpdr\b|matricol|codic[ei]\s+(?:contator|utenza|fornitur|pod|pdr)|identificativ/.test(headline);
@@ -2776,14 +2776,14 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     simulation: [
       "Visual idea: make the benefit of a trustworthy household-bill simulation obvious, not the mathematics behind it.",
       isComparison
-        ? "When the article actually compares alternative offers, show a simplified illustration of TWO clearly distinct results on a laptop inside a believable home, using green/red only for a verified favorable/unfavorable distinction. Never invent suppliers, prices or a guaranteed saving."
-        : "When the article describes a simulation or spending estimate WITHOUT comparing offers, portray a neutral, simplified estimated result or the act of calculating it on a laptop; DO NOT fabricate two competing offers or a red-versus-green winner/loser comparison.",
-      "Optionally hint at essential input data via a few simple unobtrusive form fields, but never let data entry or charts dominate. No stock-market graphs, trading dashboards, candlesticks, finance aesthetics, complicated formulas or tiny illegible tables.",
-      "The screen is a conceptual illustration, not a claim that any named supplier is cheaper or that a saving is guaranteed. Use no invented euro amounts, exact savings percentages, identifiable providers or fake official interfaces.",
+        ? "When the article compares alternative offers, photograph a credible consumer weighing a real choice, with one visible gesture and believable context. A laptop may be present, but its screen must be unreadable; do not invent competing results, cards, suppliers or prices."
+        : "When the article describes a simulation or spending estimate without comparing offers, show the real-world act of estimating or checking a bill, not a fabricated simulation output. If a laptop appears, leave the screen unreadable.",
+      "Convey the decision through a specific person, gesture, and environment rather than fabricated form fields. No stock-market graphs, trading dashboards, candlesticks, finance aesthetics or invented numeric results.",
+      "No reference screenshot is provided: do not render a readable or recognizable utility comparison interface. Never imply a named supplier is cheaper or any saving is guaranteed.",
     ],
     offer_comparison: [
       "Visual idea: a consumer deciding between TWO genuinely distinguishable household energy offers, not a market analyst studying financial prices.",
-      "Use a clear screen or two tangible option cards within a believable real home scene. Show an understandable A-versus-B choice with one clear action; use green/red for advantageous/disadvantageous outcomes ONLY if the article actually substantiates that distinction, otherwise use neutral visual contrast.",
+      "Show an understandable A-versus-B decision through the consumer's credible action and context, without creating synthetic offer cards, fabricated screen layouts or color-coded winners. Keep the scene photographically natural and focused.",
       "If the article explains variable pricing, spread, index or fixed fees, show the reader-facing difference between offers; avoid depicting stock-exchange charts or abstract financial trading. Do not pretend to quote actual provider offers, ARERA screens, tariffs or amounts.",
     ],
     identifier: [
@@ -2816,11 +2816,11 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     ],
     offer_explainer: [
       "Visual idea: explain what the energy offer means to the household, without visualizing it as a financial market.",
-      "Use a relatable offer decision in a warmly lit real home: a clear, simplified offer presentation or a meaningful consumer interaction. If the text compares advantages/disadvantages, make that contrast visible in a simple green/red hierarchy without inventing amounts or suppliers.",
+      "Use a relatable offer decision in an authentically lit home, with a meaningful consumer interaction and no fabricated offer presentation, price, supplier or comparison UI. Let the human action and environment communicate the topic.",
     ],
     choice: [
       "Visual idea: stage the concrete A-versus-B decision described by the article so the alternatives and the consequence of choosing are intelligible instantly.",
-      "Use only the real options established by the article, one dominant interaction and a rich but uncluttered physical setting. A green/red comparison is appropriate only if the underlying options truly have a favorable/unfavorable distinction.",
+      "Use only the real choice described by the article, one dominant interaction and a rich but uncluttered physical setting. Do not invent visually labeled alternatives or imply an unverified winner through green/red cards.",
     ],
     article_specific: [
       "Visual idea: determine the exact consumer problem, discovery, decision or outcome promised by THIS title and summary; then portray its clearest tangible sign or human consequence.",
@@ -2840,7 +2840,7 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     "VISUAL IMPACT: persuasive consumer storytelling, not cold stock photography. Immerse the viewer in a lived-in Italian/European place using warm or meaningful natural light, real furnishings or installation context, tactile foreground, cinematic depth, subject/background separation and a close, human-height perspective where suitable. For technical devices, keep the object well illuminated; no crushed blacks, gloomy machinery, empty sterile desks or detached overhead shots.",
     "EMOTION WITH PURPOSE: for a cost scare, show an unmistakable credible emotional reaction; for a choice, show contrasting outcomes; for a code or meter, make its location and use instantly visible. Faces are OPTIONAL and must only appear if they strengthen the meaning. Do not force elderly women, calculators, phones, bills on tables or perfectly posed smiles into unrelated subjects.",
     "CLARITY ON MOBILE: one dominant visual anchor, strong but natural crop, readable light-to-dark separation, few relevant props. Favor warm cinematic realism over flat neutral documentation, but do not force warm yellow light when cool equipment light conveys the specific topic better. No excessive darkness.",
-    "SCREEN EXCEPTION: for a genuine offer comparison, the photographed device may show two clearly differentiated illustrative offer cards, using green/red ONLY when an advantageous versus disadvantageous distinction is supported by the article. For a simulator without comparison, show a NEUTRAL estimate or input-to-result journey, not invented competing offers. No stock-trading charts, fake official websites, tiny UI text, fictitious currency values or real company names.",
+    "SCREEN SOURCE RULE: this text-to-image request contains NO authenticated screenshot. A photographed computer may suggest digital research through the person's action and composition, but the display must not show readable interfaces, offer cards, estimates, data tables or brand-specific results. Keep it out of focus, neutral or outside the frame. A real OffertaLogica screenshot requires separate approved-source compositing.",
     "TRUTHFULNESS: any cost advantage is only a conceptual illustration unless the article provides verified comparable prices; do not invent euro figures, guaranteed savings, suppliers, actual regulator results, POD/PDR numbers, logos, official documents or measured consumption. If brief and scene direction conflict, retain all factual constraints but prioritize the article's consumer-facing meaning over generic props.",
     `Requested visual profile: ${requested.label}.`,
     `Automatically inferred profile: ${effectiveProfile.label}.`,
@@ -2914,14 +2914,14 @@ async function evaluateEditorialArticleImage(article, candidate) {
     visualBrief?.visual_story ? `Scena richiesta: ${cleanEditorialText(visualBrief.visual_story, 500)}.` : "",
     mustShow ? `Elementi concreti attesi: ${mustShow}.` : "",
     "Criteri essenziali: soggetto primario coerente con questa specifica storia, messaggio visivo riconoscibile in un secondo anche da mobile, composizione leggibile e luminosa, assenza di affermazioni o dati inventati.",
-    "Una buona immagine puo' raccontare un rincaro tramite un'espressione umana autentica, illustrare una scelta con due opzioni verde/rossa sul computer, o rendere protagonista un contatore/codice pertinente. Non imporre nessuno di questi soggetti se il titolo non lo giustifica.",
+    "Una buona immagine puo' raccontare un rincaro tramite un'espressione umana autentica, illustrare una scelta con un gesto credibile o rendere protagonista un contatore pertinente. Non imporre nessuno di questi soggetti se il titolo non lo giustifica.",
     "Valuta profondita', luce espressiva, ambiente vissuto, tensione narrativa o chiarezza della scelta. Una fotografia piatta di fogli letti dall'alto o una persona neutra al computer non e' clickworthy solo perche' tematicamente vicina.",
-    "Interfacce illustrative semplici SULLO SCHERMO sono appropriate solo quando coerenti con l'articolo: per un vero confronto possono mostrare due opzioni differenziate; per una simulazione senza confronto, un risultato neutro. Verde/rosso non vanno imposti automaticamente. Non considerare una rappresentazione grafica fake_document_risk per la sola presenza sullo schermo.",
+    "Questa immagine e' generata senza screenshot di riferimento: non accettare schermi con interfacce leggibili inventate, schede offerte fittizie o risultati di simulazione non autenticati, anche se presentati come illustrativi. Un display neutro, illeggibile o fuori fuoco e' ammesso se la fotografia resta pertinente.",
     "Non penalizzare l'estetica cinematografica o pubblicitaria DI QUALITA' da sola: generic_stock deve essere vero solo quando il soggetto e' stereotipato, artificioso, intercambiabile o non racconta il contenuto specifico. Non scambiare forte impatto visivo per un difetto.",
-    "fake_document_risk e' vero se bollette, contratti, schermate o grafici presentano numeri, codici, offerte o interfacce ufficiali inventati, dati personali, falsa provenienza ARERA, o se sembrano palesemente contraffatti. Un documento centrale e' corretto quando il testo insegna a leggerlo e non contiene dettagli falsamente precisi.",
-    "La distinzione visiva verde/rosso e' ammessa per una COMPARAZIONE ILLUSTRATIVA, ma non deve promettere risparmi certi o attribuire condizioni reali a fornitori identificabili senza supporto. Non trattare un normale simulatore di utenze come una piattaforma di borsa.",
+    "fake_document_risk e' vero se bollette, contratti, schermate o grafici contengono dati, codici, offerte o risultati inventati, oppure se uno schermo mostra un'interfaccia di offerte/simulazione leggibile non autenticata, anche senza loghi ufficiali. Un documento puo' essere centrale solo se il testo insegna a leggerlo e non presenta dettagli falsamente precisi.",
+    "Non accettare schede comparative verde/rosso sintetiche come sostituto di uno screenshot approvato. La fotografia puo' mostrare un confronto nella gestualita' e nel contesto, senza asserzioni su convenienza o risparmi.",
     "Per codici POD/PDR verifica che la posizione mostrata sia coerente con bolletta/contratto e non la matricola del dispositivo. Per lettura del contatore, il contatore e' protagonista, non un accessorio sullo sfondo.",
-    "Il testo o i loghi sovrapposti alla foto non sono richiesti; la scelta semantica e la gerarchia visiva devono funzionare anche senza scritte. Eventuali brevi etichette illustrative su uno schermo non sono automaticamente un difetto.",
+    "Il testo o i loghi sovrapposti alla foto non sono richiesti; la scelta semantica e la gerarchia visiva devono funzionare anche senza scritte. Etichette o risultati leggibili inventati sullo schermo sono un difetto quando simulano offerte, portali o calcolatori reali.",
     "Se una qualunque condizione obbligatoria fallisce, spiega esattamente quale problema EFFETTIVAMENTE VISIBILE hai osservato e suggerisci una rigenerazione mirata. Se tutti i criteri passano, regeneration_guidance e' vuota.",
   ].filter(Boolean).join(" ");
 
