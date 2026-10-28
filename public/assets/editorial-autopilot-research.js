@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.111";
+  const VERSION = "0.12.113";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -993,6 +993,8 @@
     const current = imageState?.current && typeof imageState.current === "object" ? imageState.current : null;
     const candidateAlt = String(candidate?.alt_text || current?.alt_text || `Immagine editoriale dedicata a ${row.topic || "articolo OffertaLogica"}`).slice(0, 180);
     const selectedProfile = String(candidate?.generation_profile_requested || current?.generation_profile_requested || "auto");
+    const previousImage = candidate || current;
+    const creativeGuidance = previousImage?.direction_mode === "editor" ? String(previousImage.guidance || "").slice(0, 600) : "";
     const currentMarkup = current?.url
       ? `<div style="margin-top:8px"><small>Immagine approvata e collegata all’articolo.</small><div style="margin-top:6px"><img src="${esc(current.url)}" alt="${esc(current.alt_text || "Immagine articolo approvata")}" loading="lazy" style="display:block;max-width:520px;width:100%;height:auto;border-radius:10px"></div></div>`
       : '<small>Nessuna immagine approvata ancora.</small>';
@@ -1014,7 +1016,7 @@
       ${currentMarkup}
       ${candidateMarkup}
       <div class="ol-field" style="margin-top:8px"><label>Impostazione visiva</label><select data-article-image-profile="${esc(id)}">${articleImageProfileOptions(selectedProfile)}</select><small data-article-image-profile-hint="${esc(id)}">${esc(articleImageProfileHint(selectedProfile))}</small></div>
-      <div class="ol-field" style="margin-top:8px"><label>Indicazioni per generare o rigenerare <span class="ol-muted">(facoltative)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="3" placeholder="Es. scena più calda e credibile, gesto più chiaro, niente fogli frontali, documenti solo secondari, più focus sulla decisione del lettore…"></textarea></div>
+      <div class="ol-field" style="margin-top:8px"><label>Regia creativa dell’immagine <span class="ol-muted">(facoltativa)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="3" placeholder="Es. solo un contatore vero in primo piano, senza persone, luce diurna, prospettiva laterale, sfondo domestico sfocato…">${esc(creativeGuidance)}</textarea><small>Se descrivi una scena specifica, questa prevale sui suggerimenti visivi automatici. Il controllo qualità verificherà anche le tue indicazioni; restano vietate schermate e offerte inventate.</small></div>
       <div class="ol-field" style="margin-top:8px"><label>Testo alternativo</label><input data-article-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(candidateAlt)}"></div>
       <div class="ol-field" style="margin-top:8px"><label>Sostituzione manuale</label><input data-article-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>JPG, PNG, WebP o AVIF, massimo 5 MB. Il file diventa prima una nuova anteprima e richiede comunque approvazione.</small></div>
       <div class="ol-toolbar-group" style="margin-top:8px">
@@ -2147,7 +2149,7 @@
       generateImageButton.disabled = true;
       if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso… può richiedere alcuni minuti.";
       try {
-        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance, generation_profile: generationProfile } });
+        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance, generation_profile: generationProfile, direction_mode: guidance.trim() ? "editor" : "auto" } });
         if (imageMessage) imageMessage.textContent = "Nuova anteprima pronta. Verificala, modifica se serve il testo alternativo e approvala solo se ti convince.";
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
       } catch (error) {
