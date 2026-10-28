@@ -1,14 +1,14 @@
 {
-  "versioneDati": "parametri-calcolo-2026-10-27-arera-2026-09",
+  "versioneDati": "parametri-calcolo-2026-10-28-arera-2026-09",
   "fonte": "ARERA: catalogo Portale Offerte e riferimenti mensili ufficiali PLACET. Nessun prezzo statico usato come indice di confronto.",
-  "aggiornatoIl": "2026-10-27",
+  "aggiornatoIl": "2026-10-28",
   "parametriCalcolo": {
     "perditeReteLuceVariabile": 1.102,
     "profiloMedio": {
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
-      "prezzoLuceEurKwh": 0.18066469,
-      "prezzoGasEurSmc": 0.83585892,
+      "prezzoLuceEurKwh": 0.18180817,
+      "prezzoGasEurSmc": 0.83905892,
       "quotaFissaLuceAnnua": 142.7419,
       "quotaFissaGasAnnua": 136.4083,
       "potenzaKw": "3",
@@ -52,7 +52,7 @@
     "profiloConsumiFonte": {
       "fonte": "ARERA - Monitoraggio Retail - Offerte e prezzi",
       "urlFonte": "https://www.arera.it/rapporti-e-relazioni/monitoraggio-retail/monitoraggio-retail-offerte-e-prezzi",
-      "acquisitoIl": "2026-10-27",
+      "acquisitoIl": "2026-10-28",
       "profiloStandard": "Cliente domestico usato da ARERA per il monitoraggio delle offerte",
       "luceConsumoKwh": 2700,
       "gasConsumoSmc": 1400,
@@ -60,8 +60,8 @@
     },
     "profiloMedioFonte": {
       "fonte": "Portale Offerte ARERA/Acquirente Unico Open Data",
-      "catalogoVersione": "arera-menu-2026-10-27",
-      "catalogoAggiornatoIl": "2026-10-27",
+      "catalogoVersione": "arera-menu-2026-10-28",
+      "catalogoAggiornatoIl": "2026-10-28",
       "tipoPrezzo": "fisso",
       "metodoPrezzo": "Media aritmetica dei prezzi unitari e delle quote fisse delle offerte ARERA correnti per clienti privati dello stesso tipo prezzo.",
       "numeroOfferteLuce": 138,
@@ -109,7 +109,7 @@
       "unitaOriginale": "eur_mwh",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-10-27",
+      "acquisitoIl": "2026-10-28",
       "stato": "ufficiale",
       "note": "Media mensile monoraria P_ING,M pubblicata da ARERA per le offerte PLACET elettriche."
     },
@@ -121,7 +121,7 @@
       "periodoLabel": "Settembre 2026",
       "fonte": "ARERA - Offerte PLACET",
       "urlFonte": "https://www.arera.it/consumatori/offerte-standard-per-i-clienti-finali-placet",
-      "acquisitoIl": "2026-10-27",
+      "acquisitoIl": "2026-10-28",
       "stato": "ufficiale",
       "note": "Media mensile del prezzo giornaliero al PSV (day ahead) pubblicata da ARERA per le offerte PLACET gas."
     },
