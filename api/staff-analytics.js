@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.116";
+const VERSION = "0.12.117";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2668,11 +2668,13 @@ function editorialPhotoArtDirection() {
 function editorialAutonomousVisualDirection() {
   return [
     "AUTONOMOUS VISUAL DIRECTION: read the article or post and extract its ONE specific central idea before choosing any image. Act as a commercial editorial photographer and art director: invent the most meaningful realistic scene independently, rather than illustrating isolated keywords or repeating familiar stock compositions.",
-    "HUMAN EMOTION WHEN RELEVANT: for consumer choices, savings, bills, family finances and daily-life consequences, prefer an authentic lifestyle moment with one or more believable adults whose natural expression and action communicate the real concern, decision, relief or discovery. Avoid generic people simply staring at paperwork, posing at a laptop, or smiling without an evident reason.",
+    "SUBJECT SELECTION: identify the article's distinctive consequence or action. Consider three different truthful photographic concepts internally, then select ONE that communicates this exact story at a glance. Do not output multiple images or panels.",
+    "HUMAN EMOTION WHEN RELEVANT: in consumer and family stories, human presence is valuable only when an expressive, natural action conveys the real decision or consequence. Otherwise choose the most revealing real-world subject; do not cast a person merely because the topic is household spending.",
     "TECHNICAL SUBJECT EXCEPTION: if the actual article is about hail on solar panels, a meter, an installed heating system, or a physical event, let that subject and its real environment dominate. Do not add a person solely to satisfy a lifestyle template; human interaction is useful only if it makes the topic clearer.",
     "LIGHT AND CAMERA: in homes use welcoming, naturally warm diffused window daylight, or physically plausible warm lamps in the evening; soft shadow transitions, tactile textures, lifelike skin, neutral whites and warm but realistic colors. Compose with deliberate photographic perspective, documentary 35mm-lens character where appropriate, a sharp narrative focal point and subtle background bokeh. Avoid cold flat stock lighting and artificial amber filters.",
     "REALISTIC DETAILS: use only relevant everyday objects that help communicate the story at a glance. No fake readable bills, invented amounts, brands, logos or interface screens, giant floating text, 3D icons, abstract graphs or decorative magnifying glasses. OffertaLogica pages may appear legibly only through separately approved real screenshots, never fabricated by text-to-image.",
-    "CREATIVE VARIETY: freely choose people, environment, moment, distance and viewpoint from the specific article; avoid recycling the same person-at-a-table composition across different stories. The image must remain immediately understandable on mobile and visually inviting without looking like staged advertising.",
+    "EDITORIAL DIFFERENTIATION: the image should make this article distinguishable from other energy stories. Let the article determine subject, action, room and viewpoint. Do not inherit composition or casting from prior pictures, the approved hero or the social cover.",
+    "COMPOSITION: a single credible moment, one unmistakable focal point, real textures and restrained supporting detail, legible in a small social preview. Avoid decorative props and staged advertising expressions.",
   ].join(" ");
 }
 
@@ -2874,7 +2876,7 @@ function articleImagePrompt(article, opportunity, visualBrief, guidance = "", re
     article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
     editorDirected
       ? "CREATIVE DECISION: the editor has already defined the scene. Express the selected subject and moment clearly without replacing the art direction with an automatic subject or scenario. Check only that it does not misrepresent the article."
-      : "CREATIVE DECISION — Follow these stages in order: (1) Identify the specific consumer question and its concrete consequence; (2) select the single visual subject and moment that communicates that answer within one second; (3) compose an immersive photograph where that subject is unmistakable; (4) apply attention-grabbing but credible lighting and color. Never reduce the title to a generic keyword illustration.",
+      : "CREATIVE DECISION — Identify the article's actual reader-facing consequence, consider distinct photographic treatments, and choose ONE truthful, memorable moment with a clear focal subject. Supporting people and objects must serve that meaning; do not build the composition from stock props or title keywords. Make it legible on mobile.",
     editorDirected
       ? "CREATIVE AUTHORITY: follow the editor's selected scene without substituting automatic presets."
       : autonomous ? editorialAutonomousVisualDirection() : `Chosen visual storytelling scenario: ${scenario}.`,
@@ -5096,8 +5098,7 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
     : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
   const destinationContent = cleanEditorialText(targetContext?.content, 6500);
-  const recentVisuals = await editorialRecentPublishedVisuals(article?.id);
-  const cycleVisuals = await editorialCycleVisuals(article?.id, item?.id);
+  // Previous images are not text references for the FIRST concept; they can anchor the same stock scene.
   const input = [
     `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
     `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
@@ -5111,18 +5112,8 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
     targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
     targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
     destinationContent ? `Contenuto reale della pagina di destinazione: ${destinationContent}.` : "",
-    editorialRecentVisualDirections(recentVisuals),
-    cycleVisuals.length ? `Scene social già generate in questo ciclo da non duplicare: ${editorialRecentVisualDirections(cycleVisuals, 4)}` : "",
-
-
-
-
-    masterVisualContext?.mood ? `Riferimento visivo master - atmosfera: ${cleanEditorialText(masterVisualContext.mood, 240)}.` : "",
-    masterVisualContext?.lighting ? `Riferimento visivo master - luce: ${cleanEditorialText(masterVisualContext.lighting, 240)}.` : "",
-
-    Array.isArray(masterVisualContext?.authenticity_cues) ? `Segnali di autenticità da preservare: ${cleanEditorialStringList(masterVisualContext.authenticity_cues, 6, 180).join("; ")}.` : "",
-
-    Array.isArray(masterVisualContext?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(masterVisualContext.must_avoid, 8, 180).join("; ")}.` : "",
+    // Authenticity requirements are enforced by the photographic standards and the QA.
+    // Do not repeat previous scenes or hero atmosphere here: this is a new visual concept.
     qualityGuidance ? `Correzione obbligatoria richiesta dalla revisione precedente: ${cleanEditorialText(qualityGuidance, 900)}.` : "",
   ].filter(Boolean).join(" ");
   const response = await openAiResponseRequest("", {
@@ -5144,10 +5135,10 @@ async function buildEditorialSocialAssetBrief(article, item, target, targetConte
         "cover_title: 35-95 caratteri. Deve essere naturale, specifico e immediatamente comprensibile anche senza leggere la caption.",
         "cover_summary: 100-190 caratteri. Deve condensare il takeaway o, per related, il collegamento concreto alla funzione OffertaLogica senza slogan e senza ripetere il titolo.",
         "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi, formule promozionali generiche o dettagli non verificabili.",
-        "Il visuale deve essere una nuova fotografia quadrata 1:1 pronta per la cover social OffertaLogica e deve appartenere allo stesso linguaggio visivo della hero approvata dell'articolo: autenticità, concretezza, luce credibile e scena leggibile.",
+        "Il visuale deve essere una nuova fotografia quadrata 1:1 per la cover social OffertaLogica. Condividi con la hero soltanto standard di autenticità, nitidezza e qualità, MA NON ambiente, atmosfera obbligata, gesto, soggetto o composizione.",
         "Individua un solo soggetto fotografico che renda specifico il post. Per casa e bollette preferisci luce naturale calda e morbida, toni accoglienti e ombre diffuse; per impianti, grandine o maltempo preserva la luce fisicamente plausibile. Non usare persone, tavoli, calcolatrici o lenti come sostituti automatici del tema.",
-        "La hero approvata e' riferimento di qualita' fotografica, NON di personaggio, stanza, gesto o scena da ripetere. Scegli autonomamente la scena piu' espressiva del messaggio specifico del post; varia quando serve, senza forzare un risultato artificiale.",
-        "Quando l\'articolo lo consente, varia protagonista, posa e ambiente rispetto alle foto recentemente approvate; preserva coerenza e qualità con la hero senza ricreare sistematicamente la stessa scena.",
+        "Prima individua il significato distintivo del post; considera più soluzioni fotografiche pertinenti e scegli quella più comunicativa in una sola immagine. La hero è solo riferimento di qualità, non di regia.",
+        "Rendi il concept fotografico specifico al messaggio di questo post: l'effetto non deve essere intercambiabile con altri post su bollette e risparmio. Non inserire oggetti o persone se non sono necessari al significato.",
         "visual_subject e visual_scene devono tradurre il significato specifico del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi. Preferisci momenti lifestyle umani ed emotivamente leggibili per scelte domestiche; per grandine, contatori e impianti prevale il soggetto tecnico reale senza persone aggiunte artificialmente.",
         "Se compaiono documenti, fogli, bollette o contratti devono restare secondari, non leggibili e credibili: mai frontali, mai costruiti come mockup, mai protagonisti se l'articolo non lo richiede davvero.",
         "Per related il visuale deve rappresentare il problema o l'attività concreta del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
@@ -5321,9 +5312,6 @@ async function evaluateEditorialSocialCopy(article, item, target, targetContext,
 function editorialSocialImagePrompt(article, item, target, brief, guidance = "") {
   const mustShow = cleanEditorialStringList(brief?.must_show, 6, 180).join("; ");
   const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
-  const master = brief?.master_visual_context && typeof brief.master_visual_context === "object" ? brief.master_visual_context : null;
-  const masterAuthenticity = cleanEditorialStringList(master?.authenticity_cues, 6, 180).join("; ");
-  const masterAvoid = cleanEditorialStringList(master?.must_avoid, 8, 180).join("; ");
   const extra = cleanEditorialText(guidance, 600);
   return [
     "Create one entirely new, original high-resolution square editorial photograph from scratch for a static social post by OffertaLogica.it.",
@@ -5333,10 +5321,7 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     target ? `OffertaLogica destination context: ${cleanEditorialText(target.label, 180)}.` : "",
     `Post theme: ${cleanEditorialText(item?.theme, 300)}.`,
     `Post editorial meaning: ${cleanEditorialText(item?.brief, 450)}.`,
-    master?.mood ? `Approved-cycle visual reference - mood: ${cleanEditorialText(master.mood, 240)}.` : "",
-    master?.lighting ? `Approved-cycle visual reference - lighting: ${cleanEditorialText(master.lighting, 240)}.` : "",
-    masterAuthenticity ? `Authenticity cues to preserve: ${masterAuthenticity}.` : "",
-    masterAvoid ? `Master visual risks to avoid: ${masterAvoid}.` : "",
+    brief?.article_takeaway ? `Specific article takeaway, for factual meaning only: ${cleanEditorialText(brief.article_takeaway, 500)}.` : "",
     // A proposed social brief must never impose people, gestures or props as mandatory visible elements.
     mustAvoid ? `Elements to avoid for this post: ${mustAvoid}.` : "",
     extra ? `Regeneration guidance: ${extra}.` : "",
@@ -5344,7 +5329,7 @@ function editorialSocialImagePrompt(article, item, target, brief, guidance = "")
     editorialPhotoArtDirection(),
     editorialAutonomousVisualDirection(),
     "Translate the meaning of the post into a real situation, action or decision. Do not merely illustrate obvious keywords from the article.",
-    "Retain the hero's credible photographic standard, but choose the subject, person, gesture, room and composition independently for this post. Avoid repeats unless the narrative demands them.",
+    "Preserve professional photographic quality, not the hero's creative concept. Select a new visual story specific to this post; every person, action and prop must have a narrative purpose.",
     "If people appear, use natural body language and a believable activity; avoid posed stock-advertising expressions, artificial concern gestures or generic lifestyle staging.",
     "If papers, bills, contracts or structured documents appear, keep them secondary, partially visible and unreadable. Never make a fake-looking document the main subject and never create front-facing mockups full of invented fields.",
     "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays.",
