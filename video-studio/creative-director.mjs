@@ -12,10 +12,20 @@ function clean(v,label,max,{optional=false}={}) {
   check((optional&& (v==null||v===''))||(typeof v==='string'&&v.trim()&&v.length<=max),`${label} non valido (massimo ${max} caratteri)`);
   return String(v||'').trim();
 }
-export function normalizeInput({theme,article,suggestions='',platform='instagram_reel'}={}) {
+export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideUsage='',guideContext=''}={}) {
   check(['instagram_reel','facebook_reel'].includes(platform),'piattaforma non supportata');
-  check(Boolean(theme)!==Boolean(article),'scegli un tema oppure un articolo, non entrambi');
+  const isGuide=typeof guideImageSha256==='string' && guideImageSha256.length>0;
+  check((Number(Boolean(theme))+Number(Boolean(article))+Number(isGuide))===1,'scegli un tema, un articolo oppure una foto guida');
   const notes=clean(suggestions,'suggerimenti',1800,{optional:true});
+  if(isGuide){
+    check(/^[a-f\d]{64}$/.test(guideImageSha256),'impronta immagine guida non valida');
+    check(['first_scene','reference_only'].includes(guideUsage),'uso immagine guida non valido');
+    const context=clean(guideContext,'contesto immagine',180,{optional:true});
+    return {input_type:'guide_image',topic:context || 'Mini-storia ispirata alla fotografia allegata',
+      suggestions:notes,platform,article:null,guide_image_sha256:guideImageSha256,
+      guide_usage:guideUsage,guide_context:context,
+      source_fingerprint:sha(`guide-v1:${guideImageSha256}:${context}`),review_required:true};
+  }
   if(article){
     const {snapshot,fingerprint}=freezeArticle(article);
     return {input_type:'published_article',topic:snapshot.title,suggestions:notes,platform,
@@ -43,6 +53,8 @@ const schema={type:'object',additionalProperties:false,properties:{
 },required:['concept','audience','editorial_caution','episode_angle','story_logline','story_outcome',
   'protagonist_profile','scenes']};
 const system=`Sei il regista di mini-storie audiovisive per Reel italiani OffertaLogica da 15 secondi.
+Se input_type=guide_image, usa la FOTO ALLEGATA come sorgente primaria della storia e della direzione visiva, NON inventare un tema basandoti sul testo. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
+
 Restituisci ESCLUSIVAMENTE JSON conforme allo schema: 4 scene nell'ordine hook (3s), context (4s), value (4s), cta (4s).
 UNA SOLA STORIA, non quattro fotografie tematiche: (1) protagonista o situazione affronta un problema concreto,
 (2) l'ostacolo si sviluppa, (3) il protagonista comprende o compie un'azione utile,
@@ -74,10 +86,16 @@ function tokenOverlap(a,b) {
   const union=new Set([...left,...right]).size;
   return union?intersection/union:0;
 }
-export function buildCreativeRequest(input) {
-  check(input?.input_type==='free_topic'||input?.input_type==='published_article','input non normalizzato');
+export function buildCreativeRequest(input,{guideImageBytes=null}={}) {
+  check(['free_topic','published_article','guide_image'].includes(input?.input_type),'input non normalizzato');
+  if(input.input_type==='guide_image') check(Buffer.isBuffer(guideImageBytes)&&guideImageBytes.length>=1000&&
+    sha(guideImageBytes)===input.guide_image_sha256,'immagine guida non disponibile o alterata');
+  const userContent=input.input_type==='guide_image' ? [
+    {type:'text',text:JSON.stringify(input)},
+    {type:'image_url',image_url:{url:`data:image/jpeg;base64,${guideImageBytes.toString('base64')}`,detail:'high'}}
+  ] : JSON.stringify(input);
   return {model:process.env.VIDEO_STUDIO_CREATIVE_MODEL||'gpt-4.1-mini',temperature:0.65,
-    messages:[{role:'system',content:system},{role:'user',content:JSON.stringify(input)}],
+    messages:[{role:'system',content:system},{role:'user',content:userContent}],
     response_format:{type:'json_schema',json_schema:{name:'video_studio_creative_v2',strict:true,schema}}};
 }
 export function validateCreativeResponse(input,response) {
@@ -132,7 +150,7 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.1.7-candidate',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.1.9-candidate',input_type:input.input_type,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,
@@ -145,11 +163,11 @@ export function validateCreativeResponse(input,response) {
       'Licenze fotografiche e musicali da confermare',
       'Conferma umana del master prima di pubblicare']};
 }
-export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch}={}) {
+export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null}={}) {
   check(apiKey,'OPENAI_API_KEY mancante; impossibile generare una regia AI autentica');
   const response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-    body:JSON.stringify(buildCreativeRequest(normalized)),signal:AbortSignal.timeout(90000)});
+    body:JSON.stringify(buildCreativeRequest(normalized,{guideImageBytes})),signal:AbortSignal.timeout(90000)});
   const json=await response.json().catch(()=>null);
   check(response.ok,`provider regia: HTTP ${response.status}`);
   const content=json?.choices?.[0]?.message?.content;

@@ -9408,15 +9408,17 @@ export default async function handler(req, res) {
       if (process.env.VIDEO_STUDIO_LAB_ENABLED !== "1") {
         return json(res, 503, { ok: false, error: "Video Studio AI non attivo: abilitazione server richiesta" });
       }
-      // A persistent rate-limit store is mandatory on Vercel; fail closed if unavailable.
+      // Manual image replacement is not an AI generation and uses a separate bounded limit.
+      const isManualPhoto=action === "video-studio-photo" && typeof req.body?.manual_image_base64 === 'string' && req.body.manual_image_base64.length > 1000;
       if (!(await enforceRateLimit(req, res, {
-        label: "vs-ai-lab", identifier: user.id, limit: 10, windowSeconds: 3600,
+        label: isManualPhoto ? "vs-manual-photo" : "vs-ai-lab",
+        identifier: user.id, limit: isManualPhoto ? 40 : 10, windowSeconds: 3600,
       }))) return;
       try {
         const {createStoryboard, createPhoto} = await import("../video-studio/web-lab.mjs");
         const payload = req.body;
         if (!payload || Array.isArray(payload) || typeof payload !== "object" ||
-            Buffer.byteLength(JSON.stringify(payload)) > 210000) {
+            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : 210000)) {
           return json(res, 400, {ok:false,error:"Richiesta Video Studio non valida o troppo grande"});
         }
         let result;
@@ -9429,11 +9431,12 @@ export default async function handler(req, res) {
             return rows?.[0] || null;
           };
           result = await createStoryboard({userId:user.id, theme:payload.theme,articleId:payload.article_id,
+            guideImageBase64:payload.guide_image_base64,guideUsage:payload.guide_usage,guideContext:payload.guide_context,
             suggestions:payload.suggestions,platform:payload.platform},{readArticle});
         } else {
           result = await createPhoto({userId:user.id, input:payload.input,plan:payload.plan,
             receipt:payload.receipt,sceneIndex:payload.scene_index,revisionNotes:payload.revision_notes,
-            references:payload.references});
+            references:payload.references,manualImageBase64:payload.manual_image_base64});
         }
         return json(res, 200, {ok:true,version:VERSION,result});
       } catch (error) {

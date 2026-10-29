@@ -280,17 +280,18 @@
         <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-video-studio" data-vs-workspace>
           <summary class="ol-editorial-block-head">
             <span class="ol-editorial-block-number">5</span>
-            <div><p class="ol-editorial-block-kicker">Produzione video</p><h2>Video Studio</h2><p>Articoli, temi liberi e suggerimenti per i Reel.</p></div>
+            <div><p class="ol-editorial-block-kicker">Produzione video</p><h2>Video Studio</h2><p>Articoli, temi liberi e immagini guida per i Reel.</p></div>
             <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
           </summary>
           <div class="ol-editorial-block-body">
-            <div class="ol-vs-intro"><strong>Video Studio v1.1.8 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI reale e avvia automaticamente quattro fotografie originali da revisionare. Puoi rigenerare una singola scena e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini sono anteprime temporanee, non vengono archiviate. La bozza scaricabile usa fotografie a tutto schermo 1080×1920 con testo e logo nelle aree libere. Il master approvato e la pubblicazione restano disabilitati.</p></div>
+            <div class="ol-vs-intro"><strong>Video Studio v1.1.9 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI reale e avvia automaticamente quattro fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini sono anteprime temporanee, non vengono archiviate. La bozza scaricabile usa fotografie a tutto schermo 1080×1920 con testo e logo nelle aree libere. Il master approvato e la pubblicazione restano disabilitati.</p></div>
             <p class="ol-muted ol-small" data-vs-session-status role="status" aria-live="polite">Verifica accesso all'apertura della sezione.</p>
             <form class="ol-form ol-vs-form" data-vs-brief-form hidden>
               <fieldset class="ol-fieldset"><legend>1. Sorgente</legend>
                 <div class="ol-vs-options">
                   <label><input type="radio" name="vs-source" value="article" checked> Articolo pubblicato</label>
                   <label><input type="radio" name="vs-source" value="theme"> Tema libero</label>
+                  <label><input type="radio" name="vs-source" value="image"> Immagine guida</label>
                 </div>
                 <div class="ol-field" data-vs-article-wrap>
                   <label for="vs-editorial-article">Articolo Editoriale</label>
@@ -301,6 +302,15 @@
                 <div class="ol-field" data-vs-theme-wrap hidden>
                   <label for="vs-editorial-theme">Tema del Reel</label>
                   <input id="vs-editorial-theme" type="text" maxlength="180" placeholder="Es. Bolletta troppo alta?" autocomplete="off">
+                </div>
+                <div class="ol-field" data-vs-guide-wrap hidden>
+                  <label for="vs-editorial-guide">Carica immagine guida</label>
+                  <input id="vs-editorial-guide" type="file" accept="image/jpeg,image/png,image/webp">
+                  <small>JPG, PNG o WebP fino a 8 MB. L'immagine guida viene analizzata per costruire la storia, non è una prova di dati o offerte.</small>
+                  <label for="vs-editorial-guide-mode">Come usare l'immagine?</label>
+                  <select id="vs-editorial-guide-mode"><option value="first_scene">Usa come prima scena del Reel</option><option value="reference_only">Usa solo come riferimento per le foto AI</option></select>
+                  <label for="vs-editorial-guide-context">Contesto aggiuntivo (facoltativo)</label>
+                  <input id="vs-editorial-guide-context" type="text" maxlength="180" placeholder="Es. Consumatore che cerca una soluzione alle bollette">
                 </div>
               </fieldset>
               <fieldset class="ol-fieldset"><legend>2. Indicazioni creative</legend>
@@ -333,6 +343,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.117" defer></script>
-<script src="/assets/video-studio-workspace.js?v=1.1.8" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.1.9" defer></script>
 </body>
 </html>

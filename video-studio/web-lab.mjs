@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.1.7';
+export const VIDEO_STUDIO_LAB_VERSION = '1.1.9';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -57,24 +57,49 @@ export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Da
   }
   return true;
 }
-export async function createStoryboard({userId, theme, articleId, suggestions='',platform='instagram_reel'},
-  {readArticle,generate=generateCreativePlan,env=process.env,now=Date.now()}={}) {
+export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideUsage='',guideContext='', suggestions='',platform='instagram_reel'},
+  {readArticle,generate=generateCreativePlan,env=process.env,now=Date.now(),sharpFactory=null}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
-  if(Boolean(theme)===Boolean(articleId))err('scegli un tema oppure un articolo');
+  if(Number(Boolean(theme))+Number(Boolean(articleId))+Number(Boolean(guideImageBase64))!==1)
+    err('scegli un tema, un articolo oppure una foto guida');
   const article=articleId ? fromEditorialRow(await readArticle(articleId)) : null;
-  const input=normalizeInput({theme:article?null:theme,article,suggestions,platform});
-  const plan=await generate(input);
+  const guideBytes=guideImageBase64 ? decodeUploadedJpeg(guideImageBase64,115000) : null;
+  let guideSharp=null;
+  if(guideBytes) {
+    guideSharp=sharpFactory || (await import('sharp')).default;
+    const info=await guideSharp(guideBytes).metadata();
+    if(!info.width||!info.height||info.width<400||info.height<400||info.width*info.height>24000000)
+      err('dimensioni immagine guida non valide');
+  }
+  const input=normalizeInput({theme:article?null:theme,article,suggestions,platform,
+    guideImageSha256:guideBytes?sha(guideBytes):'',guideUsage,guideContext});
+  const plan=await generate(input,{guideImageBytes:guideBytes});
   if(plan.status!=='needs_human_review'||plan.scenes.length!==4)err('regia non revisionabile');
-  return {input,plan,receipt:signProposal(userId,input,plan,{env,now}),trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
+  const receipt=signProposal(userId,input,plan,{env,now});
+  let guide_reference=null;
+  if(guideBytes && input.guide_usage==='reference_only') {
+    guide_reference=signReference(userId,receipt,-1,await continuityThumbnail(guideBytes,guideSharp),env);
+  }
+  return {input,plan,receipt,guide_reference,
+    trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
 }
 const MAX_REFERENCE_BYTES=35000;
+function decodeUploadedJpeg(value,maxBytes) {
+  if(typeof value!=='string'||value.length<1300||value.length>Math.ceil(maxBytes*4/3)+4||
+    !/^[A-Za-z0-9+/]+={0,2}$/.test(value))err('file immagine mancante o troppo grande');
+  const bytes=Buffer.from(value,'base64');
+  if(bytes.length<1000||bytes.length>maxBytes||bytes[0]!==0xff||bytes[1]!==0xd8)
+    err('immagine non JPEG o non valida');
+  return bytes;
+}
 function signReference(userId,receipt,sceneIndex,bytes,env) {
   const sha256=sha(bytes);
   return {scene_index:sceneIndex,jpeg_base64:bytes.toString('base64'),sha256,
     signature:hmac(`${userId}:${receipt.signature}:${sceneIndex}:${sha256}`,secret(env))};
 }
-function verifyReferences(refs,sceneIndex,userId,receipt,env) {
-  const expected=sceneIndex===0?[]:sceneIndex===1?[0]:[0,sceneIndex-1];
+function verifyReferences(refs,sceneIndex,userId,receipt,env,input) {
+  const expected=sceneIndex===0?(input?.input_type==='guide_image'&&input.guide_usage==='reference_only'?[-1]:[]):
+    sceneIndex===1?[0]:[0,sceneIndex-1];
   if(!Array.isArray(refs)||refs.length!==expected.length)err('servono le fotografie precedenti per mantenere il personaggio');
   return refs.map((ref,i)=>{
     if(ref?.scene_index!==expected[i]||typeof ref.jpeg_base64!=='string'||
@@ -117,7 +142,7 @@ async function meanPixelDifference(a,b,sharp) {
   for(let i=0;i<x.length;i++)diff+=Math.abs(x[i]-y[i]);
   return diff/(255*x.length);
 }
-export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes='',references=[]},
+export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes='',references=[],manualImageBase64=''},
   {generate=generatePhoto,env=process.env,now=Date.now(),sharpFactory}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   verifyProposal(userId,input,plan,receipt,{env,now});
@@ -125,13 +150,24 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   const scene=plan.scenes[sceneIndex];
   if(typeof revisionNotes!=='string'||revisionNotes.length>700)err('note revisione non valide');
   const notes=revisionNotes.trim();
-  const referenceImages=verifyReferences(references,sceneIndex,userId,receipt,env);
-  const result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,
-    revisionNotes:notes,referenceImages});
-  if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
+  const isManual=Boolean(manualImageBase64);
+  const referenceImages=isManual?[]:verifyReferences(references,sceneIndex,userId,receipt,env,input);
   const sharp=sharpFactory || (await import('sharp')).default;
+  let result;
+  if(isManual) {
+    const uploaded=decodeUploadedJpeg(manualImageBase64,1700000);
+    const info=await sharp(uploaded).metadata();
+    if(!info.width||!info.height||info.width<400||info.height<400||info.width*info.height>24000000)
+      err('risoluzione immagine caricata non ammessa');
+    const bytes=await sharp(uploaded).rotate().resize(1080,1920,{fit:'cover',position:'attention'}).png().toBuffer();
+    result={bytes,sha256:sha(bytes),provider:'editor_upload'};
+  } else {
+    result=await generate({article:{title:input.topic},scene,index:sceneIndex,story:plan,
+      revisionNotes:notes,referenceImages});
+  }
+  if(!Buffer.isBuffer(result.bytes)||sha(result.bytes)!==result.sha256)err('immagine generata non integra');
   // Actual candidate-image similarity gate: do not propagate almost identical frames.
-  if(referenceImages.length) {
+  if(!isManual && referenceImages.length) {
     const candidate=await perceptualDHash(result.bytes,sharp);
     for(const reference of referenceImages) {
       if(bitDistance(candidate,await perceptualDHash(reference,sharp))<=3 &&
@@ -149,7 +185,7 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
     if (preview.length <= 1700000) break;
   }
   if(preview.length > 1700000)err('anteprima troppo grande');
-  const prompt=photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
+  const prompt=isManual?'Immagine fornita e verificata dall’editor; nessuna generazione AI.':photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),continuity_reference,
     original_sha256:result.sha256,provider:result.provider,prompt,needs_human_review:true,stored:false,
     publication_authorized:false,revision_notes:notes};

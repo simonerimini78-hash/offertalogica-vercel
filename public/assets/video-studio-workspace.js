@@ -1,4 +1,4 @@
-/* Video Studio v1.1.8 — mobile-first copy and logo composed as one protected visual unit. */
+/* Video Studio v1.1.9 — isolated guide-image storyboard and manual per-scene image imports. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -11,6 +11,10 @@
   const themeWrap = qs('[data-vs-theme-wrap]');
   const articleSelect = qs('[data-vs-article]');
   const themeInput = qs('#vs-editorial-theme');
+  const guideWrap = qs('[data-vs-guide-wrap]');
+  const guideInput = qs('#vs-editorial-guide');
+  const guideMode = qs('#vs-editorial-guide-mode');
+  const guideContext = qs('#vs-editorial-guide-context');
   const suggestionsInput = qs('#vs-editorial-suggestions');
   const platformSelect = qs('#vs-editorial-platform');
   const form = qs('[data-vs-brief-form]');
@@ -31,6 +35,7 @@
   let checking = null;
   let generation = null;
   let sceneViews = [];
+  let guideFile = null;
   let progressView = null;
   let previewView = null;
   let activeRequests = 0;
@@ -151,11 +156,13 @@
   }
   function selectedSource() { return qs('[name="vs-source"]:checked')?.value || 'article'; }
   function changeSource() {
-    const article = selectedSource() === 'article';
-    articleWrap.hidden = !article;
-    themeWrap.hidden = article;
-    themeInput.required = !article;
-    articleSelect.required = article;
+    const mode=selectedSource();
+    articleWrap.hidden = mode!=='article';
+    themeWrap.hidden = mode!=='theme';
+    guideWrap.hidden = mode!=='image';
+    themeInput.required = mode==='theme';
+    articleSelect.required = mode==='article';
+    guideInput.required = mode==='image';
     clearBrief();
   }
   function busy() {
@@ -169,6 +176,7 @@
     downloadButton.disabled = !brief || isBusy;
     briefFields.forEach(field => { field.disabled = isBusy; });
     sceneViews.forEach(view => {
+      if(view.uploadInput) view.uploadInput.disabled = isBusy || view.running;
       view.actionButton.disabled = !generation || isBusy || view.running ||
         (view.index>0 && sceneViews.slice(0,view.index).some(prev=>!prev.result?.continuity_reference));
       view.notesInput.disabled = isBusy && !view.running;
@@ -308,12 +316,94 @@
       p.append(strong, document.createTextNode(value));
       summary.append(p);
     }
-    line('Origine', b.mode === 'article' ? 'Articolo Editoriale pubblicato' : 'Tema libero');
-    line('Titolo', b.mode === 'article' ? b.input.article.title : b.input.theme);
+    line('Origine', b.mode === 'article' ? 'Articolo Editoriale pubblicato' : b.mode==='image'?'Immagine guida':'Tema libero');
+    line('Titolo', b.mode === 'article' ? b.input.article.title : b.mode==='image'?b.input.guide_file_name:b.input.theme);
     line('Suggerimenti', b.input.suggestions || 'Nessuno');
     line('Destinazione', b.input.platform);
     line('Passaggio successivo', 'Storyboard AI con 4 foto automatiche da revisionare');
     output.hidden = false;
+  }
+  // Files are preview-only; normalise in memory, strip EXIF, never store/upload to editorial articles.
+  async function fileToJpeg(file,{width,height,maxBytes,cover=false}={}) {
+    if(!file || !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 8*1024*1024 || file.size < 1000)
+      throw Error('Carica una fotografia JPG, PNG o WebP valida (massimo 8 MB).');
+    const src=URL.createObjectURL(file);
+    let image;
+    try {
+      image=new Image();
+      await new Promise((resolve,reject)=>{
+        image.onload=resolve;
+        image.onerror=()=>reject(Error('Il file non contiene una fotografia leggibile.'));
+        image.src=src;
+      });
+      if(image.naturalWidth<400 || image.naturalHeight<400 || image.naturalWidth*image.naturalHeight>24000000)
+        throw Error('Risoluzione immagine non ammessa (minimo 400×400, massimo 24 megapixel).');
+      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx)throw Error('Impossibile elaborare la fotografia nel browser.');
+      ctx.fillStyle='#eeeeea';ctx.fillRect(0,0,width,height);
+      const scale=cover?Math.max(width/image.naturalWidth,height/image.naturalHeight):
+        Math.min(width/image.naturalWidth,height/image.naturalHeight);
+      const w=image.naturalWidth*scale,h=image.naturalHeight*scale;
+      ctx.drawImage(image,(width-w)/2,(height-h)/2,w,h);
+      for(const quality of [0.84,0.76,0.66,0.54,0.40,0.30]) {
+        const base64=canvas.toDataURL('image/jpeg',quality).split(',')[1];
+        if(Math.floor(base64.length*3/4)<=maxBytes)return base64;
+      }
+      throw Error('La foto è troppo complessa per il limite di caricamento; prova un file più leggero.');
+    } finally {URL.revokeObjectURL(src);}
+  }
+  async function uploadScenePhoto(view,file,{fromGuide=false}={}) {
+    if(!generation || (busy() && !fromGuide) || view.running) return false;
+    const source=file||guideFile;
+    if(!source)return false;
+    let jpg;
+    try {jpg=await fileToJpeg(source,{width:1080,height:1920,maxBytes:1550000,cover:true});}
+    catch(error){message(error.message,true);return false;}
+    stopPreview();view.running=true;view.error='';
+    setSceneState(view,'Importazione della fotografia, senza generazione AI…','pending');
+    beginRequest();
+    try {
+      const token=await requireEditor();
+      const result=await labRequest('video-studio-photo',{
+        input:generation.input,plan:generation.plan,receipt:generation.receipt,
+        scene_index:view.index,manual_image_base64:jpg
+      },token,60000);
+      assignSceneResult(view,result,{manual:true});
+      setSceneState(view,fromGuide?'Foto guida utilizzata come prima scena.':'Foto personale caricata; nessun costo di generazione AI.','success');
+      return true;
+    } catch(error) {
+      view.error=error.message;
+      setSceneState(view,`Importazione non riuscita: ${error.message}`,'error');
+      message(error.message,true);
+      return false;
+    } finally {view.running=false;endRequest();updateProgress();}
+  }
+  function assignSceneResult(view,result,{manual=false}={}) {
+    // Any replaced upstream scene invalidates following AI references and derived images.
+    if(view.result && !manual) {
+      for(const later of sceneViews.slice(view.index+1)) {
+        later.result=null;later.image.removeAttribute('src');later.image.hidden=true;
+        later.prompt.hidden=true;later._compositionKey=null;later._salienceImage=null;
+        later._faceBoxes=null;later.error='';
+        setSceneState(later,'Scena precedente cambiata: rigenera o carica questa fotografia.','pending');
+        updateSceneActionLabel(later);
+      }
+      message('Scena sostituita: le successive vanno aggiornate per garantire la continuità.');
+    }
+    if(view.result && manual && sceneViews.slice(view.index+1).some(later=>later.result))
+      message('Foto sostituita: le altre scene sono conservate. Verifica la continuità visiva prima di esportare.');
+    view.result=result;view._compositionKey=null;view._salienceImage=null;view._faceBoxes=null;
+    view.image.src=`data:${result.preview_mime};base64,${result.preview_base64}`;
+    view.image.addEventListener('load',()=>{
+      view._compositionKey=null;
+      if(!previewPlaying&&previewView)showPreview(view.index);
+      detectSceneFaces(view,view.image.src);
+    },{once:true});
+    view.image.hidden=false;
+    view.promptBody.textContent=result.prompt||'';view.prompt.hidden=manual?true:false;
+    updateSceneActionLabel(view);
+    showPreview(view.index);
   }
   async function prepare(event) {
     event.preventDefault();
@@ -325,7 +415,13 @@
       const mode = selectedSource();
       let base;
       if (mode === 'article') base = await makeArticleInput(token);
-      else {
+      else if(mode==='image') {
+        if(!guideInput.files?.[0])throw Error('Seleziona una foto guida per costruire il Reel.');
+        guideFile=guideInput.files[0];
+        const context=guideContext.value.trim();
+        if(context.length>180)throw Error('Contesto della foto troppo lungo.');
+        base={theme:null,article:null,guide_context:context,guide_usage:guideMode.value,guide_file_name:guideFile.name};
+      } else {
         const theme = themeInput.value.trim();
         if (!theme || theme.length > 180) throw Error('Inserisci un tema di massimo 180 caratteri.');
         base = {theme, article: null};
@@ -1468,8 +1564,23 @@
         syncControls();
       }
     });
+    const uploadLabel=document.createElement('label');
+    uploadLabel.className='ol-button ol-button-secondary ol-button-small';
+    uploadLabel.textContent='Carica una tua immagine';
+    const uploadInput=document.createElement('input');
+    uploadInput.type='file';uploadInput.accept='image/jpeg,image/png,image/webp';
+    uploadInput.style.position='absolute';uploadInput.style.width='1px';uploadInput.style.height='1px';
+    uploadInput.style.opacity='0';uploadInput.style.overflow='hidden';
+    uploadInput.setAttribute('aria-label',`Carica foto personale per scena ${index+1}`);
+    uploadLabel.append(uploadInput);
+    view.uploadInput=uploadInput;
+    uploadInput.addEventListener('change',async()=>{
+      const selected=uploadInput.files?.[0];
+      if(selected)await uploadScenePhoto(view,selected);
+      uploadInput.value='';
+    });
     updateSceneActionLabel(view);
-    actions.append(actionButton);
+    actions.append(actionButton,uploadLabel);
     card.append(heading, lead, visual, subject, side, state, image, layoutWrap, notesWrap, actions, prompt);
     sceneHolder.append(card);
     return view;
@@ -1479,7 +1590,7 @@
     const previous=sceneViews.slice(0,view.index);
     if(previous.some(frame=>!frame.result?.continuity_reference))
       throw Error('Genera prima le scene precedenti per garantire la continuità visiva.');
-    const references=view.index===0?[]:view.index===1?
+    const references=view.index===0?(generation.guide_reference?[generation.guide_reference]:[]):view.index===1?
       [previous[0].result.continuity_reference]:
       [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     stopPreview();
@@ -1499,35 +1610,7 @@
         revision_notes: revisionNotes || undefined,
         references,
       }, token, 230000);
-      // Regenerating an earlier frame invalidates all later generations tied to its old identity.
-      if(view.result) {
-        for(const dependent of sceneViews.slice(view.index+1)) {
-          dependent.result=null;
-          dependent.image.removeAttribute('src');
-          dependent.image.hidden=true;
-          dependent.prompt.hidden=true;
-          dependent._compositionKey=null;
-          dependent._salienceImage=null;
-          dependent._faceBoxes=null;
-          dependent.error='';
-          setSceneState(dependent,'La scena precedente è cambiata: rigenera questa fotografia.', 'pending');
-          updateSceneActionLabel(dependent);
-        }
-        message('Scena aggiornata: rigenera anche le successive per preservare la continuità.');
-      }
-      view.result = result;
-      view._compositionKey = null;
-      view._salienceImage = null;
-      view._faceBoxes = null;
-      view.image.src = `data:${result.preview_mime};base64,${result.preview_base64}`;
-      view.image.addEventListener('load', () => {
-        view._compositionKey = null;
-        if (!previewPlaying && previewView) showPreview(view.index);
-        detectSceneFaces(view, view.image.src);
-      }, {once:true});
-      view.image.hidden = false;
-      view.promptBody.textContent = result.prompt;
-      view.prompt.hidden = false;
+      assignSceneResult(view,result);
       setSceneState(view, `Generata · ${result.provider} · Anteprima browser non persistente, da revisionare.`, 'success');
       updateSceneActionLabel(view);
       showPreview(previewIndex || view.index);
@@ -1550,6 +1633,7 @@
     updateProgress();
     try {
       for (const view of sceneViews) {
+        if(view.result)continue;
         const error = await requestPhoto(view, token, '');
         // Avoid repeated charged attempts when the service or credentials fail.
         if (error) {
@@ -1580,8 +1664,12 @@
     try {
       const token = await requireEditor();
       const data = {platform: brief.input.platform, suggestions: brief.input.suggestions};
-      if (brief.mode === 'article') data.article_id = brief.input.article.id;
-      else data.theme = brief.input.theme;
+      if(brief.mode==='article')data.article_id=brief.input.article.id;
+      else if(brief.mode==='image') {
+        data.guide_image_base64=await fileToJpeg(guideFile,{width:512,height:512,maxBytes:110000});
+        data.guide_usage=brief.input.guide_usage;
+        data.guide_context=brief.input.guide_context;
+      } else data.theme=brief.input.theme;
       generation = await labRequest('video-studio-storyboard', data, token, 110000);
       if (generation?.plan?.scenes?.length !== 4) throw Error('Storyboard generato non valido.');
       realSummary.append(
@@ -1593,7 +1681,11 @@
       sceneViews = generation.plan.scenes.map((scene, index) => createSceneCard(scene, index));
       realSection.hidden = false;
       updateProgress();
-      message('Storyboard AI generato. Avvio automatico delle fotografie originali, una richiesta alla volta…');
+      message('Storyboard AI generato. Preparazione fotografie, una scena alla volta…');
+      if(brief.mode==='image' && brief.input.guide_usage==='first_scene') {
+        const ok=await uploadScenePhoto(sceneViews[0],guideFile,{fromGuide:true});
+        if(!ok)throw Error('La prima foto guida non è stata acquisita: correggi il file prima di continuare.');
+      }
       await autoGeneratePhotos(token);
     } catch (e) {
       if (!generation) resetGeneratedOutput(); // preserve already-generated photos if possible

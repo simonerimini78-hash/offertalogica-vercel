@@ -18,7 +18,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
-  const referenceGuide = index > 0 ? `REFERENCE IMAGES: ${referenceImages.length ? 'Input image 1 is the visual identity anchor from scene 1; if there is a second image, it is the immediately preceding scene for context.' : 'Reference images required but not supplied.'} Use references ONLY to preserve the fictional recurring protagonist, styling and plausible continuity. Do not reproduce a previous shot, background composition, pose, facial expression or action. This is a NEW moment of the story.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
+  const referenceGuide = referenceImages.length>0 ? `REFERENCE IMAGES: ${referenceImages.length ? 'Input image 1 is the approved visual anchor; if there is a second image, it is the immediately preceding scene for context.' : 'Reference images required but not supplied.'} Use references ONLY to preserve the fictional recurring protagonist, styling and plausible continuity. Do not reproduce a previous shot, background composition, pose, facial expression or action. This is a NEW moment of the story.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
   const lighting = scene.role === 'cta'
     ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
     : index === 0
@@ -54,6 +54,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Reserve generous NATURAL NEGATIVE SPACE toward the ${opposite} side and/or above for separate, large legible typography and authentic branding.
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
   Cinematic lighting direction for this specific beat: ${lighting}
+  Cinematic yet believable photography: premium editorial realism with tactile natural details, diffused window light in domestic scenes, lifelike skin texture and a single meaningful focal action. Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or cinematic spectacle.
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
   Generate a NEW original scene from the story, using only authenticated frames from THIS Reel for continuity when supplied. NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
@@ -68,12 +69,12 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
 // Only server-verified, thumbnail-sized references from the same signed storyboard are accepted.
 export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch,sharpFactory=null}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
-  if(index>0 && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
+  if((index>0 || (index===0 && story?.input_type==='guide_image' && story?.guide_usage==='reference_only')) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
     referenceImages.some(ref=>!Buffer.isBuffer(ref)||ref.length>35000||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
   const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages});
   let response;
-  if(index===0) {
+  if(index===0 && referenceImages.length===0) {
     response=await fetchImpl('https://api.openai.com/v1/images/generations',{
       method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
       body:JSON.stringify({model,prompt,size:'1024x1536',quality:'high',output_format:'png',n:1}),
