@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.115";
+const VERSION = "0.12.116";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -4525,6 +4525,7 @@ async function editorialSocialPlanPayload() {
         qa: asset.manual_image_candidate.qa ? {
           status: asset.manual_image_candidate.qa.status || null,
           reason: asset.manual_image_candidate.qa.reason || null,
+          distinct_from_previous_candidate: asset.manual_image_candidate.qa.distinct_from_previous_candidate ?? null,
           regeneration_guidance: asset.manual_image_candidate.qa.regeneration_guidance || null,
         } : null,
       } : null,
@@ -5384,7 +5385,9 @@ async function generateOpenAiSocialImage(article, item, target, brief, guidance 
     ? editorialManualSocialImagePrompt(article, item, target, guidance)
     : editorialSocialImagePrompt(article, item, target, brief, guidance);
   const prompt = [basePrompt,
-    options?.manualRegeneration && options?.qaCorrection ? `CORRECT ONLY THESE VERIFIED QA FAILURES, retaining the article meaning and editor art direction: ${cleanEditorialText(options.qaCorrection, 550)}.` : "",
+    options?.manualRegeneration && options?.qaCorrection
+      ? `QA CORRECTION — CREATE A FRESH VISUAL CONCEPT, not a cleaned-up copy of the previous photograph. Preserve the verified article meaning and the editor's explicit direction, but choose the subject, action, setting, camera angle and composition independently. The following are failure constraints only, NOT instructions to recreate an earlier scene: ${cleanEditorialText(options.qaCorrection, 900)}.`
+      : "",
   ].filter(Boolean).join("\n");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
@@ -5593,7 +5596,7 @@ function editorialManualSocialImageQaSchema() {
     required: [
       "relevant_to_article", "relevant_to_post", "editor_guidance_respected",
       "clear", "misleading", "social_quality", "authentic", "clickworthy",
-      "generic_stock", "fake_document_risk", "reason", "regeneration_guidance",
+      "generic_stock", "fake_document_risk", "distinct_from_previous_candidate", "reason", "regeneration_guidance",
     ],
     properties: {
       relevant_to_article: { type: "boolean" },
@@ -5606,19 +5609,27 @@ function editorialManualSocialImageQaSchema() {
       clickworthy: { type: "boolean" },
       generic_stock: { type: "boolean" },
       fake_document_risk: { type: "boolean" },
+      distinct_from_previous_candidate: { type: "boolean" },
       reason: { type: "string" },
       regeneration_guidance: { type: "string" },
     },
   };
 }
 
-async function evaluateEditorialManualSocialImage(article, item, target, image, guidance = "") {
+async function evaluateEditorialManualSocialImage(article, item, target, image, guidance = "", previousCandidateUrl = "") {
   const imageUrl = String(image?.url || "").trim();
   if (!/^https:\/\//i.test(imageUrl)) throw new Error("QA immagine social: URL candidato non valido");
+  const comparisonUrl = String(previousCandidateUrl || "").trim();
+  if (comparisonUrl && (!/^https:\/\//i.test(comparisonUrl) || comparisonUrl === imageUrl)) {
+    throw new Error("QA immagine social: riferimento di confronto non valido");
+  }
+  const comparing = Boolean(comparisonUrl);
   const editorialGuidance = cleanEditorialText(guidance, 600);
   const articleBody = cleanEditorialText(article?.content, 3600).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
   const inputText = [
-    "Valuta la fotografia per il contenuto editoriale dell'articolo e del post, non per la somiglianza con una fotografia precedente.",
+    comparing
+      ? "La PRIMA immagine e' la nuova candidata; la SECONDA e' la candidata precedente bocciata. Valuta prima la nuova foto per pertinenza e autenticita', poi confronta le due per capire se la regia e' cambiata sostanzialmente."
+      : "Valuta la fotografia per il contenuto editoriale dell'articolo e del post: non ci sono immagini precedenti da confrontare.",
     `Titolo articolo: ${cleanEditorialText(article?.title, 200)}.`,
     `Sommario articolo: ${cleanEditorialText(article?.excerpt, 600)}.`,
     articleBody ? `Contesto verificato: ${articleBody}.` : "",
@@ -5637,7 +5648,10 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
     "Per scene domestiche di offerte e bollette verifica morbidezza e temperatura CALDA della luce naturale, ombre dolci, atmosfera vissuta e soggetto dominante. Un legno caldo non compensa luce fredda, dura o piatta; un filtro arancione artificiale non e' autenticita'. Per eventi atmosferici o impianti e per indicazioni esplicite dell'editor sono ammesse luci diverse. Se l'illuminazione richiesta manca, social_quality e clickworthy non devono risultare veri.",
     "NON richiedere un volto, un'eta', un genere, una posa, un oggetto, una stanza o un'emozione presenti in precedenti fotografie o nelle indicazioni del primo tentativo.",
     "La diversita' di protagonista e ambientazione e' ammessa e desiderabile quando mantiene coerenza con l'articolo; non e' di per se' causa di bocciatura.",
-    "Se bocci, spiega quale criterio editoriale/fotografico reale fallisce, senza chiedere di ripristinare la scena precedente.",
+    comparing
+      ? "distinct_from_previous_candidate: vero solo se la nuova fotografia propone una regia visiva sostanzialmente differente (azione, situazione, prospettiva o composizione); cambiare soltanto persona, vestiti, luce o piccoli oggetti mantenendo lo stesso schema non basta. Non premiare la diversita' se sacrifica la fedelta' ai fatti o contraddice la regia esplicita dell'editor. Quando una regia dell'editor impone necessariamente la stessa scena, valuta l'effettivo margine di variazione senza bocciarla per l'impossibilita' di cambiare soggetto."
+      : "distinct_from_previous_candidate: imposta true; non e' disponibile una foto precedente da confrontare.",
+    "Se bocci, spiega i DIFETTI EFFETTIVAMENTE VISIBILI e quali criteri sono falliti. regeneration_guidance deve elencare esclusivamente difetti o vincoli di autenticita'/qualita' da rispettare, senza proporre persone, oggetti, luoghi, pose, ambienti o composizioni per la nuova fotografia.",
   ].filter(Boolean).join("\n");
   const response = await openAiResponseRequest("", {
     method: "POST",
@@ -5647,11 +5661,13 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
         "Sei un photo editor senior. Questa e' una rigenerazione richiesta manualmente dall'editor.",
         "Considera l'articolo, il testo del post e le nuove istruzioni editoriali come uniche fonti dei requisiti di contenuto e scena.",
         "Il vecchio protagonista, l'ambiente e la hero NON sono vincoli. Non richiedere la loro somiglianza per approvare.",
-        "Non approvare foto inventate, fuorvianti, stock generico o con documenti finti in primo piano.",
+        "Se e' fornita una candidata precedente, confronta davvero le due scene, non soltanto la lista di oggetti. Nessuna differenza cosmetica deve essere scambiata per una nuova regia.",
+        "Non approvare foto inventate, fuorvianti, stock generico o con documenti finti in primo piano. Nelle istruzioni di correzione non prescrivere una scena sostitutiva.",
       ].join(" "),
       input: [{ role: "user", content: [
         { type: "input_text", text: inputText },
         { type: "input_image", image_url: imageUrl, detail: "high" },
+        ...(comparing ? [{ type: "input_image", image_url: comparisonUrl, detail: "high" }] : []),
       ] }],
       reasoning: { effort: "low" },
       max_output_tokens: 1400,
@@ -5673,12 +5689,14 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
   const clickworthy = parsed?.clickworthy === true;
   const genericStock = parsed?.generic_stock === true;
   const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const distinctFromPrevious = parsed?.distinct_from_previous_candidate === true;
   const passed = relevantArticle && relevantPost && guidanceRespected && clear && !misleading
-    && socialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk;
+    && socialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk
+    && (!comparing || distinctFromPrevious);
   return {
-    schema_version: 3,
+    schema_version: 4,
     visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
-    evaluation_basis: "article_post_editor_guidance",
+    evaluation_basis: comparing ? "article_post_editor_guidance_previous_candidate" : "article_post_editor_guidance",
     status: passed ? "passed" : "failed",
     evaluated_at: new Date().toISOString(),
     model: editorialAiModel(),
@@ -5687,7 +5705,12 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
     editor_guidance_respected: guidanceRespected,
     clear, misleading, social_quality: socialQuality, authentic, clickworthy: clickworthy,
     generic_stock: genericStock, fake_document_risk: fakeDocumentRisk,
-    reason: cleanEditorialText(parsed?.reason, 700) || (passed ? "Fotografia pertinente al contenuto editoriale e alle indicazioni correnti." : "QA fotografica non superata."),
+    distinct_from_previous_candidate: comparing ? distinctFromPrevious : null,
+    compared_to_candidate_url: comparing ? comparisonUrl : null,
+    reason: cleanEditorialText([
+      cleanEditorialText(parsed?.reason, 580) || (passed ? "Fotografia pertinente al contenuto editoriale e alle indicazioni correnti." : "QA fotografica non superata."),
+      comparing && !distinctFromPrevious ? "Regia troppo simile alla candidata precedente: non basta cambiare volto, vestiti o accessori." : "",
+    ].filter(Boolean).join(" "), 700),
     regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 700),
   };
 }
@@ -6388,7 +6411,8 @@ function editorialManualSocialImageApprovalEligibility(qa) {
     && qa.relevant_to_article === true && qa.relevant_to_post === true
     && qa.editor_guidance_respected === true && qa.clear === true
     && qa.social_quality === true && qa.authentic === true && qa.clickworthy === true
-    && qa.generic_stock === false && qa.misleading === false && qa.fake_document_risk === false);
+    && qa.generic_stock === false && qa.misleading === false && qa.fake_document_risk === false
+    && qa.distinct_from_previous_candidate !== false);
 }
 
 function editorialManualSocialImageQualityScore(qa) {
@@ -6400,16 +6424,36 @@ function editorialManualSocialImageQualityScore(qa) {
   if (qa.misleading === true) score -= 12;
   if (qa.fake_document_risk === true) score -= 10;
   if (qa.generic_stock === true) score -= 4;
+  if (qa.distinct_from_previous_candidate === false) score -= 8;
   if (qa.status === "passed") score += 20;
   return score;
 }
 
 function editorialManualSocialCorrectionGuidance(qa) {
-  const specific = cleanEditorialText(qa?.regeneration_guidance || qa?.reason, 500);
-  return [
-    specific ? `Difetti rilevati dalla QA da correggere: ${specific}` : "Rendi la scena piu' specifica, credibile e non generica.",
-    "Progetta una nuova composizione senza riprodurre gli stessi dettagli. Mantieni le istruzioni originali dell'editor e il tema verificato nell'articolo.",
-  ].join(" ");
+  // Il feedback narrativo AI non entra nel prompt di correzione: puo' contenere
+  // scene suggerite che ancorano la generazione alla fotografia bocciata.
+  const failures = [];
+  if (qa?.relevant_to_article === false || qa?.relevant_to_post === false) {
+    failures.push("La situazione deve comunicare il contenuto specifico dell'articolo e del post, senza introdurre fatti nuovi.");
+  }
+  if (qa?.editor_guidance_respected === false) {
+    failures.push("Rispetta le istruzioni esplicite dell'editor su soggetto, ambiente, luce e inquadratura.");
+  }
+  if (qa?.misleading === true) failures.push("Escludi elementi visivi fuorvianti o promesse non supportate.");
+  if (qa?.fake_document_risk === true) {
+    failures.push("Escludi schermate simulate, interfacce leggibili, documenti e cifre inventati. Eventuali fogli o display non devono sembrare fonti autentiche.");
+  }
+  if (qa?.authentic === false) failures.push("Elimina incoerenze fisiche, oggetti artificiali ed effetti non fotografici.");
+  if (qa?.generic_stock === true) failures.push("Evita la rappresentazione stock intercambiabile con altri articoli.");
+  if (qa?.clear === false) failures.push("Rendi l'azione principale immediatamente comprensibile anche in miniatura.");
+  if (qa?.social_quality === false || qa?.clickworthy === false) {
+    failures.push("Migliora gerarchia visiva, composizione, luce coerente con la scena e coinvolgimento editoriale.");
+  }
+  if (qa?.distinct_from_previous_candidate === false) {
+    failures.push("La nuova regia deve differire sostanzialmente dalla precedente per azione, situazione, prospettiva o composizione: non bastano cambi di persona, colore o accessori.");
+  }
+  if (!failures.length) failures.push("Risolvi le criticita' fotografiche e di attendibilita' rilevate, preservando il tema verificato.");
+  return failures.join(" ");
 }
 
 // Una candidata fotografica resta separata dagli asset correnti: il ciclo automatico
@@ -6470,7 +6514,8 @@ async function generateEditorialSocialImageCandidate(user, payload = {}) {
     guidance, created_at: new Date().toISOString(), attempt_count: attempt, qa: null,
   };
   try {
-    candidate.qa = await evaluateEditorialManualSocialImage(article, item, target, candidate, guidance);
+    candidate.qa = await evaluateEditorialManualSocialImage(article, item, target, candidate, guidance,
+      autoCorrect ? prior.url : "");
   } catch (error) {
     candidate.qa = { status: "human_review_required", reason: `Verifica automatica non conclusa: ${String(error?.message || error).slice(0, 240)}` };
   }
