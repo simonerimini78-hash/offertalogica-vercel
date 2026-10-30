@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.1.9';
+export const VIDEO_STUDIO_LAB_VERSION = '1.2.1';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -57,7 +57,7 @@ export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Da
   }
   return true;
 }
-export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideUsage='',guideContext='', suggestions='',platform='instagram_reel'},
+export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideUsage='',guideContext='',guideFidelity='strong', suggestions='',platform='instagram_reel'},
   {readArticle,generate=generateCreativePlan,env=process.env,now=Date.now(),sharpFactory=null}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   if(Number(Boolean(theme))+Number(Boolean(articleId))+Number(Boolean(guideImageBase64))!==1)
@@ -68,22 +68,37 @@ export async function createStoryboard({userId, theme, articleId, guideImageBase
   if(guideBytes) {
     guideSharp=sharpFactory || (await import('sharp')).default;
     const info=await guideSharp(guideBytes).metadata();
-    if(!info.width||!info.height||info.width<400||info.height<400||info.width*info.height>24000000)
+    if(!info.width||!info.height||info.width<320||info.height<320||info.width*info.height>24000000)
       err('dimensioni immagine guida non valide');
   }
   const input=normalizeInput({theme:article?null:theme,article,suggestions,platform,
-    guideImageSha256:guideBytes?sha(guideBytes):'',guideUsage,guideContext});
+    guideImageSha256:guideBytes?sha(guideBytes):'',guideUsage,guideContext,guideFidelity});
   const plan=await generate(input,{guideImageBytes:guideBytes});
   if(plan.status!=='needs_human_review'||plan.scenes.length!==4)err('regia non revisionabile');
   const receipt=signProposal(userId,input,plan,{env,now});
   let guide_reference=null;
-  if(guideBytes && input.guide_usage==='reference_only') {
-    guide_reference=signReference(userId,receipt,-1,await continuityThumbnail(guideBytes,guideSharp),env);
+  if(guideBytes) {
+    // Preserve the approved source (without cropping) as a signed, bounded reference.
+    guide_reference=signReference(userId,receipt,-1,await guideThumbnail(guideBytes,guideSharp),env);
   }
   return {input,plan,receipt,guide_reference,
     trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
 }
 const MAX_REFERENCE_BYTES=35000;
+const MAX_GUIDE_BYTES=85000;
+// Signed reference order is validated server-side: a client cannot choose arbitrary images.
+export function expectedReferenceIndices(sceneIndex,input) {
+  if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>3)err('indice scena non valido');
+  const isGuide=input?.input_type==='guide_image';
+  const strong=isGuide&&input?.guide_fidelity==='strong';
+  if(strong) {
+    if(sceneIndex===0)return [-1];
+    if(sceneIndex===1&&input.guide_usage==='first_scene')return [-1];
+    return [-1,sceneIndex-1];
+  }
+  if(sceneIndex===0)return isGuide&&input.guide_usage==='reference_only'?[-1]:[];
+  return sceneIndex===1?[0]:[0,sceneIndex-1];
+}
 function decodeUploadedJpeg(value,maxBytes) {
   if(typeof value!=='string'||value.length<1300||value.length>Math.ceil(maxBytes*4/3)+4||
     !/^[A-Za-z0-9+/]+={0,2}$/.test(value))err('file immagine mancante o troppo grande');
@@ -98,23 +113,30 @@ function signReference(userId,receipt,sceneIndex,bytes,env) {
     signature:hmac(`${userId}:${receipt.signature}:${sceneIndex}:${sha256}`,secret(env))};
 }
 function verifyReferences(refs,sceneIndex,userId,receipt,env,input) {
-  const expected=sceneIndex===0?(input?.input_type==='guide_image'&&input.guide_usage==='reference_only'?[-1]:[]):
-    sceneIndex===1?[0]:[0,sceneIndex-1];
-  if(!Array.isArray(refs)||refs.length!==expected.length)err('servono le fotografie precedenti per mantenere il personaggio');
+  const expected=expectedReferenceIndices(sceneIndex,input);
+  if(!Array.isArray(refs)||refs.length!==expected.length)err('riferimenti guida e scene precedenti incompleti');
   return refs.map((ref,i)=>{
     if(ref?.scene_index!==expected[i]||typeof ref.jpeg_base64!=='string'||
-      ref.jpeg_base64.length>Math.ceil(MAX_REFERENCE_BYTES*4/3)+4||
+      ref.jpeg_base64.length>Math.ceil((expected[i]===-1?MAX_GUIDE_BYTES:MAX_REFERENCE_BYTES)*4/3)+4||
       !/^[A-Za-z0-9+/]+={0,2}$/.test(ref.jpeg_base64)||
       !/^[a-f\d]{64}$/.test(ref.sha256||'')||!/^[a-f\d]{64}$/.test(ref.signature||''))
       err('riferimento scena non valido');
     const bytes=Buffer.from(ref.jpeg_base64,'base64');
-    if(bytes.length<1000||bytes.length>MAX_REFERENCE_BYTES||sha(bytes)!==ref.sha256 ||
+    if(bytes.length<1000||bytes.length>(expected[i]===-1?MAX_GUIDE_BYTES:MAX_REFERENCE_BYTES)||sha(bytes)!==ref.sha256 ||
       bytes[0]!==0xff||bytes[1]!==0xd8)err('immagine di riferimento alterata');
     const expectedSignature=hmac(`${userId}:${receipt.signature}:${expected[i]}:${ref.sha256}`,secret(env));
     if(!crypto.timingSafeEqual(Buffer.from(ref.signature,'hex'),Buffer.from(expectedSignature,'hex')))
       err('riferimento scena non autorizzato: rigenerare lo storyboard');
     return bytes;
   });
+}
+async function guideThumbnail(bytes,sharp) {
+  // Never crop the source: its colors, lighting and overall arrangement are the art-direction anchor.
+  for(const width of [640,512,384])for(const quality of [83,72,58]) {
+    const result=await sharp(bytes).rotate().resize(width,960,{fit:'inside',withoutEnlargement:true}).jpeg({quality}).toBuffer();
+    if(result.length<=MAX_GUIDE_BYTES)return result;
+  }
+  err('immagine guida troppo grande per il riferimento sicuro');
 }
 async function continuityThumbnail(bytes,sharp) {
   for(const quality of [66,54,42]) {
@@ -141,6 +163,22 @@ async function meanPixelDifference(a,b,sharp) {
   let diff=0;
   for(let i=0;i<x.length;i++)diff+=Math.abs(x[i]-y[i]);
   return diff/(255*x.length);
+}
+async function basicLightProfile(bytes,sharp) {
+  const {data,info}=await sharp(bytes).rotate().resize(32,32,{fit:'cover'}).removeAlpha().raw().toBuffer({resolveWithObject:true});
+  let r=0,g=0,b=0;
+  for(let i=0;i<data.length;i+=info.channels){r+=data[i];g+=data[i+1];b+=data[i+2];}
+  const count=data.length/info.channels;
+  return {brightness:Math.round((.2126*r+.7152*g+.0722*b)/count/255*100),
+    warmth:Math.round((r-b)/count/255*100)};
+}
+export async function basicGuideStyleCheck(guideBytes,candidateBytes,sharp) {
+  const a=await basicLightProfile(guideBytes,sharp), b=await basicLightProfile(candidateBytes,sharp);
+  const brightnessDelta=Math.abs(a.brightness-b.brightness);
+  const warmthDelta=Math.abs(a.warmth-b.warmth);
+  return {status:brightnessDelta>30||warmthDelta>22?'review_light_and_palette':'basic_tone_compatible',
+    brightness_delta:brightnessDelta,warmth_delta:warmthDelta,
+    method:'global_light_palette_only',human_review_required:true};
 }
 export async function createPhoto({userId,input,plan,receipt,sceneIndex,revisionNotes='',references=[],manualImageBase64=''},
   {generate=generatePhoto,env=process.env,now=Date.now(),sharpFactory}={}) {
@@ -175,6 +213,9 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
         err('immagine quasi identica alla precedente: rigenerare con una nuova inquadratura');
     }
   }
+  // Free local preliminary QA: tonal deviation only, not a claim of stylistic equivalence.
+  const guide_style_check=!isManual&&input?.input_type==='guide_image'&&input.guide_fidelity==='strong'
+    ? await basicGuideStyleCheck(referenceImages[0],result.bytes,sharp) : null;
   const anchor=await continuityThumbnail(result.bytes,sharp);
   const continuity_reference=signReference(userId,receipt,sceneIndex,anchor,env);
   // Keep the source 1080x1920 detail for the full-frame browser draft.
@@ -188,5 +229,5 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   const prompt=isManual?'Immagine fornita e verificata dall’editor; nessuna generazione AI.':photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),continuity_reference,
     original_sha256:result.sha256,provider:result.provider,prompt,needs_human_review:true,stored:false,
-    publication_authorized:false,revision_notes:notes};
+    publication_authorized:false,revision_notes:notes,guide_style_check};
 }

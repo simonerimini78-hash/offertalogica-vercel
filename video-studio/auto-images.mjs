@@ -18,8 +18,9 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
-  const referenceGuide = referenceImages.length>0 ? `REFERENCE IMAGES: ${referenceImages.length ? 'Input image 1 is the approved visual anchor; if there is a second image, it is the immediately preceding scene for context.' : 'Reference images required but not supplied.'} Use references ONLY to preserve the fictional recurring protagonist, styling and plausible continuity. Do not reproduce a previous shot, background composition, pose, facial expression or action. This is a NEW moment of the story.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
-  const lighting = scene.role === 'cta'
+  const strongGuide=story?.input_type==='guide_image' && story?.guide_fidelity==='strong';
+  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is the editor-supplied ORIGINAL guide for this Reel. Treat it as the primary photographic reference for every derived scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. No readable text or fabricated brand UI.` : referenceImages.length>0 ? `VISUAL INSPIRATION: use the supplied authentic photo reference(s) for plausible continuity, without copying the same composition, setting, pose, facial expression or action. Allow scene-specific lighting and styling. This is a NEW story moment.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
+  const lighting = strongGuide ? 'Match the reference image lighting character and realistic warm/cool balance; do not change to a generic golden-hour or cooler studio look unless the story truly requires it.' : scene.role === 'cta'
     ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
     : index === 0
       ? 'Start with credible natural daylight or gently neutral window light appropriate to the problem; avoid artificial orange tint or exaggerated drama.'
@@ -54,7 +55,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Reserve generous NATURAL NEGATIVE SPACE toward the ${opposite} side and/or above for separate, large legible typography and authentic branding.
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
   Cinematic lighting direction for this specific beat: ${lighting}
-  Cinematic yet believable photography: premium editorial realism with tactile natural details, diffused window light in domestic scenes, lifelike skin texture and a single meaningful focal action. Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or cinematic spectacle.
+  ${strongGuide ? 'Match the guide image photographic character first, including natural light, tonal range and tactile material details; do not force an unrelated stock-photo aesthetic.' : 'Premium editorial realism with tactile natural details, diffused window light in domestic scenes, lifelike skin texture and one meaningful focal action.'} Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or cinematic spectacle.
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
   Generate a NEW original scene from the story, using only authenticated frames from THIS Reel for continuity when supplied. NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
@@ -69,8 +70,8 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
 // Only server-verified, thumbnail-sized references from the same signed storyboard are accepted.
 export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch,sharpFactory=null}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
-  if((index>0 || (index===0 && story?.input_type==='guide_image' && story?.guide_usage==='reference_only')) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
-    referenceImages.some(ref=>!Buffer.isBuffer(ref)||ref.length>35000||ref.length<1000)))
+  if((index>0 || (index===0 && story?.input_type==='guide_image' && (story?.guide_usage==='reference_only'||story?.guide_fidelity==='strong'))) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
+    referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(story?.input_type==='guide_image'&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
   const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages});
   let response;

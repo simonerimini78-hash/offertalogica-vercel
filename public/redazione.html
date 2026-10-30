@@ -9,7 +9,7 @@
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
   <link rel="stylesheet" href="/assets/editorial.css?v=0.12.43">
   <link rel="stylesheet" href="/assets/editorial-autopilot.css?v=0.12.66">
-  <link rel="stylesheet" href="/assets/video-studio-workspace.css?v=1.2.0">
+  <link rel="stylesheet" href="/assets/video-studio-workspace.css?v=1.2.1">
 </head>
 <body data-editorial-view="review">
 <a class="ol-skip-link" href="#contenuto-principale">Vai al contenuto principale</a>
@@ -284,7 +284,7 @@
             <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
           </summary>
           <div class="ol-editorial-block-body">
-            <div class="ol-vs-intro"><strong>Video Studio v1.2.0 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI reale e avvia automaticamente quattro fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini sono anteprime temporanee, non vengono archiviate. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi trascinare e personalizzare titolo, sottotitolo e CTA per scena, mantenendo il logo separato. Il master approvato e la pubblicazione restano disabilitati.</p></div>
+            <div class="ol-vs-intro"><strong>Video Studio v1.2.1 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI reale e avvia automaticamente quattro fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini sono anteprime temporanee, non vengono archiviate. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi trascinare e personalizzare titolo, sottotitolo e CTA per scena, mantenendo il logo separato. Il master approvato e la pubblicazione restano disabilitati.</p></div>
             <p class="ol-muted ol-small" data-vs-session-status role="status" aria-live="polite">Verifica accesso all'apertura della sezione.</p>
             <form class="ol-form ol-vs-form" data-vs-brief-form hidden>
               <fieldset class="ol-fieldset"><legend>1. Sorgente</legend>
@@ -309,6 +309,9 @@
                   <small>JPG, PNG o WebP fino a 8 MB. L'immagine guida viene analizzata per costruire la storia, non è una prova di dati o offerte.</small>
                   <label for="vs-editorial-guide-mode">Come usare l'immagine?</label>
                   <select id="vs-editorial-guide-mode"><option value="first_scene">Usa come prima scena del Reel</option><option value="reference_only">Usa solo come riferimento per le foto AI</option></select>
+                  <label for="vs-editorial-guide-fidelity">Fedeltà delle foto AI alla guida</label>
+                  <select id="vs-editorial-guide-fidelity"><option value="strong">Aderenza forte — luce, palette e stile coerenti</option><option value="inspiration">Ispirazione libera — maggiore varietà visiva</option></select>
+                  <small>Con «Aderenza forte» la guida autentica rimane il primo riferimento di ogni scena AI. Verifica sempre le immagini: non è garantita l'identità perfetta di persone, ambienti o dettagli.</small>
                   <label for="vs-editorial-guide-context">Contesto aggiuntivo (facoltativo)</label>
                   <input id="vs-editorial-guide-context" type="text" maxlength="180" placeholder="Es. Consumatore che cerca una soluzione alle bollette">
                 </div>
@@ -343,6 +346,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.117" defer></script>
-<script src="/assets/video-studio-workspace.js?v=1.2.0" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.2.1" defer></script>
 </body>
 </html>

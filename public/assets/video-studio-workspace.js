@@ -1,4 +1,4 @@
-/* Video Studio v1.2.0 — per-scene visual copy editor for the browser montage. */
+/* Video Studio v1.2.1 — visual copy editor and bounded persistent guide-image continuity. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -14,6 +14,7 @@
   const guideWrap = qs('[data-vs-guide-wrap]');
   const guideInput = qs('#vs-editorial-guide');
   const guideMode = qs('#vs-editorial-guide-mode');
+  const guideFidelity = qs('#vs-editorial-guide-fidelity');
   const guideContext = qs('#vs-editorial-guide-context');
   const suggestionsInput = qs('#vs-editorial-suggestions');
   const platformSelect = qs('#vs-editorial-platform');
@@ -335,7 +336,7 @@
     output.hidden = false;
   }
   // Files are preview-only; normalise in memory, strip EXIF, never store/upload to editorial articles.
-  async function fileToJpeg(file,{width,height,maxBytes,cover=false}={}) {
+  async function fileToJpeg(file,{width,height,maxBytes,cover=false,preserveAspect=false}={}) {
     if(!file || !['image/jpeg','image/png','image/webp'].includes(file.type) || file.size > 8*1024*1024 || file.size < 1000)
       throw Error('Carica una fotografia JPG, PNG o WebP valida (massimo 8 MB).');
     const src=URL.createObjectURL(file);
@@ -349,14 +350,16 @@
       });
       if(image.naturalWidth<400 || image.naturalHeight<400 || image.naturalWidth*image.naturalHeight>24000000)
         throw Error('Risoluzione immagine non ammessa (minimo 400×400, massimo 24 megapixel).');
-      const canvas=document.createElement('canvas');canvas.width=width;canvas.height=height;
-      const ctx=canvas.getContext('2d',{alpha:false});
-      if(!ctx)throw Error('Impossibile elaborare la fotografia nel browser.');
-      ctx.fillStyle='#eeeeea';ctx.fillRect(0,0,width,height);
+      const canvas=document.createElement('canvas');
       const scale=cover?Math.max(width/image.naturalWidth,height/image.naturalHeight):
         Math.min(width/image.naturalWidth,height/image.naturalHeight);
       const w=image.naturalWidth*scale,h=image.naturalHeight*scale;
-      ctx.drawImage(image,(width-w)/2,(height-h)/2,w,h);
+      canvas.width=preserveAspect?Math.round(w):width;
+      canvas.height=preserveAspect?Math.round(h):height;
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx)throw Error('Impossibile elaborare la fotografia nel browser.');
+      ctx.fillStyle='#eeeeea';ctx.fillRect(0,0,canvas.width,canvas.height);
+      ctx.drawImage(image,(canvas.width-w)/2,(canvas.height-h)/2,w,h);
       for(const quality of [0.84,0.76,0.66,0.54,0.40,0.30]) {
         const base64=canvas.toDataURL('image/jpeg',quality).split(',')[1];
         if(Math.floor(base64.length*3/4)<=maxBytes)return base64;
@@ -431,7 +434,7 @@
         guideFile=guideInput.files[0];
         const context=guideContext.value.trim();
         if(context.length>180)throw Error('Contesto della foto troppo lungo.');
-        base={theme:null,article:null,guide_context:context,guide_usage:guideMode.value,guide_file_name:guideFile.name};
+        base={theme:null,article:null,guide_context:context,guide_usage:guideMode.value,guide_fidelity:guideFidelity.value,guide_file_name:guideFile.name};
       } else {
         const theme = themeInput.value.trim();
         if (!theme || theme.length > 180) throw Error('Inserisci un tema di massimo 180 caratteri.');
@@ -1990,9 +1993,15 @@
     const previous=sceneViews.slice(0,view.index);
     if(previous.some(frame=>!frame.result?.continuity_reference))
       throw Error('Genera prima le scene precedenti per garantire la continuità visiva.');
-    const references=view.index===0?(generation.guide_reference?[generation.guide_reference]:[]):view.index===1?
-      [previous[0].result.continuity_reference]:
-      [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
+    const guide=generation.guide_reference;
+    const strong=generation.input.input_type==='guide_image'&&generation.input.guide_fidelity==='strong';
+    const references=strong
+      ? view.index===0?[guide]:view.index===1&&generation.input.guide_usage==='first_scene'?[guide]:
+        [guide,previous[previous.length-1].result.continuity_reference]
+      : view.index===0?(generation.input.input_type==='guide_image'&&generation.input.guide_usage==='reference_only'?[guide]:[]):
+        view.index===1?[previous[0].result.continuity_reference]:
+        [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
+    if(references.some(ref=>!ref))throw Error('Riferimento guida mancante: rigenera lo storyboard prima di avviare altre foto.');
     stopPreview();
     view.running = true;
     view.error = '';
@@ -2011,7 +2020,10 @@
         references,
       }, token, 230000);
       assignSceneResult(view,result);
-      setSceneState(view, `Generata · ${result.provider} · Anteprima browser non persistente, da revisionare.`, 'success');
+      const tone=result.guide_style_check?.status==='review_light_and_palette'
+        ? ' · Guida: luminosità/palette da verificare manualmente'
+        : result.guide_style_check ? ' · Guida: tono cromatico preliminarmente coerente' : '';
+      setSceneState(view, `Generata · ${result.provider}${tone} · Anteprima browser non persistente, da revisionare.`, 'success');
       updateSceneActionLabel(view);
       showPreview(previewIndex || view.index);
     } catch (e) {
@@ -2066,8 +2078,9 @@
       const data = {platform: brief.input.platform, suggestions: brief.input.suggestions};
       if(brief.mode==='article')data.article_id=brief.input.article.id;
       else if(brief.mode==='image') {
-        data.guide_image_base64=await fileToJpeg(guideFile,{width:512,height:512,maxBytes:110000});
+        data.guide_image_base64=await fileToJpeg(guideFile,{width:768,height:768,maxBytes:110000,preserveAspect:true});
         data.guide_usage=brief.input.guide_usage;
+        data.guide_fidelity=brief.input.guide_fidelity;
         data.guide_context=brief.input.guide_context;
       } else data.theme=brief.input.theme;
       generation = await labRequest('video-studio-storyboard', data, token, 110000);
@@ -2075,6 +2088,7 @@
       realSummary.append(
         textElement('p', `Concept: ${generation.plan.concept}`),
         textElement('p', `Pubblico: ${generation.plan.audience}`),
+        ...(generation.input.input_type==='guide_image'?[textElement('p', `Guida fotografica: ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'}`)]:[]),
         textElement('p', `Avvertenza editoriale: ${generation.plan.editorial_caution}`),
       );
       createProgressAndPreview();

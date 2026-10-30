@@ -12,7 +12,7 @@ function clean(v,label,max,{optional=false}={}) {
   check((optional&& (v==null||v===''))||(typeof v==='string'&&v.trim()&&v.length<=max),`${label} non valido (massimo ${max} caratteri)`);
   return String(v||'').trim();
 }
-export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideUsage='',guideContext=''}={}) {
+export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideUsage='',guideContext='',guideFidelity='strong'}={}) {
   check(['instagram_reel','facebook_reel'].includes(platform),'piattaforma non supportata');
   const isGuide=typeof guideImageSha256==='string' && guideImageSha256.length>0;
   check((Number(Boolean(theme))+Number(Boolean(article))+Number(isGuide))===1,'scegli un tema, un articolo oppure una foto guida');
@@ -20,10 +20,11 @@ export function normalizeInput({theme,article,suggestions='',platform='instagram
   if(isGuide){
     check(/^[a-f\d]{64}$/.test(guideImageSha256),'impronta immagine guida non valida');
     check(['first_scene','reference_only'].includes(guideUsage),'uso immagine guida non valido');
+    check(['strong','inspiration'].includes(guideFidelity),'fedeltà immagine guida non valida');
     const context=clean(guideContext,'contesto immagine',180,{optional:true});
     return {input_type:'guide_image',topic:context || 'Mini-storia ispirata alla fotografia allegata',
       suggestions:notes,platform,article:null,guide_image_sha256:guideImageSha256,
-      guide_usage:guideUsage,guide_context:context,
+      guide_usage:guideUsage,guide_context:context,guide_fidelity:guideFidelity,
       source_fingerprint:sha(`guide-v1:${guideImageSha256}:${context}`),review_required:true};
   }
   if(article){
@@ -53,7 +54,7 @@ const schema={type:'object',additionalProperties:false,properties:{
 },required:['concept','audience','editorial_caution','episode_angle','story_logline','story_outcome',
   'protagonist_profile','scenes']};
 const system=`Sei il regista di mini-storie audiovisive per Reel italiani OffertaLogica da 15 secondi.
-Se input_type=guide_image, usa la FOTO ALLEGATA come sorgente primaria della storia e della direzione visiva, NON inventare un tema basandoti sul testo. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
+Se input_type=guide_image, usa la FOTO ALLEGATA come sorgente primaria della storia e della direzione visiva, NON inventare un tema basandoti sul testo. Se guide_fidelity=strong, conserva in ogni scena luce, temperatura colore, palette, materiali, texture, resa fotografica e atmosfera della foto guida; cambia deliberatamente l'azione e il taglio di ripresa per raccontare una storia senza replicare la medesima composizione. Se guide_fidelity=inspiration, mantieni soltanto un legame stilistico generale, lasciando maggiore libertà di ambientazione e illuminazione. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
 
 Restituisci ESCLUSIVAMENTE JSON conforme allo schema: 4 scene nell'ordine hook (3s), context (4s), value (4s), cta (4s).
 UNA SOLA STORIA, non quattro fotografie tematiche: (1) protagonista o situazione affronta un problema concreto,
@@ -150,7 +151,8 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.1.9-candidate',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.2.1-candidate',input_type:input.input_type,
+    guide_fidelity:input.input_type==='guide_image'?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,

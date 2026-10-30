@@ -1,4 +1,4 @@
-/* Video Studio v1.2.0 — browser montage and visual copy positioning. */
+/* Video Studio v1.2.1 — browser montage, visual copy positioning and guide fidelity control. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
