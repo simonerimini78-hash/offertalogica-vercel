@@ -1,4 +1,4 @@
-/* Video Studio v1.1.9 — isolated guide-image storyboard and manual per-scene image imports. */
+/* Video Studio v1.2.0 — per-scene visual copy editor for the browser montage. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -118,6 +118,7 @@
       previewView.musicAudio.volume = 1;
     }
     if (previewView?.playButton) previewView.playButton.textContent = 'Riproduci montaggio';
+    syncVisualEditor();
   }
   function releaseSoundtrack() {
     ++soundtrackLoadToken;
@@ -189,6 +190,16 @@
     if (previewView?.productInput) previewView.productInput.disabled = isBusy;
     if (previewView?.productChoice) previewView.productChoice.disabled = isBusy;
     if (previewView?.productConfirmed) previewView.productConfirmed.disabled = isBusy || !verifiedProductScreen;
+    if (previewView?.editorMode) {
+      const disabled = isBusy || previewPlaying;
+      previewView.editorMode.disabled = disabled;
+      previewView.editorScene.disabled = disabled;
+      previewView.editorLayer.disabled = disabled;
+      previewView.editorFields?.querySelectorAll('input,select,button').forEach(field => {
+        field.disabled = disabled || !sceneIsManuallyEditable(currentTextView());
+      });
+      updateTextHandles();
+    }
     if (previewView?.exportButton && previewView.musicChoice) {
       const selectedSilent = previewView.musicChoice.value === 'none';
       previewView.exportButton.disabled ||= !soundtrackFile && !selectedSilent;
@@ -487,6 +498,56 @@
   const MONTAGE_WIDTH = 1080;
   const MONTAGE_HEIGHT = 1920;
   const MONTAGE_DURATION = 15;
+  // The browser draft and the editor use the same 1080×1920 coordinate space.
+  // Keep text above the fixed brand footer and away from social UI chrome.
+  const TEXT_SAFE = Object.freeze({left:.068, top:.135, right:.932, bottom:.755});
+  const TEXT_FONTS = Object.freeze({
+    'system-ui':'system-ui, sans-serif',
+    'Arial':'Arial, Helvetica, sans-serif',
+    'Georgia':'Georgia, serif',
+    'Trebuchet MS':'"Trebuchet MS", Arial, sans-serif',
+    'Verdana':'Verdana, sans-serif',
+  });
+  const clampNumber = (value,min,max) => Math.max(min,Math.min(max,value));
+  function defaultTextStyle(kind) {
+    return {font:'system-ui',size:kind==='title'?100:kind==='cta'?43:48,weight:kind==='subtitle'?500:800,
+      color:'#ffffff',align:'left',background:false,bgColor:'#152c38',opacity:.6,
+      padding:14,radius:16,shadow:true};
+  }
+  function constrainTextBox(box,kind) {
+    const minW=.23,minH=kind==='title'?.085:.065;
+    const width=clampNumber(Number(box.width)||.5,minW,TEXT_SAFE.right-TEXT_SAFE.left);
+    const height=clampNumber(Number(box.height)||.12,minH,TEXT_SAFE.bottom-TEXT_SAFE.top);
+    return {
+      x:clampNumber(Number(box.x)||TEXT_SAFE.left,TEXT_SAFE.left,TEXT_SAFE.right-width),
+      y:clampNumber(Number(box.y)||TEXT_SAFE.top,TEXT_SAFE.top,TEXT_SAFE.bottom-height),
+      width,height,
+    };
+  }
+  function initializeManualCopy(view) {
+    if(view.textDesign) return view.textDesign;
+    const ctx=previewView?.canvas?.getContext('2d');
+    const auto=ctx?compositionForScene(ctx,view):null;
+    const choice=auto?.choice||{x:76,width:900};
+    const titleY=auto?.y||320;
+    const titleH=auto?.copy?.titleHeight||210;
+    const secondaryY=titleY+titleH+33;
+    return (view.textDesign={
+      title:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:titleY/MONTAGE_HEIGHT,
+        width:choice.width/MONTAGE_WIDTH,height:Math.max(150,titleH+22)/MONTAGE_HEIGHT},'title'),
+        style:defaultTextStyle('title')},
+      subtitle:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:secondaryY/MONTAGE_HEIGHT,
+        width:Math.min(0.8,choice.width/MONTAGE_WIDTH),height:.095},'subtitle'),
+        style:defaultTextStyle('subtitle')},
+      ...(view.scene.role==='cta'?{cta:{box:constrainTextBox({x:.36,y:.66,width:.48,height:.08},'cta'),
+        style:defaultTextStyle('cta')}}:{}),
+    });
+  }
+  function currentTextView() { return sceneViews[previewIndex] || null; }
+  function sceneIsManuallyEditable(view) {
+    return !!(view && view.layoutPreference==='manual' && !productScreenActive(view.index) &&
+      !exporting && !previewPlaying && !busy());
+  }
 
   function sceneAt(second) {
     let start = 0;
@@ -830,6 +891,72 @@
       return canvas;
     } catch { return picture; }
   }
+  function fitManualLines(ctx,text,style,boxWidth,boxHeight) {
+    const family=TEXT_FONTS[style.font] || TEXT_FONTS['system-ui'];
+    const weight=Number(style.weight)||500;
+    const pad=clampNumber(Number(style.padding)||0,0,60);
+    const maxWidth=Math.max(48,boxWidth-2*pad);
+    const maxHeight=Math.max(40,boxHeight-2*pad);
+    let lines=[],size=Number(style.size)||60;
+    const floor=size>70?46:32;
+    for(;size>=floor;size-=2) {
+      ctx.font=`${weight} ${size}px ${family}`;
+      lines=wrapOverlayLines(ctx,text,maxWidth);
+      if(lines.length*size*1.15 <= maxHeight && lines.every(line=>ctx.measureText(line).width <= maxWidth))
+        return {lines,size,family,weight,pad,overflow:false};
+    }
+    size=Math.max(floor,size+2);
+    ctx.font=`${weight} ${size}px ${family}`;
+    const limit=Math.max(1,Math.floor(maxHeight/(size*1.15)));
+    return {lines:wrapCanvasText(ctx,text,maxWidth,limit),size,family,weight,pad,overflow:true};
+  }
+  function drawManualTextLayer(ctx,view,kind) {
+    const text=String(kind==='title'?view.scene.headline:kind==='cta'?'ENTRA IN':view.scene.secondary_text||'').trim();
+    if(!text) return;
+    const layer=initializeManualCopy(view)[kind];
+    const b=constrainTextBox(layer.box,kind),style=layer.style;
+    const x=b.x*MONTAGE_WIDTH,y=b.y*MONTAGE_HEIGHT,w=b.width*MONTAGE_WIDTH,h=b.height*MONTAGE_HEIGHT;
+    ctx.save();
+    if(style.background) {
+      ctx.globalAlpha=clampNumber(Number(style.opacity),0,1);
+      ctx.fillStyle=style.bgColor;
+      ctx.beginPath();ctx.roundRect(x,y,w,h,clampNumber(Number(style.radius),0,64));ctx.fill();
+      ctx.globalAlpha=1;
+    }
+    const fit=fitManualLines(ctx,text,style,w,h);
+    const ink=style.color || '#ffffff';
+    const align=['left','center','right'].includes(style.align)?style.align:'left';
+    ctx.textAlign=align;ctx.textBaseline='top';ctx.lineJoin='round';
+    const textX=align==='center'?x+w/2:align==='right'?x+w-fit.pad:x+fit.pad;
+    const step=fit.size*1.15;
+    let textY=y+fit.pad;
+    for(const line of fit.lines) {
+      ctx.font=`${fit.weight} ${fit.size}px ${fit.family}`;
+      if(style.shadow) {
+        // Contrast rim is behind the chosen ink and does not change the user's colour.
+        ctx.lineWidth=fit.size>65?4:2.5;
+        ctx.strokeStyle='rgba(8,18,25,.55)';ctx.strokeText(line,textX,textY);
+        ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=7;
+      }
+      ctx.fillStyle=ink;ctx.fillText(line,textX,textY);
+      ctx.shadowBlur=0;
+      textY+=step;
+    }
+    ctx.restore();
+  }
+  function drawManualOverlay(ctx,view) {
+    drawManualTextLayer(ctx,view,'title');
+    drawManualTextLayer(ctx,view,'subtitle');
+    if(view.scene.role==='cta')drawManualTextLayer(ctx,view,'cta');
+    // Keep the verified OffertaLogica logo outside the two freely-positionable text boxes.
+    const brand=transparentBrandLogo()||previewView?.logo;
+    if(brand && (brand.width||brand.naturalWidth)) {
+      const w=232,h=w*(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width);
+      ctx.save();ctx.shadowColor='rgba(255,255,255,.65)';ctx.shadowBlur=8;
+      ctx.drawImage(brand,76,1510,w,h);ctx.restore();
+    }
+
+  }
   function drawCinematicOverlay(ctx,view) {
     const {scene}=view;
     const {choice,copy,y,bounds,logo,footerY,actionSize}=compositionForScene(ctx,view);
@@ -907,7 +1034,9 @@
         ctx.fillStyle=glow;
         ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
       }
-      drawCinematicOverlay(ctx, sceneViews[segment.index]);
+      if (sceneViews[segment.index]?.layoutPreference === 'manual')
+        drawManualOverlay(ctx,sceneViews[segment.index]);
+      else drawCinematicOverlay(ctx, sceneViews[segment.index]);
     }
     // Thin timeline belongs to the editing PREVIEW only, not the exported video.
     if (!exporting) {
@@ -915,6 +1044,11 @@
       ctx.fillRect(0, MONTAGE_HEIGHT - 8, MONTAGE_WIDTH * (t / MONTAGE_DURATION), 8);
     }
     previewView.meta.textContent = `Scena ${segment.index + 1}/${sceneViews.length} · ${t.toFixed(1)} / 15.0 s · ${soundtrackUrl ? 'musica' : 'senza musica'} · Bozza 1080×1920`;
+    if(previewView._editorSceneIndex !== previewIndex && !previewPlaying) {
+      previewView._editorSceneIndex=previewIndex;
+      syncVisualEditor();
+    }
+    updateTextHandles();
   }
   function showPreview(index) {
     if (!previewView) return;
@@ -922,7 +1056,8 @@
     previewView.playButton.disabled = available.length !== 4 || busy();
     const scene = available.length ? (available.includes(index) ? index : available[0]) : 0;
     const t = sceneViews.slice(0, scene).reduce((sum, item) => sum + (Number(item.scene.duration_ms) || 0), 0) / 1000;
-    if (!previewPlaying) renderMontageFrame(t);
+    if (!previewPlaying) renderMontageFrame(Math.min(MONTAGE_DURATION-.002,t+.34));
+    syncVisualEditor();
     previewView.musicHelp.textContent = soundtrackUrl
       ? 'Traccia della libreria pronta per la bozza. È audio di revisione, non approvazione alla pubblicazione.'
       : 'Attendo una traccia dalla libreria privata. La bozza non viene esportata muta per errore.';
@@ -1342,6 +1477,242 @@
     else if (view.attempts > 0) view.actionButton.textContent = 'Riprova questa scena';
     else view.actionButton.textContent = 'Genera ora questa foto';
   }
+  function textBoxRect(layer) {
+    return {x:layer.box.x*MONTAGE_WIDTH,y:layer.box.y*MONTAGE_HEIGHT,
+      width:layer.box.width*MONTAGE_WIDTH,height:layer.box.height*MONTAGE_HEIGHT};
+  }
+  function editorWarning(view) {
+    if (!view || view.layoutPreference!=='manual') return '';
+    if (productScreenActive(view.index))
+      return 'Schermata verificata: il layout dedicato rimane fisso per non coprire la UI autentica.';
+    const t=initializeManualCopy(view);
+    const title=textBoxRect(t.title),subtitle=textBoxRect(t.subtitle);
+    const cta=t.cta?textBoxRect(t.cta):null;
+    const warnings=[];
+    if(String(view.scene.secondary_text||'').trim() && intersects(title,subtitle,8))
+      warnings.push('Titolo e sottotitolo si sovrappongono');
+    if(cta && (intersects(cta,title,8)||intersects(cta,subtitle,8)))
+      warnings.push('CTA e testo si sovrappongono');
+    if((view._faceBoxes||[]).some(face=>intersects(face,title,15)||intersects(face,subtitle,15)||(cta&&intersects(face,cta,15))))
+      warnings.push('Testo vicino a un volto (verifica manualmente)');
+    const ctx=previewView?.canvas?.getContext('2d');
+    if(ctx) {
+      for(const kind of ['title','subtitle',...(t.cta?['cta']:[])]) {
+        const text=String(kind==='title'?view.scene.headline:kind==='cta'?'ENTRA IN':view.scene.secondary_text||'').trim();
+        if(!text)continue;
+        const layer=t[kind],box=textBoxRect(layer);
+        const result=fitManualLines(ctx,text,layer.style,box.width,box.height);
+        if(result.overflow)warnings.push(`${kind==='title'?'Titolo':kind==='cta'?'CTA':'Sottotitolo'}: riquadro troppo piccolo, testo abbreviato`);
+      }
+    }
+    return warnings.length ? `Verifica prima di esportare: ${warnings.join('; ')}.` :
+      'Trascina un riquadro oppure ridimensionalo dall’angolo. Il logo resta separato. Le impostazioni sono locali alla bozza.';
+  }
+  function updateTextHandles() {
+    if(!previewView?.editorOverlay) return;
+    const view=currentTextView();
+    const enabled=sceneIsManuallyEditable(view);
+    previewView.editorOverlay.hidden=!enabled;
+    if(!enabled) {
+      if(previewView.editorHelp)previewView.editorHelp.textContent=editorWarning(view);
+      return;
+    }
+    const settings=initializeManualCopy(view);
+    for(const kind of ['title','subtitle','cta']) {
+      const el=previewView.editorBoxes[kind];
+      if(!settings[kind]){el.hidden=true;continue;}
+      const box=settings[kind].box;
+      el.hidden=kind==='subtitle'&&!String(view.scene.secondary_text||'').trim();
+      Object.assign(el.style,{left:`${box.x*100}%`,top:`${box.y*100}%`,
+        width:`${box.width*100}%`,height:`${box.height*100}%`});
+      el.classList.toggle('is-selected',previewView.editorLayer?.value===kind);
+    }
+    if(previewView.editorHelp)previewView.editorHelp.textContent=editorWarning(view);
+  }
+  function syncVisualEditor() {
+    if(!previewView?.editorScene)return;
+    const view=currentTextView();
+    previewView.editorScene.value=String(view?.index??0);
+    previewView.editorMode.value=view?.layoutPreference||'auto';
+    const hasCta=view?.scene?.role==='cta';
+    previewView.editorLayer.querySelector('[value="cta"]').disabled=!hasCta;
+    if(!hasCta&&previewView.editorLayer.value==='cta')previewView.editorLayer.value='title';
+    const manual=!!view && view.layoutPreference==='manual' && !productScreenActive(view.index);
+    previewView.editorFields.hidden=!manual;
+    if(manual) {
+      const kind=previewView.editorLayer.value||'title';
+      const style=initializeManualCopy(view)[kind].style;
+      const form=previewView.editorFields;
+      form.querySelectorAll('[data-style-prop]').forEach(input => {
+        const prop=input.dataset.styleProp;
+        if(input.type==='checkbox')input.checked=Boolean(style[prop]);
+        else input.value=String(style[prop]);
+      });
+      form.querySelectorAll('[data-style-output]').forEach(node => {
+        node.textContent=String(style[node.dataset.styleOutput]);
+      });
+    }
+    previewView.editorFields.querySelectorAll('input,select,button').forEach(field => {
+      field.disabled=!manual || busy() || previewPlaying;
+    });
+    updateTextHandles();
+  }
+  function updateManualDesign() {
+    if(!previewPlaying && !exporting)showPreview(previewIndex);
+    else updateTextHandles();
+  }
+  function installTextDrag(el,kind) {
+    let drag=null;
+    el.addEventListener('pointerdown',event=>{
+      const view=currentTextView();
+      if(!sceneIsManuallyEditable(view))return;
+      event.preventDefault();
+      previewView.editorLayer.value=kind;
+      syncVisualEditor();
+      const box=initializeManualCopy(view)[kind].box;
+      drag={pointerId:event.pointerId,index:view.index,
+        startX:event.clientX,startY:event.clientY,
+        original:{...box},resize:event.target.classList.contains('ol-vs-edit-resize')};
+      el.setPointerCapture(event.pointerId);
+    });
+    el.addEventListener('pointermove',event=>{
+      if(!drag || event.pointerId!==drag.pointerId)return;
+      const view=sceneViews[drag.index];
+      if(!sceneIsManuallyEditable(view))return;
+      const r=previewView.canvas.getBoundingClientRect();
+      if(!r.width||!r.height)return;
+      const dx=(event.clientX-drag.startX)/r.width;
+      const dy=(event.clientY-drag.startY)/r.height;
+      const next={...drag.original};
+      if(drag.resize) {
+        next.width=clampNumber(next.width+dx,.23,TEXT_SAFE.right-next.x);
+        next.height=clampNumber(next.height+dy,kind==='title'?.085:.065,TEXT_SAFE.bottom-next.y);
+      } else {next.x+=dx;next.y+=dy;}
+      // For right/bottom handles, retain the starting top-left while resizing.
+      const limited=constrainTextBox(next,kind);
+      view.textDesign[kind].box=limited;
+      if(!previewPlaying)renderMontageFrame(sceneViews.slice(0,view.index).reduce((n,v)=>n+Number(v.scene.duration_ms||0),0)/1000+.34);
+      updateTextHandles();
+    });
+    const end=event=>{
+      if(!drag || event.pointerId!==drag.pointerId)return;
+      drag=null;
+      if(el.hasPointerCapture(event.pointerId))el.releasePointerCapture(event.pointerId);
+      updateManualDesign();
+    };
+    el.addEventListener('pointerup',end);
+    el.addEventListener('pointercancel',end);
+    el.addEventListener('keydown',event=>{
+      const view=currentTextView();
+      if(!sceneIsManuallyEditable(view))return;
+      const movements={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
+      const movement=movements[event.key];
+      if(!movement)return;
+      event.preventDefault();
+      previewView.editorLayer.value=kind;
+      const b=initializeManualCopy(view)[kind].box;
+      const amount=event.altKey?.002:.01;
+      if(event.shiftKey) {
+        b.width=clampNumber(b.width+movement[0]*amount,.23,TEXT_SAFE.right-b.x);
+        b.height=clampNumber(b.height+movement[1]*amount,kind==='title'?.085:.065,TEXT_SAFE.bottom-b.y);
+      } else {b.x+=movement[0]*amount;b.y+=movement[1]*amount;}
+      view.textDesign[kind].box=constrainTextBox(b,kind);
+      updateManualDesign();
+    });
+  }
+  function createVisualTextEditor() {
+    const panel=document.createElement('div');panel.className='ol-vs-text-editor';
+    panel.append(textElement('h5','Regia del testo · bozza browser'));
+    const row=document.createElement('div');row.className='ol-vs-editor-row';
+    function selectControl(label,options,callback) {
+      const wrap=document.createElement('label');wrap.className='ol-vs-editor-field';
+      wrap.append(document.createTextNode(label));
+      const select=document.createElement('select');
+      for(const [value,text] of options)select.add(new Option(text,value));
+      select.addEventListener('change',callback);
+      wrap.append(select);return {wrap,select};
+    }
+    const scene=selectControl('Scena',Array.from({length:4},(_,i)=>[String(i),`Scena ${i+1}`]),()=>{
+      if(busy()||previewPlaying)return;
+      showPreview(Number(scene.select.value));
+    });previewView.editorScene=scene.select;
+    const mode=selectControl('Posizione',[
+      ['auto','Automatica'],['manual','Manuale · trascina'],
+      ['top','In alto'],['left','A sinistra'],['right','A destra'],['bottom','In basso'],
+    ],()=>{
+      const view=currentTextView();if(!view||busy()||previewPlaying)return;
+      if(mode.select.value==='manual')initializeManualCopy(view);
+      view.layoutPreference=mode.select.value;
+      if(view.layoutSelect)view.layoutSelect.value=view.layoutPreference;
+      view._compositionKey=null;
+      updateManualDesign();
+    });previewView.editorMode=mode.select;
+    const layer=selectControl('Elemento', [['title','Titolo'],['subtitle','Sottotitolo'],['cta','CTA (ultima scena)']],()=>syncVisualEditor());
+    previewView.editorLayer=layer.select;
+    row.append(scene.wrap,mode.wrap,layer.wrap);panel.append(row);
+    const fields=document.createElement('div');fields.className='ol-vs-editor-fields';
+    previewView.editorFields=fields;
+    function inputControl(label,prop,type,opts={}) {
+      const wrap=document.createElement('label');wrap.className='ol-vs-editor-field';
+      wrap.append(document.createTextNode(label));
+      let input;
+      if(opts.options) {
+        input=document.createElement('select');
+        for(const [v,t] of opts.options)input.add(new Option(t,v));
+      } else {input=document.createElement('input');input.type=type;
+        if(opts.min!==undefined)input.min=opts.min;
+        if(opts.max!==undefined)input.max=opts.max;
+        if(opts.step!==undefined)input.step=opts.step;}
+      input.dataset.styleProp=prop;
+      if(input.type==='checkbox')wrap.classList.add('ol-vs-editor-check');
+      input.addEventListener('input',()=>{
+        const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+        const style=initializeManualCopy(view)[previewView.editorLayer.value].style;
+        const val=input.type==='checkbox'?input.checked:input.type==='range'?Number(input.value):input.value;
+        style[prop]=val;
+        if(prop==='size'||prop==='opacity') {
+          const output=wrap.querySelector('output');if(output)output.textContent=String(val);
+        }
+        updateManualDesign();
+      });
+      if(type==='range') {
+        const output=document.createElement('output');output.dataset.styleOutput=prop;
+        wrap.append(output);
+      }
+      wrap.append(input);fields.append(wrap);
+      return input;
+    }
+    inputControl('Carattere','font','select',{options:Object.keys(TEXT_FONTS).map(name=>[name,name])});
+    inputControl('Peso','weight','select',{options:[[400,'Normale'],[500,'Medio'],[600,'Semibold'],[700,'Grassetto'],[800,'Extra bold']]});
+    inputControl('Dimensione','size','range',{min:34,max:124,step:2});
+    inputControl('Colore','color','color');
+    inputControl('Allineamento','align','select',{options:[['left','Sinistra'],['center','Centro'],['right','Destra']]});
+    inputControl('Sfondo testo','background','checkbox');
+    inputControl('Colore riquadro','bgColor','color');
+    inputControl('Opacità riquadro','opacity','range',{min:0,max:1,step:.05});
+    inputControl('Spazio interno','padding','number',{min:0,max:60,step:2});
+    inputControl('Angoli arrotondati','radius','number',{min:0,max:64,step:2});
+    inputControl('Ombra leggibilità','shadow','checkbox');
+    const reset=document.createElement('button');reset.type='button';
+    reset.className='ol-button ol-button-secondary ol-button-small';
+    reset.textContent='Ripristina elemento';
+    reset.addEventListener('click',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      const kind=previewView.editorLayer.value;
+      const initial=initializeManualCopy(view);
+      delete view.textDesign;
+      const replacement=initializeManualCopy(view)[kind];
+      initial[kind]={box:{...replacement.box},style:{...replacement.style}};
+      view.textDesign=initial;
+      updateManualDesign();
+    });
+    fields.append(reset);
+    const help=document.createElement('p');help.className='ol-vs-editor-help';
+    help.setAttribute('role','status');previewView.editorHelp=help;
+    panel.append(fields,help);
+    panel.append(textElement('p','Frecce per spostare; Maiusc + frecce per ridimensionare; Alt per microspostamenti. Il testo si modifica senza consumare azioni AI.'));
+    return panel;
+  }
   function createProgressAndPreview() {
     progressView = {
       box: document.createElement('section'),
@@ -1380,7 +1751,7 @@
     const previewIntro = document.createElement('div');
     previewIntro.append(
       textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
-      textElement('p', 'Fotografie a tutto schermo, testi liberi e sfumature morbide (senza riquadri). Verifica che testi e logo non coprano il soggetto; puoi correggere il lato scena per scena.'),
+      textElement('p', 'Scegli una scena: posizione automatica o editor manuale con testi trascinabili, dimensioni e colori personalizzati. I cambiamenti compaiono nella bozza esportata.'),
     );
     previewView.playButton.type = 'button';
     previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
@@ -1400,7 +1771,33 @@
     previewView.canvas.height = MONTAGE_HEIGHT;
     previewView.canvas.className = 'ol-vs-preview-canvas';
     previewView.canvas.setAttribute('aria-label', 'Montaggio Reel in formato verticale 9:16');
-    stage.append(previewView.canvas);
+    const frame=document.createElement('div');
+    frame.className='ol-vs-edit-frame';
+    frame.append(previewView.canvas);
+    previewView.editorOverlay=document.createElement('div');
+    previewView.editorOverlay.className='ol-vs-edit-overlay';
+    previewView.editorOverlay.setAttribute('aria-label','Area modifica testi sulla scena');
+    const safe=document.createElement('div');safe.className='ol-vs-edit-safe';
+    Object.assign(safe.style,{left:`${TEXT_SAFE.left*100}%`,top:`${TEXT_SAFE.top*100}%`,
+      width:`${(TEXT_SAFE.right-TEXT_SAFE.left)*100}%`,height:`${(TEXT_SAFE.bottom-TEXT_SAFE.top)*100}%`});
+    previewView.editorOverlay.append(safe);
+    previewView.editorBoxes={};
+    for(const kind of ['title','subtitle','cta']) {
+      const box=document.createElement('div');
+      box.className=`ol-vs-edit-box ol-vs-edit-box-${kind}`;
+      box.tabIndex=0;box.setAttribute('role','group');
+      box.setAttribute('aria-label',kind==='title'?'Posizione titolo':kind==='cta'?'Posizione CTA':'Posizione sottotitolo');
+      const tag=document.createElement('span');tag.className='ol-vs-edit-box-label';
+      tag.textContent=kind==='title'?'Titolo':kind==='cta'?'CTA':'Sottotitolo';
+      const handle=document.createElement('span');handle.className='ol-vs-edit-resize';
+      handle.setAttribute('aria-hidden','true');
+      box.append(tag,handle);
+      installTextDrag(box,kind);
+      previewView.editorBoxes[kind]=box;
+      previewView.editorOverlay.append(box);
+    }
+    frame.append(previewView.editorOverlay);
+    stage.append(frame);
 
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
@@ -1454,7 +1851,8 @@
     previewView.productHelp.className = 'ol-muted ol-small';
     previewView.productHelp.textContent = 'Carica solo schermate effettive del servizio, senza dati personali. Le immagini AI non attestano l’autenticità dell’interfaccia.';
     productRow.append(screenLabel, screenSceneLabel, confirmLabel, previewView.productHelp);
-    previewView.box.append(previewHeader, stage, musicRow, productRow, previewView.meta);
+    const textEditor=createVisualTextEditor();
+    previewView.box.append(previewHeader, stage, textEditor, musicRow, productRow, previewView.meta);
     realSummary.append(previewView.box);
     refreshMusicChoices();
     // The server music library is loaded automatically even on a new device.
@@ -1518,10 +1916,10 @@
     layoutWrap.className = 'ol-field ol-vs-layout-placement';
     const layoutLabel = document.createElement('label');
     layoutLabel.setAttribute('for', `vs-scene-layout-${index}`);
-    layoutLabel.textContent = 'Posizione testo e logo sulla fotografia';
+    layoutLabel.textContent = 'Posizione testo (logo separato) sulla fotografia';
     const layoutSelect = document.createElement('select');
     layoutSelect.id = `vs-scene-layout-${index}`;
-    for (const [value, label] of [['auto','Automatica (lato libero della scena)'],['top','In alto'],
+    for (const [value, label] of [['auto','Automatica (lato libero della scena)'],['manual','Manuale · trascina sul frame'],['top','In alto'],
       ['left','A sinistra'],['right','A destra'],['bottom','In basso']]) {
       const option = document.createElement('option');
       option.value = value;
@@ -1538,6 +1936,7 @@
       actionButton,
       notesInput,
       layoutPreference: 'auto',
+      layoutSelect,
       prompt,
       promptBody,
       attempts: 0,
@@ -1547,6 +1946,7 @@
     };
     layoutSelect.addEventListener('change', () => {
       if (exporting) return;
+      if(layoutSelect.value==='manual')initializeManualCopy(view);
       view.layoutPreference = layoutSelect.value;
       view._compositionKey = null;
       if (!previewPlaying && previewView) showPreview(index);

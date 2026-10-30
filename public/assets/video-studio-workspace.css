@@ -1,4 +1,4 @@
-/* Video Studio v1.0.4 — audiovisual browser montage review. */
+/* Video Studio v1.2.0 — browser montage and visual copy positioning. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
@@ -50,3 +50,27 @@
 .ol-vs-music-row label{display:grid;gap:8px;font-weight:650;font-size:14px}
 .ol-vs-music-row input[type=file]{max-width:100%;font:inherit;font-size:13px}
 .ol-vs-music-row small{display:block;line-height:1.4}
+
+/* Visual copy editor: outline controls are UI only; text itself is drawn on the export Canvas. */
+.ol-vs-edit-frame{width:min(100%,360px);position:relative;aspect-ratio:9/16}
+.ol-vs-edit-frame .ol-vs-preview-canvas{width:100%;height:100%;border-radius:18px}
+.ol-vs-edit-overlay{position:absolute;inset:0;pointer-events:none}
+.ol-vs-edit-overlay[hidden],.ol-vs-edit-box[hidden],.ol-vs-editor-fields[hidden]{display:none!important}
+.ol-vs-edit-safe{position:absolute;border:1px dashed rgba(255,228,130,.55);border-radius:4px;pointer-events:none}
+.ol-vs-edit-box{position:absolute;border:2px solid rgba(255,255,255,.95);outline:2px solid rgba(12,72,48,.72);border-radius:5px;pointer-events:auto;touch-action:none;cursor:grab;box-sizing:border-box;user-select:none;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
+.ol-vs-edit-box:active{cursor:grabbing}
+.ol-vs-edit-box:focus-visible,.ol-vs-edit-box.is-selected{outline:3px solid #38b66e}
+.ol-vs-edit-box-label{position:absolute;left:0;top:0;background:rgba(5,34,26,.84);color:#fff;font:600 11px system-ui,sans-serif;padding:2px 5px;border-radius:3px;white-space:nowrap}
+.ol-vs-edit-resize{position:absolute;right:-7px;bottom:-7px;width:18px;height:18px;background:#38b66e;border:2px solid white;border-radius:4px;cursor:nwse-resize;touch-action:none}
+.ol-vs-text-editor{margin:14px auto;padding:14px;width:min(100%,850px);border:1px solid #bdd4c4;border-radius:12px;background:#fff;box-sizing:border-box}
+.ol-vs-text-editor h5{font-size:15px;margin:0 0 10px;color:#1f4a31}
+.ol-vs-editor-row,.ol-vs-editor-fields{display:grid;grid-template-columns:repeat(auto-fit,minmax(135px,1fr));gap:11px;align-items:end}
+.ol-vs-editor-fields{margin-top:12px;border-top:1px solid #e0e9e2;padding-top:12px}
+.ol-vs-editor-field{display:flex;flex-direction:column;gap:5px;color:#334155;font-size:13px;font-weight:650;min-width:0}
+.ol-vs-editor-field select,.ol-vs-editor-field input:not([type=checkbox]){width:100%;min-height:37px;border:1px solid #b9cec0;border-radius:6px;padding:5px;background:#fff;box-sizing:border-box;font:inherit;color:#15252e}
+.ol-vs-editor-field input[type=color]{padding:2px!important}
+.ol-vs-editor-field input[type=range]{padding:0!important}
+.ol-vs-editor-check{flex-direction:row;align-items:center;justify-content:space-between}
+.ol-vs-editor-help{font-size:13px;color:#4b6156;line-height:1.45;margin:10px 0 4px}
+.ol-vs-text-editor>p:last-child{font-size:12px;color:#51656d;margin:8px 0 0;line-height:1.4}
+@media(max-width:620px){.ol-vs-editor-row,.ol-vs-editor-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
