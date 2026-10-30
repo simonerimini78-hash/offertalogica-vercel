@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.117";
+const VERSION = "0.12.118";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -2395,6 +2395,25 @@ function editorialImageObjectPathFromUrl(value) {
   }
 }
 
+function editorialEditorImageUrl(user, rawUrl, { reference = false } = {}) {
+  const objectPath = editorialImageObjectPathFromUrl(rawUrl);
+  if (!objectPath || !objectPath.startsWith(`${user.id}/`)) {
+    throw new Error("La fotografia deve provenire da un caricamento autorizzato nella cartella dell'editor");
+  }
+  if (!/\.(jpe?g|png|webp)$/i.test(objectPath)) {
+    throw new Error(reference ? "Come riferimento AI sono ammessi solo JPEG, PNG e WebP" : "Formato immagine social non supportato");
+  }
+  return { url: editorialImagePublicUrl(objectPath), objectPath };
+}
+
+function editorialPublishedArticleReferenceUrl(article) {
+  const objectPath = editorialImageObjectPathFromUrl(article?.featured_image_url || "");
+  if (!objectPath || !/\.(jpe?g|png|webp)$/i.test(objectPath)) {
+    throw new Error("La foto approvata dell'articolo non e' disponibile come riferimento AI supportato: carica un file JPG, PNG o WebP.");
+  }
+  return editorialImagePublicUrl(objectPath);
+}
+
 async function uploadEditorialImageBuffer(objectPath, buffer, mimeType = "image/jpeg") {
   const { url, serviceKey } = supabaseConfig();
   if (!url || !serviceKey) throw new Error("Supabase server non configurato");
@@ -3046,7 +3065,7 @@ async function evaluateEditorialArticleImage(article, candidate) {
   };
 }
 
-async function generateOpenAiArticleImage(article, opportunity, guidance = "", requestedProfile = "auto", directionMode = "auto") {
+async function generateOpenAiArticleImage(article, opportunity, guidance = "", requestedProfile = "auto", directionMode = "auto", referenceImageUrl = "") {
   const apiKey = env("OPENAI_API_KEY");
   if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
   const model = editorialImageModel();
@@ -3059,13 +3078,21 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "", r
   const visualBrief = requiresStructuredBrief
     ? await buildEditorialArticleVisualBrief(article, opportunity, guidance, requestedProfile, recentVisuals, directionMode)
     : null;
-  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile, recentVisuals, directionMode);
+  const articlePrompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile, recentVisuals, directionMode);
+  const prompt = [referenceImageUrl
+    ? articlePrompt.replace(
+        "SCREEN SOURCE RULE: this text-to-image request contains NO authenticated screenshot. A photographed computer may suggest digital research through the person's action and composition, but the display must not show readable interfaces, offer cards, estimates, data tables or brand-specific results. Keep it out of focus, neutral or outside the frame. A real OffertaLogica screenshot requires separate approved-source compositing.",
+        "SCREEN SOURCE RULE: an editor-supplied reference photograph or screenshot is provided. Preserve its authentic visible elements where feasible; do not create or alter readable prices, names, offers, buttons or UI fields. If exact screen fidelity cannot be maintained, keep the screen unreadable. A guaranteed pixel-identical OffertaLogica screen still requires compositing."
+      )
+    : articlePrompt,
+    referenceImageUrl ? "IMAGE-EDIT MODE: Use the supplied image as genuine photographic input, preserving its relevant lighting, styling and subject where consistent with the article. Do not invent documents, figures or interface details." : "",
+  ].filter(Boolean).join("\n");
   const effective = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch("https://api.openai.com/v1/images/generations", {
+    response = await fetch(referenceImageUrl ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: {
         Authorization: `Bearer ${apiKey}`,
@@ -3074,6 +3101,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "", r
       body: JSON.stringify({
         model,
         prompt,
+        ...(referenceImageUrl ? { images: [{ image_url: referenceImageUrl }] } : {}),
         size: "1536x1024",
         quality: "high",
         output_format: "jpeg",
@@ -3112,7 +3140,7 @@ async function generateOpenAiArticleImage(article, opportunity, guidance = "", r
   }
   if (!buffer?.length) throw new Error("OpenAI non ha restituito un’immagine utilizzabile");
   if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine HD generata supera 5 MB: rigenera l’immagine");
-  return { model, prompt, buffer, visualBrief, directionMode, generationProfileRequested: requested.key, generationProfileEffective: effective.key };
+  return { model, prompt, buffer, visualBrief, directionMode, referenceImageUrl, generationProfileRequested: requested.key, generationProfileEffective: effective.key };
 }
 
 async function saveArticleImageState(user, opportunity, state) {
@@ -3136,15 +3164,18 @@ async function generateEditorialArticleImage(user, payload = {}) {
   }
   const requestedProfile = normalizeArticleImageProfile(payload.generation_profile || payload.profile || "auto");
   const directionMode = payload.direction_mode === "editor" && cleanEditorialText(payload.guidance, 600) ? "editor" : "auto";
-  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance, requestedProfile, directionMode);
+  const referenceImageUrl = payload.reference_image_url
+    ? editorialEditorImageUrl(user, payload.reference_image_url, { reference: true }).url : "";
+  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance, requestedProfile, directionMode, referenceImageUrl);
   const objectPath = `autopilot/${context.article.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
   const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
   const now = new Date().toISOString();
   const candidate = {
     source: "generated",
     provider: "openai",
-    generation_mode: "text_to_image",
-    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+    generation_mode: referenceImageUrl ? "reference_image_edit" : "text_to_image",
+    source_policy: referenceImageUrl ? "editor_supplied_image_reference" : EDITORIAL_IMAGE_SOURCE_POLICY,
+    reference_image_url: referenceImageUrl || null,
     status: "pending_review",
     url: imageUrl,
     object_path: objectPath,
@@ -4523,7 +4554,8 @@ async function editorialSocialPlanPayload() {
         attempt_count: Number(asset.manual_image_candidate.attempt_count || 1),
         attempts_history: Array.isArray(asset.manual_image_candidate.attempts_history)
           ? asset.manual_image_candidate.attempts_history.slice(-EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS) : [],
-        manual_approval_allowed: editorialManualSocialImageApprovalEligibility(asset.manual_image_candidate.qa),
+        source: asset.manual_image_candidate.source || null,
+        manual_approval_allowed: asset.manual_image_candidate.source === "manual_upload" || editorialManualSocialImageApprovalEligibility(asset.manual_image_candidate.qa),
         qa: asset.manual_image_candidate.qa ? {
           status: asset.manual_image_candidate.qa.status || null,
           reason: asset.manual_image_candidate.qa.reason || null,
@@ -5369,21 +5401,26 @@ async function generateOpenAiSocialImage(article, item, target, brief, guidance 
   const basePrompt = options?.manualRegeneration === true
     ? editorialManualSocialImagePrompt(article, item, target, guidance)
     : editorialSocialImagePrompt(article, item, target, brief, guidance);
+  const referenceImageUrl = String(options?.referenceImageUrl || "").trim();
   const prompt = [basePrompt,
+    referenceImageUrl ? (options?.qaCorrection
+      ? "EDIT THE PROVIDED PHOTO using the QA failure criteria. Correct the specific defects in its existing image rather than inventing an unrelated photograph; preserve truthful details and aesthetically successful parts."
+      : "EDITOR-SUPPLIED IMAGE REFERENCE: Use the supplied photograph as visual input for the editorial result; keep the factual message true and never fabricate legible product interfaces, prices or documents.") : "",
     options?.manualRegeneration && options?.qaCorrection
-      ? `QA CORRECTION — CREATE A FRESH VISUAL CONCEPT, not a cleaned-up copy of the previous photograph. Preserve the verified article meaning and the editor's explicit direction, but choose the subject, action, setting, camera angle and composition independently. The following are failure constraints only, NOT instructions to recreate an earlier scene: ${cleanEditorialText(options.qaCorrection, 900)}.`
+      ? `QA CORRECTION: Remove the verified visual defects while preserving the article meaning and editor guidance. These are failure constraints, NOT a new required scene: ${cleanEditorialText(options.qaCorrection, 900)}.`
       : "",
   ].filter(Boolean).join("\n");
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
   let response;
   try {
-    response = await fetch("https://api.openai.com/v1/images/generations", {
+    response = await fetch(referenceImageUrl ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
       method: "POST",
       headers: { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
       body: JSON.stringify({
         model,
         prompt,
+        ...(referenceImageUrl ? { images: [{ image_url: referenceImageUrl }] } : {}),
         size: EDITORIAL_SOCIAL_IMAGE_SIZE,
         quality: "high",
         output_format: "jpeg",
@@ -5421,7 +5458,7 @@ async function generateOpenAiSocialImage(article, item, target, brief, guidance 
   }
   if (!buffer?.length) throw new Error("OpenAI non ha restituito un'immagine social utilizzabile");
   if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L'immagine social generata supera 5 MB");
-  return { model, prompt, buffer };
+  return { model, prompt, buffer, referenceImageUrl };
 }
 
 function editorialSocialImageQaSchema() {
@@ -5601,7 +5638,7 @@ function editorialManualSocialImageQaSchema() {
   };
 }
 
-async function evaluateEditorialManualSocialImage(article, item, target, image, guidance = "", previousCandidateUrl = "") {
+async function evaluateEditorialManualSocialImage(article, item, target, image, guidance = "", previousCandidateUrl = "", editInPlace = false) {
   const imageUrl = String(image?.url || "").trim();
   if (!/^https:\/\//i.test(imageUrl)) throw new Error("QA immagine social: URL candidato non valido");
   const comparisonUrl = String(previousCandidateUrl || "").trim();
@@ -5633,9 +5670,11 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
     "Per scene domestiche di offerte e bollette verifica morbidezza e temperatura CALDA della luce naturale, ombre dolci, atmosfera vissuta e soggetto dominante. Un legno caldo non compensa luce fredda, dura o piatta; un filtro arancione artificiale non e' autenticita'. Per eventi atmosferici o impianti e per indicazioni esplicite dell'editor sono ammesse luci diverse. Se l'illuminazione richiesta manca, social_quality e clickworthy non devono risultare veri.",
     "NON richiedere un volto, un'eta', un genere, una posa, un oggetto, una stanza o un'emozione presenti in precedenti fotografie o nelle indicazioni del primo tentativo.",
     "La diversita' di protagonista e ambientazione e' ammessa e desiderabile quando mantiene coerenza con l'articolo; non e' di per se' causa di bocciatura.",
-    comparing
-      ? "distinct_from_previous_candidate: vero solo se la nuova fotografia propone una regia visiva sostanzialmente differente (azione, situazione, prospettiva o composizione); cambiare soltanto persona, vestiti, luce o piccoli oggetti mantenendo lo stesso schema non basta. Non premiare la diversita' se sacrifica la fedelta' ai fatti o contraddice la regia esplicita dell'editor. Quando una regia dell'editor impone necessariamente la stessa scena, valuta l'effettivo margine di variazione senza bocciarla per l'impossibilita' di cambiare soggetto."
-      : "distinct_from_previous_candidate: imposta true; non e' disponibile una foto precedente da confrontare.",
+    comparing && editInPlace
+      ? "La nuova foto e' una MODIFICA deliberata della precedente: distinct_from_previous_candidate descrive il grado di differenza, ma NON deve bloccare una correzione autentica. Verifica soprattutto che i difetti originari siano stati eliminati e che nessun nuovo elemento fuorviante sia apparso."
+      : comparing
+        ? "distinct_from_previous_candidate: vero solo se la nuova fotografia propone una regia sostanzialmente differente; cambiare soltanto persona o accessori non basta."
+        : "distinct_from_previous_candidate: imposta true; non e' disponibile una foto precedente da confrontare.",
     "Se bocci, spiega i DIFETTI EFFETTIVAMENTE VISIBILI e quali criteri sono falliti. regeneration_guidance deve elencare esclusivamente difetti o vincoli di autenticita'/qualita' da rispettare, senza proporre persone, oggetti, luoghi, pose, ambienti o composizioni per la nuova fotografia.",
   ].filter(Boolean).join("\n");
   const response = await openAiResponseRequest("", {
@@ -5677,11 +5716,12 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
   const distinctFromPrevious = parsed?.distinct_from_previous_candidate === true;
   const passed = relevantArticle && relevantPost && guidanceRespected && clear && !misleading
     && socialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk
-    && (!comparing || distinctFromPrevious);
+    && (!comparing || editInPlace || distinctFromPrevious);
   return {
     schema_version: 4,
     visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
-    evaluation_basis: comparing ? "article_post_editor_guidance_previous_candidate" : "article_post_editor_guidance",
+    evaluation_basis: comparing ? (editInPlace ? "article_post_editor_guidance_photo_edit" : "article_post_editor_guidance_previous_candidate") : "article_post_editor_guidance",
+    correction_mode: editInPlace ? "image_edit" : null,
     status: passed ? "passed" : "failed",
     evaluated_at: new Date().toISOString(),
     model: editorialAiModel(),
@@ -5694,7 +5734,7 @@ async function evaluateEditorialManualSocialImage(article, item, target, image, 
     compared_to_candidate_url: comparing ? comparisonUrl : null,
     reason: cleanEditorialText([
       cleanEditorialText(parsed?.reason, 580) || (passed ? "Fotografia pertinente al contenuto editoriale e alle indicazioni correnti." : "QA fotografica non superata."),
-      comparing && !distinctFromPrevious ? "Regia troppo simile alla candidata precedente: non basta cambiare volto, vestiti o accessori." : "",
+      comparing && !editInPlace && !distinctFromPrevious ? "Regia troppo simile alla candidata precedente: non basta cambiare volto, vestiti o accessori." : "",
     ].filter(Boolean).join(" "), 700),
     regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 700),
   };
@@ -6397,7 +6437,7 @@ function editorialManualSocialImageApprovalEligibility(qa) {
     && qa.editor_guidance_respected === true && qa.clear === true
     && qa.social_quality === true && qa.authentic === true && qa.clickworthy === true
     && qa.generic_stock === false && qa.misleading === false && qa.fake_document_risk === false
-    && qa.distinct_from_previous_candidate !== false);
+    && (qa.correction_mode === "image_edit" || qa.distinct_from_previous_candidate !== false));
 }
 
 function editorialManualSocialImageQualityScore(qa) {
@@ -6480,6 +6520,9 @@ async function generateEditorialSocialImageCandidate(user, payload = {}) {
     throw new Error("La correzione non e' piu' applicabile: aggiorna la Redazione");
   }
   const guidance = autoCorrect ? cleanEditorialText(prior.guidance, 600) : requestedGuidance;
+  const referenceImageUrl = autoCorrect ? String(prior.url) : (payload.reference_image_url
+    ? editorialEditorImageUrl(user, payload.reference_image_url, { reference: true }).url
+    : payload.use_article_image_reference === true ? editorialPublishedArticleReferenceUrl(article) : "");
   const attempt = autoCorrect ? Number(prior.attempt_count || 1) + 1 : 1;
   const target = await editorialSocialAssetTarget(item);
   // Ogni richiesta genera UNA immagine e svolge UNA QA: il client coordina
@@ -6487,12 +6530,14 @@ async function generateEditorialSocialImageCandidate(user, payload = {}) {
   const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance, {
     manualRegeneration: true,
     qaCorrection: autoCorrect ? editorialManualSocialCorrectionGuidance(prior.last_qa || prior.qa) : "",
+    referenceImageUrl,
   });
   const objectPath = `autopilot/${article.id}/social/${itemId}/manual-${Date.now()}-${crypto.randomUUID()}.jpg`;
   const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
   const candidate = {
-    source: "generated", provider: "openai", generation_mode: "text_to_image",
-    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+    source: "generated", provider: "openai", generation_mode: referenceImageUrl ? "reference_image_edit" : "text_to_image",
+    source_policy: referenceImageUrl ? "editor_supplied_image_reference" : EDITORIAL_IMAGE_SOURCE_POLICY,
+    reference_image_url: referenceImageUrl || null,
     url: imageUrl, object_path: objectPath, mime_type: "image/jpeg",
     size: EDITORIAL_SOCIAL_IMAGE_SIZE, quality: "high", model: generated.model,
     prompt: generated.prompt, alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
@@ -6500,7 +6545,7 @@ async function generateEditorialSocialImageCandidate(user, payload = {}) {
   };
   try {
     candidate.qa = await evaluateEditorialManualSocialImage(article, item, target, candidate, guidance,
-      autoCorrect ? prior.url : "");
+      autoCorrect ? prior.url : "", autoCorrect);
   } catch (error) {
     candidate.qa = { status: "human_review_required", reason: `Verifica automatica non conclusa: ${String(error?.message || error).slice(0, 240)}` };
   }
@@ -6539,6 +6584,49 @@ async function generateEditorialSocialImageCandidate(user, payload = {}) {
   };
 }
 
+async function setEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  const uploaded = editorialEditorImageUrl(user, payload.image_url);
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0];
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))
+      || !["draft", "approved"].includes(String(item.status || ""))) {
+    throw new Error("Caricamento consentito solo per follow-up o post OffertaLogica non pubblicati");
+  }
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || "")))
+    throw new Error("Post non collegato correttamente");
+  const [opportunityRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,status&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  if (String(articleRows?.[0]?.status || "") !== "published")
+    throw new Error("L'articolo collegato deve essere gia' pubblicato");
+  const opportunity = opportunityRows?.[0];
+  const asset = editorialSocialAssetsState(opportunity).items?.[itemId];
+  if (!opportunity?.id || !asset?.brief || !editorialSocialBriefHasCover(asset.brief))
+    throw new Error("Brief e card social non ancora pronti");
+  const candidate = {
+    source: "manual_upload", provider: "editor", generation_mode: "manual_file",
+    source_policy: "editor_uploaded_file", url: uploaded.url, object_path: uploaded.objectPath,
+    quality: "manual", model: null, prompt: null, alt_text: cleanEditorialText(payload.alt_text, 180) || asset.brief.alt_text || "Fotografia selezionata dall'editor",
+    guidance: null, attempt_count: 1, created_at: new Date().toISOString(), created_by: user.id,
+    qa: { status: "manual_review_required", original_qa_status: "not_evaluated", reason: "File caricato: richiede approvazione editoriale; non e' stato eseguito un controllo QA AI." },
+  };
+  const latestItemRows = await serviceFetch(`editorial_social_plan_items?select=id,status&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  if (!["draft", "approved"].includes(String(latestItemRows?.[0]?.status || ""))) throw new Error("Il post non e' piu' modificabile");
+  const latestOppRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+  const latestOpp = latestOppRows?.[0];
+  if (!latestOpp?.id) throw new Error("Opportunita' non disponibile");
+  const state = editorialSocialAssetsState(latestOpp);
+  if (!state.items?.[itemId]?.brief || !editorialSocialBriefHasCover(state.items[itemId].brief)) throw new Error("Card social non disponibile");
+  if (String(state.items[itemId]?.manual_image_candidate?.url || "") !== String(asset?.manual_image_candidate?.url || ""))
+    throw new Error("Una richiesta concorrente ha modificato la candidata: aggiorna la Redazione");
+  state.items[itemId] = { ...state.items[itemId], manual_image_candidate: candidate, updated_at: new Date().toISOString() };
+  await saveEditorialSocialAssetsState(user, latestOpp, state);
+  return { social_plan_item_id: itemId, candidate, current_unchanged: true };
+}
+
 async function decideEditorialSocialImageCandidate(user, payload = {}) {
   const itemId = String(payload.id || "").trim();
   const decision = String(payload.decision || "").trim();
@@ -6565,8 +6653,11 @@ async function decideEditorialSocialImageCandidate(user, payload = {}) {
     await saveEditorialSocialAssetsState(user, opportunity, state);
     return { decision, current_unchanged: true };
   }
-  if (!candidate.url.startsWith("https://") || candidate.source !== "generated" || !editorialManualSocialImageApprovalEligibility(candidate.qa)) {
-    throw new Error("La candidata non ha superato integralmente la QA fotografica: non puo' essere approvata. Correggi la scena oppure scarta l'anteprima.");
+  const manualFile = candidate.source === "manual_upload"
+    && editorialImageObjectPathFromUrl(candidate.url) === candidate.object_path
+    && String(candidate.object_path || "").startsWith(`${user.id}/`);
+  if (!candidate.url.startsWith("https://") || (!manualFile && (candidate.source !== "generated" || !editorialManualSocialImageApprovalEligibility(candidate.qa)))) {
+    throw new Error("La candidata non supera i criteri di approvazione: correggi, approva un file manuale autorizzato o scarta.");
   }
   if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card non disponibile");
   const card = await renderAndUploadEditorialSocialCard({
@@ -6589,8 +6680,9 @@ async function decideEditorialSocialImageCandidate(user, payload = {}) {
   const now = new Date().toISOString();
   const originalQaStatus = candidate.qa.status;
   const image = { ...candidate, qa: {
-    ...candidate.qa, status: "passed", original_qa_status: originalQaStatus,
-    approval_mode: "manual_editorial_after_passed_qa",
+    ...candidate.qa, status: "passed", original_qa_status: manualFile ? "not_evaluated" : originalQaStatus,
+    reason: manualFile ? "File approvato dall'editor senza nuova QA fotografica automatica." : candidate.qa.reason,
+    approval_mode: manualFile ? "manual_editorial_upload" : "manual_editorial_after_passed_qa",
     approved_at: now, approved_by: user.id,
   } };
   delete image.guidance;
@@ -9593,6 +9685,11 @@ export default async function handler(req, res) {
 
     if (req.method === "POST" && action === "generate-editorial-social-image-candidate") {
       const result = await generateEditorialSocialImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "set-editorial-social-image-candidate") {
+      const result = await setEditorialSocialImageCandidate(user, req.body || {});
       return json(res, 200, { ok: true, version: VERSION, result });
     }
 
