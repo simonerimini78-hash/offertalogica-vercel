@@ -1,4 +1,4 @@
-/* Video Studio v1.2.1 — visual copy editor and bounded persistent guide-image continuity. */
+/* Video Studio v1.2.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -67,6 +67,18 @@
   let exporting = false;
   let exportDownloadUrl = null;
   let preparing = false;
+  let projectToolbar = null;
+  let projectStatus = null;
+  let projectSaveButton = null;
+  let projectExportButton = null;
+  let projectResumeButton = null;
+  let projectImportInput = null;
+  let localProjectActive = false;
+  let autoSaveTimer = null;
+  const PROJECT_DB_NAME = 'offertalogica.video-studio.projects.v1';
+  const PROJECT_STORE = 'working-projects';
+  const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
+  const PROJECT_SCHEMA = 'offertalogica.video-studio.draft.v1';
   const MAX_LOCAL_TRACKS = 12;
   // Filename/hash-prefix identification for the 11 private MP3s. Never means licensed/approved.
   // Cues are unreviewed 15-second candidates, not beat-synchronized markers.
@@ -183,6 +195,10 @@
         (view.index>0 && sceneViews.slice(0,view.index).some(prev=>!prev.result?.continuity_reference));
       view.notesInput.disabled = isBusy && !view.running;
     });
+    if (projectSaveButton) projectSaveButton.disabled = !generation || isBusy;
+    if (projectExportButton) projectExportButton.disabled = !generation || isBusy;
+    if (projectResumeButton) projectResumeButton.disabled = isBusy;
+    if (projectImportInput) projectImportInput.disabled = isBusy;
     if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
     if (previewView?.exportButton) previewView.exportButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
     if (previewView?.musicInput) previewView.musicInput.disabled = isBusy;
@@ -196,9 +212,12 @@
       previewView.editorMode.disabled = disabled;
       previewView.editorScene.disabled = disabled;
       previewView.editorLayer.disabled = disabled;
-      previewView.editorFields?.querySelectorAll('input,select,button').forEach(field => {
-        field.disabled = disabled || !sceneIsManuallyEditable(currentTextView());
-      });
+      for(const section of [previewView.editorFields,previewView.editorLogoFields,previewView.editorExtraFields])
+        section?.querySelectorAll('input,select,textarea,button').forEach(field => {
+          field.disabled = disabled || !sceneIsManuallyEditable(currentTextView());
+        });
+      for(const button of [previewView.addTextButton,previewView.duplicateTextButton,previewView.removeTextButton])
+        if(button)button.disabled=disabled || !sceneIsManuallyEditable(currentTextView());
       updateTextHandles();
     }
     if (previewView?.exportButton && previewView.musicChoice) {
@@ -368,6 +387,8 @@
     } finally {URL.revokeObjectURL(src);}
   }
   async function uploadScenePhoto(view,file,{fromGuide=false}={}) {
+    // Refresh old signed proposals before attempting any manual replacement.
+    if(generation?.receipt?.expiresAt<=Date.now()+15000)await renewStoryboardReceiptIfNeeded(await requireEditor());
     if(!generation || (busy() && !fromGuide) || view.running) return false;
     const source=file||guideFile;
     if(!source)return false;
@@ -415,6 +436,7 @@
       detectSceneFaces(view,view.image.src);
     },{once:true});
     view.image.hidden=false;
+    scheduleProjectAutosave();
     view.promptBody.textContent=result.prompt||'';view.prompt.hidden=manual?true:false;
     updateSceneActionLabel(view);
     showPreview(view.index);
@@ -504,6 +526,9 @@
   // The browser draft and the editor use the same 1080×1920 coordinate space.
   // Keep text above the fixed brand footer and away from social UI chrome.
   const TEXT_SAFE = Object.freeze({left:.068, top:.135, right:.932, bottom:.755});
+  const LOGO_SAFE = Object.freeze({left:.068,top:.13,right:.932,bottom:.875});
+  const MAX_EXTRA_TEXTS = 4;
+  const DEFAULT_LOGO = Object.freeze({x:76/MONTAGE_WIDTH,y:1510/MONTAGE_HEIGHT,width:232/MONTAGE_WIDTH});
   const TEXT_FONTS = Object.freeze({
     'system-ui':'system-ui, sans-serif',
     'Arial':'Arial, Helvetica, sans-serif',
@@ -518,7 +543,7 @@
       padding:14,radius:16,shadow:true};
   }
   function constrainTextBox(box,kind) {
-    const minW=.23,minH=kind==='title'?.085:.065;
+    const minW=kind.startsWith('extra:')?.17:.23,minH=kind==='title'?.085:kind.startsWith('extra:')?.052:.065;
     const width=clampNumber(Number(box.width)||.5,minW,TEXT_SAFE.right-TEXT_SAFE.left);
     const height=clampNumber(Number(box.height)||.12,minH,TEXT_SAFE.bottom-TEXT_SAFE.top);
     return {
@@ -527,8 +552,42 @@
       width,height,
     };
   }
+  function logoAspect() {
+    const image=transparentBrandLogo() || previewView?.logo;
+    return image?.naturalWidth || image?.width
+      ? (image.naturalHeight || image.height)/(image.naturalWidth || image.width) : 353/640;
+  }
+  function constrainLogoBox(box) {
+    const width=clampNumber(Number(box?.width)||DEFAULT_LOGO.width,.09,.50);
+    const height=width*(MONTAGE_WIDTH/MONTAGE_HEIGHT)*logoAspect();
+    return {x:clampNumber(Number.isFinite(Number(box?.x))?Number(box.x):DEFAULT_LOGO.x,LOGO_SAFE.left,LOGO_SAFE.right-width),
+      y:clampNumber(Number.isFinite(Number(box?.y))?Number(box.y):DEFAULT_LOGO.y,LOGO_SAFE.top,LOGO_SAFE.bottom-height),width,height};
+  }
+  function newLogoLayer() {
+    return {box:constrainLogoBox(DEFAULT_LOGO),visible:true,opacity:1};
+  }
+  function layerFor(view,kind) {
+    const design=initializeManualCopy(view);
+    if(kind.startsWith('extra:'))return design.extras.find(layer=>layer.id===kind)||null;
+    return design[kind]||null;
+  }
+  function layerText(view,kind) {
+    if(kind==='title')return String(view.scene.headline||'').trim();
+    if(kind==='subtitle')return String(view.scene.secondary_text||'').trim();
+    if(kind==='cta')return 'ENTRA IN';
+    return String(layerFor(view,kind)?.text||'').trim();
+  }
+  function manualKinds(view) {
+    const design=initializeManualCopy(view);
+    return ['title','subtitle',...(view.scene.role==='cta'?['cta']:[]),
+      ...design.extras.map(layer=>layer.id),'logo'];
+  }
   function initializeManualCopy(view) {
-    if(view.textDesign) return view.textDesign;
+    if(view.textDesign) {
+      if(!Array.isArray(view.textDesign.extras))view.textDesign.extras=[];
+      if(!view.textDesign.logo)view.textDesign.logo=newLogoLayer();
+      return view.textDesign;
+    }
     const ctx=previewView?.canvas?.getContext('2d');
     const auto=ctx?compositionForScene(ctx,view):null;
     const choice=auto?.choice||{x:76,width:900};
@@ -544,6 +603,7 @@
         style:defaultTextStyle('subtitle')},
       ...(view.scene.role==='cta'?{cta:{box:constrainTextBox({x:.36,y:.66,width:.48,height:.08},'cta'),
         style:defaultTextStyle('cta')}}:{}),
+      extras:[],logo:newLogoLayer(),
     });
   }
   function currentTextView() { return sceneViews[previewIndex] || null; }
@@ -836,6 +896,7 @@
       if (image.naturalWidth < 450 || image.naturalHeight < 300)
         throw Error('screenshot troppo piccolo');
       verifiedProductScreen = {image, file};
+      scheduleProjectAutosave();
       previewView.productHelp.textContent = 'Seleziona la scena e conferma che lo screenshot è autentico e attuale.';
     } catch (error) {
       if (productScreenUrl === expectedUrl) clearProductScreen();
@@ -914,9 +975,10 @@
     return {lines:wrapCanvasText(ctx,text,maxWidth,limit),size,family,weight,pad,overflow:true};
   }
   function drawManualTextLayer(ctx,view,kind) {
-    const text=String(kind==='title'?view.scene.headline:kind==='cta'?'ENTRA IN':view.scene.secondary_text||'').trim();
-    if(!text) return;
-    const layer=initializeManualCopy(view)[kind];
+    const text=layerText(view,kind);
+    if(!text)return;
+    const layer=layerFor(view,kind);
+    if(!layer?.style)return;
     const b=constrainTextBox(layer.box,kind),style=layer.style;
     const x=b.x*MONTAGE_WIDTH,y=b.y*MONTAGE_HEIGHT,w=b.width*MONTAGE_WIDTH,h=b.height*MONTAGE_HEIGHT;
     ctx.save();
@@ -936,7 +998,6 @@
     for(const line of fit.lines) {
       ctx.font=`${fit.weight} ${fit.size}px ${fit.family}`;
       if(style.shadow) {
-        // Contrast rim is behind the chosen ink and does not change the user's colour.
         ctx.lineWidth=fit.size>65?4:2.5;
         ctx.strokeStyle='rgba(8,18,25,.55)';ctx.strokeText(line,textX,textY);
         ctx.shadowColor='rgba(0,0,0,.55)';ctx.shadowBlur=7;
@@ -951,14 +1012,17 @@
     drawManualTextLayer(ctx,view,'title');
     drawManualTextLayer(ctx,view,'subtitle');
     if(view.scene.role==='cta')drawManualTextLayer(ctx,view,'cta');
-    // Keep the verified OffertaLogica logo outside the two freely-positionable text boxes.
+    const design=initializeManualCopy(view);
+    for(const extra of design.extras)drawManualTextLayer(ctx,view,extra.id);
+    // Authentic brand pixels are composited independently, never recreated with AI.
     const brand=transparentBrandLogo()||previewView?.logo;
-    if(brand && (brand.width||brand.naturalWidth)) {
-      const w=232,h=w*(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width);
-      ctx.save();ctx.shadowColor='rgba(255,255,255,.65)';ctx.shadowBlur=8;
-      ctx.drawImage(brand,76,1510,w,h);ctx.restore();
+    if(design.logo.visible && brand && (brand.width||brand.naturalWidth)) {
+      const b=constrainLogoBox(design.logo.box);
+      ctx.save();ctx.globalAlpha=clampNumber(Number(design.logo.opacity),0,1);
+      ctx.shadowColor='rgba(255,255,255,.65)';ctx.shadowBlur=8;
+      ctx.drawImage(brand,b.x*MONTAGE_WIDTH,b.y*MONTAGE_HEIGHT,
+        b.width*MONTAGE_WIDTH,b.height*MONTAGE_HEIGHT);ctx.restore();
     }
-
   }
   function drawCinematicOverlay(ctx,view) {
     const {scene}=view;
@@ -1488,46 +1552,74 @@
     if (!view || view.layoutPreference!=='manual') return '';
     if (productScreenActive(view.index))
       return 'Schermata verificata: il layout dedicato rimane fisso per non coprire la UI autentica.';
-    const t=initializeManualCopy(view);
-    const title=textBoxRect(t.title),subtitle=textBoxRect(t.subtitle);
-    const cta=t.cta?textBoxRect(t.cta):null;
-    const warnings=[];
-    if(String(view.scene.secondary_text||'').trim() && intersects(title,subtitle,8))
-      warnings.push('Titolo e sottotitolo si sovrappongono');
-    if(cta && (intersects(cta,title,8)||intersects(cta,subtitle,8)))
-      warnings.push('CTA e testo si sovrappongono');
-    if((view._faceBoxes||[]).some(face=>intersects(face,title,15)||intersects(face,subtitle,15)||(cta&&intersects(face,cta,15))))
-      warnings.push('Testo vicino a un volto (verifica manualmente)');
-    const ctx=previewView?.canvas?.getContext('2d');
-    if(ctx) {
-      for(const kind of ['title','subtitle',...(t.cta?['cta']:[])]) {
-        const text=String(kind==='title'?view.scene.headline:kind==='cta'?'ENTRA IN':view.scene.secondary_text||'').trim();
-        if(!text)continue;
-        const layer=t[kind],box=textBoxRect(layer);
-        const result=fitManualLines(ctx,text,layer.style,box.width,box.height);
-        if(result.overflow)warnings.push(`${kind==='title'?'Titolo':kind==='cta'?'CTA':'Sottotitolo'}: riquadro troppo piccolo, testo abbreviato`);
+    const t=initializeManualCopy(view),warnings=[];
+    const kinds=manualKinds(view).filter(kind=>kind!=='logo'&&layerText(view,kind));
+    const boxes=kinds.map(kind=>({kind,box:textBoxRect(layerFor(view,kind))}));
+    for(let i=0;i<boxes.length;i++) {
+      for(let j=i+1;j<boxes.length;j++) {
+        if(intersects(boxes[i].box,boxes[j].box,8)){
+          warnings.push('Riquadri testo sovrapposti');break;
+        }
       }
     }
-    return warnings.length ? `Verifica prima di esportare: ${warnings.join('; ')}.` :
-      'Trascina un riquadro oppure ridimensionalo dall’angolo. Il logo resta separato. Le impostazioni sono locali alla bozza.';
+    if((view._faceBoxes||[]).some(face=>boxes.some(({box})=>intersects(face,box,15))))
+      warnings.push('Testo vicino a un volto (verifica manualmente)');
+    const ctx=previewView?.canvas?.getContext('2d');
+    if(ctx)for(const {kind,box} of boxes) {
+      const result=fitManualLines(ctx,layerText(view,kind),layerFor(view,kind).style,box.width,box.height);
+      if(result.overflow)warnings.push(`${kind.startsWith('extra:')?'Testo aggiuntivo':kind}: riquadro piccolo, testo abbreviato`);
+    }
+    if(t.logo.visible) {
+      const logo=textBoxRect({box:constrainLogoBox(t.logo.box)});
+      if((view._faceBoxes||[]).some(face=>intersects(face,logo,15)))
+        warnings.push('Logo vicino a un volto (verifica manualmente)');
+    }
+    return warnings.length?`Verifica prima di esportare: ${[...new Set(warnings)].join('; ')}.`:
+      'Trascina o ridimensiona ogni testo e il logo. Le impostazioni restano nella bozza browser.';
+  }
+  function editorBoxLabel(kind,view) {
+    if(kind==='title')return 'Titolo';
+    if(kind==='subtitle')return 'Sottotitolo';
+    if(kind==='cta')return 'CTA';
+    if(kind==='logo')return 'Logo OffertaLogica';
+    const position=initializeManualCopy(view).extras.findIndex(layer=>layer.id===kind)+1;
+    return `Testo ${position}`;
+  }
+  function addEditorHandle(kind,view) {
+    if(previewView.editorBoxes[kind])return previewView.editorBoxes[kind];
+    const box=document.createElement('div');
+    box.className=`ol-vs-edit-box ol-vs-edit-box-${kind==='logo'?'logo':kind.startsWith('extra:')?'extra':kind}`;
+    box.tabIndex=0;box.setAttribute('role','group');
+    box.setAttribute('aria-label',`Posizione ${editorBoxLabel(kind,view)}`);
+    const tag=document.createElement('span');tag.className='ol-vs-edit-box-label';
+    tag.textContent=editorBoxLabel(kind,view);
+    const handle=document.createElement('span');handle.className='ol-vs-edit-resize';
+    handle.setAttribute('aria-hidden','true');
+    box.append(tag,handle);installTextDrag(box,kind);
+    previewView.editorBoxes[kind]=box;previewView.editorOverlay.append(box);
+    return box;
   }
   function updateTextHandles() {
-    if(!previewView?.editorOverlay) return;
+    if(!previewView?.editorOverlay)return;
     const view=currentTextView();
     const enabled=sceneIsManuallyEditable(view);
     previewView.editorOverlay.hidden=!enabled;
+    for(const box of Object.values(previewView.editorBoxes))box.hidden=true;
     if(!enabled) {
       if(previewView.editorHelp)previewView.editorHelp.textContent=editorWarning(view);
       return;
     }
-    const settings=initializeManualCopy(view);
-    for(const kind of ['title','subtitle','cta']) {
-      const el=previewView.editorBoxes[kind];
-      if(!settings[kind]){el.hidden=true;continue;}
-      const box=settings[kind].box;
-      el.hidden=kind==='subtitle'&&!String(view.scene.secondary_text||'').trim();
-      Object.assign(el.style,{left:`${box.x*100}%`,top:`${box.y*100}%`,
-        width:`${box.width*100}%`,height:`${box.height*100}%`});
+    const design=initializeManualCopy(view);
+    for(const kind of manualKinds(view)) {
+      const layer=layerFor(view,kind);
+      if(!layer)continue;
+      const el=addEditorHandle(kind,view);
+      const b=kind==='logo'?constrainLogoBox(layer.box):constrainTextBox(layer.box,kind);
+      const hidden=kind==='logo'?!design.logo.visible:!layerText(view,kind);
+      el.hidden=hidden;
+      el.querySelector('.ol-vs-edit-box-label').textContent=editorBoxLabel(kind,view);
+      Object.assign(el.style,{left:`${b.x*100}%`,top:`${b.y*100}%`,
+        width:`${b.width*100}%`,height:`${b.height*100}%`});
       el.classList.toggle('is-selected',previewView.editorLayer?.value===kind);
     }
     if(previewView.editorHelp)previewView.editorHelp.textContent=editorWarning(view);
@@ -1537,30 +1629,52 @@
     const view=currentTextView();
     previewView.editorScene.value=String(view?.index??0);
     previewView.editorMode.value=view?.layoutPreference||'auto';
-    const hasCta=view?.scene?.role==='cta';
-    previewView.editorLayer.querySelector('[value="cta"]').disabled=!hasCta;
-    if(!hasCta&&previewView.editorLayer.value==='cta')previewView.editorLayer.value='title';
-    const manual=!!view && view.layoutPreference==='manual' && !productScreenActive(view.index);
-    previewView.editorFields.hidden=!manual;
-    if(manual) {
-      const kind=previewView.editorLayer.value||'title';
-      const style=initializeManualCopy(view)[kind].style;
-      const form=previewView.editorFields;
-      form.querySelectorAll('[data-style-prop]').forEach(input => {
-        const prop=input.dataset.styleProp;
-        if(input.type==='checkbox')input.checked=Boolean(style[prop]);
-        else input.value=String(style[prop]);
-      });
-      form.querySelectorAll('[data-style-output]').forEach(node => {
-        node.textContent=String(style[node.dataset.styleOutput]);
-      });
+    const layerSelect=previewView.editorLayer;
+    const selected=layerSelect.value;
+    const types=view?manualKinds(view):['title','subtitle','logo'];
+    layerSelect.replaceChildren();
+    for(const kind of types)layerSelect.add(new Option(editorBoxLabel(kind,view),kind));
+    layerSelect.value=types.includes(selected)?selected:'title';
+    const manual=!!view && sceneIsManuallyEditable(view);
+    const kind=layerSelect.value;
+    previewView.editorFields.hidden=!manual||kind==='logo';
+    previewView.editorLogoFields.hidden=!manual||kind!=='logo';
+    previewView.editorExtraFields.hidden=!manual||!kind.startsWith('extra:');
+    const extraLayer=manual&&kind.startsWith('extra:')?layerFor(view,kind):null;
+    if(extraLayer&&previewView.editorExtraText.value!==extraLayer.text)
+      previewView.editorExtraText.value=extraLayer.text;
+    if(manual&&kind==='logo') {
+      const logo=initializeManualCopy(view).logo;
+      previewView.logoVisible.checked=logo.visible;
+      previewView.logoWidth.value=String(Math.round(logo.box.width*100));
+      previewView.logoOpacity.value=String(logo.opacity);
+      previewView.logoSizeOutput.textContent=`${Math.round(logo.box.width*100)}%`;
+      previewView.logoOpacityOutput.textContent=`${Math.round(logo.opacity*100)}%`;
     }
-    previewView.editorFields.querySelectorAll('input,select,button').forEach(field => {
-      field.disabled=!manual || busy() || previewPlaying;
-    });
+    if(manual&&kind!=='logo') {
+      const style=layerFor(view,kind)?.style;
+      if(style) {
+        const form=previewView.editorFields;
+        form.querySelectorAll('[data-style-prop]').forEach(input=>{
+          const prop=input.dataset.styleProp;
+          if(input.type==='checkbox')input.checked=Boolean(style[prop]);
+          else input.value=String(style[prop]);
+        });
+        form.querySelectorAll('[data-style-output]').forEach(node=>{
+          node.textContent=String(style[node.dataset.styleOutput]);
+        });
+      }
+    }
+    previewView.addTextButton.disabled=!manual||initializeManualCopy(view).extras.length>=MAX_EXTRA_TEXTS;
+    previewView.removeTextButton.disabled=!manual||!kind.startsWith('extra:');
+    previewView.duplicateTextButton.disabled=!manual||!kind.startsWith('extra:')||
+      initializeManualCopy(view).extras.length>=MAX_EXTRA_TEXTS;
+    for(const form of [previewView.editorFields,previewView.editorLogoFields,previewView.editorExtraFields])
+      form.querySelectorAll('input,select,textarea,button').forEach(field=>{field.disabled=!manual;});
     updateTextHandles();
   }
   function updateManualDesign() {
+    scheduleProjectAutosave();
     if(!previewPlaying && !exporting)showPreview(previewIndex);
     else updateTextHandles();
   }
@@ -1568,37 +1682,42 @@
     let drag=null;
     el.addEventListener('pointerdown',event=>{
       const view=currentTextView();
-      if(!sceneIsManuallyEditable(view))return;
+      if(!sceneIsManuallyEditable(view)||!layerFor(view,kind))return;
       event.preventDefault();
       previewView.editorLayer.value=kind;
       syncVisualEditor();
-      const box=initializeManualCopy(view)[kind].box;
-      drag={pointerId:event.pointerId,index:view.index,
-        startX:event.clientX,startY:event.clientY,
+      const box=layerFor(view,kind).box;
+      drag={pointerId:event.pointerId,index:view.index,startX:event.clientX,startY:event.clientY,
         original:{...box},resize:event.target.classList.contains('ol-vs-edit-resize')};
       el.setPointerCapture(event.pointerId);
     });
     el.addEventListener('pointermove',event=>{
-      if(!drag || event.pointerId!==drag.pointerId)return;
+      if(!drag||event.pointerId!==drag.pointerId)return;
       const view=sceneViews[drag.index];
       if(!sceneIsManuallyEditable(view))return;
-      const r=previewView.canvas.getBoundingClientRect();
-      if(!r.width||!r.height)return;
-      const dx=(event.clientX-drag.startX)/r.width;
-      const dy=(event.clientY-drag.startY)/r.height;
+      const rect=previewView.canvas.getBoundingClientRect();
+      if(!rect.width||!rect.height)return;
+      const dx=(event.clientX-drag.startX)/rect.width;
+      const dy=(event.clientY-drag.startY)/rect.height;
       const next={...drag.original};
-      if(drag.resize) {
-        next.width=clampNumber(next.width+dx,.23,TEXT_SAFE.right-next.x);
-        next.height=clampNumber(next.height+dy,kind==='title'?.085:.065,TEXT_SAFE.bottom-next.y);
-      } else {next.x+=dx;next.y+=dy;}
-      // For right/bottom handles, retain the starting top-left while resizing.
-      const limited=constrainTextBox(next,kind);
-      view.textDesign[kind].box=limited;
-      if(!previewPlaying)renderMontageFrame(sceneViews.slice(0,view.index).reduce((n,v)=>n+Number(v.scene.duration_ms||0),0)/1000+.34);
+      if(kind==='logo') {
+        if(drag.resize)next.width=clampNumber(next.width+dx,.09,.50);
+        else{next.x+=dx;next.y+=dy;}
+        layerFor(view,kind).box=constrainLogoBox(next);
+      } else {
+        if(drag.resize) {
+          next.width=clampNumber(next.width+dx,kind.startsWith('extra:')?.17:.23,TEXT_SAFE.right-next.x);
+          next.height=clampNumber(next.height+dy,
+            kind==='title'?.085:kind.startsWith('extra:')?.052:.065,TEXT_SAFE.bottom-next.y);
+        } else{next.x+=dx;next.y+=dy;}
+        layerFor(view,kind).box=constrainTextBox(next,kind);
+      }
+      if(!previewPlaying)renderMontageFrame(sceneViews.slice(0,view.index).reduce(
+        (n,v)=>n+Number(v.scene.duration_ms||0),0)/1000+.34);
       updateTextHandles();
     });
     const end=event=>{
-      if(!drag || event.pointerId!==drag.pointerId)return;
+      if(!drag||event.pointerId!==drag.pointerId)return;
       drag=null;
       if(el.hasPointerCapture(event.pointerId))el.releasePointerCapture(event.pointerId);
       updateManualDesign();
@@ -1607,37 +1726,36 @@
     el.addEventListener('pointercancel',end);
     el.addEventListener('keydown',event=>{
       const view=currentTextView();
-      if(!sceneIsManuallyEditable(view))return;
-      const movements={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]};
-      const movement=movements[event.key];
+      if(!sceneIsManuallyEditable(view)||!layerFor(view,kind))return;
+      const movement={ArrowLeft:[-1,0],ArrowRight:[1,0],ArrowUp:[0,-1],ArrowDown:[0,1]}[event.key];
       if(!movement)return;
-      event.preventDefault();
-      previewView.editorLayer.value=kind;
-      const b=initializeManualCopy(view)[kind].box;
-      const amount=event.altKey?.002:.01;
-      if(event.shiftKey) {
-        b.width=clampNumber(b.width+movement[0]*amount,.23,TEXT_SAFE.right-b.x);
-        b.height=clampNumber(b.height+movement[1]*amount,kind==='title'?.085:.065,TEXT_SAFE.bottom-b.y);
-      } else {b.x+=movement[0]*amount;b.y+=movement[1]*amount;}
-      view.textDesign[kind].box=constrainTextBox(b,kind);
+      event.preventDefault();previewView.editorLayer.value=kind;
+      const b={...layerFor(view,kind).box},amount=event.altKey?.002:.01;
+      if(kind==='logo') {
+        if(event.shiftKey)b.width+=movement[0]*amount;
+        else{b.x+=movement[0]*amount;b.y+=movement[1]*amount;}
+        layerFor(view,kind).box=constrainLogoBox(b);
+      } else {
+        if(event.shiftKey){b.width+=movement[0]*amount;b.height+=movement[1]*amount;}
+        else{b.x+=movement[0]*amount;b.y+=movement[1]*amount;}
+        layerFor(view,kind).box=constrainTextBox(b,kind);
+      }
       updateManualDesign();
     });
   }
   function createVisualTextEditor() {
     const panel=document.createElement('div');panel.className='ol-vs-text-editor';
-    panel.append(textElement('h5','Regia del testo · bozza browser'));
+    panel.append(textElement('h5','Regia testi e logo · bozza browser'));
     const row=document.createElement('div');row.className='ol-vs-editor-row';
     function selectControl(label,options,callback) {
       const wrap=document.createElement('label');wrap.className='ol-vs-editor-field';
       wrap.append(document.createTextNode(label));
       const select=document.createElement('select');
       for(const [value,text] of options)select.add(new Option(text,value));
-      select.addEventListener('change',callback);
-      wrap.append(select);return {wrap,select};
+      select.addEventListener('change',callback);wrap.append(select);return {wrap,select};
     }
     const scene=selectControl('Scena',Array.from({length:4},(_,i)=>[String(i),`Scena ${i+1}`]),()=>{
-      if(busy()||previewPlaying)return;
-      showPreview(Number(scene.select.value));
+      if(busy()||previewPlaying)return;showPreview(Number(scene.select.value));
     });previewView.editorScene=scene.select;
     const mode=selectControl('Posizione',[
       ['auto','Automatica'],['manual','Manuale · trascina'],
@@ -1647,22 +1765,105 @@
       if(mode.select.value==='manual')initializeManualCopy(view);
       view.layoutPreference=mode.select.value;
       if(view.layoutSelect)view.layoutSelect.value=view.layoutPreference;
-      view._compositionKey=null;
-      updateManualDesign();
+      view._compositionKey=null;updateManualDesign();
     });previewView.editorMode=mode.select;
-    const layer=selectControl('Elemento', [['title','Titolo'],['subtitle','Sottotitolo'],['cta','CTA (ultima scena)']],()=>syncVisualEditor());
+    const layer=selectControl('Elemento', [['title','Titolo'],['subtitle','Sottotitolo'],['logo','Logo OffertaLogica']],
+      ()=>syncVisualEditor());
     previewView.editorLayer=layer.select;
     row.append(scene.wrap,mode.wrap,layer.wrap);panel.append(row);
+    const actions=document.createElement('div');actions.className='ol-vs-editor-actions';
+    const add=document.createElement('button');add.type='button';add.className='ol-button ol-button-secondary ol-button-small';
+    add.textContent='+ Aggiungi testo';previewView.addTextButton=add;
+    add.addEventListener('click',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      const d=initializeManualCopy(view);
+      if(d.extras.length>=MAX_EXTRA_TEXTS)return;
+      view._extraTextSerial=(view._extraTextSerial||0)+1;
+      const id=`extra:${view.index}-${view._extraTextSerial}`;
+      const offset=d.extras.length*.078;
+      d.extras.push({id,text:'Nuovo testo',style:defaultTextStyle('extra'),
+        box:constrainTextBox({x:.12,y:.50+offset,width:.68,height:.085},id)});
+      previewView.editorLayer.value=id;
+      updateManualDesign();previewView.editorLayer.value=id;syncVisualEditor();
+      previewView.editorExtraText.focus();previewView.editorExtraText.select();
+    });
+    const dup=document.createElement('button');dup.type='button';dup.className='ol-button ol-button-secondary ol-button-small';
+    dup.textContent='Duplica testo';previewView.duplicateTextButton=dup;
+    dup.addEventListener('click',()=>{
+      const view=currentTextView(),kind=previewView.editorLayer.value;
+      if(!sceneIsManuallyEditable(view)||!kind.startsWith('extra:'))return;
+      const d=initializeManualCopy(view),original=layerFor(view,kind);
+      if(!original||d.extras.length>=MAX_EXTRA_TEXTS)return;
+      view._extraTextSerial=(view._extraTextSerial||0)+1;
+      const id=`extra:${view.index}-${view._extraTextSerial}`;
+      const box=constrainTextBox({...original.box,x:original.box.x+.04,y:original.box.y+.04},id);
+      d.extras.push({id,text:original.text,style:{...original.style},box});
+      updateManualDesign();previewView.editorLayer.value=id;syncVisualEditor();
+    });
+    const remove=document.createElement('button');remove.type='button';remove.className='ol-button ol-button-secondary ol-button-small';
+    remove.textContent='Elimina testo';previewView.removeTextButton=remove;
+    remove.addEventListener('click',()=>{
+      const view=currentTextView(),kind=previewView.editorLayer.value;
+      if(!sceneIsManuallyEditable(view)||!kind.startsWith('extra:'))return;
+      const d=initializeManualCopy(view);d.extras=d.extras.filter(item=>item.id!==kind);
+      previewView.editorLayer.value='title';updateManualDesign();
+    });
+    actions.append(add,dup,remove);panel.append(actions);
+    const extraFields=document.createElement('div');extraFields.className='ol-vs-editor-extra';
+    const extraLabel=document.createElement('label');extraLabel.className='ol-vs-editor-field';
+    extraLabel.append(document.createTextNode('Testo libero (max 140 caratteri)'));
+    const extraText=document.createElement('textarea');extraText.maxLength=140;extraText.rows=2;
+    previewView.editorExtraText=extraText;
+    extraText.addEventListener('input',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      const kind=previewView.editorLayer.value,model=layerFor(view,kind);
+      if(!kind.startsWith('extra:')||!model)return;
+      model.text=extraText.value;updateManualDesign();
+    });extraLabel.append(extraText);extraFields.append(extraLabel);
+    previewView.editorExtraFields=extraFields;panel.append(extraFields);
+    const logoFields=document.createElement('div');logoFields.className='ol-vs-editor-logo';
+    previewView.editorLogoFields=logoFields;
+    const logoVisible=document.createElement('input');logoVisible.type='checkbox';previewView.logoVisible=logoVisible;
+    const visibleLabel=document.createElement('label');visibleLabel.className='ol-vs-editor-check';
+    visibleLabel.append(logoVisible,document.createTextNode('Logo visibile'));
+    logoVisible.addEventListener('change',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      initializeManualCopy(view).logo.visible=logoVisible.checked;updateManualDesign();
+    });
+    const logoWidth=document.createElement('input');logoWidth.type='range';logoWidth.min='9';logoWidth.max='50';logoWidth.step='1';
+    previewView.logoWidth=logoWidth;const logoSizeOutput=document.createElement('output');previewView.logoSizeOutput=logoSizeOutput;
+    const widthLabel=document.createElement('label');widthLabel.className='ol-vs-editor-field';
+    widthLabel.append(document.createTextNode('Larghezza logo'),logoWidth,logoSizeOutput);
+    logoWidth.addEventListener('input',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      const logo=initializeManualCopy(view).logo;
+      logo.box=constrainLogoBox({...logo.box,width:Number(logoWidth.value)/100});
+      updateManualDesign();
+    });
+    const logoOpacity=document.createElement('input');logoOpacity.type='range';logoOpacity.min='0.15';logoOpacity.max='1';logoOpacity.step='.05';
+    previewView.logoOpacity=logoOpacity;const opacityOutput=document.createElement('output');previewView.logoOpacityOutput=opacityOutput;
+    const opacityLabel=document.createElement('label');opacityLabel.className='ol-vs-editor-field';
+    opacityLabel.append(document.createTextNode('Opacità logo'),logoOpacity,opacityOutput);
+    logoOpacity.addEventListener('input',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      initializeManualCopy(view).logo.opacity=Number(logoOpacity.value);
+      updateManualDesign();
+    });
+    const logoReset=document.createElement('button');logoReset.type='button';
+    logoReset.className='ol-button ol-button-secondary ol-button-small';logoReset.textContent='Ripristina logo';
+    logoReset.addEventListener('click',()=>{
+      const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
+      initializeManualCopy(view).logo=newLogoLayer();updateManualDesign();
+    });
+    logoFields.append(visibleLabel,widthLabel,opacityLabel,logoReset);panel.append(logoFields);
     const fields=document.createElement('div');fields.className='ol-vs-editor-fields';
     previewView.editorFields=fields;
     function inputControl(label,prop,type,opts={}) {
       const wrap=document.createElement('label');wrap.className='ol-vs-editor-field';
       wrap.append(document.createTextNode(label));
       let input;
-      if(opts.options) {
-        input=document.createElement('select');
-        for(const [v,t] of opts.options)input.add(new Option(t,v));
-      } else {input=document.createElement('input');input.type=type;
+      if(opts.options) {input=document.createElement('select');for(const [v,t] of opts.options)input.add(new Option(t,v));}
+      else {input=document.createElement('input');input.type=type;
         if(opts.min!==undefined)input.min=opts.min;
         if(opts.max!==undefined)input.max=opts.max;
         if(opts.step!==undefined)input.step=opts.step;}
@@ -1670,20 +1871,17 @@
       if(input.type==='checkbox')wrap.classList.add('ol-vs-editor-check');
       input.addEventListener('input',()=>{
         const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
-        const style=initializeManualCopy(view)[previewView.editorLayer.value].style;
+        const layer=layerFor(view,previewView.editorLayer.value);
+        if(!layer?.style)return;
         const val=input.type==='checkbox'?input.checked:input.type==='range'?Number(input.value):input.value;
-        style[prop]=val;
-        if(prop==='size'||prop==='opacity') {
+        layer.style[prop]=val;
+        if(prop==='size'||prop==='opacity'){
           const output=wrap.querySelector('output');if(output)output.textContent=String(val);
         }
         updateManualDesign();
       });
-      if(type==='range') {
-        const output=document.createElement('output');output.dataset.styleOutput=prop;
-        wrap.append(output);
-      }
-      wrap.append(input);fields.append(wrap);
-      return input;
+      if(type==='range') {const output=document.createElement('output');output.dataset.styleOutput=prop;wrap.append(output);}
+      wrap.append(input);fields.append(wrap);return input;
     }
     inputControl('Carattere','font','select',{options:Object.keys(TEXT_FONTS).map(name=>[name,name])});
     inputControl('Peso','weight','select',{options:[[400,'Normale'],[500,'Medio'],[600,'Semibold'],[700,'Grassetto'],[800,'Extra bold']]});
@@ -1697,23 +1895,26 @@
     inputControl('Angoli arrotondati','radius','number',{min:0,max:64,step:2});
     inputControl('Ombra leggibilità','shadow','checkbox');
     const reset=document.createElement('button');reset.type='button';
-    reset.className='ol-button ol-button-secondary ol-button-small';
-    reset.textContent='Ripristina elemento';
+    reset.className='ol-button ol-button-secondary ol-button-small';reset.textContent='Ripristina elemento';
     reset.addEventListener('click',()=>{
       const view=currentTextView();if(!sceneIsManuallyEditable(view))return;
       const kind=previewView.editorLayer.value;
-      const initial=initializeManualCopy(view);
-      delete view.textDesign;
-      const replacement=initializeManualCopy(view)[kind];
-      initial[kind]={box:{...replacement.box},style:{...replacement.style}};
-      view.textDesign=initial;
+      const d=initializeManualCopy(view);
+      if(kind.startsWith('extra:')) {
+        const layer=layerFor(view,kind);if(!layer)return;
+        layer.style=defaultTextStyle('extra');
+      } else {
+        view.textDesign=null;
+        const replacement=initializeManualCopy(view)[kind];
+        view.textDesign=d;
+        d[kind]={box:{...replacement.box},style:{...replacement.style}};
+      }
       updateManualDesign();
-    });
-    fields.append(reset);
+    });fields.append(reset);
     const help=document.createElement('p');help.className='ol-vs-editor-help';
     help.setAttribute('role','status');previewView.editorHelp=help;
     panel.append(fields,help);
-    panel.append(textElement('p','Frecce per spostare; Maiusc + frecce per ridimensionare; Alt per microspostamenti. Il testo si modifica senza consumare azioni AI.'));
+    panel.append(textElement('p','Frecce: sposta. Maiusc + frecce: ridimensiona. Alt: movimento preciso. Logo originale, proporzioni sempre conservate. Nessuna azione AI.'));
     return panel;
   }
   function createProgressAndPreview() {
@@ -1754,7 +1955,7 @@
     const previewIntro = document.createElement('div');
     previewIntro.append(
       textElement('h4', 'Montaggio audiovisivo di prova · 15 secondi'),
-      textElement('p', 'Scegli una scena: posizione automatica o editor manuale con testi trascinabili, dimensioni e colori personalizzati. I cambiamenti compaiono nella bozza esportata.'),
+      textElement('p', 'Scegli una scena: modifica testi e logo originali con trascinamento, dimensioni e colori. Puoi aggiungere fino a quattro testi liberi per scena; tutti compaiono nella bozza esportata.'),
     );
     previewView.playButton.type = 'button';
     previewView.playButton.className = 'ol-button ol-button-primary ol-button-small';
@@ -1779,26 +1980,13 @@
     frame.append(previewView.canvas);
     previewView.editorOverlay=document.createElement('div');
     previewView.editorOverlay.className='ol-vs-edit-overlay';
-    previewView.editorOverlay.setAttribute('aria-label','Area modifica testi sulla scena');
+    previewView.editorOverlay.setAttribute('aria-label','Area modifica testi e logo sulla scena');
     const safe=document.createElement('div');safe.className='ol-vs-edit-safe';
     Object.assign(safe.style,{left:`${TEXT_SAFE.left*100}%`,top:`${TEXT_SAFE.top*100}%`,
       width:`${(TEXT_SAFE.right-TEXT_SAFE.left)*100}%`,height:`${(TEXT_SAFE.bottom-TEXT_SAFE.top)*100}%`});
     previewView.editorOverlay.append(safe);
     previewView.editorBoxes={};
-    for(const kind of ['title','subtitle','cta']) {
-      const box=document.createElement('div');
-      box.className=`ol-vs-edit-box ol-vs-edit-box-${kind}`;
-      box.tabIndex=0;box.setAttribute('role','group');
-      box.setAttribute('aria-label',kind==='title'?'Posizione titolo':kind==='cta'?'Posizione CTA':'Posizione sottotitolo');
-      const tag=document.createElement('span');tag.className='ol-vs-edit-box-label';
-      tag.textContent=kind==='title'?'Titolo':kind==='cta'?'CTA':'Sottotitolo';
-      const handle=document.createElement('span');handle.className='ol-vs-edit-resize';
-      handle.setAttribute('aria-hidden','true');
-      box.append(tag,handle);
-      installTextDrag(box,kind);
-      previewView.editorBoxes[kind]=box;
-      previewView.editorOverlay.append(box);
-    }
+    for(const kind of ['title','subtitle','cta','logo'])addEditorHandle(kind,sceneViews[0]);
     frame.append(previewView.editorOverlay);
     stage.append(frame);
 
@@ -1813,7 +2001,7 @@
     musicLabel.append(previewView.musicInput);
     const choiceLabel = document.createElement('label');
     choiceLabel.textContent = 'Musica inserita nel Reel (automatica o modificabile)';
-    previewView.musicChoice.addEventListener('change', () => { applyMusicChoice(); });
+    previewView.musicChoice.addEventListener('change', () => {applyMusicChoice();scheduleProjectAutosave();});
     choiceLabel.append(previewView.musicChoice);
     previewView.musicClear.type = 'button';
     previewView.musicClear.className = 'ol-button ol-button-secondary ol-button-small';
@@ -1843,12 +2031,12 @@
     screenSceneLabel.textContent = 'Scena da sostituire con la schermata reale';
     for (let i = 0; i < 4; i++) previewView.productChoice.add(new Option(`Scena ${i + 1}`, String(i)));
     previewView.productChoice.value = '2';
-    previewView.productChoice.addEventListener('change', () => showPreview(Number(previewView.productChoice.value)));
+    previewView.productChoice.addEventListener('change', () => {showPreview(Number(previewView.productChoice.value));scheduleProjectAutosave();});
     screenSceneLabel.append(previewView.productChoice);
     const confirmLabel = document.createElement('label');
     previewView.productConfirmed.type = 'checkbox';
     previewView.productConfirmed.disabled = true;
-    previewView.productConfirmed.addEventListener('change', () => showPreview(Number(previewView.productChoice.value)));
+    previewView.productConfirmed.addEventListener('change', () => {showPreview(Number(previewView.productChoice.value));scheduleProjectAutosave();});
     confirmLabel.append(previewView.productConfirmed,
       document.createTextNode(' Confermo che questa è una schermata autentica e attuale del servizio'));
     previewView.productHelp.className = 'ol-muted ol-small';
@@ -1905,6 +2093,7 @@
     notesInput.rows = 3;
     notesInput.maxLength = 700;
     notesInput.placeholder = 'Es. Mantieni il volto libero per il testo, mostra meglio la bolletta e rendi l’espressione più preoccupata.';
+    notesInput.addEventListener('input',scheduleProjectAutosave);
     const notesHint = textElement('small', 'Lascia vuoto per usare il brief originale. Compila le note solo quando vuoi rigenerare questa scena.');
     notesWrap.append(notesLabel, notesInput, notesHint);
 
@@ -1919,7 +2108,7 @@
     layoutWrap.className = 'ol-field ol-vs-layout-placement';
     const layoutLabel = document.createElement('label');
     layoutLabel.setAttribute('for', `vs-scene-layout-${index}`);
-    layoutLabel.textContent = 'Posizione testo (logo separato) sulla fotografia';
+    layoutLabel.textContent = 'Posizione testo e logo sulla fotografia';
     const layoutSelect = document.createElement('select');
     layoutSelect.id = `vs-scene-layout-${index}`;
     for (const [value, label] of [['auto','Automatica (lato libero della scena)'],['manual','Manuale · trascina sul frame'],['top','In alto'],
@@ -1952,6 +2141,7 @@
       if(layoutSelect.value==='manual')initializeManualCopy(view);
       view.layoutPreference = layoutSelect.value;
       view._compositionKey = null;
+      scheduleProjectAutosave();
       if (!previewPlaying && previewView) showPreview(index);
     });
     actionButton.addEventListener('click', async () => {
@@ -1989,6 +2179,7 @@
     return view;
   }
   async function requestPhoto(view, token, revisionNotes = '') {
+    await renewStoryboardReceiptIfNeeded(token);
     // Scene 1 defines identity; every later scene needs an authentic frame from THIS storyboard.
     const previous=sceneViews.slice(0,view.index);
     if(previous.some(frame=>!frame.result?.continuity_reference))
@@ -2122,6 +2313,210 @@
     setTimeout(() => URL.revokeObjectURL(localUrl), 1000);
   }
 
+  // A project file stores the four complete JPEG previews and independent Canvas layers.
+  // Signed references are bound to the authenticated owner. Neither credentials nor MP3
+  // bytes are included. This is a browser draft, not a server publication or master.
+  function projectOwner() {return getSession()?.user?.id || null;}
+  function isBase64Image(value,maxChars=9_000_000) {
+    return typeof value==='string' && value.length>1000 && value.length<=maxChars &&
+      /^[A-Za-z0-9+/]+={0,2}$/.test(value);
+  }
+  function isValidProject(data) {
+    if(!data || data.schema!==PROJECT_SCHEMA || data.owner_id!==projectOwner() ||
+      !data.generation?.plan?.scenes || data.generation.plan.scenes.length!==4 ||
+      !data.generation?.input || !data.generation?.receipt?.signature ||
+      !data.brief?.input || !Array.isArray(data.scenes) || data.scenes.length!==4 ||
+      typeof data.generation.receipt.expiresAt!=='number') return false;
+    return data.scenes.every((scene,i)=>scene?.index===i && (!scene.result ||
+      (scene.result.preview_mime==='image/jpeg' && isBase64Image(scene.result.preview_base64) &&
+        scene.result.continuity_reference?.scene_index===i)));
+  }
+  function snapshotProject() {
+    if(!generation || sceneViews.length!==4 || !projectOwner())
+      throw Error('Genera prima uno storyboard per salvare un progetto completo.');
+    const projects = sceneViews.map(view=>({index:view.index,
+      result:view.result ? {preview_mime:view.result.preview_mime,preview_base64:view.result.preview_base64,
+        continuity_reference:view.result.continuity_reference,provider:view.result.provider,
+        prompt:String(view.result.prompt||'').slice(0,7000),guide_style_check:view.result.guide_style_check||null} : null,
+      textDesign:view.textDesign||null,
+      layoutPreference:view.layoutPreference,
+      notes:String(view.notesInput.value||'').slice(0,700),attempts:view.attempts}));
+    return {schema:PROJECT_SCHEMA, saved_at:new Date().toISOString(), owner_id:projectOwner(),
+      brief, generation:{input:generation.input,plan:generation.plan,receipt:generation.receipt,
+        guide_reference:generation.guide_reference||null}, scenes:projects,
+      active_scene:previewIndex,
+      music_choice:previewView?.musicChoice?.value||'auto',
+      product_scene:previewView?.productChoice?.value||'2',
+      // A verified screenshot must be re-confirmed by the editor on reopen.
+      product_file_name:verifiedProductScreen?.file?.name||''};
+  }
+  function projectDbOperation(mode,execute) {
+    if(!window.indexedDB)return Promise.reject(Error('archiviazione browser non disponibile'));
+    return new Promise((resolve,reject)=>{
+      const req=indexedDB.open(PROJECT_DB_NAME,1);
+      req.onupgradeneeded=()=>{if(!req.result.objectStoreNames.contains(PROJECT_STORE))
+        req.result.createObjectStore(PROJECT_STORE,{keyPath:'owner_id'});};
+      req.onerror=()=>reject(req.error||Error('memoria locale non disponibile'));
+      req.onblocked=()=>reject(Error('Archivio bloccato da un’altra scheda.'));
+      req.onsuccess=()=>{
+        const db=req.result;
+        let result;
+        try {
+          const tx=db.transaction(PROJECT_STORE,mode);
+          const op=execute(tx.objectStore(PROJECT_STORE));
+          op.onsuccess=()=>{result=op.result;};
+          tx.oncomplete=()=>{db.close();resolve(result);};
+          tx.onerror=()=>{db.close();reject(tx.error||Error('Impossibile salvare il progetto.'));};
+          tx.onabort=()=>{db.close();reject(tx.error||Error('Spazio locale insufficiente.'));};
+        }catch(e){db.close();reject(e);}
+      };
+    });
+  }
+  function projectMessage(value,error=false){
+    if(projectStatus){projectStatus.textContent=value;projectStatus.dataset.tone=error?'error':'success';}
+  }
+  async function saveProjectLocally({silent=false}={}) {
+    const project=snapshotProject();
+    const text=JSON.stringify(project);
+    if(text.length>MAX_PROJECT_BYTES)throw Error('Il progetto supera il limite di 32 MB. Esporta una copia o riduci le immagini.');
+    await projectDbOperation('readwrite',store=>store.put(project));
+    localProjectActive=true;
+    if(!silent)projectMessage('Progetto salvato su questo dispositivo. Puoi chiudere e riaprire la Redazione.');
+  }
+  function scheduleProjectAutosave(){
+    if(!localProjectActive || !generation || !sceneViews.length)return;
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer=setTimeout(()=>{
+      if(busy()) {scheduleProjectAutosave();return;}
+      saveProjectLocally({silent:true}).catch(error=>projectMessage(`Salvataggio automatico non riuscito: ${error.message}`,true));
+    },1100);
+  }
+  function downloadProject() {
+    const project=snapshotProject();
+    const contents=JSON.stringify(project);
+    if(contents.length>MAX_PROJECT_BYTES)throw Error('Progetto troppo grande per il file JSON (32 MB).');
+    const data=new Blob([contents],{type:'application/json'});
+    const link=document.createElement('a'),temp=URL.createObjectURL(data);
+    link.href=temp;link.download=`OffertaLogica-Reel-Progetto-${new Date().toISOString().slice(0,10)}.json`;
+    document.body.append(link);link.click();link.remove();
+    setTimeout(()=>URL.revokeObjectURL(temp),30000);
+    projectMessage('Copia completa scaricata: conserva il file JSON per riprendere anche su un altro dispositivo.');
+  }
+  async function renewStoryboardReceiptIfNeeded(token){
+    if(!generation || generation.receipt?.expiresAt>Date.now()+30000)return;
+    // Renewal checks the old server signature and editor identity; it performs no AI call.
+    const response=await labRequest('video-studio-resume',{
+      input:generation.input,plan:generation.plan,receipt:generation.receipt,
+      guide_reference:generation.guide_reference||null,
+      scene_references:sceneViews.map(view=>view.result?.continuity_reference||null),
+    },token,35000);
+    generation.receipt=response.receipt;
+    generation.guide_reference=response.guide_reference||null;
+    sceneViews.forEach((view,i)=>{
+      if(view.result && response.scene_references?.[i])
+        view.result.continuity_reference=response.scene_references[i];
+    });
+    scheduleProjectAutosave();
+  }
+  async function restoreProject(project) {
+    if(busy())throw Error('Termina prima le operazioni in corso.');
+    if(!isValidProject(project))throw Error('Progetto incompatibile, alterato o appartenente a un altro account.');
+    // Pre-validate the images before discarding the currently open draft.
+    const testSources=project.scenes.filter(scene=>scene.result).map(scene=>
+      `data:${scene.result.preview_mime};base64,${scene.result.preview_base64}`);
+    await Promise.all(testSources.map(src=>new Promise((resolve,reject)=>{
+      const img=new Image();img.onload=()=>img.naturalWidth>0?resolve():reject(Error('Fotografia non valida'));
+      img.onerror=()=>reject(Error('Fotografia non leggibile'));img.src=src;
+    })));
+    stopPreview();resetGeneratedOutput();
+    brief=project.brief;
+    generation=project.generation;
+    if(brief.mode==='image') {
+      // The original uploaded file may no longer exist. A signed guide thumbnail is
+      // already persisted in generation.guide_reference for future derived scenes.
+      guideFile=null;
+    }
+    setSummary(brief);
+    downloadButton.disabled=false;generateButton.disabled=false;
+    realSummary.append(textElement('p',`Concept: ${generation.plan.concept}`),
+      textElement('p',`Pubblico: ${generation.plan.audience}`),
+      textElement('p',`Avvertenza editoriale: ${generation.plan.editorial_caution}`));
+    createProgressAndPreview();
+    sceneViews=generation.plan.scenes.map((scene,i)=>createSceneCard(scene,i));
+    realSection.hidden=false;
+    for(const saved of project.scenes) {
+      const view=sceneViews[saved.index];
+      view.attempts=Math.max(0,Math.min(50,Number(saved.attempts)||0));
+      view.layoutPreference=['auto','manual','top','left','right','bottom'].includes(saved.layoutPreference)?saved.layoutPreference:'auto';
+      view.layoutSelect.value=view.layoutPreference;
+      view.notesInput.value=String(saved.notes||'').slice(0,700);
+      if(saved.textDesign && typeof saved.textDesign==='object')view.textDesign=saved.textDesign;
+      if(saved.result){
+        assignSceneResult(view,saved.result);
+        setSceneState(view,'Fotografia recuperata dal progetto salvato.','success');
+      }
+      updateSceneActionLabel(view);
+    }
+    previewIndex=Math.max(0,Math.min(3,Number(project.active_scene)||0));
+    updateProgress();showPreview(previewIndex);
+    // Music is linked by a catalogue selection, not embedded in the portable draft.
+    // Local audio on another device must be provided again by its owner.
+    await restoreMusicLibrary();
+    if(previewView){
+      const stored=String(project.music_choice||'none');
+      previewView.musicChoice.value=[...previewView.musicChoice.options].some(opt=>opt.value===stored)?stored:'none';
+      await applyMusicChoice();
+      previewView.productChoice.value=['0','1','2','3'].includes(String(project.product_scene))?String(project.product_scene):'2';
+    }
+    localProjectActive=true;
+    projectMessage('Progetto ripreso: scene, fotografie, testi e logo recuperati. Per nuovi render AI può essere necessario rinnovare la ricevuta.');
+    message('Bozza recuperata. La musica personale e l’eventuale screenshot OffertaLogica vanno riassociati e riconfermati.');
+    scheduleProjectAutosave();
+  }
+  function createProjectToolbar(){
+    if(projectToolbar)return;
+    projectToolbar=document.createElement('section');projectToolbar.className='ol-vs-project-toolbar';
+    projectToolbar.append(textElement('h4','Salva e riprendi il progetto'));
+    const controls=document.createElement('div');controls.className='ol-toolbar-group';
+    function button(title,click){
+      const b=document.createElement('button');b.type='button';b.className='ol-button ol-button-secondary ol-button-small';
+      b.textContent=title;b.addEventListener('click',async()=>{
+        try{await click();}catch(error){projectMessage(error.message,true);}
+      });controls.append(b);return b;
+    }
+    projectSaveButton=button('Salva sul dispositivo',()=>saveProjectLocally());
+    projectExportButton=button('Scarica progetto (.json)',downloadProject);
+    projectResumeButton=button('Riprendi ultima bozza',async()=>{
+      const project=await projectDbOperation('readonly',store=>store.get(projectOwner()));
+      if(!project)throw Error('Nessun progetto salvato per questo account sul dispositivo.');
+      if(generation && !confirm('Aprire il progetto salvato e sostituire il lavoro corrente?'))return;
+      await restoreProject(project);
+    });
+    const fileLabel=document.createElement('label');fileLabel.className='ol-button ol-button-secondary ol-button-small';
+    fileLabel.textContent='Apri progetto da file';
+    projectImportInput=document.createElement('input');projectImportInput.type='file';
+    projectImportInput.accept='.json,application/json';
+    projectImportInput.setAttribute('aria-label','Apri file progetto Video Studio');
+    projectImportInput.style.position='absolute';projectImportInput.style.opacity='0';
+    projectImportInput.style.width='1px';projectImportInput.style.height='1px';
+    projectImportInput.addEventListener('change',async()=>{
+      try{
+        const file=projectImportInput.files?.[0];if(!file)return;
+        if(file.size>MAX_PROJECT_BYTES)throw Error('Progetto troppo grande (massimo 32 MB).');
+        const data=JSON.parse(await file.text());
+        if(generation && !confirm('Aprire il file e sostituire il lavoro corrente?'))return;
+        await restoreProject(data);
+      }catch(e){projectMessage(e.message,true);}finally{projectImportInput.value='';}
+    });
+    fileLabel.append(projectImportInput);controls.append(fileLabel);
+    projectStatus=document.createElement('p');projectStatus.className='ol-muted ol-small';
+    projectStatus.setAttribute('role','status');
+    projectStatus.textContent='Salva una bozza completa sul dispositivo oppure scarica un file JSON. Nessuna pubblicazione.';
+    projectToolbar.append(controls,projectStatus);
+    form.insertAdjacentElement('afterend',projectToolbar);
+    syncControls();
+  }
+
   form.addEventListener('submit', prepare);
   root.querySelectorAll('[name="vs-source"]').forEach(radio => radio.addEventListener('change', changeSource));
   form.querySelectorAll('input,select,textarea').forEach(field => field.addEventListener('input', clearBrief));
@@ -2137,4 +2532,5 @@
     initialize();
   });
   changeSource();
+  createProjectToolbar();
 })();

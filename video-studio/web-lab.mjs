@@ -4,9 +4,10 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.2.1';
+export const VIDEO_STUDIO_LAB_VERSION = '1.2.2';
 const ROLES = ['hook','context','value','cta'];
 const MAX_FUTURE_MS = 30 * 60 * 1000;
+const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
 const validUUID = (v) => typeof v === 'string' && /^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(v);
 const canonical = (payload) => JSON.stringify(payload);
@@ -41,8 +42,8 @@ export function signProposal(userId,input,plan,{env=process.env,now=Date.now()}=
   const expiresAt=now+MAX_FUTURE_MS;
   return {expiresAt,signature:hmac(tokenData({userId,input,plan,expiresAt}),secret(env))};
 }
-export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Date.now()}={}) {
-  if(!validUUID(userId)||!receipt||!Number.isSafeInteger(receipt.expiresAt)||receipt.expiresAt<=now||receipt.expiresAt>now+MAX_FUTURE_MS||!/^[a-f\d]{64}$/.test(receipt.signature||''))err('ricevuta storyboard assente, alterata o scaduta');
+export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Date.now(),allowExpired=false}={}) {
+  if(!validUUID(userId)||!receipt||!Number.isSafeInteger(receipt.expiresAt)||receipt.expiresAt<=(allowExpired?now-MAX_RESUME_AGE_MS:now)||receipt.expiresAt>now+MAX_FUTURE_MS||!/^[a-f\d]{64}$/.test(receipt.signature||''))err('ricevuta storyboard assente, alterata o scaduta');
   const expected=hmac(tokenData({userId,input,plan,expiresAt:receipt.expiresAt}),secret(env));
   if(!crypto.timingSafeEqual(Buffer.from(receipt.signature,'hex'),Buffer.from(expected,'hex')))err('la proposta è stata modificata: rigenerare lo storyboard');
   if(plan?.status!=='needs_human_review'||plan?.publication_authorized!==false||!Array.isArray(plan.scenes)||plan.scenes.length!==4)
@@ -130,6 +131,38 @@ function verifyReferences(refs,sceneIndex,userId,receipt,env,input) {
     return bytes;
   });
 }
+// Resume a saved local draft without a paid generation. Only valid signed receipts
+// belonging to the current admin may be renewed. All signed image references are
+// verified again and bound to the new receipt; never trust imported files blindly.
+export function renewStoryboard({userId,input,plan,receipt,guideReference=null,sceneReferences=[]},
+  {env=process.env,now=Date.now()}={}) {
+  verifyProposal(userId,input,plan,receipt,{env,now,allowExpired:true});
+  if(!Array.isArray(sceneReferences)||sceneReferences.length!==4)
+    err('riferimenti del progetto incompleti');
+  function renewOne(ref,idx){
+    if(ref==null)return null;
+    if(idx===-1 && input.input_type!=='guide_image')err('guida non prevista per questo storyboard');
+    const limit=idx===-1?MAX_GUIDE_BYTES:MAX_REFERENCE_BYTES;
+    if(ref?.scene_index!==idx||typeof ref.jpeg_base64!=='string'||
+      ref.jpeg_base64.length>Math.ceil(limit*4/3)+4||
+      !/^[a-f\d]{64}$/.test(ref.sha256||'')||!/^[a-f\d]{64}$/.test(ref.signature||''))
+      err('riferimento scaduto o non valido');
+    const bytes=decodeUploadedJpeg(ref.jpeg_base64,limit);
+    const digest=sha(bytes);
+    const signature=hmac(`${userId}:${receipt.signature}:${idx}:${digest}`,secret(env));
+    if(digest!==ref.sha256||!crypto.timingSafeEqual(Buffer.from(ref.signature,'hex'),Buffer.from(signature,'hex')))
+      err('riferimento alterato o appartenente a un’altra bozza');
+    return bytes;
+  }
+  const guide=renewOne(guideReference,-1);
+  if(input.input_type==='guide_image'&&!guide)err('guida fotografica salvata mancante');
+  const sceneBytes=sceneReferences.map((ref,i)=>renewOne(ref,i));
+  const renewedReceipt=signProposal(userId,input,plan,{env,now});
+  return {receipt:renewedReceipt,
+    guide_reference:guide?signReference(userId,renewedReceipt,-1,guide,env):null,
+    scene_references:sceneBytes.map((bytes,i)=>bytes?signReference(userId,renewedReceipt,i,bytes,env):null)};
+}
+
 async function guideThumbnail(bytes,sharp) {
   // Never crop the source: its colors, lighting and overall arrangement are the art-direction anchor.
   for(const width of [640,512,384])for(const quality of [83,72,58]) {

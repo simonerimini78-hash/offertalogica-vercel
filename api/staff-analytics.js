@@ -9403,7 +9403,7 @@ export default async function handler(req, res) {
     if (!user) return json(res, 401, { ok: false, error: "Accesso amministratore richiesto" });
 
     // Video Studio Lab: opt-in manual actions only. No autopilot, SQL or publishing.
-    if (req.method === "POST" && (action === "video-studio-storyboard" || action === "video-studio-photo")) {
+    if (req.method === "POST" && (action === "video-studio-storyboard" || action === "video-studio-photo" || action === "video-studio-resume")) {
       if (!requireAllowedBrowserOrigin(req, res)) return;
       if (process.env.VIDEO_STUDIO_LAB_ENABLED !== "1") {
         return json(res, 503, { ok: false, error: "Video Studio AI non attivo: abilitazione server richiesta" });
@@ -9411,14 +9411,14 @@ export default async function handler(req, res) {
       // Manual image replacement is not an AI generation and uses a separate bounded limit.
       const isManualPhoto=action === "video-studio-photo" && typeof req.body?.manual_image_base64 === 'string' && req.body.manual_image_base64.length > 1000;
       if (!(await enforceRateLimit(req, res, {
-        label: isManualPhoto ? "vs-manual-photo" : "vs-ai-lab",
-        identifier: user.id, limit: isManualPhoto ? 40 : 10, windowSeconds: 3600,
+        label: action === "video-studio-resume" ? "vs-resume" : isManualPhoto ? "vs-manual-photo" : "vs-ai-lab",
+        identifier: user.id, limit: action === "video-studio-resume" ? 40 : isManualPhoto ? 40 : 10, windowSeconds: 3600,
       }))) return;
       try {
-        const {createStoryboard, createPhoto} = await import("../video-studio/web-lab.mjs");
+        const {createStoryboard, createPhoto, renewStoryboard} = await import("../video-studio/web-lab.mjs");
         const payload = req.body;
         if (!payload || Array.isArray(payload) || typeof payload !== "object" ||
-            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : 210000)) {
+            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : action === "video-studio-resume" ? 420000 : 210000)) {
           return json(res, 400, {ok:false,error:"Richiesta Video Studio non valida o troppo grande"});
         }
         let result;
@@ -9433,6 +9433,10 @@ export default async function handler(req, res) {
           result = await createStoryboard({userId:user.id, theme:payload.theme,articleId:payload.article_id,
             guideImageBase64:payload.guide_image_base64,guideUsage:payload.guide_usage,guideContext:payload.guide_context,guideFidelity:payload.guide_fidelity,
             suggestions:payload.suggestions,platform:payload.platform},{readArticle});
+        } else if (action === "video-studio-resume") {
+          result = renewStoryboard({userId:user.id,input:payload.input,plan:payload.plan,
+            receipt:payload.receipt,guideReference:payload.guide_reference,
+            sceneReferences:payload.scene_references});
         } else {
           result = await createPhoto({userId:user.id, input:payload.input,plan:payload.plan,
             receipt:payload.receipt,sceneIndex:payload.scene_index,revisionNotes:payload.revision_notes,

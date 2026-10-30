@@ -1,4 +1,4 @@
-/* Video Studio v1.2.1 — browser montage, visual copy positioning and guide fidelity control. */
+/* Video Studio v1.2.2 — browser montage, editable layers and resumable local projects. */
 .ol-editorial-sections-five{grid-template-columns:repeat(5,minmax(0,1fr))}
 .ol-vs-intro{border:1px solid #c5dcca;background:#eef7f0;border-radius:11px;padding:15px 17px;margin-bottom:16px;color:#1f4a31}
 .ol-vs-intro p{margin:5px 0 0;line-height:1.55;font-size:14px;color:#395949}
@@ -55,7 +55,7 @@
 .ol-vs-edit-frame{width:min(100%,360px);position:relative;aspect-ratio:9/16}
 .ol-vs-edit-frame .ol-vs-preview-canvas{width:100%;height:100%;border-radius:18px}
 .ol-vs-edit-overlay{position:absolute;inset:0;pointer-events:none}
-.ol-vs-edit-overlay[hidden],.ol-vs-edit-box[hidden],.ol-vs-editor-fields[hidden]{display:none!important}
+.ol-vs-edit-overlay[hidden],.ol-vs-edit-box[hidden],.ol-vs-editor-fields[hidden],.ol-vs-editor-logo[hidden],.ol-vs-editor-extra[hidden]{display:none!important}
 .ol-vs-edit-safe{position:absolute;border:1px dashed rgba(255,228,130,.55);border-radius:4px;pointer-events:none}
 .ol-vs-edit-box{position:absolute;border:2px solid rgba(255,255,255,.95);outline:2px solid rgba(12,72,48,.72);border-radius:5px;pointer-events:auto;touch-action:none;cursor:grab;box-sizing:border-box;user-select:none;box-shadow:0 0 0 1px rgba(0,0,0,.2)}
 .ol-vs-edit-box:active{cursor:grabbing}
@@ -74,3 +74,22 @@
 .ol-vs-editor-help{font-size:13px;color:#4b6156;line-height:1.45;margin:10px 0 4px}
 .ol-vs-text-editor>p:last-child{font-size:12px;color:#51656d;margin:8px 0 0;line-height:1.4}
 @media(max-width:620px){.ol-vs-editor-row,.ol-vs-editor-fields{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* v1.2.2: separate logo and additional editable text layers in the browser draft. */
+.ol-vs-edit-box-logo{border-color:#f1c76b;outline-color:rgba(103,68,12,.83)}
+.ol-vs-edit-box-extra{border-style:dashed}
+.ol-vs-editor-actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:11px}
+.ol-vs-editor-extra,.ol-vs-editor-logo{display:grid;gap:10px;align-items:end;margin-top:11px;padding:12px;border:1px solid #e0e9e2;border-radius:9px;background:#f8fbf9}
+.ol-vs-editor-logo{grid-template-columns:repeat(auto-fit,minmax(135px,1fr))}
+.ol-vs-editor-extra textarea{width:100%;max-width:100%;min-height:65px;box-sizing:border-box;padding:7px;font:inherit;resize:vertical;border:1px solid #b9cec0;border-radius:6px}
+.ol-vs-editor-check{display:flex;align-items:center;gap:8px;font-weight:650;font-size:13px;color:#334155}
+.ol-vs-editor-logo output{display:block;color:#334155;font-size:12px}
+
+/* Local/portable project controls: always visually distinct from publishing actions. */
+.ol-vs-project-toolbar{display:grid;gap:9px;margin:14px 0 18px;padding:14px;border:1px solid #d9e7dd;border-radius:12px;background:#f8fbf9}
+.ol-vs-project-toolbar h4{margin:0;font-size:15px;color:#1f4a31}
+.ol-vs-project-toolbar .ol-toolbar-group{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.ol-vs-project-toolbar label.ol-button{position:relative;cursor:pointer}
+.ol-vs-project-toolbar [role=status]{margin:0;font-size:13px;line-height:1.4}
+.ol-vs-project-toolbar [data-tone=error]{color:#9f1239}
+.ol-vs-project-toolbar [data-tone=success]{color:#155e3a}
