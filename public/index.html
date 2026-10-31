@@ -7271,6 +7271,7 @@ const ANALYTICS_USER_ACTION_EVENTS = new Set([
   "otp_request_started",
   "otp_verify_started",
   "offer_card_clicked",
+  "clickout_commercial",
   "offer_click_locked",
   "activation_channel_choice_opened",
   "activation_channel_selected",
@@ -15495,6 +15496,74 @@ function chiudiAssistenteAttivazione() {
   a11yChiudiDialog(modal);
 }
 
+const GOOGLE_ADS_CLICKOUT_COMMERCIAL_SEND_TO = "AW-18424345732/udUWCIqAxa8dEITptNFE";
+const CLICKOUT_COMMERCIAL_SESSION_STORAGE_KEY = "offertalogica.analytics.clickout_commercial.v1";
+
+function clickoutCommercialeDestinationHost(url) {
+  try {
+    return new URL(String(url || ""), window.location.href).hostname || "";
+  } catch {
+    return "";
+  }
+}
+
+function registraClickoutCommerciale(source = "commercial_redirect", offer = null, targetUrl = "", eventCallback = null) {
+  if (staffTrackingEscluso() || LEAD_STATE.leadId === "preview") return false;
+
+  const sessionId = analyticsSessionId();
+  try {
+    if (sessionStorage.getItem(CLICKOUT_COMMERCIAL_SESSION_STORAGE_KEY) === sessionId) return false;
+    sessionStorage.setItem(CLICKOUT_COMMERCIAL_SESSION_STORAGE_KEY, sessionId);
+  } catch {}
+
+  const ranking = offer?.rankingContext || {};
+  trackEvent("clickout_commercial", {
+    source,
+    offerId: offer?.id || "",
+    offerName: offer?.name || offer?.nome || "",
+    provider: offer?.provider || "",
+    destinationType: offer?.destinationType || "",
+    destinationStatus: offer?.destinationStatus || "",
+    destinationHost: clickoutCommercialeDestinationHost(targetUrl),
+    displayGroup: ranking.displayGroup || "",
+    economyRank: ranking.economyRank || null,
+    displayRank: ranking.displayRank || null,
+    annualCost: ranking.annualCost || null,
+    annualDelta: ranking.annualDelta || null,
+  });
+
+  if (typeof gtag !== "function") return false;
+  const conversionEvent = {
+    send_to: GOOGLE_ADS_CLICKOUT_COMMERCIAL_SEND_TO,
+  };
+  if (typeof eventCallback === "function") conversionEvent.event_callback = eventCallback;
+  try {
+    gtag("event", "conversion", conversionEvent);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+function apriClickoutCommercialeStessaScheda(url, offer = null, source = "commercial_redirect") {
+  const target = String(url || "").trim();
+  if (!/^https:\/\//i.test(target)) return false;
+
+  let navigated = false;
+  const navigate = () => {
+    if (navigated) return;
+    navigated = true;
+    window.location.assign(target);
+  };
+  const conversionSent = registraClickoutCommerciale(source, offer, target, navigate);
+  if (!conversionSent) {
+    navigate();
+    return true;
+  }
+  window.setTimeout(navigate, 800);
+  return true;
+}
+
 function apriFunnelDaAssistente() {
   const url = LEAD_STATE.activationAssistant?.pendingUrl || "";
   const offer = LEAD_STATE.activationAssistant?.offer || {};
@@ -15514,6 +15583,7 @@ function apriFunnelDaAssistente() {
   link.rel = "noopener noreferrer";
   link.style.display = "none";
   document.body.appendChild(link);
+  registraClickoutCommerciale("activation_helper", offer, url);
   link.click();
   link.remove();
   assistenteAttivazioneStatus("Ho aperto il percorso di attivazione in una nuova scheda. Tieni OffertaLogica aperta per copiare i dati quando servono.");
@@ -15551,8 +15621,7 @@ function apriFunnelPartnerDiretto(url, offer, source = "partner_redirect") {
     destinationStatus: offer?.destinationStatus || "",
     redirect: true,
   });
-  window.location.assign(target);
-  return true;
+  return apriClickoutCommercialeStessaScheda(target, offer, source);
 }
 
 async function confermaConsensoOfferta() {
@@ -20347,8 +20416,7 @@ function apriSwitchoDirettoDaOfferta(source = "offer_card", offer = null) {
     annualCost: ranking.annualCost || null,
     annualDelta: ranking.annualDelta || null,
   });
-  window.location.assign(SWITCHO_PARTNER_URL);
-  return true;
+  return apriClickoutCommercialeStessaScheda(SWITCHO_PARTNER_URL, offer, source);
 }
 
 function apriLandingSwitcho(source = "guided", offer = null) {
@@ -20368,8 +20436,7 @@ function apriLandingSwitcho(source = "guided", offer = null) {
     annualCost: ranking.annualCost || null,
     annualDelta: ranking.annualDelta || null,
   });
-  window.location.assign(SWITCHO_LANDING_URL);
-  return true;
+  return apriClickoutCommercialeStessaScheda(SWITCHO_LANDING_URL, offer, source);
 }
 
 function sorgenteIngressoLanding() {
