@@ -1,4 +1,4 @@
-/* Video Studio v1.3.0 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.0.1 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -2257,11 +2257,12 @@
     if(previous.some(frame=>!frame.result?.continuity_reference))
       throw Error('Genera prima le scene precedenti per garantire la continuità visiva.');
     const guide=generation.guide_reference;
-    const strong=generation.input.input_type==='guide_image'&&generation.input.guide_fidelity==='strong';
+    const isGuide=['guide_image','guide_video'].includes(generation.input.input_type);
+    const strong=isGuide&&generation.input.guide_fidelity==='strong';
     const references=strong
       ? view.index===0?[guide]:view.index===1&&generation.input.guide_usage==='first_scene'?[guide]:
         [guide,previous[previous.length-1].result.continuity_reference]
-      : view.index===0?(generation.input.input_type==='guide_image'&&generation.input.guide_usage==='reference_only'?[guide]:[]):
+      : view.index===0?(isGuide&&generation.input.guide_usage==='reference_only'?[guide]:[]):
         view.index===1?[previous[0].result.continuity_reference]:
         [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     if(references.some(ref=>!ref))throw Error('Riferimento guida mancante: rigenera lo storyboard prima di avviare altre foto.');
