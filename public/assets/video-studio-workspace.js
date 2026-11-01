@@ -1,4 +1,4 @@
-/* Video Studio v1.3.0.1 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.1 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -597,8 +597,24 @@
   const MONTAGE_DURATION = 15;
   // The browser draft and the editor use the same 1080×1920 coordinate space.
   // Keep text above the fixed brand footer and away from social UI chrome.
-  const TEXT_SAFE = Object.freeze({left:.068, top:.135, right:.932, bottom:.755});
-  const LOGO_SAFE = Object.freeze({left:.068,top:.13,right:.932,bottom:.875});
+  // Safe by design for Meta full-screen UI and centered Feed/profile crops.
+  // Conservative working coordinates, not an official guarantee for organic placements.
+  const TEXT_SAFE = Object.freeze({left:130/MONTAGE_WIDTH, top:420/MONTAGE_HEIGHT,
+    right:950/MONTAGE_WIDTH, bottom:1248/MONTAGE_HEIGHT});
+  const LOGO_SAFE = TEXT_SAFE;
+  // Each entry is an explicit geometrical simulation. Reels ads UI margins reflect
+  // Meta's 14% top / 35% bottom / 6% sides advice; organic overlays may differ.
+  const REELS_VISIBLE = Object.freeze({x:65,y:269,width:950,height:979});
+  const PREVIEW_CROPS = Object.freeze({
+    master:{label:'Originale 9:16 · griglia prudenziale',x:0,y:0,width:1080,height:1920,
+      safe:{x:130,y:420,width:820,height:828}},
+    instagram_reels:{label:'Instagram Reels / Stories · interfaccia',x:0,y:0,width:1080,height:1920,safe:REELS_VISIBLE},
+    instagram_feed:{label:'Instagram Feed · ritaglio centrale 4:5',x:0,y:285,width:1080,height:1350},
+    instagram_grid:{label:'Instagram Profilo · ritaglio centrale 3:4',x:0,y:240,width:1080,height:1440},
+    facebook_reels:{label:'Facebook Reels / Stories · interfaccia',x:0,y:0,width:1080,height:1920,safe:REELS_VISIBLE},
+    facebook_feed:{label:'Facebook Feed · ritaglio centrale 4:5',x:0,y:285,width:1080,height:1350},
+    facebook_square:{label:'Facebook anteprima quadrata · prova 1:1',x:0,y:420,width:1080,height:1080},
+  });
   const MAX_EXTRA_TEXTS = 4;
   const DEFAULT_LOGO = Object.freeze({x:76/MONTAGE_WIDTH,y:1510/MONTAGE_HEIGHT,width:232/MONTAGE_WIDTH});
   const TEXT_FONTS = Object.freeze({
@@ -680,7 +696,7 @@
   }
   function currentTextView() { return sceneViews[previewIndex] || null; }
   function sceneIsManuallyEditable(view) {
-    return !!(view && view.layoutPreference==='manual' && !productScreenActive(view.index) &&
+    return !!(view && view.layoutPreference==='manual' && (previewView?.cropChoice?.value||'master')==='master' && !productScreenActive(view.index) &&
       !exporting && !previewPlaying && !busy());
   }
 
@@ -840,12 +856,12 @@
     if (view._compositionKey===key && view._composition) return view._composition;
     const mode=scenePlacement(view);
     const choices=[
-      {side:'top',x:76,y:260,width:918},
-      {side:'bottom',x:76,y:990,width:918},
-      {side:'left',x:76,y:265,width:555},
-      {side:'right',x:465,y:265,width:540},
-      {side:'left',x:76,y:990,width:555},
-      {side:'right',x:465,y:990,width:540},
+      {side:'top',x:130,y:440,width:820},
+      {side:'bottom',x:130,y:650,width:820},
+      {side:'left',x:130,y:440,width:440},
+      {side:'right',x:510,y:440,width:440},
+      {side:'left',x:130,y:650,width:440},
+      {side:'right',x:510,y:650,width:440},
     ];
     let ranked=[];
     const image=previewView?.logo;
@@ -860,14 +876,14 @@
       const actionWidth=isCta?Math.round(actionSize*3.65):0;
       const footerHeight=Math.max(logoH,actionSize)+20;
       const groupHeight=copy.textHeight+24+footerHeight;
-      const y=Math.min(choice.y,1535-groupHeight);
-      if(y<200) continue;
+      const y=Math.min(choice.y,1240-groupHeight);
+      if(y<420) continue;
       const inkWidth=Math.min(choice.width,Math.max(copy.titleWidth,copy.detailWidth,
         logoW+(isCta?actionWidth+16:0)));
-      const textBounds={x:choice.x-8,y:y-14,width:inkWidth+16,height:copy.textHeight+28};
+      const textBounds={x:choice.x,y,width:inkWidth,height:copy.textHeight};
       const footerY=y+copy.textHeight+24;
       const logo={x:choice.x+(isCta?actionWidth+16:0),y:footerY,width:logoW,height:logoH};
-      if(logo.x+logo.width>1010) continue;
+      if(logo.x+logo.width>950) continue;
       const bounds={x:choice.x-14,y:y-16,width:Math.max(inkWidth+28,logo.x+logo.width-choice.x+28),height:groupHeight+22};
       const faces=view._faceBoxes||[];
       const facePenalty=faces.some(face=>intersects(face,bounds,70))?80:0;
@@ -884,8 +900,10 @@
     // This fallback is only for an unsupported manual location, not for normal scenes.
     const selected=ranked[0]||(()=>{
       const choice=choices[0],copy=fitSceneCopy(ctx,view.scene,choice.width);
-      const footerY=260+copy.textHeight+24;
-      return {choice,copy,y:260,bounds:{x:65,y:245,width:945,height:copy.textHeight+logoH+70},
+      const fallbackY=Math.max(420,1240-(copy.textHeight+24+Math.max(logoH,actionSize)+20));
+      const footerY=fallbackY+copy.textHeight+24;
+      return {choice,copy,y:fallbackY,bounds:{x:122,y:fallbackY-16,width:836,height:copy.textHeight+logoH+70},
+        textBounds:{x:choice.x,y:fallbackY,width:choice.width,height:copy.textHeight},
         logo:{x:choice.x,y:footerY,width:logoW,height:logoH},footerY,actionSize,score:0};
     })();
     view._compositionKey=key;
@@ -1197,6 +1215,7 @@
     const t = sceneViews.slice(0, scene).reduce((sum, item) => sum + (Number(item.scene.duration_ms) || 0), 0) / 1000;
     if (!previewPlaying) renderMontageFrame(Math.min(MONTAGE_DURATION-.002,t+.34));
     syncVisualEditor();
+    updatePlacementAudit();
     previewView.musicHelp.textContent = soundtrackUrl
       ? 'Traccia della libreria pronta per la bozza. È audio di revisione, non approvazione alla pubblicazione.'
       : 'Attendo una traccia dalla libreria privata. La bozza non viene esportata muta per errore.';
@@ -1512,6 +1531,14 @@
   }
   async function exportMontage() {
     if (!previewView || busy() || musicLoading || !photosReady()) return;
+    const issues=auditAllPlacements();
+    const risky=Object.entries(issues).filter(([key,scenes])=>key!=='master'&&scenes.length);
+    if(risky.length) {
+      const formats=risky.map(([key,scenes])=>`${PREVIEW_CROPS[key].label} (${scenes.length} scene)`).join('; ');
+      if(!window.confirm(`Possibile testo/logo tagliato nelle anteprime: ${formats}.\n`+
+        'Verifica le scene nei controlli Facebook/Instagram. Esportare ugualmente il master 9:16?')) return;
+    }
+
     const format = formatForRecorder();
     if (!format) {
       previewView.exportStatus.textContent = 'Esportazione non disponibile in questo browser. Usa una versione aggiornata di Chrome, Edge o Firefox.';
@@ -1648,6 +1675,88 @@
     }
     return warnings.length?`Verifica prima di esportare: ${[...new Set(warnings)].join('; ')}.`:
       'Trascina o ridimensiona ogni testo e il logo. Le impostazioni restano nella bozza browser.';
+  }
+  function rectangleInside(item,zone) {
+    const epsilon=3;
+    return item.x>=zone.x-epsilon && item.y>=zone.y-epsilon &&
+      item.x+item.width<=zone.x+zone.width+epsilon &&
+      item.y+item.height<=zone.y+zone.height+epsilon;
+  }
+  function placementIssues(view,option) {
+    if(!view || productScreenActive(view.index))return [];
+    const ctx=previewView?.canvas?.getContext('2d');
+    if(!ctx)return [];
+    const zone=option.safe||option;
+    const objects=[];
+    if(view.layoutPreference==='manual') {
+      const design=initializeManualCopy(view);
+      for(const kind of manualKinds(view)) {
+        if(kind==='logo'||!layerText(view,kind))continue;
+        const layer=layerFor(view,kind),box=constrainTextBox(layer.box,kind);
+        const rect=textBoxRect({box});
+        objects.push({name:editorBoxLabel(kind,view),rect});
+        if(fitManualLines(ctx,layerText(view,kind),layer.style,rect.width,rect.height).overflow)
+          objects.push({name:`${editorBoxLabel(kind,view)} abbreviato`,truncated:true});
+      }
+      if(design.logo.visible)objects.push({name:'Logo',rect:textBoxRect({box:constrainLogoBox(design.logo.box)})});
+    } else {
+      const auto=compositionForScene(ctx,view);
+      objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
+      objects.push({name:'Logo',rect:auto.logo});
+      if(auto.copy?.titleTruncated)objects.push({name:'Titolo abbreviato',truncated:true});
+    }
+    return objects.filter(item=>item.truncated||(item.rect&&!rectangleInside(item.rect,zone)))
+      .map(item=>item.name);
+  }
+  function auditAllPlacements() {
+    const reports={};
+    for(const [key,option] of Object.entries(PREVIEW_CROPS)) {
+      reports[key]=sceneViews.flatMap(view=>{
+        const issues=placementIssues(view,option);
+        return issues.length?[{scene:view.index+1,issues}]:[];
+      });
+    }
+    return reports;
+  }
+  function updatePlacementAudit() {
+    if(!previewView?.cropChoice||!previewView.cropRisk)return;
+    const selected=previewView.cropChoice.value;
+    const choice=PREVIEW_CROPS[selected]||PREVIEW_CROPS.master;
+    const reports=auditAllPlacements();
+    const risk=reports[selected]||[];
+    const details=risk.map(({scene,issues})=>`scena ${scene}: ${issues.join(', ')}`).join(' · ');
+    previewView.cropRisk.textContent=risk.length
+      ? `${choice.label} — DA CONTROLLARE: ${details}.`
+      : `${choice.label} — nessun elemento fuori dai limiti geometrici simulati.`;
+    previewView.cropRisk.dataset.tone=risk.length?'warning':'success';
+    previewView.cropRisk.style.color=risk.length?'#9f1239':'#155e3a';
+    previewView.cropRisk.style.fontWeight='650';
+    const short=(key)=>reports[key].length?`${reports[key].length}/${sceneViews.length} scene da verificare`:'nessun conflitto geometrico';
+    previewView.cropAllRisk.textContent=`Facebook: Reels ${short('facebook_reels')}; Feed 4:5 ${short('facebook_feed')}; quadrata 1:1 ${short('facebook_square')}. `+
+      `Instagram: Reels ${short('instagram_reels')}; Feed 4:5 ${short('instagram_feed')}; profilo 3:4 ${short('instagram_grid')}.`;
+  }
+  function applyPreviewCrop() {
+    if(!previewView?.cropFrame || !previewView.cropChoice)return;
+    const option=PREVIEW_CROPS[previewView.cropChoice.value]||PREVIEW_CROPS.master;
+    const {cropFrame:frame,canvas,cropGuide}=previewView;
+    frame.style.aspectRatio=`${option.width} / ${option.height}`;
+    frame.style.overflow='hidden';
+    frame.style.borderRadius='18px';
+    Object.assign(canvas.style,{
+      position:'absolute',width:`${MONTAGE_WIDTH/option.width*100}%`,
+      height:`${MONTAGE_HEIGHT/option.height*100}%`,
+      left:`${-option.x/option.width*100}%`,top:`${-option.y/option.height*100}%`,
+      borderRadius:'0',
+    });
+    const safe=option.safe;
+    cropGuide.hidden=!safe;
+    if(safe)Object.assign(cropGuide.style,{
+      left:`${(safe.x-option.x)/option.width*100}%`,
+      top:`${(safe.y-option.y)/option.height*100}%`,
+      width:`${safe.width/option.width*100}%`,height:`${safe.height/option.height*100}%`,
+    });
+    updateTextHandles();
+    updatePlacementAudit();
   }
   function editorBoxLabel(kind,view) {
     if(kind==='title')return 'Titolo';
@@ -2049,7 +2158,15 @@
     previewView.canvas.setAttribute('aria-label', 'Montaggio Reel in formato verticale 9:16');
     const frame=document.createElement('div');
     frame.className='ol-vs-edit-frame';
+    previewView.cropFrame=frame;
     frame.append(previewView.canvas);
+    const cropGuide=document.createElement('div');
+    cropGuide.setAttribute('aria-hidden','true');
+    cropGuide.style.cssText='position:absolute;pointer-events:none;box-sizing:border-box;'+
+      'border:2px dashed rgba(253,230,138,.95);'+
+      'box-shadow:0 0 0 3000px rgba(15,23,42,.28);border-radius:4px;';
+    cropGuide.hidden=true;
+    previewView.cropGuide=cropGuide;
     previewView.editorOverlay=document.createElement('div');
     previewView.editorOverlay.className='ol-vs-edit-overlay';
     previewView.editorOverlay.setAttribute('aria-label','Area modifica testi e logo sulla scena');
@@ -2059,8 +2176,32 @@
     previewView.editorOverlay.append(safe);
     previewView.editorBoxes={};
     for(const kind of ['title','subtitle','cta','logo'])addEditorHandle(kind,sceneViews[0]);
-    frame.append(previewView.editorOverlay);
+    frame.append(previewView.editorOverlay,cropGuide);
     stage.append(frame);
+    const cropControls=document.createElement('div');
+    cropControls.className='ol-vs-text-editor';
+    const cropLabel=document.createElement('label');
+    cropLabel.className='ol-vs-editor-field';
+    cropLabel.append(document.createTextNode('Controllo ritaglio — Facebook e Instagram'));
+    const cropChoice=document.createElement('select');
+    cropChoice.setAttribute('aria-label','Anteprima per piattaforma e formato');
+    for(const [key,option] of Object.entries(PREVIEW_CROPS))
+      cropChoice.add(new Option(option.label,key));
+    cropChoice.value='master';
+    previewView.cropChoice=cropChoice;
+    cropChoice.addEventListener('change',()=>{applyPreviewCrop();syncVisualEditor();});
+    cropLabel.append(cropChoice);
+    const cropRisk=document.createElement('p');
+    cropRisk.setAttribute('role','status');cropRisk.setAttribute('aria-live','polite');
+    previewView.cropRisk=cropRisk;
+    const cropAllRisk=document.createElement('p');
+    cropAllRisk.className='ol-muted ol-small';previewView.cropAllRisk=cropAllRisk;
+    const cropHelp=textElement('p',
+      'Simulazioni locali: Feed 4:5, profilo Instagram 3:4, prova quadrata 1:1. '+
+      'Le guide Reels riprendono i margini delle inserzioni Meta (14% alto, 35% basso, 6% lati); '+
+      'non garantiscono gli overlay dei Reel organici. Controlla anche le anteprime reali nelle app.');
+    cropHelp.className='ol-muted ol-small';
+    cropControls.append(cropLabel,cropRisk,cropAllRisk,cropHelp);
 
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
@@ -2115,7 +2256,7 @@
     previewView.productHelp.textContent = 'Carica solo schermate effettive del servizio, senza dati personali. Le immagini AI non attestano l’autenticità dell’interfaccia.';
     productRow.append(screenLabel, screenSceneLabel, confirmLabel, previewView.productHelp);
     const textEditor=createVisualTextEditor();
-    previewView.box.append(previewHeader, stage, textEditor, musicRow, productRow, previewView.meta);
+    previewView.box.append(previewHeader, stage, cropControls, textEditor, musicRow, productRow, previewView.meta);
     realSummary.append(previewView.box);
     refreshMusicChoices();
     // The server music library is loaded automatically even on a new device.
@@ -2126,6 +2267,7 @@
     });
     previewView.logo.addEventListener('load', () => { if (!previewPlaying) showPreview(previewIndex); });
     previewView.logo.src = '/assets/logo-offertalogica-header.png';
+    applyPreviewCrop();
     showPreview(0);
   }
   function createSceneCard(scene, index) {

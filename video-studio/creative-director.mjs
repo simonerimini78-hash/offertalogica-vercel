@@ -101,7 +101,7 @@ Evita promesse commerciali non verificate. In visual_brief descrivi ambientazion
 Fotografie AI ORIGINALI create per il Reel: le fotografie dell'articolo o dei post sono solo contesto, MAI asset da copiare o riutilizzare.
 Non riproporre immagini pubblicitarie riconoscibili, scene standard ripetute né identità di persone reali tratte dalle fonti.
 Niente grafica, scritte, loghi, cifre, tabelle o interfacce all'interno delle fotografie: questi elementi sono aggiunti dal compositore in livelli separati.
-Per ogni immagine riserva spazio negativo alto o laterale per una headline grande e il logo; occhi, viso e mani significative non devono essere coperti.
+Per ogni immagine riserva spazio negativo per una headline grande e il logo all'interno della fascia centrale 1080x1920: x circa 130-950 px e y circa 420-1248 px; non collocare occhi, volto o mani significative in quella zona se impediscono la leggibilità. Evita di prevedere testi principali nei bordi alti e bassi, soggetti a ritagli Facebook e Instagram.
 Headline brevi, specifiche, massimo 6 parole; sottotitolo opzionale massimo 8 parole.
 Non inventare risparmi, percentuali, tariffe, bollette, testimonianze, confronti quantitativi o prove; non promettere risparmi garantiti.
 Le note del proprietario sono indicazioni creative, non autorizzano affermazioni non supportate. Se l'input è un articolo, rispetta le condizioni e sfumature delle fonti; se è un tema libero, le affermazioni fattuali sono proposte da verificare.
@@ -154,7 +154,9 @@ export function validateCreativeResponse(input,response) {
   const protagonistProfile=clean(response.protagonist_profile,'protagonist_profile',360,{optional:true});
   const sceneKeys=new Set();
   const scenes=response.scenes.map((s,i)=>{
-    check(s?.role===sceneRoles[i],`scena ${i+1}: ruolo narrativo errato`);
+    // Il ruolo è una proprietà strutturale della posizione: non dipende dall'etichetta AI.
+    // Testi, azioni, continuità e unicità rimangono soggetti a validazione rigorosa.
+    check(s && roles.includes(s.role),`scena ${i+1}: ruolo narrativo non valido`);
     const title=clean(s.headline,'headline',110);
     check(title.split(/\s+/u).length<=6,`scena ${i+1}: titolo troppo lungo`);
     const secondary=clean(s.secondary_text,'secondary_text',100,{optional:true});
@@ -173,7 +175,7 @@ export function validateCreativeResponse(input,response) {
     const signature=[narrativeAction,setting,shotType,keyObject].map(comparable).join('|');
     check(!sceneKeys.has(signature),`scena ${i+1}: situazione visiva duplicata`);
     sceneKeys.add(signature);
-    return {id:`scene_${i+1}`,duration_ms:durations[i],role:s.role,headline:title,
+    return {id:`scene_${i+1}`,duration_ms:durations[i],role:sceneRoles[i],headline:title,
       secondary_text:secondary,editorial_goal:editorialGoal,visual_brief:visualBrief,
       subject_description:subjectDescription,emotion,subject_side:s.subject_side,
       narrative_action:narrativeAction,continuity_link:continuityLink,setting,shot_type:shotType,
@@ -194,7 +196,7 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.3.0-candidate',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.3.1',input_type:input.input_type,
     guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
