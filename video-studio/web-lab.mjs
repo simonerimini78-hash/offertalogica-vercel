@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, sceneRolesForCount} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.3.1';
+export const VIDEO_STUDIO_LAB_VERSION = '1.3.2';
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -116,7 +116,9 @@ export function expectedReferenceIndices(sceneIndex,input) {
     if(sceneIndex===1&&input.guide_usage==='first_scene')return [-1];
     return [-1,sceneIndex-1];
   }
-  if(sceneIndex===0)return isGuide&&input.guide_usage==='reference_only'?[-1]:[];
+  // Un Reel MP4 in Ispirazione libera resta nel brief della regia,
+  // non diventa il modello fotografico della scena d'apertura.
+  if(sceneIndex===0)return isGuide&&input.input_type!=='guide_video'&&input.guide_usage==='reference_only'?[-1]:[];
   return sceneIndex===1?[0]:[0,sceneIndex-1];
 }
 function decodeUploadedJpeg(value,maxBytes) {

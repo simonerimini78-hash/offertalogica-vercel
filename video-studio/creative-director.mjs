@@ -75,6 +75,11 @@ const schema={type:'object',additionalProperties:false,properties:{
   concept:{type:'string'},audience:{type:'string'},editorial_caution:{type:'string'},
   episode_angle:{type:'string'},story_logline:{type:'string'},story_outcome:{type:'string'},
   protagonist_profile:{type:'string'},
+  guide_review:{type:'object',additionalProperties:false,properties:{
+    observed_headlines:{type:'array',items:{type:'string'}},
+    observed_story_angle:{type:'string'},
+    creative_departure:{type:'string'}
+  },required:['observed_headlines','observed_story_angle','creative_departure']},
   scenes:{type:'array',items:{type:'object',additionalProperties:false,properties:{
     role:{type:'string',enum:roles},headline:{type:'string'},secondary_text:{type:'string'},
     editorial_goal:{type:'string'},visual_brief:{type:'string'},
@@ -84,7 +89,7 @@ const schema={type:'object',additionalProperties:false,properties:{
   },required:['role','headline','secondary_text','editorial_goal','visual_brief','subject_description',
     'emotion','subject_side','narrative_action','continuity_link','setting','shot_type','key_object']}}
 },required:['concept','audience','editorial_caution','episode_angle','story_logline','story_outcome',
-  'protagonist_profile','scenes']};
+  'protagonist_profile','guide_review','scenes']};
 const system=`Sei il regista di mini-storie audiovisive per Reel italiani OffertaLogica da 15 secondi.
 Se input_type=guide_image, usa la FOTO ALLEGATA come sorgente primaria della storia e della direzione visiva, NON inventare un tema basandoti sul testo. Se guide_fidelity=strong, conserva in ogni scena luce, temperatura colore, palette, materiali, texture, resa fotografica e atmosfera della foto guida; cambia deliberatamente l'azione e il taglio di ripresa per raccontare una storia senza replicare la medesima composizione. Se guide_fidelity=inspiration, mantieni soltanto un legame stilistico generale, lasciando maggiore libertà di ambientazione e illuminazione. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
 
@@ -96,6 +101,9 @@ in story_outcome spiega che cosa cambia davvero, senza promettere risultati non 
 protagonist_profile descrive dettagli visivi stabili del protagonista ricorrente, se presente (età adulta indicativa, capelli, abito e accessori);
 può essere stringa vuota se la storia non ha un protagonista umano. Un personaggio ricorrente è consentito quando utile.
 Progetta tutta la progressione narrativa prima delle fotografie. Ogni scena deve introdurre azioni e composizioni DISTINTE: indica narrative_action (azione osservabile), continuity_link (nesso con la scena precedente, vuoto solo nella prima), setting, shot_type e key_object (può essere vuoto). Non scambiare solo colori, pose o sfondi lasciando invariata la situazione. Mantieni stabile l'identità del protagonista e varia l'inquadratura. La luce evolve in modo credibile. Non ripetere oggetti o scrivanie senza motivo.
+Per OGNI input compila guide_review: se non c'è una guida imposta observed_headlines=[] e le altre due stringhe a ''. Se c'è una guida, trascrivi in observed_headlines SOLO parole effettivamente leggibili nei fotogrammi/foto forniti (max 8 frasi, NON inventare testo illeggibile); indica in observed_story_angle il suo messaggio generale. In creative_departure spiega in modo concreto la DIFFERENZA fra il nuovo episodio e la guida.
+Con guide_fidelity=inspiration la guida è un punto di partenza, NON lo storyboard da riscrivere. PRIMA scegli un NUOVO problema specifico, un diverso percorso di soluzione e un hook originale per OffertaLogica. Cambia prospettiva, azione, contesto e scenografia quando utile. Non mantenere lo stesso incipit, la stessa successione di slogan o la medesima conclusione narrativa. NON usare le frasi osservate in observed_headlines nelle nuove headline, tranne l'eventuale CTA finale con il nome del brand. Differenziare soltanto le foto o il numero di scene NON basta. Inserisci in creative_departure almeno una differenza narrativa verificabile, non frasi come 'creatività diversa'. Il contenuto deve comunque essere corretto e pertinente; niente nuovi dati commerciali senza fonti.
+Con guide_fidelity=strong puoi conservare messaggio e impostazione generale, mantenendo comunque nuove fotografie e un percorso coerente.
 Se input_type=guide_video, le immagini fornite sono FOTOGRAMMI CRONOLOGICI campionati in sequenza dall'INTERO MP4, con tempi in millisecondi; studia progressione narrativa, ritmo visivo, inquadrature, palette e spazi per il testo. Il video guida NON sarà importato nel montaggio e NON è stato analizzato l'audio, il movimento fra fotogrammi né ogni singolo fotogramma. Non copiare scene, persone reali riconoscibili, scritte o loghi dal riferimento. Usa guide_fidelity per regolare la vicinanza dello stile fotografico, non per clonare l'opera.
 Evita promesse commerciali non verificate. In visual_brief descrivi ambientazione, azione, inquadratura e cambiamento della scena.
 Fotografie AI ORIGINALI create per il Reel: le fotografie dell'articolo o dei post sono solo contesto, MAI asset da copiare o riutilizzare.
@@ -152,6 +160,15 @@ export function validateCreativeResponse(input,response) {
   const storyLogline=clean(response.story_logline,'story_logline',380);
   const storyOutcome=clean(response.story_outcome,'story_outcome',350);
   const protagonistProfile=clean(response.protagonist_profile,'protagonist_profile',360,{optional:true});
+  check(response.guide_review&&typeof response.guide_review==='object'&&
+    Array.isArray(response.guide_review.observed_headlines)&&
+    response.guide_review.observed_headlines.length<=8,'resoconto Reel guida non valido');
+  const observedHeadlines=response.guide_review.observed_headlines.map(x=>clean(x,'testo rilevato dalla guida',110));
+  const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',350,{optional:true});
+  const creativeDeparture=clean(response.guide_review.creative_departure,'divergenza creativa',500,{optional:true});
+  const inventive=['guide_image','guide_video'].includes(input.input_type)&&input.guide_fidelity==='inspiration';
+  if(inventive) check(creativeDeparture.length>=30,
+    'Ispirazione libera: manca una nuova direzione narrativa dichiarata');
   const sceneKeys=new Set();
   const scenes=response.scenes.map((s,i)=>{
     // Il ruolo è una proprietà strutturale della posizione: non dipende dall'etichetta AI.
@@ -196,12 +213,25 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.3.1',input_type:input.input_type,
+  if(inventive)for(const [index,scene] of scenes.entries()) {
+    if(scene.role==='cta')continue; // Il nome del brand nella CTA è riutilizzabile.
+    for(const heading of observedHeadlines) {
+      const original=comparable(heading),newText=comparable(scene.headline);
+      if(!original||!newText)continue;
+      const wordCount=original.split(' ').length;
+      const duplicate=original===newText || (wordCount>=3 && newText.split(' ').length>=3 &&
+        tokenOverlap(heading,scene.headline)>=.80);
+      check(!duplicate,`Ispirazione libera: scena ${index+1} ripete il testo della guida; serve un nuovo hook o messaggio`);
+    }
+  }
+  return {creative_schema_version:2,engine_version:'1.3.2',input_type:input.input_type,
     guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,
-    protagonist_profile:protagonistProfile,scenes,platform:input.platform,duration_ms:15000,status:'needs_human_review',
+    protagonist_profile:protagonistProfile,
+    guide_review:{observed_headlines:observedHeadlines,observed_story_angle:observedStoryAngle,
+      creative_departure:creativeDeparture},scenes,platform:input.platform,duration_ms:15000,status:'needs_human_review',
     photo_generation_approved:false,publication_authorized:false,
     visual_uniqueness_status:'pending_image_and_history_checks',
     review_requirements:['Verifica della continuità narrativa e della correttezza editoriale',

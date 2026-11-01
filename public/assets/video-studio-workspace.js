@@ -1,4 +1,4 @@
-/* Video Studio v1.3.1 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -595,19 +595,37 @@
   const MONTAGE_WIDTH = 1080;
   const MONTAGE_HEIGHT = 1920;
   const MONTAGE_DURATION = 15;
-  // The browser draft and the editor use the same 1080×1920 coordinate space.
-  // Keep text above the fixed brand footer and away from social UI chrome.
-  // Safe by design for Meta full-screen UI and centered Feed/profile crops.
-  // Conservative working coordinates, not an official guarantee for organic placements.
-  const TEXT_SAFE = Object.freeze({left:130/MONTAGE_WIDTH, top:420/MONTAGE_HEIGHT,
+  // Advisory only: the safe-text rectangle must NEVER constrain manual text/logo placement.
+  // The editor may adjust its edges independently; exports always use the 9:16 master.
+  const DEFAULT_TEXT_GUIDE = Object.freeze({left:130/MONTAGE_WIDTH, top:420/MONTAGE_HEIGHT,
     right:950/MONTAGE_WIDTH, bottom:1248/MONTAGE_HEIGHT});
-  const LOGO_SAFE = TEXT_SAFE;
+  let textGuide = {...DEFAULT_TEXT_GUIDE};
+  let textGuideVisible = true;
+  const TEXT_GUIDE_MIN_W = 100/MONTAGE_WIDTH;
+  const TEXT_GUIDE_MIN_H = 100/MONTAGE_HEIGHT;
+  function validTextGuide(box) {
+    return box && ['left','right','top','bottom'].every(k=>Number.isFinite(box[k])) &&
+      box.left>=0 && box.right<=1 && box.top>=0 && box.bottom<=1 &&
+      box.right-box.left>=TEXT_GUIDE_MIN_W && box.bottom-box.top>=TEXT_GUIDE_MIN_H;
+  }
+  function textGuidePixels() {
+    return {x:textGuide.left*MONTAGE_WIDTH,y:textGuide.top*MONTAGE_HEIGHT,
+      width:(textGuide.right-textGuide.left)*MONTAGE_WIDTH,
+      height:(textGuide.bottom-textGuide.top)*MONTAGE_HEIGHT};
+  }
+  function drawTextGuide() {
+    if(!previewView?.textGuideOverlay)return;
+    const rectangle=previewView.textGuideOverlay;
+    rectangle.hidden=!textGuideVisible || (previewView.cropChoice?.value||'master')!=='master';
+    Object.assign(rectangle.style,{left:`${textGuide.left*100}%`,top:`${textGuide.top*100}%`,
+      width:`${(textGuide.right-textGuide.left)*100}%`,
+      height:`${(textGuide.bottom-textGuide.top)*100}%`});
+  }
   // Each entry is an explicit geometrical simulation. Reels ads UI margins reflect
   // Meta's 14% top / 35% bottom / 6% sides advice; organic overlays may differ.
   const REELS_VISIBLE = Object.freeze({x:65,y:269,width:950,height:979});
   const PREVIEW_CROPS = Object.freeze({
-    master:{label:'Originale 9:16 · griglia prudenziale',x:0,y:0,width:1080,height:1920,
-      safe:{x:130,y:420,width:820,height:828}},
+    master:{label:'Originale 9:16 · griglia personalizzabile',x:0,y:0,width:1080,height:1920},
     instagram_reels:{label:'Instagram Reels / Stories · interfaccia',x:0,y:0,width:1080,height:1920,safe:REELS_VISIBLE},
     instagram_feed:{label:'Instagram Feed · ritaglio centrale 4:5',x:0,y:285,width:1080,height:1350},
     instagram_grid:{label:'Instagram Profilo · ritaglio centrale 3:4',x:0,y:240,width:1080,height:1440},
@@ -632,13 +650,12 @@
   }
   function constrainTextBox(box,kind) {
     const minW=kind.startsWith('extra:')?.17:.23,minH=kind==='title'?.085:kind.startsWith('extra:')?.052:.065;
-    const width=clampNumber(Number(box.width)||.5,minW,TEXT_SAFE.right-TEXT_SAFE.left);
-    const height=clampNumber(Number(box.height)||.12,minH,TEXT_SAFE.bottom-TEXT_SAFE.top);
-    return {
-      x:clampNumber(Number(box.x)||TEXT_SAFE.left,TEXT_SAFE.left,TEXT_SAFE.right-width),
-      y:clampNumber(Number(box.y)||TEXT_SAFE.top,TEXT_SAFE.top,TEXT_SAFE.bottom-height),
-      width,height,
-    };
+    const width=clampNumber(Number(box?.width)||.5,minW,1);
+    const height=clampNumber(Number(box?.height)||.12,minH,1);
+    const x=Number(box?.x),y=Number(box?.y);
+    // Bound only to the physical video frame, NOT to the advisory text guide.
+    return {x:clampNumber(Number.isFinite(x)?x:DEFAULT_TEXT_GUIDE.left,0,1-width),
+      y:clampNumber(Number.isFinite(y)?y:DEFAULT_TEXT_GUIDE.top,0,1-height),width,height};
   }
   function logoAspect() {
     const image=transparentBrandLogo() || previewView?.logo;
@@ -648,8 +665,8 @@
   function constrainLogoBox(box) {
     const width=clampNumber(Number(box?.width)||DEFAULT_LOGO.width,.09,.50);
     const height=width*(MONTAGE_WIDTH/MONTAGE_HEIGHT)*logoAspect();
-    return {x:clampNumber(Number.isFinite(Number(box?.x))?Number(box.x):DEFAULT_LOGO.x,LOGO_SAFE.left,LOGO_SAFE.right-width),
-      y:clampNumber(Number.isFinite(Number(box?.y))?Number(box.y):DEFAULT_LOGO.y,LOGO_SAFE.top,LOGO_SAFE.bottom-height),width,height};
+    return {x:clampNumber(Number.isFinite(Number(box?.x))?Number(box.x):DEFAULT_LOGO.x,0,1-width),
+      y:clampNumber(Number.isFinite(Number(box?.y))?Number(box.y):DEFAULT_LOGO.y,0,1-height),width,height};
   }
   function newLogoLayer() {
     return {box:constrainLogoBox(DEFAULT_LOGO),visible:true,opacity:1};
@@ -828,7 +845,7 @@
     const titleTruncated=complete.length>2 || complete.some(line=>ctx.measureText(line).width>width);
     lines=titleTruncated?wrapCanvasText(ctx,headline,width,2):complete;
     const secondary=String(scene.secondary_text||'').trim();
-    let detailSize=isCta?46:48,detail=[];
+    let detailSize=isCta?46:48,detail=[],detailTruncated=false;
     if (secondary) {
       for(;detailSize>=37;detailSize-=2) {
         ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
@@ -837,6 +854,8 @@
       }
       if(detailSize<37) detailSize=37;
       ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+      const completeDetail=wrapOverlayLines(ctx,secondary,width);
+      detailTruncated=completeDetail.length>2 || completeDetail.some(line=>ctx.measureText(line).width>width);
       detail=wrapCanvasText(ctx,secondary,width,2);
     }
     ctx.font=`800 ${size}px system-ui, sans-serif`;
@@ -849,7 +868,7 @@
     const detailHeight=detail.length?detailSize+(detail.length-1)*detailStep:0;
     const textHeight=titleHeight+(detail.length?26+detailHeight:0);
     return {lines,size,titleStep,detail,detailSize,detailStep,
-      titleHeight,textHeight,titleTruncated,titleWidth,detailWidth};
+      titleHeight,textHeight,titleTruncated,detailTruncated,titleWidth,detailWidth};
   }
   function compositionForScene(ctx,view) {
     const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view._faceBoxes?.length||0}`;
@@ -1531,13 +1550,9 @@
   }
   async function exportMontage() {
     if (!previewView || busy() || musicLoading || !photosReady()) return;
-    const issues=auditAllPlacements();
-    const risky=Object.entries(issues).filter(([key,scenes])=>key!=='master'&&scenes.length);
-    if(risky.length) {
-      const formats=risky.map(([key,scenes])=>`${PREVIEW_CROPS[key].label} (${scenes.length} scene)`).join('; ');
-      if(!window.confirm(`Possibile testo/logo tagliato nelle anteprime: ${formats}.\n`+
-        'Verifica le scene nei controlli Facebook/Instagram. Esportare ugualmente il master 9:16?')) return;
-    }
+    // Placement and crop indicators are advisory: never block an intentional editorial export.
+    // Facebook/Instagram warnings remain visible beside the preview.
+    updatePlacementAudit();
 
     const format = formatForRecorder();
     if (!format) {
@@ -1638,6 +1653,17 @@
     view.state.textContent = text;
     view.state.dataset.tone = tone;
   }
+  function creativeGuideNotes(plan) {
+    const review=plan?.guide_review;
+    if(!review||typeof review!=='object')return [];
+    const notes=[];
+    if(review.creative_departure)notes.push(textElement('p',`Differenza proposta rispetto alla guida: ${review.creative_departure}`));
+    if(Array.isArray(review.observed_headlines)&&review.observed_headlines.length)
+      notes.push(textElement('p',`Testi riconosciuti nel riferimento: ${review.observed_headlines.join(' · ')}`));
+    if(plan.guide_fidelity==='inspiration' && !review.observed_headlines?.length)
+      notes.push(textElement('p','Attenzione: nessun testo leggibile riconosciuto nella guida. La diversità delle frasi non può essere verificata automaticamente.'));
+    return notes;
+  }
   function updateSceneActionLabel(view) {
     if (view.result) view.actionButton.textContent = 'Rigenera questa foto';
     else if (view.attempts > 0) view.actionButton.textContent = 'Riprova questa scena';
@@ -1686,7 +1712,7 @@
     if(!view || productScreenActive(view.index))return [];
     const ctx=previewView?.canvas?.getContext('2d');
     if(!ctx)return [];
-    const zone=option.safe||option;
+    const zone=option===PREVIEW_CROPS.master?textGuidePixels():(option.safe||option);
     const objects=[];
     if(view.layoutPreference==='manual') {
       const design=initializeManualCopy(view);
@@ -1704,6 +1730,7 @@
       objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
       objects.push({name:'Logo',rect:auto.logo});
       if(auto.copy?.titleTruncated)objects.push({name:'Titolo abbreviato',truncated:true});
+      if(auto.copy?.detailTruncated)objects.push({name:'Sottotitolo abbreviato',truncated:true});
     }
     return objects.filter(item=>item.truncated||(item.rect&&!rectangleInside(item.rect,zone)))
       .map(item=>item.name);
@@ -1755,6 +1782,7 @@
       top:`${(safe.y-option.y)/option.height*100}%`,
       width:`${safe.width/option.width*100}%`,height:`${safe.height/option.height*100}%`,
     });
+    drawTextGuide();
     updateTextHandles();
     updatePlacementAudit();
   }
@@ -1887,9 +1915,9 @@
         layerFor(view,kind).box=constrainLogoBox(next);
       } else {
         if(drag.resize) {
-          next.width=clampNumber(next.width+dx,kind.startsWith('extra:')?.17:.23,TEXT_SAFE.right-next.x);
+          next.width=clampNumber(next.width+dx,kind.startsWith('extra:')?.17:.23,1-next.x);
           next.height=clampNumber(next.height+dy,
-            kind==='title'?.085:kind.startsWith('extra:')?.052:.065,TEXT_SAFE.bottom-next.y);
+            kind==='title'?.085:kind.startsWith('extra:')?.052:.065,1-next.y);
         } else{next.x+=dx;next.y+=dy;}
         layerFor(view,kind).box=constrainTextBox(next,kind);
       }
@@ -2171,12 +2199,12 @@
     previewView.editorOverlay.className='ol-vs-edit-overlay';
     previewView.editorOverlay.setAttribute('aria-label','Area modifica testi e logo sulla scena');
     const safe=document.createElement('div');safe.className='ol-vs-edit-safe';
-    Object.assign(safe.style,{left:`${TEXT_SAFE.left*100}%`,top:`${TEXT_SAFE.top*100}%`,
-      width:`${(TEXT_SAFE.right-TEXT_SAFE.left)*100}%`,height:`${(TEXT_SAFE.bottom-TEXT_SAFE.top)*100}%`});
-    previewView.editorOverlay.append(safe);
+    safe.setAttribute('aria-hidden','true');
+    safe.style.pointerEvents='none';
+    previewView.textGuideOverlay=safe;
     previewView.editorBoxes={};
     for(const kind of ['title','subtitle','cta','logo'])addEditorHandle(kind,sceneViews[0]);
-    frame.append(previewView.editorOverlay,cropGuide);
+    frame.append(safe,previewView.editorOverlay,cropGuide);
     stage.append(frame);
     const cropControls=document.createElement('div');
     cropControls.className='ol-vs-text-editor';
@@ -2202,6 +2230,44 @@
       'non garantiscono gli overlay dei Reel organici. Controlla anche le anteprime reali nelle app.');
     cropHelp.className='ol-muted ol-small';
     cropControls.append(cropLabel,cropRisk,cropAllRisk,cropHelp);
+    const guidePanel=document.createElement('div');
+    guidePanel.style.cssText='display:flex;flex-direction:column;gap:9px;padding:12px;'+
+      'border:1px solid #d3dfd6;border-radius:9px;margin-top:10px;';
+    const guideTitle=textElement('p','Griglia salva-testo indicativa · modificabile in pixel');
+    const guideFields=document.createElement('div');guideFields.className='ol-vs-editor-row';
+    previewView.guideInputs={};
+    for(const [side,label,max] of [['left','Sinistra',1080],['right','Destra',1080],
+      ['top','Alto',1920],['bottom','Basso',1920]]) {
+      const wrap=document.createElement('label');wrap.className='ol-vs-editor-field';
+      wrap.append(document.createTextNode(`${label} (px)`));
+      const field=document.createElement('input');field.type='number';field.min='0';
+      field.max=String(max);field.step='10';
+      field.value=String(Math.round(textGuide[side]*(max)));
+      field.setAttribute('aria-label',`Limite guida ${label.toLowerCase()} in pixel`);
+      previewView.guideInputs[side]=field;
+      field.addEventListener('change',()=>{
+        const value=Number(field.value);
+        const next={...textGuide,[side]:value/max};
+        if(!Number.isInteger(value)||value<0||value>max||!validTextGuide(next)) {
+          field.value=String(Math.round(textGuide[side]*max));return;
+        }
+        textGuide=next;drawTextGuide();updatePlacementAudit();scheduleProjectAutosave();
+      });
+      wrap.append(field);guideFields.append(wrap);
+    }
+    const visibleLabel=document.createElement('label');visibleLabel.className='ol-vs-editor-field';
+    const visible=document.createElement('input');visible.type='checkbox';visible.checked=textGuideVisible;
+    visible.setAttribute('aria-label','Mostra griglia salva-testo');
+    visible.addEventListener('change',()=>{textGuideVisible=visible.checked;
+      drawTextGuide();scheduleProjectAutosave();});
+    previewView.guideVisibleInput=visible;
+    visibleLabel.append(visible,document.createTextNode(' Mostra griglia'));
+    const guideHint=textElement('p',
+      'I quattro limiti sono solo guide: puoi trascinare testo e logo anche all’esterno. '+
+      'Gli avvisi Facebook e Instagram non impediscono il montaggio.');
+    guideHint.className='ol-muted ol-small';
+    guidePanel.append(guideTitle,guideFields,visibleLabel,guideHint);
+    cropControls.append(guidePanel);
 
     const musicRow = document.createElement('div');
     musicRow.className = 'ol-vs-music-row';
@@ -2404,7 +2470,7 @@
     const references=strong
       ? view.index===0?[guide]:view.index===1&&generation.input.guide_usage==='first_scene'?[guide]:
         [guide,previous[previous.length-1].result.continuity_reference]
-      : view.index===0?(isGuide&&generation.input.guide_usage==='reference_only'?[guide]:[]):
+      : view.index===0?(isGuide&&generation.input.input_type!=='guide_video'&&generation.input.guide_usage==='reference_only'?[guide]:[]):
         view.index===1?[previous[0].result.continuity_reference]:
         [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     if(references.some(ref=>!ref))throw Error('Riferimento guida mancante: rigenera lo storyboard prima di avviare altre foto.');
@@ -2506,6 +2572,7 @@
         textElement('p', `Pubblico: ${generation.plan.audience}`),
         ...(generation.input.input_type==='guide_image'?[textElement('p', `Guida fotografica: ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'}`)]:[]),
         ...(generation.input.input_type==='guide_video'?[textElement('p', `Reel MP4 guida: ${generation.input.guide_video_frame_times_ms.length} fotogrammi campionati · ${generation.input.guide_video_duration_ms/1000} s · ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'} · audio non analizzato`)]:[]),
+        ...creativeGuideNotes(generation.plan),
         textElement('p', `Avvertenza editoriale: ${generation.plan.editorial_caution}`),
       );
       createProgressAndPreview();
@@ -2571,6 +2638,7 @@
       brief, generation:{input:generation.input,plan:generation.plan,receipt:generation.receipt,
         guide_reference:generation.guide_reference||null}, scenes:projects,
       active_scene:previewIndex,
+      text_guide:{...textGuide},text_guide_visible:textGuideVisible,
       music_choice:previewView?.musicChoice?.value||'auto',
       product_scene:previewView?.productChoice?.value||'2',
       // A verified screenshot must be re-confirmed by the editor on reopen.
@@ -2655,6 +2723,8 @@
       img.onerror=()=>reject(Error('Fotografia non leggibile'));img.src=src;
     })));
     stopPreview();resetGeneratedOutput();
+    textGuide=validTextGuide(project.text_guide)?{...project.text_guide}:{...DEFAULT_TEXT_GUIDE};
+    textGuideVisible=typeof project.text_guide_visible==='boolean'?project.text_guide_visible:true;
     brief=project.brief;
     generation=project.generation;
     if(['image','video'].includes(brief.mode)) {
@@ -2666,6 +2736,7 @@
     downloadButton.disabled=false;generateButton.disabled=false;
     realSummary.append(textElement('p',`Concept: ${generation.plan.concept}`),
       textElement('p',`Pubblico: ${generation.plan.audience}`),
+      ...creativeGuideNotes(generation.plan),
       textElement('p',`Avvertenza editoriale: ${generation.plan.editorial_caution}`));
     createProgressAndPreview();
     sceneViews=generation.plan.scenes.map((scene,i)=>createSceneCard(scene,i));
