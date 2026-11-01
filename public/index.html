@@ -16905,6 +16905,9 @@ function accompagnaAllaRevisioneDatiPdf(data) {
 let PDF_PENDING_FILES = [];
 let PDF_UPLOAD_SEQUENCE = 0;
 let PDF_ACTIVE_SLOT = null;
+// OFFERTALOGICA_PDF_MANUAL_COMPLETION_V1_20261101: ripresa consentita solo
+// quando una bolletta letta aveva dati essenziali mancanti.
+let PDF_MANUAL_COMPLETION_PENDING = false;
 const PDF_DOCUMENT_SLOTS = { current: [], offer: [] };
 
 function pdfSlotDaKind(kind) {
@@ -16963,6 +16966,53 @@ function datiPdfValidiSlot(slot) {
   if (slot === "current" && data.kind !== "bolletta") return null;
   if (slot === "offer" && data.kind !== "scheda_offerta") return null;
   return { documents, data };
+}
+
+function preparaRipresaConfrontoPdfDopoAnalisi() {
+  PDF_MANUAL_COMPLETION_PENDING = false;
+  const current = datiPdfValidiSlot("current");
+  if (!current || LEAD_STATE.customerType !== "privato") return;
+  if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+
+  applicaFallbackStimaDocumentale();
+  PDF_MANUAL_COMPLETION_PENDING = campiMancanti(configurazioniPdfDaControllare(current.data, false)).length > 0;
+  // Sul desktop pubblico la modalita PDF nasconde la CTA finche non entra
+  // in revisione. Lo staff usa lo stesso DOM, senza questo vincolo CSS.
+  if (!esperienzaPdfMobileAttiva() && document.body.classList.contains("mobile-fast-mode-pdf")) {
+    document.body.classList.add("mobile-fast-pdf-review");
+  }
+}
+
+function riprendiConfrontoPdfDopoIntegrazione() {
+  if (!PDF_MANUAL_COMPLETION_PENDING) return;
+  const current = datiPdfValidiSlot("current");
+  if (!current || LEAD_STATE.customerType !== "privato") {
+    PDF_MANUAL_COMPLETION_PENDING = false;
+    return;
+  }
+  if (["pending_gas", "pending_luce"].includes(ambitoConfrontoAttivo())) return;
+  if (document.getElementById("pdf-upload-panel")?.getAttribute("aria-busy") === "true") return;
+  applicaFallbackStimaDocumentale();
+  if (campiMancanti(configurazioniPdfDaControllare(current.data, false)).length) return;
+  // Se il catalogo non e ancora arrivato, il callback del caricamento
+  // richiamera questa funzione. Il pulsante manuale resta accessibile.
+  if (!DATI_UFFICIALI_CONFRONTO_PRONTI) return;
+  PDF_MANUAL_COMPLETION_PENDING = false;
+
+  if (esperienzaPdfMobileAttiva()) {
+    mostraStatoPdfMobile({
+      mode: "ready",
+      title: "Dati completati",
+      copy: "Tutti i dati necessari sono presenti. Stiamo aprendo le offerte.",
+      filename: document.getElementById("mobile-pdf-status-file")?.textContent || "",
+      primaryLabel: "Confronta le offerte",
+      secondaryLabel: "Controlla i dati",
+      primaryAction: "compare",
+    });
+    avviaPassoSuccessivoPdfMobileAutomatico();
+  } else {
+    avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent: current.documents });
+  }
 }
 
 function ricostruisciModuloDaSlotPdf(activeSlot = PDF_ACTIVE_SLOT) {
@@ -17288,6 +17338,7 @@ async function analizzaFotoBolletta(file, source = "camera") {
     }
 
     aggiornaStatoPdfMobileDopoAnalisi({ files: [file], validCurrent, validOffer, results });
+    preparaRipresaConfrontoPdfDopoAnalisi();
     avviaPassoSuccessivoPdfMobileAutomatico();
     avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent });
   } catch (error) {
@@ -17637,6 +17688,7 @@ window.preparaConfermaPdf = async function preparaConfermaPdf() {
     retainedOfferDocuments: PDF_DOCUMENT_SLOTS.offer.length,
   });
   aggiornaStatoPdfMobileDopoAnalisi({ files, validCurrent, validOffer, results });
+  preparaRipresaConfrontoPdfDopoAnalisi();
   avviaPassoSuccessivoPdfMobileAutomatico();
   avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent });
   } catch (error) {
@@ -17927,7 +17979,14 @@ function pdfAutofillClearManualFields() {
 
 function registraModificaManualePdf(event) {
   if (!event?.isTrusted) return;
-  pdfAutofillMarkManualField(event.target?.id);
+  const fieldId = event.target?.id;
+  pdfAutofillMarkManualField(fieldId);
+  // Non avviare il confronto durante la digitazione (evento input).
+  // Un change conferma il valore o l'unita scelta dall'utente.
+  if (event.type !== "change" || !PDF_MANUAL_COMPLETION_PENDING) return;
+  const currentField = CAMPI_ATTUALI_ESSENZIALI.some(({ id }) => id === fieldId);
+  const fixedUnit = ["in-luce-fisso-att-unita", "in-gas-fisso-att-unita"].includes(fieldId);
+  if (currentField || fixedUnit) riprendiConfrontoPdfDopoIntegrazione();
 }
 
 function pdfAutofillHasValue(value) {
@@ -19275,6 +19334,8 @@ window.azzeraPdfEModulo = function azzeraPdfEModulo() {
   PDF_DOCUMENT_SLOTS.current = [];
   PDF_DOCUMENT_SLOTS.offer = [];
   PDF_ACTIVE_SLOT = null;
+  PDF_MANUAL_COMPLETION_PENDING = false;
+  document.body.classList.remove("mobile-fast-pdf-review");
   Object.keys(PDF_PROFILE_STATE.current || {}).forEach((key) => delete PDF_PROFILE_STATE.current[key]);
   Object.keys(PDF_PROFILE_STATE.offer || {}).forEach((key) => delete PDF_PROFILE_STATE.offer[key]);
   LEAD_STATE.pdfAutofill = { previewedAt: "", appliedFields: [], skippedFields: [] };
@@ -20906,6 +20967,7 @@ function collegaEventiUX() {
     sincronizzaIndiciMercatoConCatalogoArera();
     aggiornaSelectFornitoreNuovoDaCatalogo();
     assicuraSchedeOfferte();
+    riprendiConfrontoPdfDopoIntegrazione();
 
     // Se l'autoselezione del profilo medio e' partita prima del caricamento
     // dei dati ARERA, ripetila ora che la sorgente ufficiale e' pronta.
