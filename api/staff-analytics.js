@@ -9418,7 +9418,7 @@ export default async function handler(req, res) {
         const {createStoryboard, createPhoto, renewStoryboard} = await import("../video-studio/web-lab.mjs");
         const payload = req.body;
         if (!payload || Array.isArray(payload) || typeof payload !== "object" ||
-            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : action === "video-studio-resume" ? 420000 : 210000)) {
+            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : action === "video-studio-resume" ? 420000 : action === "video-studio-storyboard" && Array.isArray(payload.guide_video_frames_base64) ? 650000 : 210000)) {
           return json(res, 400, {ok:false,error:"Richiesta Video Studio non valida o troppo grande"});
         }
         let result;
@@ -9431,8 +9431,10 @@ export default async function handler(req, res) {
             return rows?.[0] || null;
           };
           result = await createStoryboard({userId:user.id, theme:payload.theme,articleId:payload.article_id,
-            guideImageBase64:payload.guide_image_base64,guideUsage:payload.guide_usage,guideContext:payload.guide_context,guideFidelity:payload.guide_fidelity,
-            suggestions:payload.suggestions,platform:payload.platform},{readArticle});
+            guideImageBase64:payload.guide_image_base64,guideVideoFramesBase64:payload.guide_video_frames_base64,
+            guideVideoDurationMs:payload.guide_video_duration_ms,guideVideoFrameTimesMs:payload.guide_video_frame_times_ms,
+            guideUsage:payload.guide_usage,guideContext:payload.guide_context,guideFidelity:payload.guide_fidelity,
+            sceneCountPreference:payload.scene_count_preference??'auto',suggestions:payload.suggestions,platform:payload.platform},{readArticle});
         } else if (action === "video-studio-resume") {
           result = renewStoryboard({userId:user.id,input:payload.input,plan:payload.plan,
             receipt:payload.receipt,guideReference:payload.guide_reference,

@@ -5,18 +5,50 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const roles=['hook','context','value','cta'];
-const durations=[3000,4000,4000,4000];
+const rolesByCount=Object.freeze({
+  3:['hook','value','cta'],
+  4:['hook','context','value','cta'],
+  5:['hook','context','development','value','cta'],
+});
+const durationsByCount=Object.freeze({
+  3:[3500,5500,6000],
+  4:[3000,4000,4000,4000],
+  5:[2800,3000,3000,3000,3200],
+});
+const roles=[...new Set(Object.values(rolesByCount).flat())];
+export function sceneCountAllowed(value){return value==='auto'||[3,4,5].includes(value);}
+export function sceneRolesForCount(count){return rolesByCount[count]||null;}
+
 function check(ok,msg){if(!ok)throw new Error(`VIDEO_STUDIO_CREATIVE: ${msg}`);}
 function clean(v,label,max,{optional=false}={}) {
   check((optional&& (v==null||v===''))||(typeof v==='string'&&v.trim()&&v.length<=max),`${label} non valido (massimo ${max} caratteri)`);
   return String(v||'').trim();
 }
-export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideUsage='',guideContext='',guideFidelity='strong'}={}) {
+export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideVideoSha256='',guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='',guideContext='',guideFidelity='strong',sceneCountPreference='auto'}={}) {
   check(['instagram_reel','facebook_reel'].includes(platform),'piattaforma non supportata');
   const isGuide=typeof guideImageSha256==='string' && guideImageSha256.length>0;
-  check((Number(Boolean(theme))+Number(Boolean(article))+Number(isGuide))===1,'scegli un tema, un articolo oppure una foto guida');
+  const isVideo=typeof guideVideoSha256==='string' && guideVideoSha256.length>0;
+  check(sceneCountAllowed(sceneCountPreference),'scegli Automatico, 3, 4 o 5 scene');
+  check((Number(Boolean(theme))+Number(Boolean(article))+Number(isGuide)+Number(isVideo))===1,
+    'scegli un tema, un articolo, una foto o un Reel guida');
   const notes=clean(suggestions,'suggerimenti',1800,{optional:true});
+  if(isVideo){
+    check(/^[a-f\d]{64}$/.test(guideVideoSha256),'impronta Reel guida non valida');
+    check(Number.isInteger(guideVideoDurationMs)&&guideVideoDurationMs>=1000&&guideVideoDurationMs<=180000,
+      'durata Reel guida non valida');
+    check(Array.isArray(guideVideoFrameTimesMs)&&guideVideoFrameTimesMs.length>=5&&guideVideoFrameTimesMs.length<=8&&
+      guideVideoFrameTimesMs.every((time,i)=>Number.isInteger(time)&&time>=0&&time<guideVideoDurationMs&&
+        (i===0||time>guideVideoFrameTimesMs[i-1])),'sequenza fotogrammi guida non valida');
+    check(['strong','inspiration'].includes(guideFidelity),'fedeltà Reel guida non valida');
+    const context=clean(guideContext,'contesto Reel',180,{optional:true});
+    return {input_type:'guide_video',topic:context||'Mini-storia ispirata al Reel guida',
+      suggestions:notes,platform,article:null,guide_video_sha256:guideVideoSha256,
+      guide_video_duration_ms:guideVideoDurationMs,guide_video_frame_times_ms:guideVideoFrameTimesMs,
+      guide_usage:'reference_only',guide_context:context,guide_fidelity:guideFidelity,
+      scene_count_preference:sceneCountPreference,
+      source_fingerprint:sha(`video-guide-v1:${guideVideoSha256}:${context}`),review_required:true};
+  }
+
   if(isGuide){
     check(/^[a-f\d]{64}$/.test(guideImageSha256),'impronta immagine guida non valida');
     check(['first_scene','reference_only'].includes(guideUsage),'uso immagine guida non valido');
@@ -24,18 +56,18 @@ export function normalizeInput({theme,article,suggestions='',platform='instagram
     const context=clean(guideContext,'contesto immagine',180,{optional:true});
     return {input_type:'guide_image',topic:context || 'Mini-storia ispirata alla fotografia allegata',
       suggestions:notes,platform,article:null,guide_image_sha256:guideImageSha256,
-      guide_usage:guideUsage,guide_context:context,guide_fidelity:guideFidelity,
+      guide_usage:guideUsage,guide_context:context,guide_fidelity:guideFidelity,scene_count_preference:sceneCountPreference,
       source_fingerprint:sha(`guide-v1:${guideImageSha256}:${context}`),review_required:true};
   }
   if(article){
     const {snapshot,fingerprint}=freezeArticle(article);
     return {input_type:'published_article',topic:snapshot.title,suggestions:notes,platform,
       article:{id:snapshot.id,version:snapshot.version,status:snapshot.status,title:snapshot.title,
-        content:snapshot.content.slice(0,18000),sources:snapshot.sources},source_fingerprint:fingerprint,
+        content:snapshot.content.slice(0,18000),sources:snapshot.sources},scene_count_preference:sceneCountPreference,source_fingerprint:fingerprint,
       review_required:true};
   }
   const topic=clean(theme,'tema',180);
-  return {input_type:'free_topic',topic,suggestions:notes,platform,article:null,
+  return {input_type:'free_topic',topic,suggestions:notes,platform,article:null,scene_count_preference:sceneCountPreference,
     source_fingerprint:sha(`topic-v1:${topic.toLowerCase()}`),review_required:true};
 }
 // v1.1.1: narrative continuity is checked before any paid photographic request.
@@ -56,18 +88,16 @@ const schema={type:'object',additionalProperties:false,properties:{
 const system=`Sei il regista di mini-storie audiovisive per Reel italiani OffertaLogica da 15 secondi.
 Se input_type=guide_image, usa la FOTO ALLEGATA come sorgente primaria della storia e della direzione visiva, NON inventare un tema basandoti sul testo. Se guide_fidelity=strong, conserva in ogni scena luce, temperatura colore, palette, materiali, texture, resa fotografica e atmosfera della foto guida; cambia deliberatamente l'azione e il taglio di ripresa per raccontare una storia senza replicare la medesima composizione. Se guide_fidelity=inspiration, mantieni soltanto un legame stilistico generale, lasciando maggiore libertà di ambientazione e illuminazione. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
 
-Restituisci ESCLUSIVAMENTE JSON conforme allo schema: 4 scene nell'ordine hook (3s), context (4s), value (4s), cta (4s).
-UNA SOLA STORIA, non quattro fotografie tematiche: (1) protagonista o situazione affronta un problema concreto,
-(2) l'ostacolo si sviluppa, (3) il protagonista comprende o compie un'azione utile,
-(4) un esito realistico completa la storia e permette una CTA pertinente. Ogni scena deve dipendere logicamente dalla precedente.
-In episode_angle scegli l'angolo specifico di questa storia; in story_logline racconta il percorso dal problema alla soluzione;
+Restituisci ESCLUSIVAMENTE JSON conforme allo schema: da 3 a 5 scene. La preferenza scene_count_preference prevale: se vale 3, 4 o 5 devi produrre ESATTAMENTE quel numero; se vale 'auto', scegli il numero più efficace in base alla storia, senza riempitivi. Le scene hanno sempre durata totale 15 secondi.
+Ordine dei ruoli OBBLIGATORIO: 3 scene = hook, value, cta; 4 scene = hook, context, value, cta; 5 scene = hook, context, development, value, cta.
+UNA SOLA STORIA, non una raccolta di fotografie tematiche: ogni scena fa avanzare una situazione concreta, dalla difficoltà iniziale a una spiegazione/azione utile e infine a un esito credibile con CTA pertinente. Ogni scena deve dipendere logicamente dalla precedente. La CTA non deve sostituire la soluzione.
+In episode_angle scegli l'angolo specifico della storia; in story_logline racconta il percorso dal problema alla soluzione;
 in story_outcome spiega che cosa cambia davvero, senza promettere risultati non provati.
 protagonist_profile descrive dettagli visivi stabili del protagonista ricorrente, se presente (età adulta indicativa, capelli, abito e accessori);
-può essere stringa vuota se la storia non ha un protagonista umano. Un personaggio ricorrente è consentito e incoraggiato quando utile.
-Progetta TUTTA la progressione narrativa PRIMA di decidere le fotografie. Ogni scena deve introdurre un cambiamento osservabile: problema reale, ricerca motivata, azione concreta, esito proporzionato. Non confondere una CTA con una soluzione.\nLe 4 scene devono mostrare AZIONI e composizioni DISTINTE anche quando ricorre la stessa persona:
-indica narrative_action (azione osservabile), continuity_link (causa/legame con la scena precedente, vuoto solo nella prima),
-setting, shot_type e key_object (può essere vuoto). Non scambiare solo colori, pose o sfondi lasciando invariata la situazione. Mantieni stabile l'identità del protagonista (capelli, occhiali, abbigliamento) e scegli un'inquadratura diversa per ogni scena. La luce evolve in modo plausibile, con finale più caldo soltanto quando coerente. Compila continuity_link con il nesso causa-effetto concreto e non con formule vaghe.
-Evita quattro bollette in mano o quattro immagini della stessa scrivania. In visual_brief specifica ambientazione, azione, inquadratura e cambiamento della scena.
+può essere stringa vuota se la storia non ha un protagonista umano. Un personaggio ricorrente è consentito quando utile.
+Progetta tutta la progressione narrativa prima delle fotografie. Ogni scena deve introdurre azioni e composizioni DISTINTE: indica narrative_action (azione osservabile), continuity_link (nesso con la scena precedente, vuoto solo nella prima), setting, shot_type e key_object (può essere vuoto). Non scambiare solo colori, pose o sfondi lasciando invariata la situazione. Mantieni stabile l'identità del protagonista e varia l'inquadratura. La luce evolve in modo credibile. Non ripetere oggetti o scrivanie senza motivo.
+Se input_type=guide_video, le immagini fornite sono FOTOGRAMMI CRONOLOGICI campionati in sequenza dall'INTERO MP4, con tempi in millisecondi; studia progressione narrativa, ritmo visivo, inquadrature, palette e spazi per il testo. Il video guida NON sarà importato nel montaggio e NON è stato analizzato l'audio, il movimento fra fotogrammi né ogni singolo fotogramma. Non copiare scene, persone reali riconoscibili, scritte o loghi dal riferimento. Usa guide_fidelity per regolare la vicinanza dello stile fotografico, non per clonare l'opera.
+Evita promesse commerciali non verificate. In visual_brief descrivi ambientazione, azione, inquadratura e cambiamento della scena.
 Fotografie AI ORIGINALI create per il Reel: le fotografie dell'articolo o dei post sono solo contesto, MAI asset da copiare o riutilizzare.
 Non riproporre immagini pubblicitarie riconoscibili, scene standard ripetute né identità di persone reali tratte dalle fonti.
 Niente grafica, scritte, loghi, cifre, tabelle o interfacce all'interno delle fotografie: questi elementi sono aggiunti dal compositore in livelli separati.
@@ -87,21 +117,34 @@ function tokenOverlap(a,b) {
   const union=new Set([...left,...right]).size;
   return union?intersection/union:0;
 }
-export function buildCreativeRequest(input,{guideImageBytes=null}={}) {
-  check(['free_topic','published_article','guide_image'].includes(input?.input_type),'input non normalizzato');
+export function buildCreativeRequest(input,{guideImageBytes=null,guideVideoFrames=[]}={}) {
+  check(['free_topic','published_article','guide_image','guide_video'].includes(input?.input_type),'input non normalizzato');
   if(input.input_type==='guide_image') check(Buffer.isBuffer(guideImageBytes)&&guideImageBytes.length>=1000&&
     sha(guideImageBytes)===input.guide_image_sha256,'immagine guida non disponibile o alterata');
+  if(input.input_type==='guide_video')check(Array.isArray(guideVideoFrames)&&
+    guideVideoFrames.length===input.guide_video_frame_times_ms.length&&
+    guideVideoFrames.every(Buffer.isBuffer)&&
+    sha(Buffer.concat(guideVideoFrames))===input.guide_video_sha256,
+    'fotogrammi Reel guida mancanti o alterati');
   const userContent=input.input_type==='guide_image' ? [
     {type:'text',text:JSON.stringify(input)},
     {type:'image_url',image_url:{url:`data:image/jpeg;base64,${guideImageBytes.toString('base64')}`,detail:'high'}}
+  ] : input.input_type==='guide_video' ? [
+    {type:'text',text:JSON.stringify(input)+'\nI fotogrammi seguenti sono ordinati cronologicamente con i tempi riportati.'},
+    ...guideVideoFrames.map((frame,i)=>({type:'image_url',image_url:{
+      url:`data:image/jpeg;base64,${frame.toString('base64')}`,detail:'low'}}))
   ] : JSON.stringify(input);
   return {model:process.env.VIDEO_STUDIO_CREATIVE_MODEL||'gpt-4.1-mini',temperature:0.65,
     messages:[{role:'system',content:system},{role:'user',content:userContent}],
-    response_format:{type:'json_schema',json_schema:{name:'video_studio_creative_v2',strict:true,schema}}};
+    response_format:{type:'json_schema',json_schema:{name:'video_studio_creative_v3',strict:true,schema}}};
 }
 export function validateCreativeResponse(input,response) {
-  check(response&&typeof response==='object'&&Array.isArray(response.scenes)&&response.scenes.length===4,
-    'sono necessarie esattamente quattro scene');
+  const count=response?.scenes?.length;
+  check(response&&typeof response==='object'&&Array.isArray(response.scenes)&&sceneRolesForCount(count),
+    'sono necessarie da 3 a 5 scene');
+  check(input.scene_count_preference==='auto'||input.scene_count_preference==null||
+    count===input.scene_count_preference,'numero scene diverso dalla preferenza manuale');
+  const sceneRoles=sceneRolesForCount(count),durations=durationsByCount[count];
   const concept=clean(response.concept,'concept',500);
   const audience=clean(response.audience,'audience',500);
   const editorialCaution=clean(response.editorial_caution,'editorial_caution',500);
@@ -111,7 +154,7 @@ export function validateCreativeResponse(input,response) {
   const protagonistProfile=clean(response.protagonist_profile,'protagonist_profile',360,{optional:true});
   const sceneKeys=new Set();
   const scenes=response.scenes.map((s,i)=>{
-    check(s?.role===roles[i],`scena ${i+1}: ruolo narrativo errato`);
+    check(s?.role===sceneRoles[i],`scena ${i+1}: ruolo narrativo errato`);
     const title=clean(s.headline,'headline',110);
     check(title.split(/\s+/u).length<=6,`scena ${i+1}: titolo troppo lungo`);
     const secondary=clean(s.secondary_text,'secondary_text',100,{optional:true});
@@ -151,8 +194,8 @@ export function validateCreativeResponse(input,response) {
       comparable(a.setting)===comparable(b.setting) && comparable(a.shot_type)===comparable(b.shot_type)),
       `scene ${j+1} e ${i+1}: stessa azione, ambiente e inquadratura`);
   }
-  return {creative_schema_version:2,engine_version:'1.2.1-candidate',input_type:input.input_type,
-    guide_fidelity:input.input_type==='guide_image'?(input.guide_fidelity||'inspiration'):null,
+  return {creative_schema_version:2,engine_version:'1.3.0-candidate',input_type:input.input_type,
+    guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,
@@ -165,11 +208,11 @@ export function validateCreativeResponse(input,response) {
       'Licenze fotografiche e musicali da confermare',
       'Conferma umana del master prima di pubblicare']};
 }
-export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null}={}) {
+export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null,guideVideoFrames=[]}={}) {
   check(apiKey,'OPENAI_API_KEY mancante; impossibile generare una regia AI autentica');
   const response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
     method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-    body:JSON.stringify(buildCreativeRequest(normalized,{guideImageBytes})),signal:AbortSignal.timeout(90000)});
+    body:JSON.stringify(buildCreativeRequest(normalized,{guideImageBytes,guideVideoFrames})),signal:AbortSignal.timeout(90000)});
   const json=await response.json().catch(()=>null);
   check(response.ok,`provider regia: HTTP ${response.status}`);
   const content=json?.choices?.[0]?.message?.content;

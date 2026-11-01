@@ -10,7 +10,7 @@ function cleanRevisionNotes(value) {
 }
 
 export function photoPrompt({article,scene,index,story=null,revisionNotes='',referenceImages=[]}) {
-  if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>3)
+  if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>4)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
   const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
   const opposite=side==='left'?'right':side==='right'?'left':'upper';
@@ -18,8 +18,8 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
-  const strongGuide=story?.input_type==='guide_image' && story?.guide_fidelity==='strong';
-  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is the editor-supplied ORIGINAL guide for this Reel. Treat it as the primary photographic reference for every derived scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. No readable text or fabricated brand UI.` : referenceImages.length>0 ? `VISUAL INSPIRATION: use the supplied authentic photo reference(s) for plausible continuity, without copying the same composition, setting, pose, facial expression or action. Allow scene-specific lighting and styling. This is a NEW story moment.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
+  const strongGuide=['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong';
+  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is ${story?.input_type==='guide_video'?'an editor-supplied early frame sampled from the Reel guide':'the editor-supplied ORIGINAL guide photograph'}. Treat it as the photographic style anchor for this scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. No readable text or fabricated brand UI.` : referenceImages.length>0 ? `VISUAL INSPIRATION: use the supplied authentic photo reference(s) for plausible continuity, without copying the same composition, setting, pose, facial expression or action. Allow scene-specific lighting and styling. This is a NEW story moment.` : 'Opening shot: establish the protagonist and appearance that subsequent scenes will preserve.';
   const lighting = strongGuide ? 'Match the reference image lighting character and realistic warm/cool balance; do not change to a generic golden-hour or cooler studio look unless the story truly requires it.' : scene.role === 'cta'
     ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
     : index === 0
@@ -29,7 +29,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const episodeAngle = String(story?.episode_angle || '').slice(0,220);
   const logline = String(story?.story_logline || '').slice(0,380);
   const outcome = String(story?.story_outcome || '').slice(0,350);
-  const sequence = Array.isArray(story?.scenes) && story.scenes.length===4
+  const sequence = Array.isArray(story?.scenes) && story.scenes.length>=3 && story.scenes.length<=5
     ? story.scenes.map((beat,i)=>`${i+1}: ${String(beat.narrative_action||beat.editorial_goal||'').slice(0,220)}; ${String(beat.shot_type||'').slice(0,120)}`).join(' | ')
     : '';
   return `Generate ONE original photorealistic vertical 9:16 editorial photograph for an Italian Reel.
@@ -48,7 +48,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Stable recurring-protagonist description (if present): ${protagonist || 'No recurring human protagonist is required'}.
   ${referenceGuide}
   Keep the same protagonist recognizable when relevant, but DO NOT repeat a pose, action, location-and-shot combination or a near-identical composition across scenes.
-  This photograph must represent ONLY scene ${index+1} of the mini-story, not four isolated ads or panels.
+  This photograph must represent ONLY scene ${index+1} of the mini-story, not isolated ads or panels.
   Intended emotion: ${emotion||'credible and subtle'}.
   People and clearly visible human faces are welcome when emotionally useful. No exaggerated or stereotyped reactions.
   Place the principal subject on the ${side} side, with head, eyes, hands and important objects fully unobstructed.
@@ -71,7 +71,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
 export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch,sharpFactory=null}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
   if((index>0 || (index===0 && story?.input_type==='guide_image' && (story?.guide_usage==='reference_only'||story?.guide_fidelity==='strong'))) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
-    referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(story?.input_type==='guide_image'&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
+    referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(['guide_image','guide_video'].includes(story?.input_type)&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
   const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages});
   let response;

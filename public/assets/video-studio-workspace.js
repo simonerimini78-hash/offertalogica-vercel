@@ -1,4 +1,4 @@
-/* Video Studio v1.2.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.0 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -16,6 +16,11 @@
   const guideMode = qs('#vs-editorial-guide-mode');
   const guideFidelity = qs('#vs-editorial-guide-fidelity');
   const guideContext = qs('#vs-editorial-guide-context');
+  const videoGuideWrap = qs('[data-vs-video-wrap]');
+  const videoGuideInput = qs('#vs-editorial-video-guide');
+  const videoGuideFidelity = qs('#vs-editorial-video-fidelity');
+  const videoGuideContext = qs('#vs-editorial-video-context');
+  const sceneCountSelect = qs('#vs-editorial-scene-count');
   const suggestionsInput = qs('#vs-editorial-suggestions');
   const platformSelect = qs('#vs-editorial-platform');
   const form = qs('[data-vs-brief-form]');
@@ -37,6 +42,7 @@
   let generation = null;
   let sceneViews = [];
   let guideFile = null;
+  let videoGuideFile = null;
   let progressView = null;
   let previewView = null;
   let activeRequests = 0;
@@ -79,6 +85,10 @@
   const PROJECT_STORE = 'working-projects';
   const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
   const PROJECT_SCHEMA = 'offertalogica.video-studio.draft.v1';
+  const validSceneCount = n => Number.isInteger(n) && n>=3 && n<=5;
+  const plannedSceneCount = () => generation?.plan?.scenes?.length || 0;
+  const photosReady = () => validSceneCount(plannedSceneCount()) &&
+    availablePreviewIndices().length===plannedSceneCount();
   const MAX_LOCAL_TRACKS = 12;
   // Filename/hash-prefix identification for the 11 private MP3s. Never means licensed/approved.
   // Cues are unreviewed 15-second candidates, not beat-synchronized markers.
@@ -174,9 +184,11 @@
     articleWrap.hidden = mode!=='article';
     themeWrap.hidden = mode!=='theme';
     guideWrap.hidden = mode!=='image';
+    videoGuideWrap.hidden = mode!=='video';
     themeInput.required = mode==='theme';
     articleSelect.required = mode==='article';
     guideInput.required = mode==='image';
+    videoGuideInput.required = mode==='video';
     clearBrief();
   }
   function busy() {
@@ -199,8 +211,8 @@
     if (projectExportButton) projectExportButton.disabled = !generation || isBusy;
     if (projectResumeButton) projectResumeButton.disabled = isBusy;
     if (projectImportInput) projectImportInput.disabled = isBusy;
-    if (previewView?.playButton) previewView.playButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
-    if (previewView?.exportButton) previewView.exportButton.disabled = availablePreviewIndices().length !== 4 || isBusy || musicLoading;
+    if (previewView?.playButton) previewView.playButton.disabled = !photosReady() || isBusy || musicLoading;
+    if (previewView?.exportButton) previewView.exportButton.disabled = !photosReady() || isBusy || musicLoading;
     if (previewView?.musicInput) previewView.musicInput.disabled = isBusy;
     if (previewView?.musicChoice) previewView.musicChoice.disabled = isBusy || musicLoading;
     if (previewView?.musicClear) previewView.musicClear.disabled = isBusy || !localTracks.length;
@@ -347,11 +359,12 @@
       p.append(strong, document.createTextNode(value));
       summary.append(p);
     }
-    line('Origine', b.mode === 'article' ? 'Articolo Editoriale pubblicato' : b.mode==='image'?'Immagine guida':'Tema libero');
-    line('Titolo', b.mode === 'article' ? b.input.article.title : b.mode==='image'?b.input.guide_file_name:b.input.theme);
+    line('Origine', b.mode === 'article' ? 'Articolo Editoriale pubblicato' : b.mode==='image'?'Immagine guida':b.mode==='video'?'Reel MP4 guida':'Tema libero');
+    line('Titolo', b.mode === 'article' ? b.input.article.title : b.mode==='image'?b.input.guide_file_name:b.mode==='video'?b.input.guide_video_file_name:b.input.theme);
     line('Suggerimenti', b.input.suggestions || 'Nessuno');
     line('Destinazione', b.input.platform);
-    line('Passaggio successivo', 'Storyboard AI con 4 foto automatiche da revisionare');
+    line('Scene', b.input.scene_count_preference==='auto'?'Automatico (3–5)':`${b.input.scene_count_preference} scene`);
+    line('Passaggio successivo', 'Storyboard AI con fotografie automatiche da revisionare');
     output.hidden = false;
   }
   // Files are preview-only; normalise in memory, strip EXIF, never store/upload to editorial articles.
@@ -385,6 +398,55 @@
       }
       throw Error('La foto è troppo complessa per il limite di caricamento; prova un file più leggero.');
     } finally {URL.revokeObjectURL(src);}
+  }
+  // Sample the entire Reel timeline locally; only bounded stills go to the AI storyboard.
+  // This is a VISUAL guide, not audio transcription or complete video-frame analysis.
+  async function extractVideoGuideFrames(file) {
+    if(!file || !(/\.mp4$/i.test(file.name)) || file.size<1000 || file.size>60*1024*1024)
+      throw Error('Seleziona un MP4 valido fino a 60 MB.');
+    const url=URL.createObjectURL(file),video=document.createElement('video');
+    video.muted=true;video.playsInline=true;video.preload='auto';
+    try {
+      video.src=url;
+      await new Promise((resolve,reject)=>{
+        const timeout=setTimeout(()=>reject(Error('Impossibile leggere il Reel nel browser.')),20000);
+        video.onloadedmetadata=()=>{clearTimeout(timeout);resolve();};
+        video.onerror=()=>{clearTimeout(timeout);reject(Error('MP4 non compatibile con questo browser.'));};
+        video.load();
+      });
+      const duration=video.duration;
+      if(!Number.isFinite(duration)||duration<1||duration>180||!video.videoWidth||!video.videoHeight)
+        throw Error('Il Reel guida deve durare da 1 a 180 secondi e contenere immagini video.');
+      const n=Math.min(8,Math.max(5,Math.ceil(duration/3)));
+      const canvas=document.createElement('canvas');
+      const scale=Math.min(256/video.videoWidth,455/video.videoHeight,1);
+      canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
+      canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
+      const ctx=canvas.getContext('2d',{alpha:false});
+      if(!ctx)throw Error('Il browser non consente di leggere i fotogrammi del video.');
+      const frames=[],times=[];
+      for(let i=0;i<n;i++){
+        const time=duration*(i+0.5)/n;
+        await new Promise((resolve,reject)=>{
+          const timeout=setTimeout(()=>reject(Error(`Impossibile leggere il fotogramma ${i+1}.`)),16000);
+          video.onseeked=()=>{clearTimeout(timeout);resolve();};
+          video.onerror=()=>{clearTimeout(timeout);reject(Error('Errore durante la lettura del Reel.'));};
+          video.currentTime=time;
+        });
+        ctx.drawImage(video,0,0,canvas.width,canvas.height);
+        let jpg='';
+        for(const quality of [0.75,0.60,0.45,0.30]){
+          jpg=canvas.toDataURL('image/jpeg',quality).split(',')[1];
+          if(jpg.length<=Math.ceil(55000*4/3))break;
+        }
+        if(jpg.length>Math.ceil(55000*4/3))throw Error('Fotogrammi guida troppo grandi; usa un MP4 meno complesso.');
+        frames.push(jpg);
+        times.push(Math.round(time*1000));
+      }
+      return {frames,durationMs:Math.round(duration*1000),times};
+    }finally{
+      video.pause();video.removeAttribute('src');video.load();URL.revokeObjectURL(url);
+    }
   }
   async function uploadScenePhoto(view,file,{fromGuide=false}={}) {
     // Refresh old signed proposals before attempting any manual replacement.
@@ -457,6 +519,14 @@
         const context=guideContext.value.trim();
         if(context.length>180)throw Error('Contesto della foto troppo lungo.');
         base={theme:null,article:null,guide_context:context,guide_usage:guideMode.value,guide_fidelity:guideFidelity.value,guide_file_name:guideFile.name};
+      } else if(mode==='video') {
+        if(!videoGuideInput.files?.[0])throw Error('Seleziona il Reel MP4 guida.');
+        videoGuideFile=videoGuideInput.files[0];
+        if(!/\.mp4$/i.test(videoGuideFile.name)||videoGuideFile.size<1000||videoGuideFile.size>60*1024*1024)
+          throw Error('Carica un MP4 valido fino a 60 MB.');
+        const context=videoGuideContext.value.trim();
+        base={theme:null,article:null,guide_video_file_name:videoGuideFile.name,
+          guide_context:context,guide_fidelity:videoGuideFidelity.value};
       } else {
         const theme = themeInput.value.trim();
         if (!theme || theme.length > 180) throw Error('Inserisci un tema di massimo 180 caratteri.');
@@ -468,14 +538,16 @@
         schema_version: 1,
         status: 'prepared_not_generated',
         mode,
-        input: {...base, suggestions, platform: platformSelect.value},
+        input: {...base, suggestions, platform: platformSelect.value,scene_count_preference:sceneCountSelect.value==='auto'?'auto':Number(sceneCountSelect.value)},
         next_step: 'creative_director_requires_protected_server_execution',
         publication_authorized: false,
       };
       setSummary(brief);
       downloadButton.disabled = false;
       generateButton.disabled = false;
-      message('Brief pronto. Premi «Genera storyboard + 4 foto AI» per avviare il flusso automatico.');
+      generateButton.textContent=sceneCountSelect.value==='auto'?'Genera storyboard + foto AI':
+        `Genera storyboard + ${sceneCountSelect.value} foto AI`;
+      message('Brief pronto. Premi «Genera storyboard + foto AI» per avviare il flusso automatico.');
     } catch (e) { message(e.message, true); } finally { preparing = false; syncControls(); }
   }
   async function labRequest(action, body, token, timeMs) {
@@ -513,7 +585,7 @@
     const ready = sceneViews.filter(view => view.result).length;
     const errors = sceneViews.filter(view => !view.result && view.error).length;
     const pending = sceneViews.length - ready - errors;
-    const fragments = [`Foto pronte: ${ready}/${sceneViews.length || 4}`];
+    const fragments = [`Foto pronte: ${ready}/${sceneViews.length || 0}`];
     if (pending > 0) fragments.push(`In attesa: ${pending}`);
     if (errors > 0) fragments.push(`Da rigenerare: ${errors}`);
     progressView.count.textContent = fragments.join(' · ');
@@ -1120,7 +1192,7 @@
   function showPreview(index) {
     if (!previewView) return;
     const available = availablePreviewIndices();
-    previewView.playButton.disabled = available.length !== 4 || busy();
+    previewView.playButton.disabled = !photosReady() || busy();
     const scene = available.length ? (available.includes(index) ? index : available[0]) : 0;
     const t = sceneViews.slice(0, scene).reduce((sum, item) => sum + (Number(item.scene.duration_ms) || 0), 0) / 1000;
     if (!previewPlaying) renderMontageFrame(Math.min(MONTAGE_DURATION-.002,t+.34));
@@ -1149,7 +1221,7 @@
       stopPreview();
       return;
     }
-    if (availablePreviewIndices().length !== 4 || busy()) return;
+    if (!photosReady() || busy()) return;
     stopPreview();
     previewStartedAt = performance.now();
     if (soundtrackUrl) {
@@ -1439,7 +1511,7 @@
     ].find(([mime]) => MediaRecorder.isTypeSupported(mime)) || null;
   }
   async function exportMontage() {
-    if (!previewView || busy() || musicLoading || availablePreviewIndices().length !== 4) return;
+    if (!previewView || busy() || musicLoading || !photosReady()) return;
     const format = formatForRecorder();
     if (!format) {
       previewView.exportStatus.textContent = 'Esportazione non disponibile in questo browser. Usa una versione aggiornata di Chrome, Edge o Firefox.';
@@ -1754,7 +1826,7 @@
       for(const [value,text] of options)select.add(new Option(text,value));
       select.addEventListener('change',callback);wrap.append(select);return {wrap,select};
     }
-    const scene=selectControl('Scena',Array.from({length:4},(_,i)=>[String(i),`Scena ${i+1}`]),()=>{
+    const scene=selectControl('Scena',Array.from({length:plannedSceneCount()},(_,i)=>[String(i),`Scena ${i+1}`]),()=>{
       if(busy()||previewPlaying)return;showPreview(Number(scene.select.value));
     });previewView.editorScene=scene.select;
     const mode=selectControl('Posizione',[
@@ -2029,7 +2101,7 @@
     screenLabel.append(previewView.productInput);
     const screenSceneLabel = document.createElement('label');
     screenSceneLabel.textContent = 'Scena da sostituire con la schermata reale';
-    for (let i = 0; i < 4; i++) previewView.productChoice.add(new Option(`Scena ${i + 1}`, String(i)));
+    for (let i = 0; i < plannedSceneCount(); i++) previewView.productChoice.add(new Option(`Scena ${i + 1}`, String(i)));
     previewView.productChoice.value = '2';
     previewView.productChoice.addEventListener('change', () => {showPreview(Number(previewView.productChoice.value));scheduleProjectAutosave();});
     screenSceneLabel.append(previewView.productChoice);
@@ -2254,9 +2326,9 @@
     const ready = sceneViews.filter(view => view.result).length;
     const blocked = sceneViews.filter(view => !view.result).length;
     if (blocked === 0) {
-      message('Storyboard AI e 4 fotografie generate automaticamente. Rivedi ogni scena e rigenera solo quelle che non ti convincono.');
+      message(`Storyboard AI e ${sceneViews.length} fotografie generate automaticamente. Rivedi ogni scena e rigenera solo quelle che non ti convincono.`);
     } else {
-      message(`Storyboard AI generato. Foto pronte: ${ready}/4. Generazione automatica interrotta per evitare richieste inutili: correggi l’errore e riprova sulle scene mancanti.`, true);
+      message(`Storyboard AI generato. Foto pronte: ${ready}/${sceneViews.length}. Generazione automatica interrotta per evitare richieste inutili: correggi l’errore e riprova sulle scene mancanti.`, true);
     }
   }
   async function generateCreative() {
@@ -2266,20 +2338,31 @@
     beginRequest();
     try {
       const token = await requireEditor();
-      const data = {platform: brief.input.platform, suggestions: brief.input.suggestions};
+      const data = {platform: brief.input.platform, suggestions: brief.input.suggestions,scene_count_preference:brief.input.scene_count_preference??'auto'};
       if(brief.mode==='article')data.article_id=brief.input.article.id;
       else if(brief.mode==='image') {
         data.guide_image_base64=await fileToJpeg(guideFile,{width:768,height:768,maxBytes:110000,preserveAspect:true});
         data.guide_usage=brief.input.guide_usage;
         data.guide_fidelity=brief.input.guide_fidelity;
         data.guide_context=brief.input.guide_context;
+      } else if(brief.mode==='video') {
+        if(!videoGuideFile)throw Error('Ricarica il Reel MP4 guida prima di avviare una nuova regia.');
+        const guide=await extractVideoGuideFrames(videoGuideFile);
+        data.guide_video_frames_base64=guide.frames;
+        data.guide_video_duration_ms=guide.durationMs;
+        data.guide_video_frame_times_ms=guide.times;
+        data.guide_fidelity=brief.input.guide_fidelity;
+        data.guide_context=brief.input.guide_context;
       } else data.theme=brief.input.theme;
       generation = await labRequest('video-studio-storyboard', data, token, 110000);
-      if (generation?.plan?.scenes?.length !== 4) throw Error('Storyboard generato non valido.');
+      if (!validSceneCount(generation?.plan?.scenes?.length) ||
+        (brief.input.scene_count_preference!=='auto'&&generation.plan.scenes.length!==brief.input.scene_count_preference))
+        throw Error('Storyboard generato non valido: numero di scene incoerente con la scelta.');
       realSummary.append(
         textElement('p', `Concept: ${generation.plan.concept}`),
         textElement('p', `Pubblico: ${generation.plan.audience}`),
         ...(generation.input.input_type==='guide_image'?[textElement('p', `Guida fotografica: ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'}`)]:[]),
+        ...(generation.input.input_type==='guide_video'?[textElement('p', `Reel MP4 guida: ${generation.input.guide_video_frame_times_ms.length} fotogrammi campionati · ${generation.input.guide_video_duration_ms/1000} s · ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'} · audio non analizzato`)]:[]),
         textElement('p', `Avvertenza editoriale: ${generation.plan.editorial_caution}`),
       );
       createProgressAndPreview();
@@ -2313,7 +2396,7 @@
     setTimeout(() => URL.revokeObjectURL(localUrl), 1000);
   }
 
-  // A project file stores the four complete JPEG previews and independent Canvas layers.
+  // A project file stores 3–5 JPEG previews and independent Canvas layers.
   // Signed references are bound to the authenticated owner. Neither credentials nor MP3
   // bytes are included. This is a browser draft, not a server publication or master.
   function projectOwner() {return getSession()?.user?.id || null;}
@@ -2323,16 +2406,16 @@
   }
   function isValidProject(data) {
     if(!data || data.schema!==PROJECT_SCHEMA || data.owner_id!==projectOwner() ||
-      !data.generation?.plan?.scenes || data.generation.plan.scenes.length!==4 ||
+      !validSceneCount(data.generation?.plan?.scenes?.length) ||
       !data.generation?.input || !data.generation?.receipt?.signature ||
-      !data.brief?.input || !Array.isArray(data.scenes) || data.scenes.length!==4 ||
+      !data.brief?.input || !Array.isArray(data.scenes) || data.scenes.length!==data.generation.plan.scenes.length ||
       typeof data.generation.receipt.expiresAt!=='number') return false;
     return data.scenes.every((scene,i)=>scene?.index===i && (!scene.result ||
       (scene.result.preview_mime==='image/jpeg' && isBase64Image(scene.result.preview_base64) &&
         scene.result.continuity_reference?.scene_index===i)));
   }
   function snapshotProject() {
-    if(!generation || sceneViews.length!==4 || !projectOwner())
+    if(!generation || !validSceneCount(sceneViews.length) || sceneViews.length!==plannedSceneCount() || !projectOwner())
       throw Error('Genera prima uno storyboard per salvare un progetto completo.');
     const projects = sceneViews.map(view=>({index:view.index,
       result:view.result ? {preview_mime:view.result.preview_mime,preview_base64:view.result.preview_base64,
@@ -2431,10 +2514,10 @@
     stopPreview();resetGeneratedOutput();
     brief=project.brief;
     generation=project.generation;
-    if(brief.mode==='image') {
+    if(['image','video'].includes(brief.mode)) {
       // The original uploaded file may no longer exist. A signed guide thumbnail is
       // already persisted in generation.guide_reference for future derived scenes.
-      guideFile=null;
+      guideFile=null;videoGuideFile=null;
     }
     setSummary(brief);
     downloadButton.disabled=false;generateButton.disabled=false;
@@ -2457,7 +2540,7 @@
       }
       updateSceneActionLabel(view);
     }
-    previewIndex=Math.max(0,Math.min(3,Number(project.active_scene)||0));
+    previewIndex=Math.max(0,Math.min(plannedSceneCount()-1,Number(project.active_scene)||0));
     updateProgress();showPreview(previewIndex);
     // Music is linked by a catalogue selection, not embedded in the portable draft.
     // Local audio on another device must be provided again by its owner.
@@ -2466,7 +2549,7 @@
       const stored=String(project.music_choice||'none');
       previewView.musicChoice.value=[...previewView.musicChoice.options].some(opt=>opt.value===stored)?stored:'none';
       await applyMusicChoice();
-      previewView.productChoice.value=['0','1','2','3'].includes(String(project.product_scene))?String(project.product_scene):'2';
+      previewView.productChoice.value=Number.isInteger(Number(project.product_scene))&&Number(project.product_scene)>=0&&Number(project.product_scene)<plannedSceneCount()?String(project.product_scene):String(Math.min(2,plannedSceneCount()-1));
     }
     localProjectActive=true;
     projectMessage('Progetto ripreso: scene, fotografie, testi e logo recuperati. Per nuovi render AI può essere necessario rinnovare la ricevuta.');

@@ -280,11 +280,11 @@
         <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-video-studio" data-vs-workspace>
           <summary class="ol-editorial-block-head">
             <span class="ol-editorial-block-number">5</span>
-            <div><p class="ol-editorial-block-kicker">Produzione video</p><h2>Video Studio</h2><p>Articoli, temi liberi e immagini guida per i Reel.</p></div>
+            <div><p class="ol-editorial-block-kicker">Produzione video</p><h2>Video Studio</h2><p>Articoli, temi liberi, fotografie e Reel MP4 guida.</p></div>
             <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
           </summary>
           <div class="ol-editorial-block-body">
-            <div class="ol-vs-intro"><strong>Video Studio v1.2.2 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI reale e avvia automaticamente quattro fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini non vengono archiviate nel server: rimangono nel browser soltanto se salvi il progetto. Il progetto può essere salvato sul dispositivo o esportato in JSON e riaperto senza nuove generazioni. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi aggiungere testi liberi e trascinare, ingrandire o rendere trasparente anche il logo autentico, mantenendo impostazioni indipendenti per scena. Il master approvato e la pubblicazione restano disabilitati.</p></div>
+            <div class="ol-vs-intro"><strong>Video Studio v1.3.0 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI da 3 a 5 scene e avvia fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini non vengono archiviate nel server: rimangono nel browser soltanto se salvi il progetto. Il progetto può essere salvato sul dispositivo o esportato in JSON e riaperto senza nuove generazioni. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi aggiungere testi liberi e trascinare, ingrandire o rendere trasparente anche il logo autentico, mantenendo impostazioni indipendenti per scena. Il master approvato e la pubblicazione restano disabilitati.</p></div>
             <p class="ol-muted ol-small" data-vs-session-status role="status" aria-live="polite">Verifica accesso all'apertura della sezione.</p>
             <form class="ol-form ol-vs-form" data-vs-brief-form hidden>
               <fieldset class="ol-fieldset"><legend>1. Sorgente</legend>
@@ -292,6 +292,7 @@
                   <label><input type="radio" name="vs-source" value="article" checked> Articolo pubblicato</label>
                   <label><input type="radio" name="vs-source" value="theme"> Tema libero</label>
                   <label><input type="radio" name="vs-source" value="image"> Immagine guida</label>
+                  <label><input type="radio" name="vs-source" value="video"> Reel MP4 guida</label>
                 </div>
                 <div class="ol-field" data-vs-article-wrap>
                   <label for="vs-editorial-article">Articolo Editoriale</label>
@@ -315,6 +316,15 @@
                   <label for="vs-editorial-guide-context">Contesto aggiuntivo (facoltativo)</label>
                   <input id="vs-editorial-guide-context" type="text" maxlength="180" placeholder="Es. Consumatore che cerca una soluzione alle bollette">
                 </div>
+                <div class="ol-field" data-vs-video-wrap hidden>
+                  <label for="vs-editorial-video-guide">Carica un Reel MP4 come linea guida</label>
+                  <input id="vs-editorial-video-guide" type="file" accept="video/mp4,.mp4">
+                  <small>MP4 fino a 60 MB e 180 secondi. Il browser estrae 5–8 fotogrammi distribuiti sull'intero Reel; l’AI esamina la sequenza, NON l’audio né il movimento tra i fotogrammi. Il video non viene copiato nel nuovo montaggio né salvato nel progetto JSON.</small>
+                  <label for="vs-editorial-video-fidelity">Fedeltà delle foto AI al Reel guida</label>
+                  <select id="vs-editorial-video-fidelity"><option value="strong">Aderenza forte — luce, palette e stile coerenti</option><option value="inspiration">Ispirazione libera — maggiore varietà visiva</option></select>
+                  <label for="vs-editorial-video-context">Contesto aggiuntivo (facoltativo)</label>
+                  <input id="vs-editorial-video-context" type="text" maxlength="180" placeholder="Es. Ritmo, impostazione narrativa e atmosfera da seguire">
+                </div>
               </fieldset>
               <fieldset class="ol-fieldset"><legend>2. Indicazioni creative</legend>
                 <div class="ol-field"><label for="vs-editorial-suggestions">Suggerimenti al motore (facoltativi)</label>
@@ -322,16 +332,17 @@
                   <small>I suggerimenti orientano la creatività, non autorizzano dati o promesse non verificati.</small>
                 </div>
                 <div class="ol-vs-options">
+                  <div class="ol-field"><label for="vs-editorial-scene-count">Numero scene</label><select id="vs-editorial-scene-count"><option value="auto">Automatico (3–5)</option><option value="3">3 scene</option><option value="4">4 scene</option><option value="5">5 scene</option></select><small>La scelta manuale prevale sull'Autopilota; in automatico decide la regia AI.</small></div>
                   <div class="ol-field"><label for="vs-editorial-platform">Destinazione</label><select id="vs-editorial-platform"><option value="instagram_reel">Instagram Reel</option><option value="facebook_reel">Facebook Reel</option></select></div>
                 </div>
               </fieldset>
               <div class="ol-toolbar-group ol-vs-actions">
                 <button class="ol-button ol-button-primary" type="submit">Prepara brief</button>
                 <button class="ol-button ol-button-secondary" type="button" data-vs-download disabled>Scarica input JSON</button>
-                <button class="ol-button ol-button-primary" type="button" data-vs-generate disabled>Genera storyboard + 4 foto AI</button>
+                <button class="ol-button ol-button-primary" type="button" data-vs-generate disabled>Genera storyboard + foto AI</button>
               </div>
               <div class="ol-alert" role="status" data-vs-feedback aria-live="polite" hidden></div>
-              <section class="ol-vs-output" data-vs-output hidden aria-live="polite"><h3>Brief preparato</h3><div data-vs-summary></div><p class="ol-muted ol-small">Il brief non è ancora una regia AI. Premi «Genera storyboard + 4 foto AI» per attivare il motore se abilitato sul server.</p></section>
+              <section class="ol-vs-output" data-vs-output hidden aria-live="polite"><h3>Brief preparato</h3><div data-vs-summary></div><p class="ol-muted ol-small">Il brief non è ancora una regia AI. Premi «Genera storyboard + foto AI» per attivare il motore se abilitato sul server.</p></section>
               <section class="ol-vs-output" data-vs-generated hidden aria-live="polite"><h3>Regia AI generata · Da revisionare</h3><div data-vs-generated-summary></div><div data-vs-scenes></div><p class="ol-muted ol-small">Le anteprime fotografiche vengono mostrate nel browser senza salvarle su Supabase: salva il progetto per recuperarle. Puoi rigenerare ogni scena con note di revisione. Il montaggio browser utilizza le nuove foto AI, i testi, il logo e la musica della libreria privata scelta automaticamente o modificata manualmente. Scarica la bozza per la revisione; non è un master approvato né una pubblicazione autorizzata.</p></section>
             </form>
           </div>
@@ -346,6 +357,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.117" defer></script>
-<script src="/assets/video-studio-workspace.js?v=1.2.2" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.3.0" defer></script>
 </body>
 </html>

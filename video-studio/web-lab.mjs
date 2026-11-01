@@ -1,11 +1,10 @@
 // V1.1.7: signed sequential visual references; all photos remain manually reviewable.
 // All paid operations are behind the existing authenticated Admin API and a server flag.
 import crypto from 'node:crypto';
-import {normalizeInput, generateCreativePlan, validateCreativeResponse} from './creative-director.mjs';
+import {normalizeInput, generateCreativePlan, sceneRolesForCount} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.2.2';
-const ROLES = ['hook','context','value','cta'];
+export const VIDEO_STUDIO_LAB_VERSION = '1.3.0';
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -46,23 +45,35 @@ export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Da
   if(!validUUID(userId)||!receipt||!Number.isSafeInteger(receipt.expiresAt)||receipt.expiresAt<=(allowExpired?now-MAX_RESUME_AGE_MS:now)||receipt.expiresAt>now+MAX_FUTURE_MS||!/^[a-f\d]{64}$/.test(receipt.signature||''))err('ricevuta storyboard assente, alterata o scaduta');
   const expected=hmac(tokenData({userId,input,plan,expiresAt:receipt.expiresAt}),secret(env));
   if(!crypto.timingSafeEqual(Buffer.from(receipt.signature,'hex'),Buffer.from(expected,'hex')))err('la proposta è stata modificata: rigenerare lo storyboard');
-  if(plan?.status!=='needs_human_review'||plan?.publication_authorized!==false||!Array.isArray(plan.scenes)||plan.scenes.length!==4)
+  if(plan?.status!=='needs_human_review'||plan?.publication_authorized!==false||!Array.isArray(plan.scenes)||!sceneRolesForCount(plan.scenes.length))
     err('storyboard non approvato o non valido');
   if(plan.creative_schema_version!==2||plan.visual_uniqueness_status!=='pending_image_and_history_checks'||
     typeof plan.story_logline!=='string'||!plan.story_logline.trim()||typeof plan.episode_angle!=='string'||!plan.episode_angle.trim())
     err('storyboard narrativo non valido: rigenerare');
+  if(input?.scene_count_preference!==undefined && input.scene_count_preference!=='auto' &&
+    plan.scenes.length!==input.scene_count_preference)err('numero scene non coerente con il brief firmato');
+  if(plan.duration_ms!==15000 || plan.scenes.some(s=>!Number.isInteger(s.duration_ms)||s.duration_ms<2000)||
+    plan.scenes.reduce((sum,s)=>sum+s.duration_ms,0)!==15000)
+    err('durata delle scene non valida');
+  const roles=sceneRolesForCount(plan.scenes.length);
   for(const [i,s] of plan.scenes.entries()) {
-    if(s.role!==ROLES[i]||s.id!==`scene_${i+1}`||typeof s.editorial_goal!=='string'||s.editorial_goal.length>600||
+    if(s.role!==roles[i]||s.id!==`scene_${i+1}`||typeof s.editorial_goal!=='string'||s.editorial_goal.length>600||
       !String(s.narrative_action||'').trim()||!String(s.setting||'').trim()||!String(s.shot_type||'').trim())
       err('contenuto scena non valido');
   }
   return true;
 }
-export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideUsage='',guideContext='',guideFidelity='strong', suggestions='',platform='instagram_reel'},
+export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideVideoFramesBase64=[],guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='',guideContext='',guideFidelity='strong',sceneCountPreference='auto', suggestions='',platform='instagram_reel'},
   {readArticle,generate=generateCreativePlan,env=process.env,now=Date.now(),sharpFactory=null}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
-  if(Number(Boolean(theme))+Number(Boolean(articleId))+Number(Boolean(guideImageBase64))!==1)
-    err('scegli un tema, un articolo oppure una foto guida');
+  const hasVideo=Array.isArray(guideVideoFramesBase64)&&guideVideoFramesBase64.length>0;
+  if(Number(Boolean(theme))+Number(Boolean(articleId))+Number(Boolean(guideImageBase64))+Number(hasVideo)!==1)
+    err('scegli un tema, un articolo, una foto o un Reel guida');
+  if(hasVideo && (guideVideoFramesBase64.length<5||guideVideoFramesBase64.length>8))
+    err('Reel guida: servono da 5 a 8 fotogrammi distribuiti nel tempo');
+  const guideVideoFrames=hasVideo?guideVideoFramesBase64.map(frame=>decodeUploadedJpeg(frame,55000)):[];
+  if(guideVideoFrames.reduce((sum,frame)=>sum+frame.length,0)>400000)
+    err('fotogrammi Reel guida troppo grandi');
   const article=articleId ? fromEditorialRow(await readArticle(articleId)) : null;
   const guideBytes=guideImageBase64 ? decodeUploadedJpeg(guideImageBase64,115000) : null;
   let guideSharp=null;
@@ -73,14 +84,22 @@ export async function createStoryboard({userId, theme, articleId, guideImageBase
       err('dimensioni immagine guida non valide');
   }
   const input=normalizeInput({theme:article?null:theme,article,suggestions,platform,
-    guideImageSha256:guideBytes?sha(guideBytes):'',guideUsage,guideContext,guideFidelity});
-  const plan=await generate(input,{guideImageBytes:guideBytes});
-  if(plan.status!=='needs_human_review'||plan.scenes.length!==4)err('regia non revisionabile');
+    guideImageSha256:guideBytes?sha(guideBytes):'',
+    guideVideoSha256:hasVideo?sha(Buffer.concat(guideVideoFrames)):'',
+    guideVideoDurationMs,guideVideoFrameTimesMs,guideUsage,guideContext,guideFidelity,sceneCountPreference});
+  const plan=await generate(input,{guideImageBytes:guideBytes,guideVideoFrames});
+  if(plan.status!=='needs_human_review'||!sceneRolesForCount(plan.scenes?.length)||
+    (input.scene_count_preference!=='auto'&&plan.scenes.length!==input.scene_count_preference))
+    err('regia non revisionabile');
   const receipt=signProposal(userId,input,plan,{env,now});
   let guide_reference=null;
   if(guideBytes) {
-    // Preserve the approved source (without cropping) as a signed, bounded reference.
+    // Preserve the image source (without cropping) as a signed, bounded reference.
     guide_reference=signReference(userId,receipt,-1,await guideThumbnail(guideBytes,guideSharp),env);
+  } else if(hasVideo) {
+    // Only a small representative still is needed for subsequent photo continuity.
+    // The MP4 itself is neither uploaded nor persisted in project JSON.
+    guide_reference=signReference(userId,receipt,-1,guideVideoFrames[0],env);
   }
   return {input,plan,receipt,guide_reference,
     trace:{creative:'provider_returned',images:0,render:'not_started',publication_authorized:false}};
@@ -89,8 +108,8 @@ const MAX_REFERENCE_BYTES=35000;
 const MAX_GUIDE_BYTES=85000;
 // Signed reference order is validated server-side: a client cannot choose arbitrary images.
 export function expectedReferenceIndices(sceneIndex,input) {
-  if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>3)err('indice scena non valido');
-  const isGuide=input?.input_type==='guide_image';
+  if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>4)err('indice scena non valido');
+  const isGuide=['guide_image','guide_video'].includes(input?.input_type);
   const strong=isGuide&&input?.guide_fidelity==='strong';
   if(strong) {
     if(sceneIndex===0)return [-1];
@@ -137,11 +156,11 @@ function verifyReferences(refs,sceneIndex,userId,receipt,env,input) {
 export function renewStoryboard({userId,input,plan,receipt,guideReference=null,sceneReferences=[]},
   {env=process.env,now=Date.now()}={}) {
   verifyProposal(userId,input,plan,receipt,{env,now,allowExpired:true});
-  if(!Array.isArray(sceneReferences)||sceneReferences.length!==4)
+  if(!Array.isArray(sceneReferences)||sceneReferences.length!==plan.scenes.length)
     err('riferimenti del progetto incompleti');
   function renewOne(ref,idx){
     if(ref==null)return null;
-    if(idx===-1 && input.input_type!=='guide_image')err('guida non prevista per questo storyboard');
+    if(idx===-1 && !['guide_image','guide_video'].includes(input.input_type))err('guida non prevista per questo storyboard');
     const limit=idx===-1?MAX_GUIDE_BYTES:MAX_REFERENCE_BYTES;
     if(ref?.scene_index!==idx||typeof ref.jpeg_base64!=='string'||
       ref.jpeg_base64.length>Math.ceil(limit*4/3)+4||
@@ -155,7 +174,7 @@ export function renewStoryboard({userId,input,plan,receipt,guideReference=null,s
     return bytes;
   }
   const guide=renewOne(guideReference,-1);
-  if(input.input_type==='guide_image'&&!guide)err('guida fotografica salvata mancante');
+  if(['guide_image','guide_video'].includes(input.input_type)&&!guide)err('riferimento guida salvato mancante');
   const sceneBytes=sceneReferences.map((ref,i)=>renewOne(ref,i));
   const renewedReceipt=signProposal(userId,input,plan,{env,now});
   return {receipt:renewedReceipt,
@@ -217,7 +236,7 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   {generate=generatePhoto,env=process.env,now=Date.now(),sharpFactory}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   verifyProposal(userId,input,plan,receipt,{env,now});
-  if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>3)err('indice scena non valido');
+  if(!Number.isInteger(sceneIndex)||sceneIndex<0||sceneIndex>=plan.scenes.length)err('indice scena non valido');
   const scene=plan.scenes[sceneIndex];
   if(typeof revisionNotes!=='string'||revisionNotes.length>700)err('note revisione non valide');
   const notes=revisionNotes.trim();
@@ -247,7 +266,7 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
     }
   }
   // Free local preliminary QA: tonal deviation only, not a claim of stylistic equivalence.
-  const guide_style_check=!isManual&&input?.input_type==='guide_image'&&input.guide_fidelity==='strong'
+  const guide_style_check=!isManual&&['guide_image','guide_video'].includes(input?.input_type)&&input.guide_fidelity==='strong'
     ? await basicGuideStyleCheck(referenceImages[0],result.bytes,sharp) : null;
   const anchor=await continuityThumbnail(result.bytes,sharp);
   const continuity_reference=signReference(userId,receipt,sceneIndex,anchor,env);
