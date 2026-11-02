@@ -800,13 +800,7 @@ td {
 
 /* v0.10.69 — controllo preferenze sempre raggiungibile dal footer,
    anche quando il widget privacy flottante è disattivato da iubenda. */
-footer a.iubenda-cs-preferences-link {
-    display: inline-block;
-    color: inherit;
-    text-decoration: underline;
-    text-underline-offset: 3px;
-    cursor: pointer;
-}
+/* I link alle preferenze mantengono la tipografia degli altri link del footer. */
 footer a.iubenda-cs-preferences-link:focus-visible {
     outline: 3px solid rgba(37, 99, 235, .3);
     outline-offset: 3px;
