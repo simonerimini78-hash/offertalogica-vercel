@@ -90,3 +90,30 @@
 .ol-cycle-carryover{display:grid;gap:3px;padding:10px 11px;border:1px dashed #d7e6dc;border-radius:8px;background:#fff}.ol-cycle-carryover strong{font-size:12px}.ol-cycle-carryover small{color:#64748b;font-size:11px}.ol-cycle-steps-article{margin-bottom:4px}.ol-article-history-row>.ol-cycle-row-summary strong{font-size:13px}.ol-article-history-row .ol-cycle-row-body{background:#fbfefc}.ol-cycle-row-nested{margin-top:8px}.ol-article-plan-group,.ol-article-run-log{display:grid;gap:8px}.ol-article-plan-title{display:block;color:#0f172a;font-weight:700;font-size:11px;text-transform:uppercase;letter-spacing:.02em}.ol-article-run-log-item{display:grid;grid-template-columns:minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:8px 9px;border:1px solid #dfe8e3;border-radius:7px;background:#fff}.ol-article-run-log-item strong{font-size:12px}.ol-article-run-log-item span{font-size:11px;color:#64748b}.ol-cycle-status-inline{font-size:11px;font-style:normal;font-weight:700;padding:3px 7px;border-radius:999px}.ol-cycle-status-inline-success{background:#e8f6ee;color:#1f7a43}.ol-cycle-status-inline-pending{background:#eef2f6;color:#516275}.ol-cycle-status-inline-failed{background:#fdecec;color:#b42318}.ol-cycle-status-inline-running{background:#fff4d8;color:#946200}.ol-cycle-carryover-note{padding:9px 10px;border-radius:8px;background:#fff6db;color:#7c5d00;font-size:12px;border:1px solid #f0df99}
 
 .ol-article-history-section{display:grid;gap:7px;padding:10px;border:1px solid #dfe8e3;border-radius:8px;background:#fff}.ol-article-history-section>strong{font-size:12px}.ol-article-history-section>small{font-size:11px;color:#526579;line-height:1.45}.ol-article-selected-topic{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 9px;border-radius:7px;background:#f4faf6}.ol-article-selected-topic b{font-size:12px}.ol-article-selected-topic span{font-size:11px;font-weight:700;color:#1f7a43}.ol-article-text-details{border:1px solid #e3ece7;border-radius:7px;background:#fbfefc}.ol-article-text-details>summary{cursor:pointer;padding:8px 9px;font-size:11px;font-weight:700}.ol-article-text-details>pre{margin:0;padding:10px;border-top:1px solid #e3ece7;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:11px;line-height:1.5;color:#526579}.ol-social-regenerate-box{display:grid;gap:8px;margin-top:8px;padding:9px 10px;border:1px solid #f0df99;border-radius:8px;background:#fff8df}.ol-social-regenerate-box small{font-size:11px;color:#725a00}
+
+
+/* Centro decisionale editoriale v0.12.119: la scelta confermata non viene confusa con il dry-run. */
+.ol-decision-heading{margin-bottom:12px}
+.ol-decision-hub{display:grid;gap:12px;margin-bottom:14px;padding:15px;border:1px solid #b9d7c4;border-radius:12px;background:#f8fcf9}
+.ol-decision-path{display:flex;flex-wrap:wrap;gap:7px}
+.ol-decision-path span{display:inline-block;padding:5px 9px;border-radius:99px;background:#edf4ef;color:#295c42;font-size:11px;font-weight:700}
+.ol-decision-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.ol-decision-card{min-width:0;display:grid;align-content:start;gap:7px;padding:15px;border:1px solid #dce6df;border-radius:10px;background:#fff}
+.ol-decision-card-primary{border:2px solid #6ca782;background:#fcfffd}
+.ol-decision-card h4{margin:0 0 3px;font-size:13px;color:#224835;line-height:1.4}
+.ol-decision-card strong{display:block;font-size:16px;line-height:1.35;color:#18354a;overflow-wrap:anywhere}
+.ol-decision-card p{margin:0;font-size:12px;line-height:1.5;color:#536579;overflow-wrap:anywhere}
+.ol-decision-state{display:inline-flex;justify-self:start;max-width:100%;padding:4px 9px;border-radius:999px;background:#edf1f5;color:#4e6174;font-size:11px;font-weight:800;line-height:1.4}
+.ol-decision-state.is-confirmed{background:#e2f4e8;color:#23633e}
+.ol-decision-state.is-running{background:#eaf2ff;color:#2a5580}
+.ol-decision-state.is-preview{background:#fff4da;color:#835d17}
+.ol-decision-state.is-attention{background:#fff0ed;color:#9b341f}
+.ol-decision-card .ol-decision-reason{font-size:11px;color:#687787}
+.ol-decision-card .ol-decision-caution{color:#94512b;font-weight:700}
+.ol-decision-link{appearance:none;padding:0;border:0;background:none;justify-self:start;color:#136246;text-decoration:underline;font-size:12px;font-weight:800;cursor:pointer;text-align:left}
+.ol-decision-link:focus-visible,.ol-decision-actions button:focus-visible{outline:3px solid #488d70;outline-offset:3px}
+.ol-decision-warning{margin:0;padding:10px 12px;border:1px solid #eed18d;border-radius:8px;background:#fff8e7;color:#734d12;font-size:12px;line-height:1.45}
+.ol-decision-warning[hidden]{display:none!important}
+.ol-decision-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+@media(max-width:1050px){.ol-decision-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-decision-card-primary{grid-column:1/-1;grid-row:1}}
+@media(max-width:620px){.ol-decision-hub{padding:11px}.ol-decision-grid{grid-template-columns:1fr}.ol-decision-card-primary{grid-column:auto;grid-row:auto}.ol-decision-card{padding:12px}.ol-decision-actions .ol-button{width:100%}.ol-decision-path{display:grid;gap:4px}}
