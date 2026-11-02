@@ -2023,9 +2023,64 @@
             margin-top: 2px;
             line-height: 1.3;
         }
-        .guided-assistant-option:hover {
+        .guided-assistant-option:hover,
+        .guided-assistant-option:focus-visible {
             border-color: #16a34a;
             background: #f8fafc;
+        }
+        .guided-assistant-option.is-primary {
+            border-color: #86efac;
+            background: #f0fdf4;
+        }
+        .guided-assistant-next {
+            margin-bottom: 12px;
+            padding: 10px;
+            border: 1px solid #bbf7d0;
+            border-radius: 12px;
+            background: #f0fdf4;
+        }
+        .guided-assistant-next > strong {
+            display: block;
+            margin-bottom: 6px;
+            color: #166534;
+            font-size: 12px;
+        }
+        .guided-assistant-next .guided-assistant-option { margin: 0; }
+        .guided-assistant-next .guided-assistant-option + .guided-assistant-option { margin-top: 7px; }
+        .guided-assistant-option.is-help { border-color: #cbd5e1; background: #fff; }
+        .guided-assistant-option[hidden], .guided-assistant-next[hidden] { display: none !important; }
+        .guided-assistant-avatar {
+            display: grid; place-items: center; flex: 0 0 44px;
+            width: 44px; height: 44px; border: 2px solid #bbf7d0;
+            border-radius: 15px; background: linear-gradient(150deg, #16a34a, #166534);
+            color: #fff; box-shadow: 0 5px 14px rgba(22, 163, 74, .2);
+            font-size: 15px; font-weight: 950; letter-spacing: .3px;
+        }
+        .guided-assistant-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
+        .guided-assistant-journey {
+            display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
+            padding: 11px 12px 8px; border-bottom: 1px solid #e2e8f0;
+        }
+        .guided-assistant-journey-step { display: grid; justify-items: center; gap: 3px; color: #64748b; }
+        .guided-assistant-journey-step b {
+            display: grid; place-items: center; width: 27px; height: 27px;
+            border: 1px solid #cbd5e1; border-radius: 50%; background: #fff;
+            font-size: 12px; font-weight: 900;
+        }
+        .guided-assistant-journey-step small { font-size: 10px; font-weight: 750; }
+        .guided-assistant-journey-step.is-current { color: #166534; }
+        .guided-assistant-journey-step.is-current b {
+            color: #fff; background: #15803d; border-color: #15803d;
+        }
+        .guided-assistant-journey-step.is-complete b {
+            color: #166534; border-color: #86efac; background: #dcfce7;
+        }
+        .guided-assistant-launcher.is-active { box-shadow: 0 0 0 3px rgba(134, 239, 172, .4), 0 18px 38px rgba(22, 163, 74, .28); }
+        .guided-assistant-mobile-toggle.is-active { border-color: #16a34a; background: #dcfce7; }
+        .guided-assistant-stage { margin-bottom: 8px; font-size: 11px; font-weight: 800; color: #15803d; }
+        .guided-assistant-disclaimer { margin: 10px 0 0; font-size: 11px; line-height: 1.4; color: #475569; }
+        @media (max-width: 560px) {
+            #guided-assistant-mobile-toggle { font-size: 11px !important; letter-spacing: -.2px; }
         }
         .guided-assistant-resources {
             margin-top: 12px;
@@ -4400,7 +4455,17 @@
                 height: 18px !important;
             }
         }
-    </style>
+            /* OLI: il pannello resta interamente utilizzabile anche su telefoni piccoli. */
+        @media (max-width: 560px) {
+            .guided-assistant {
+                left: 9px;
+                right: 9px;
+                bottom: max(58px, calc(48px + env(safe-area-inset-bottom)));
+                width: auto;
+                max-height: calc(100dvh - 83px);
+            }
+        }
+</style>
 <script>
 (function () {
     try {
@@ -21309,26 +21374,46 @@ if (document.readyState === "loading") {
 </main>
 
 <button type="button" class="guided-assistant-launcher" id="guided-assistant-toggle" aria-expanded="false" aria-controls="guided-assistant-panel">
-    Hai bisogno di aiuto?
+    Chiedi a OLI
 </button>
-<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?">?</button>
+<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?">OLI</button>
 
-<section class="guided-assistant" id="guided-assistant-panel" aria-label="Assistente guidato OffertaLogica">
+<section class="guided-assistant" id="guided-assistant-panel" aria-label="OLI, assistente guidato OffertaLogica">
     <div class="guided-assistant-header">
-        <div>
-            <strong>Assistente OffertaLogica</strong>
-            <span>Ti aiuto a scegliere il percorso giusto, senza raccogliere dati in questa chat.</span>
+        <div class="guided-assistant-heading">
+            <div class="guided-assistant-avatar" aria-hidden="true">OLI</div>
+            <div>
+                <strong>OLI · La tua guida OffertaLogica</strong>
+                <span>Ti accompagno fino alle offerte. Decidi tu come procedere, senza obbligo di registrazione.</span>
+            </div>
         </div>
-        <button type="button" class="guided-assistant-close" id="guided-assistant-close" aria-label="Chiudi assistente">x</button>
+        <button type="button" class="guided-assistant-close" id="guided-assistant-close" aria-label="Chiudi OLI">×</button>
+    </div>
+    <div class="guided-assistant-journey" role="group" aria-label="Le quattro tappe del percorso con OLI">
+        <span class="guided-assistant-journey-step is-current" data-oli-step="1" aria-current="step"><b>1</b><small>Partenza</small></span>
+        <span class="guided-assistant-journey-step" data-oli-step="2"><b>2</b><small>Dati</small></span>
+        <span class="guided-assistant-journey-step" data-oli-step="3"><b>3</b><small>Offerte</small></span>
+        <span class="guided-assistant-journey-step" data-oli-step="4"><b>4</b><small>Scelta</small></span>
     </div>
     <div class="guided-assistant-body">
+        <div class="guided-assistant-stage" id="guided-assistant-stage" role="status" aria-live="polite">Passo 1 di 4 · Scegli come iniziare</div>
         <div class="guided-assistant-message" id="guided-assistant-message">
-            Dimmi cosa vuoi fare: ti porto direttamente nella sezione corretta del calcolatore.
+            Puoi partire dalla bolletta per una stima personalizzata, oppure vedere subito le offerte su un profilo medio.
+        </div>
+        <div class="guided-assistant-next" id="guided-assistant-next" hidden>
+            <strong>Il tuo prossimo passo</strong>
+            <button type="button" class="guided-assistant-option is-primary" id="guided-assistant-next-button" data-assistant-action="pdf">Carica la bolletta</button>
+            <button type="button" class="guided-assistant-option is-help" id="guided-assistant-review-button" data-assistant-action="avvia" hidden>Ho completato i dati: scopri le offerte</button>
+            <button type="button" class="guided-assistant-option is-help" id="guided-assistant-help-button" data-assistant-action="contatti" hidden>Non sai quale scegliere? Chiedi aiuto<small>Ti rispondiamo via email dopo la verifica dei dati.</small></button>
         </div>
         <div class="guided-assistant-options">
-            <button type="button" class="guided-assistant-option" data-assistant-action="pdf">
-                Usa la tua bolletta
-                <small>Scatta una foto o carica il PDF: leggiamo i dati utili al confronto.</small>
+            <button type="button" class="guided-assistant-option is-primary" data-assistant-action="pdf">
+                Carica la bolletta PDF
+                <small>Apri subito il selettore: il sito leggerà i dati e ti segnalerà quelli da verificare.</small>
+            </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="foto">
+                Fotografa la bolletta
+                <small>Apri la fotocamera e fotografa una pagina con consumi e condizioni economiche.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="media">
                 Parti con una stima media
@@ -21338,19 +21423,24 @@ if (document.readyState === "loading") {
                 Inserisci i dati a mano
                 <small>Compila consumi e dati reali della tua fornitura.</small>
             </button>
+            <button type="button" class="guided-assistant-option" data-assistant-action="contatti">
+                Preferisco l'aiuto di un consulente
+                <small>Ti rispondiamo via email tramite il modulo esistente, con consenso e verifica del numero.</small>
+            </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="business">
                 Sono un'azienda o P.IVA
                 <small>Apri il percorso business con analisi preliminare e supporto del partner Switcho.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="offerte">
-                Voglio capire le offerte
-                <small>Le offerte compaiono dopo il confronto; l’OTP serve solo se prosegui con un percorso che richiede la verifica del numero.</small>
+                Guidami alle offerte
+                <small>Ti porto alle card disponibili dopo il confronto, senza selezionare nulla al posto tuo.</small>
             </button>
             <button type="button" class="guided-assistant-option" data-assistant-action="privacy">
                 Come trattate i miei dati?
                 <small>Consulta privacy, cookie e termini del servizio.</small>
             </button>
         </div>
+        <p class="guided-assistant-disclaimer">Le offerte sono visibili senza lasciare contatti o prestare consensi facoltativi. Per richiedere assistenza puoi usare il modulo dedicato.</p>
         <nav class="guided-assistant-resources" aria-label="Guide utili OffertaLogica">
             <strong>Guide e strumenti utili</strong>
             <div class="guided-assistant-resources-links">
@@ -21515,13 +21605,127 @@ if (document.readyState === "loading") {
     const close = document.getElementById("guided-assistant-close");
     const message = document.getElementById("guided-assistant-message");
     const mobileQuery = window.matchMedia("(max-width: 560px)");
+    const stageLabel = document.getElementById("guided-assistant-stage");
+    const helpButton = document.getElementById("guided-assistant-help-button");
+    const reviewButton = document.getElementById("guided-assistant-review-button");
+    const nextBox = document.getElementById("guided-assistant-next");
+    const nextButton = document.getElementById("guided-assistant-next-button");
+    const regularContact = panel?.querySelector('.guided-assistant-options [data-assistant-action="contatti"]');
+    let percorsoOliAvviato = false;
+    let ultimoPercorso = "";
+    let faseSceltaAttivata = false;
 
     if (!panel || !toggle || !message) return;
 
+    function elementoVisibile(element) {
+        if (!element || element.hidden) return false;
+        const style = window.getComputedStyle(element);
+        return style.display !== "none" && style.visibility !== "hidden";
+    }
+
+    function primaCardDisponibile() {
+        // Le card iniziali sono illustrative: il ranking deve essere stato realmente renderizzato.
+        const section = document.querySelector(".fornitori-consigliati-section");
+        if (!section || section.style.display !== "block" || !elementoVisibile(section)) return null;
+        for (const id of ["offerte-ranking-group", "offerta-selezionata-group"]) {
+            const group = document.getElementById(id);
+            if (!elementoVisibile(group)) continue;
+            const card = Array.from(group.querySelectorAll(".offer-group-cards .partner-vertical-card"))
+                .find((item) => elementoVisibile(item));
+            if (card) return card;
+        }
+        return null;
+    }
+
+    function bollettaPresente() {
+        return Boolean(document.querySelector("#pdf-selected-files .pdf-file-item"))
+            || (typeof LEAD_STATE !== "undefined" && Boolean(LEAD_STATE.pdfDocuments?.length))
+            || (typeof PDF_PENDING_FILES !== "undefined" && Boolean(PDF_PENDING_FILES.length));
+    }
+
+    function impostaFase(numero, etichetta) {
+        if (stageLabel) stageLabel.textContent = `Passo ${numero} di 4 · ${etichetta}`;
+        panel.querySelectorAll("[data-oli-step]").forEach((item) => {
+            const fase = Number(item.dataset.oliStep);
+            item.classList.toggle("is-current", fase === numero);
+            item.classList.toggle("is-complete", fase < numero);
+            if (fase === numero) item.setAttribute("aria-current", "step");
+            else item.removeAttribute("aria-current");
+        });
+    }
+
+    function impostaPassaggio(label, action) {
+        if (!nextBox || !nextButton) return;
+        nextBox.hidden = false;
+        nextButton.textContent = label;
+        nextButton.dataset.assistantAction = action;
+    }
+
+    // OLI legge solo lo stato del flusso reale; non anticipa calcoli né clic sui partner.
+    function aggiornaProssimoPasso() {
+        const card = primaCardDisponibile();
+        if (card) {
+            impostaFase(faseSceltaAttivata ? 4 : 3, faseSceltaAttivata ? "Scegli la tua card" : "Offerte pronte");
+            setMessage("Le card del confronto sono disponibili. Controlla costo stimato, quota fissa e condizioni. Se sei indeciso, posso indirizzarti all'assistenza OffertaLogica.");
+            impostaPassaggio("Mostrami le card delle offerte", "offerte");
+            if (helpButton) helpButton.hidden = false;
+            if (reviewButton) reviewButton.hidden = true;
+            if (regularContact) regularContact.hidden = true;
+            return;
+        }
+        faseSceltaAttivata = false;
+        if (helpButton) helpButton.hidden = true;
+        if (reviewButton) reviewButton.hidden = true;
+        if (regularContact) regularContact.hidden = false;
+        const emptyMessage = document.getElementById("offerte-empty-message");
+        const hasEmptyResult = elementoVisibile(emptyMessage) && elementoVisibile(document.querySelector(".fornitori-consigliati-section"));
+        if (hasEmptyResult) {
+            impostaFase(3, "Nessuna card per questo filtro");
+            setMessage("Il confronto è stato eseguito ma non ci sono offerte per il filtro attuale. Puoi rivedere il percorso o chiedere supporto senza lasciare contatti obbligatori per la consultazione.");
+            impostaPassaggio("Rivedi i dati o i filtri", "completa");
+            return;
+        }
+        if (bollettaPresente()) {
+            impostaFase(2, "Controlla i dati letti");
+            setMessage("Hai selezionato una bolletta. Se la lettura è ancora in corso attendi l'esito, poi verifica e completa gli eventuali dati mancanti. Quando i dati sono sufficienti, il confronto può partire.");
+            impostaPassaggio("Vai ai dati della bolletta", "completa");
+            return;
+        }
+        const manual = document.getElementById("btn-attiva-precisi");
+        if (manual?.classList.contains("selected")) {
+            impostaFase(2, "Completa i dati");
+            setMessage("Completa i dati della fornitura, poi usa Scopri le offerte. OLI ti aiuterà a leggere le card risultanti.");
+            impostaPassaggio("Continua la compilazione", "completa");
+            if (reviewButton) reviewButton.hidden = false;
+            return;
+        }
+        if (ultimoPercorso === "media") {
+            impostaFase(2, "Prepariamo la stima");
+            setMessage("Il profilo medio è stato selezionato. Se il catalogo è pronto puoi avviare il confronto; in caso contrario attendi la fine del caricamento dei dati.");
+            impostaPassaggio("Scopri le offerte con la stima", "avvia");
+            return;
+        }
+        impostaFase(1, "Scegli come iniziare");
+        setMessage("Parti caricando la bolletta o usa una stima media. Per vedere le offerte non devi registrarti né lasciare contatti.");
+        if (nextBox) nextBox.hidden = true; // le azioni iniziali sono già qui sotto: non duplicarle
+    }
+
+    function aggiornaIndicatoreOli() {
+        if (!percorsoOliAvviato) return;
+        const offertePronte = Boolean(primaCardDisponibile());
+        toggle.textContent = offertePronte ? "OLI · Offerte pronte" : "OLI · Continua";
+        toggle.classList.add("is-active");
+        mobileToggle?.classList.add("is-active");
+        mobileToggle?.setAttribute("title", offertePronte ? "OLI: offerte pronte da consultare" : "Continua con OLI");
+    }
+
     function setOpen(isOpen) {
+        const wasOpen = panel.classList.contains("is-open");
+        if (isOpen) aggiornaProssimoPasso();
         panel.classList.toggle("is-open", isOpen);
         toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
         mobileToggle?.setAttribute("aria-expanded", isOpen ? "true" : "false");
+        if (isOpen && !wasOpen && typeof trackEvent === "function") trackEvent("assistance_guide_opened", { assistant: "OLI" });
     }
 
     function resetMobileTogglePosition() {
@@ -21591,56 +21795,163 @@ if (document.readyState === "loading") {
         return button;
     }
 
+    function preparaPercorsoPdf() {
+        // Il percorso rapido nasconde il caricatore su mobile: attivalo PRIMA del file picker.
+        if (typeof window.__OL_OPEN_MOBILE_FAST_PDF__ === "function") window.__OL_OPEN_MOBILE_FAST_PDF__();
+        if (typeof impostaOrigineCaricamentoPdf === "function") impostaOrigineCaricamentoPdf("guided_assistant");
+    }
+
+    function guidaAlConfronto() {
+        const card = primaCardDisponibile();
+        if (card) {
+            faseSceltaAttivata = true;
+            setOpen(false);
+            card.scrollIntoView({ behavior: "smooth", block: "center" });
+            card.classList.add("guided-assistant-highlight");
+            window.setTimeout(() => card.classList.remove("guided-assistant-highlight"), 1800);
+            if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: "oli_offers_viewed", assistant: "OLI" });
+            return;
+        }
+        aggiornaProssimoPasso();
+        setMessage("Non sono ancora disponibili card calcolate. Carica una bolletta, completa i dati oppure avvia una stima media. Le offerte si vedono senza contatti obbligatori.");
+    }
+
     function handleAction(action) {
-        setOpen(true);
+        percorsoOliAvviato = true;
+        if (["pdf", "foto", "media", "manuale", "business"].includes(action)) ultimoPercorso = action;
+        aggiornaIndicatoreOli();
+        if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: `oli_${action}`, assistant: "OLI" });
         switch (action) {
             case "pdf":
-                setMessage("Ottima scelta: caricando la bolletta o la scheda sintetica il confronto diventa piu preciso. Dopo la lettura controlla i dati e confermali.");
-                if (typeof impostaOrigineCaricamentoPdf === "function") impostaOrigineCaricamentoPdf("guided_assistant");
-                scrollToTarget(".pdf-lead-panel");
+                preparaPercorsoPdf();
+                if (typeof window.apriSelettorePdf === "function") {
+                    setOpen(false);
+                    window.apriSelettorePdf(); // clic diretto: mantiene il gesto utente per il selettore nativo
+                } else {
+                    setMessage("Vai al caricamento della bolletta e seleziona il PDF.");
+                    scrollToTarget("#pdf-upload-panel");
+                }
                 break;
-            case "media":
-                setMessage("Useremo un profilo medio, il catalogo ARERA e gli indici di mercato disponibili. È utile per una prima stima, poi puoi raffinare con la bolletta.");
-                activateButton("btn-attiva-medi");
-                scrollToTarget("#btn-attiva-medi");
+            case "foto":
+                preparaPercorsoPdf();
+                if (typeof window.apriFotoBolletta === "function") {
+                    setOpen(false);
+                    window.apriFotoBolletta("camera");
+                } else {
+                    setMessage("Vai al caricamento e scegli Scatta foto.");
+                    scrollToTarget("#bill-photo-picker");
+                }
                 break;
+            case "media": {
+                // Riutilizza la procedura mobile che attende i dati ufficiali e avvia il confronto.
+                const fastAverage = document.getElementById("mobile-fast-average");
+                const mobileFast = window.matchMedia?.("(max-width: 700px)")?.matches
+                    && (document.documentElement.classList.contains("mobile-fast-flow") || document.body.classList.contains("unified-comparison-flow"));
+                setOpen(false);
+                if (mobileFast && fastAverage) fastAverage.click();
+                else {
+                    activateButton("btn-attiva-medi");
+                    if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
+                        activateButton("comparison-submit-button");
+                    } else {
+                        setMessage("La stima è selezionata. Attendi che il catalogo sia pronto, poi premi Scopri le offerte.");
+                        scrollToTarget("#comparison-submit-button");
+                    }
+                }
+                break;
+            }
             case "manuale":
-                setMessage("Perfetto: inserisci consumi, prezzi e quote fisse della tua fornitura. Il confronto sara calcolato sui tuoi dati reali.");
-                activateButton("btn-attiva-precisi");
-                scrollToTarget("#master-blocchi-inferiori");
+                setOpen(false);
+                if (window.matchMedia?.("(max-width: 700px)")?.matches && document.getElementById("mobile-fast-manual")) activateButton("mobile-fast-manual");
+                else {
+                    activateButton("btn-attiva-precisi");
+                    scrollToTarget("#master-blocchi-inferiori");
+                }
                 break;
             case "business":
-                setMessage("Per aziende e P.IVA OffertaLogica fornisce un confronto preliminare; per supporto e attivazione puoi poi proseguire con il nostro partner Switcho.");
+                setOpen(false);
                 activateButton("btn-segmento-business");
                 scrollToTarget("#business-panel");
                 break;
+            case "completa": {
+                setOpen(false);
+                const guidance = document.getElementById("pdf-data-review-guidance");
+                const target = bollettaPresente()
+                    ? (elementoVisibile(guidance) ? "#pdf-data-review-guidance" : "#blocco-attuale")
+                    : (document.getElementById("btn-attiva-precisi")?.classList.contains("selected") ? (window.matchMedia?.("(max-width: 700px)")?.matches ? "#mobile-private-input-flow" : "#master-blocchi-inferiori") : "#comparison-submit-button");
+                scrollToTarget(target);
+                break;
+            }
+            case "avvia":
+                if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
+                    setOpen(false);
+                    activateButton("comparison-submit-button"); // usa le validazioni già presenti
+                } else {
+                    setMessage("Il catalogo delle offerte è ancora in caricamento. I dati rimangono salvati: riprova quando il caricamento è terminato.");
+                }
+                break;
             case "offerte":
-                setMessage("Le offerte compaiono dopo il pulsante di confronto e il ranking è consultabile senza registrazione. L’OTP entra solo se scegli di proseguire in un percorso che richiede la verifica del numero.");
-                scrollToTarget(".fornitori-consigliati-section");
+                guidaAlConfronto();
+                break;
+            case "contatti":
+                if (typeof window.apriLeadModal === "function") {
+                    if (typeof LEAD_STATE !== "undefined" && LEAD_STATE.assistance) LEAD_STATE.assistance.reason = "oli_user_requested";
+                    setOpen(false);
+                    window.apriLeadModal("assistance_callback");
+                    if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: "oli_contact_requested", assistant: "OLI" });
+                } else setMessage("Il modulo di assistenza non è disponibile al momento.");
                 break;
             case "privacy":
-                setMessage("I riferimenti privacy, cookie e termini sono nel footer. Le stime restano informative e i documenti del fornitore fanno sempre fede.");
+                setOpen(false);
                 scrollToTarget("footer");
                 break;
             default:
-                setMessage("Scegli una delle opzioni: ti porto nel punto giusto del calcolatore.");
+                setMessage("Scegli un percorso: posso aiutarti con la bolletta, le offerte o una richiesta di assistenza via email.");
         }
     }
 
     window.apriAssistenteGuidato = function apriAssistenteGuidato(customMessage = "") {
-        if (customMessage) setMessage(customMessage);
         setOpen(true);
+        if (customMessage) setMessage(customMessage);
         window.setTimeout(() => close?.focus(), 30);
     };
 
     toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
     mobileToggle?.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
-    close?.addEventListener("click", () => setOpen(false));
+    close?.addEventListener("click", () => {
+        setOpen(false);
+        (mobileQuery.matches ? mobileToggle : toggle)?.focus();
+    });
+    panel.addEventListener("keydown", (event) => {
+        if (event.key !== "Escape") return;
+        event.preventDefault();
+        setOpen(false);
+        (mobileQuery.matches ? mobileToggle : toggle)?.focus();
+    });
     window.addEventListener("resize", positionMobileToggleNearIubenda, { passive: true });
     window.addEventListener("orientationchange", () => window.setTimeout(positionMobileToggleNearIubenda, 150));
     mobileQuery.addEventListener?.("change", positionMobileToggleNearIubenda);
     window.addEventListener("load", initializeMobileTogglePosition, { once: true });
     window.setTimeout(initializeMobileTogglePosition, 0);
+    // Aggiorna il pulsante di ripresa quando la lettura PDF o il ranking terminano.
+    // Osserva soltanto i componenti già esistenti, senza bloccare la navigazione.
+    let updatePending = false;
+    const scheduleUpdate = () => {
+        if (!percorsoOliAvviato || updatePending) return;
+        updatePending = true;
+        window.requestAnimationFrame(() => {
+            updatePending = false;
+            aggiornaIndicatoreOli();
+            if (panel.classList.contains("is-open")) aggiornaProssimoPasso();
+        });
+    };
+    const observer = new MutationObserver(scheduleUpdate);
+    const results = document.querySelector(".fornitori-consigliati-section");
+    if (results) observer.observe(results, { childList: true, subtree: true, attributes: true, attributeFilter: ["style", "hidden"] });
+    const selectedPdf = document.getElementById("pdf-selected-files");
+    if (selectedPdf) observer.observe(selectedPdf, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
+    const manual = document.getElementById("btn-attiva-precisi");
+    if (manual) observer.observe(manual, { attributes: true, attributeFilter: ["class"] });
     document.querySelectorAll("[data-assistant-action]").forEach((button) => {
         button.addEventListener("click", () => handleAction(button.dataset.assistantAction));
     });
