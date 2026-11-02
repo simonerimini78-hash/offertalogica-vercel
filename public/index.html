@@ -134,7 +134,7 @@
       ]
     }
     </script>
-    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.120">
+    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.121">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -6220,6 +6220,131 @@
                 margin-top: 0;
                 padding: 5px 7px;
             }
+        }
+
+        /* OLI_LAUNCHER_DISCRETO_V1: solo presentazione assistente, motore escluso. */
+        .guided-assistant-launcher {
+            right: 18px;
+            bottom: calc(20px + env(safe-area-inset-bottom));
+            min-height: 66px;
+            max-width: min(320px, calc(100vw - 36px));
+            gap: 12px;
+            padding: 7px 18px 7px 8px;
+            border: 1px solid rgba(22, 163, 74, .36);
+            background: rgba(255, 255, 255, .98);
+            color: #163a31;
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .14);
+            backdrop-filter: blur(8px);
+        }
+        .guided-assistant-launcher:hover {
+            background: #ffffff;
+            box-shadow: 0 10px 27px rgba(15, 23, 42, .19);
+        }
+        .guided-assistant-launcher:focus-visible,
+        .guided-assistant-mobile-toggle:focus-visible,
+        .guided-assistant-close:focus-visible {
+            outline: 3px solid #2563eb;
+            outline-offset: 3px;
+        }
+        .guided-assistant-launcher-image {
+            width: 52px;
+            height: 52px;
+            flex-basis: 52px;
+            object-fit: contain;
+            border-radius: 17px;
+            background: #f7fcf9;
+        }
+        .guided-assistant-launcher-label { font-size: 14px; }
+        .guided-assistant-launcher.is-active {
+            border-color: rgba(22, 163, 74, .60);
+            box-shadow: 0 8px 24px rgba(15, 23, 42, .14);
+        }
+        .guided-assistant {
+            bottom: calc(96px + env(safe-area-inset-bottom));
+        }
+        .guided-assistant-header {
+            align-items: center;
+            padding: 14px 15px;
+        }
+        .guided-assistant-avatar {
+            flex: 0 0 60px;
+            width: 60px;
+            height: 60px;
+            border: 1px solid #bbf7d0;
+            border-radius: 18px;
+            background: #f7fcf9;
+            box-shadow: 0 4px 12px rgba(15,23,42,.08);
+        }
+        .guided-assistant-avatar img { object-fit: contain; }
+        .guided-assistant-heading { gap: 12px; }
+        .guided-assistant-heading > div:nth-child(2) { min-width: 0; }
+        .guided-assistant-header strong { font-size: 15px; }
+
+        /* La landing nasconde il calcolatore, ma OLI resta disponibile su richiesta. */
+        html.social-entry-requested body > #guided-assistant-toggle {
+            display: inline-flex !important;
+            visibility: visible !important;
+            pointer-events: auto !important;
+            z-index: 9005;
+        }
+        html.social-entry-requested body > #guided-assistant-panel.is-open {
+            display: flex !important;
+            visibility: visible !important;
+            z-index: 9006;
+        }
+        @media (max-width: 560px) {
+            .guided-assistant-mobile-toggle {
+                left: auto !important;
+                top: auto !important;
+                right: 12px !important;
+                bottom: calc(16px + env(safe-area-inset-bottom)) !important;
+                display: grid;
+                width: 54px !important;
+                height: 54px !important;
+                padding: 3px;
+                opacity: 1;
+                border: 1px solid rgba(22, 163, 74, .40);
+                background: rgba(255,255,255,.98);
+                box-shadow: 0 7px 20px rgba(15,23,42,.16) !important;
+            }
+            .guided-assistant-mobile-toggle img {
+                width: 46px;
+                height: 46px;
+                object-fit: contain;
+                border-radius: 15px;
+            }
+            .guided-assistant-mobile-toggle.is-active {
+                background: #fff;
+                box-shadow: 0 7px 20px rgba(15,23,42,.16) !important;
+            }
+            .guided-assistant {
+                left: 10px;
+                right: 10px;
+                bottom: calc(82px + env(safe-area-inset-bottom));
+                max-height: calc(100dvh - 132px - env(safe-area-inset-bottom));
+            }
+            html.social-entry-requested body > #guided-assistant-toggle {
+                display: none !important;
+            }
+            html.social-entry-requested body > #guided-assistant-mobile-toggle {
+                display: grid !important;
+                visibility: visible !important;
+                pointer-events: auto !important;
+                z-index: 9005;
+            }
+            body.staff-preview-open .guided-assistant-mobile-toggle,
+            body.lead-modal-visible .guided-assistant-mobile-toggle,
+            body.mobile-pdf-status-visible .guided-assistant-mobile-toggle {
+                display: none !important;
+            }
+        }
+        @media (max-width: 380px) {
+            .guided-assistant-header { padding: 11px; }
+            .guided-assistant-avatar { width: 52px; height: 52px; flex-basis: 52px; }
+            .guided-assistant-header strong { font-size: 13px; }
+        }
+        @media (prefers-reduced-motion: reduce) {
+            .guided-assistant-launcher, .guided-assistant-mobile-toggle { transition: none; }
         }
 </style>
 <script>
@@ -21380,15 +21505,15 @@ if (document.readyState === "loading") {
 </main>
 
 <button type="button" class="guided-assistant-launcher" id="guided-assistant-toggle" aria-expanded="false" aria-controls="guided-assistant-panel">
-    <img class="guided-assistant-launcher-image" src="/assets/oli-mascotte.webp" width="34" height="34" alt="" aria-hidden="true" decoding="async">
+    <img class="guided-assistant-launcher-image" src="/assets/oli-mascotte.webp" width="52" height="52" alt="" aria-hidden="true" decoding="async">
     <span class="guided-assistant-launcher-label">Chiedi a OLI</span>
 </button>
-<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?"><img src="/assets/oli-mascotte.webp" width="34" height="34" alt="" aria-hidden="true" decoding="async"></button>
+<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?"><img src="/assets/oli-mascotte.webp" width="46" height="46" alt="" aria-hidden="true" decoding="async"></button>
 
 <section class="guided-assistant" id="guided-assistant-panel" aria-label="OLI, assistente guidato OffertaLogica">
     <div class="guided-assistant-header">
         <div class="guided-assistant-heading">
-            <div class="guided-assistant-avatar" aria-hidden="true"><img src="/assets/oli-mascotte.webp" width="44" height="44" alt="" decoding="async"></div>
+            <div class="guided-assistant-avatar" aria-hidden="true"><img src="/assets/oli-mascotte.webp" width="60" height="60" alt="" decoding="async"></div>
             <div>
                 <strong>OLI · La tua guida OffertaLogica</strong>
                 <span>Ti accompagno fino alle offerte. Decidi tu come procedere, senza obbligo di registrazione.</span>
@@ -21824,7 +21949,26 @@ if (document.readyState === "loading") {
         setMessage("Non sono ancora disponibili card calcolate. Carica una bolletta, completa i dati oppure avvia una stima media. Le offerte si vedono senza contatti obbligatori.");
     }
 
+    function landingAttivaPerOli() {
+        return document.documentElement.classList.contains("social-entry-requested");
+    }
+
+    function portaOliNelCalcolatore(action) {
+        if (typeof urlCalcolatoreDaLanding !== "function") {
+            setMessage("Per avviare il confronto scegli il percorso in autonomia nella home.");
+            return;
+        }
+        try { window.sessionStorage.setItem("ol_guide_landing_action", action); } catch { /* Storage facoltativo. */ }
+        window.location.assign(urlCalcolatoreDaLanding());
+    }
+
     function handleAction(action) {
+        // Il calcolatore della landing e' nascosto: prima entra nell'interfaccia attiva.
+        // Il selettore file richiede poi un nuovo clic esplicito sul calcolatore.
+        if (landingAttivaPerOli() && ["pdf", "foto", "media", "manuale", "business", "completa", "avvia", "offerte", "contatti"].includes(action)) {
+            portaOliNelCalcolatore(action);
+            return;
+        }
         percorsoOliAvviato = true;
         if (["pdf", "foto", "media", "manuale", "business"].includes(action)) ultimoPercorso = action;
         aggiornaIndicatoreOli();
@@ -21917,6 +22061,34 @@ if (document.readyState === "loading") {
                 setMessage("Scegli un percorso: posso aiutarti con la bolletta, le offerte o una richiesta di assistenza via email.");
         }
     }
+
+    // Riprendi OLI dopo un clic volontario sulla landing; nessun popup spontaneo.
+    // Nessun upload viene avviato senza un secondo gesto esplicito dell'utente.
+    try {
+        const entryAction = window.sessionStorage.getItem("ol_guide_landing_action");
+        if (entryAction && !landingAttivaPerOli() && new URLSearchParams(window.location.search).get("from") === "landing") {
+            window.sessionStorage.removeItem("ol_guide_landing_action");
+            const entryLabels = {
+                pdf: ["Carica la bolletta PDF", "Ora sei nel calcolatore. Tocca Carica la bolletta PDF per scegliere il documento."],
+                foto: ["Fotografa la bolletta", "Ora puoi aprire la fotocamera da OLI."],
+                media: ["Parti con una stima media", "Puoi ottenere una stima senza caricare documenti."],
+                manuale: ["Inserisci i dati manualmente", "Ti accompagno nella compilazione dei dati."],
+                business: ["Confronto per aziende", "Prosegui con il percorso dedicato alle aziende."],
+                contatti: ["Chiedi assistenza", "Puoi richiedere assistenza dal modulo dedicato."],
+                offerte: ["Vai al confronto", "Per vedere le card reali, avvia prima un confronto."],
+                completa: ["Completa i dati", "Controlla i dati necessari per proseguire."],
+                avvia: ["Scopri le offerte", "Puoi avviare il confronto dopo aver completato i dati."]
+            };
+            const [label, instruction] = entryLabels[entryAction] || entryLabels.pdf;
+            percorsoOliAvviato = true;
+            ultimoPercorso = entryAction;
+            aggiornaIndicatoreOli();
+            setOpen(true);
+            setMessage(instruction);
+            impostaPassaggio(label, entryAction);
+            if (entryAction === "pdf" || entryAction === "foto") preparaPercorsoPdf();
+        }
+    } catch { /* Se lo storage e' bloccato, l'utente puo' riaprire OLI normalmente. */ }
 
     window.apriAssistenteGuidato = function apriAssistenteGuidato(customMessage = "") {
         setOpen(true);
