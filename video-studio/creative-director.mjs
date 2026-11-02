@@ -224,7 +224,7 @@ export function validateCreativeResponse(input,response) {
       check(!duplicate,`Ispirazione libera: scena ${index+1} ripete il testo della guida; serve un nuovo hook o messaggio`);
     }
   }
-  return {creative_schema_version:2,engine_version:'1.3.2',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.3.2.1',input_type:input.input_type,
     guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
@@ -242,16 +242,45 @@ export function validateCreativeResponse(input,response) {
 }
 export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null,guideVideoFrames=[]}={}) {
   check(apiKey,'OPENAI_API_KEY mancante; impossibile generare una regia AI autentica');
-  const response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
-    method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-    body:JSON.stringify(buildCreativeRequest(normalized,{guideImageBytes,guideVideoFrames})),signal:AbortSignal.timeout(90000)});
-  const json=await response.json().catch(()=>null);
-  check(response.ok,`provider regia: HTTP ${response.status}`);
-  const content=json?.choices?.[0]?.message?.content;
-  check(typeof content==='string'&&content.length<20000,'risposta creativa assente o troppo grande');
-  let parsed;try{parsed=JSON.parse(content);}catch{throw new Error('VIDEO_STUDIO_CREATIVE: JSON risposta non valido');}
-  return validateCreativeResponse(normalized,parsed);
+  const request=buildCreativeRequest(normalized,{guideImageBytes,guideVideoFrames});
+  async function askModel(payload) {
+    const response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
+      method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
+      body:JSON.stringify(payload),signal:AbortSignal.timeout(90000)});
+    const json=await response.json().catch(()=>null);
+    check(response.ok,`provider regia: HTTP ${response.status}`);
+    const content=json?.choices?.[0]?.message?.content;
+    check(typeof content==='string'&&content.length<20000,'risposta creativa assente o troppo grande');
+    try{return JSON.parse(content);}catch{throw new Error('VIDEO_STUDIO_CREATIVE: JSON risposta non valido');}
+  }
+  const first=await askModel(request);
+  try{return validateCreativeResponse(normalized,first);}
+  catch(error) {
+    // Never bypass originality checks. Repair one rejected creative proposal before
+    // expensive photo generation, but do not retry other validation/provider failures.
+    const message=String(error?.message||'');
+    const duplicate=message.startsWith('VIDEO_STUDIO_CREATIVE: Ispirazione libera: scena ')&&
+      message.includes(' ripete il testo della guida;');
+    const canRepair=['guide_image','guide_video'].includes(normalized.input_type)&&
+      normalized.guide_fidelity==='inspiration'&&duplicate;
+    if(!canRepair)throw error;
+    const correction=`La proposta precedente e stata rifiutata dal controllo di originalita: ${message}. `+
+      'Non limitarti a cambiare parole o sinonimi nella scena segnalata. ' +
+      'Scegli un PROBLEMA EDITORIALE diverso da quello osservato nella guida, ' +
+      'un nuovo angolo narrativo e un nuovo percorso fra hook, spiegazione utile e CTA. ' +
+      'Riprogetta tutte le scene necessarie con azioni e ambienti coerenti, evitando ' +
+      'di ripetere qualsiasi frase elencata in guide_review.observed_headlines, ' +
+      'salvo il nome del brand nella CTA finale. ' +
+      'Mantieni la preferenza sul numero di scene, i 15 secondi e tutti i vincoli editoriali. ' +
+      'Restituisci solo un nuovo JSON completo conforme allo schema.';
+    const repaired=await askModel({...request,messages:[...request.messages,
+      {role:'assistant',content:JSON.stringify(first)},
+      {role:'user',content:correction}]});
+    // A second failure remains a hard stop: no photographs are generated.
+    return validateCreativeResponse(normalized,repaired);
+  }
 }
+
 export function candidateArticles(articles,{processedIds=[]}={}) {
   check(Array.isArray(articles)&&Array.isArray(processedIds),'liste articoli non valide');
   const done=new Set(processedIds);
