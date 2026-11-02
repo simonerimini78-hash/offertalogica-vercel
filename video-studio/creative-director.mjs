@@ -224,7 +224,7 @@ export function validateCreativeResponse(input,response) {
     Array.isArray(response.guide_review.observed_headlines)&&
     response.guide_review.observed_headlines.length<=8,'resoconto Reel guida non valido');
   const observedHeadlines=response.guide_review.observed_headlines.map(x=>clean(x,'testo rilevato dalla guida',110));
-  const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',350,{optional:true});
+  const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',500,{optional:true});
   const creativeDeparture=clean(response.guide_review.creative_departure,'divergenza creativa',500,{optional:true});
   const inventive=['guide_image','guide_video'].includes(input.input_type)&&input.guide_fidelity==='inspiration';
   if(inventive) check(creativeDeparture.length>=30,
@@ -298,7 +298,7 @@ export function validateCreativeResponse(input,response) {
       check(!duplicate,`Ispirazione libera: scena ${index+1} ripete il testo della guida; serve un nuovo hook o messaggio`);
     }
   }
-  return {creative_schema_version:2,engine_version:'1.3.3.0',input_type:input.input_type,
+  return {creative_schema_version:2,engine_version:'1.3.3.1',input_type:input.input_type,
     guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
     concept,audience,editorial_caution:editorialCaution,
