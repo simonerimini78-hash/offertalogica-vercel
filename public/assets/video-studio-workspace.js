@@ -1,4 +1,4 @@
-/* Video Studio v1.3.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.0 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -419,12 +419,13 @@
         throw Error('Il Reel guida deve durare da 1 a 180 secondi e contenere immagini video.');
       const n=Math.min(8,Math.max(5,Math.ceil(duration/3)));
       const canvas=document.createElement('canvas');
-      const scale=Math.min(256/video.videoWidth,455/video.videoHeight,1);
+      const scale=Math.min(384/video.videoWidth,683/video.videoHeight,1);
       canvas.width=Math.max(1,Math.round(video.videoWidth*scale));
       canvas.height=Math.max(1,Math.round(video.videoHeight*scale));
       const ctx=canvas.getContext('2d',{alpha:false});
       if(!ctx)throw Error('Il browser non consente di leggere i fotogrammi del video.');
       const frames=[],times=[];
+      const perFrameBytes=Math.min(55000,Math.floor(380000/n));
       for(let i=0;i<n;i++){
         const time=duration*(i+0.5)/n;
         await new Promise((resolve,reject)=>{
@@ -435,11 +436,11 @@
         });
         ctx.drawImage(video,0,0,canvas.width,canvas.height);
         let jpg='';
-        for(const quality of [0.75,0.60,0.45,0.30]){
+        for(const quality of [0.72,0.60,0.48,0.36,0.26,0.18]){
           jpg=canvas.toDataURL('image/jpeg',quality).split(',')[1];
-          if(jpg.length<=Math.ceil(55000*4/3))break;
+          if(jpg.length<=Math.ceil(perFrameBytes*4/3))break;
         }
-        if(jpg.length>Math.ceil(55000*4/3))throw Error('Fotogrammi guida troppo grandi; usa un MP4 meno complesso.');
+        if(jpg.length>Math.ceil(perFrameBytes*4/3))throw Error('Fotogrammi guida troppo grandi; usa un MP4 meno complesso.');
         frames.push(jpg);
         times.push(Math.round(time*1000));
       }
@@ -754,6 +755,8 @@
   function scenePlacement(view) {
     const requested = view?.layoutPreference || 'auto';
     if (requested !== 'auto') return requested;
+    const guided=view?.scene?.art_direction?.placement;
+    if(['top','bottom','left','right'].includes(guided)) return guided;
     if (view?.scene?.subject_side === 'left') return 'right';
     if (view?.scene?.subject_side === 'right') return 'left';
     return 'auto';
@@ -871,7 +874,7 @@
       titleHeight,textHeight,titleTruncated,detailTruncated,titleWidth,detailWidth};
   }
   function compositionForScene(ctx,view) {
-    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view._faceBoxes?.length||0}`;
+    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.art_direction?.placement||''}|${view._faceBoxes?.length||0}`;
     if (view._compositionKey===key && view._composition) return view._composition;
     const mode=scenePlacement(view);
     const choices=[
@@ -1156,6 +1159,17 @@
     fade.addColorStop(1,'rgba(0,0,0,0)');
     ctx.save();ctx.fillStyle=fade;
     ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
+    const art=scene.art_direction;
+    const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#32b66d';
+    if(art?.typography==='editorial_panel') {
+      const x=Math.max(105,bounds.x-2),width=Math.min(MONTAGE_WIDTH-x-105,bounds.width+4);
+      ctx.fillStyle=lightText?'rgba(5,17,26,.77)':'rgba(255,255,255,.85)';
+      ctx.beginPath();ctx.roundRect(x,Math.max(405,bounds.y),width,Math.min(bounds.height,840),24);ctx.fill();
+      ctx.fillStyle=accent;ctx.fillRect(x,Math.max(405,bounds.y),9,Math.min(bounds.height,840));
+    } else if(art?.typography==='accent_rule') {
+      ctx.fillStyle=accent;
+      ctx.fillRect(Math.max(115,choice.x-17),y,8,Math.max(48,copy.titleHeight));
+    }
     ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
     const drawLine=(text,x,yy,font,isDetail=false)=>{
@@ -1658,10 +1672,13 @@
     if(!review||typeof review!=='object')return [];
     const notes=[];
     if(review.creative_departure)notes.push(textElement('p',`Differenza proposta rispetto alla guida: ${review.creative_departure}`));
+    const profile=plan?.guide_quality_profile;
+    if(profile)notes.push(textElement('p',`Principi analizzati ${plan.input_type==='guide_image'?'dalla foto guida':'dal Reel scelto'}: ${(profile.quality_principles||[]).join(' · ')}. ${plan.input_type==='guide_image'?'Analisi di una singola immagine: non sono deducibili storia temporale, movimento e transizioni.':'Analisi basata su fotogrammi campionati, senza audio.'}`));
+    if(plan?.creative_review)notes.push(textElement('p',`Revisione narrativa prima delle foto: ${plan.creative_review.narrative_reason}. Direzione grafica: ${plan.creative_review.graphics_reason}. Valutazione AI, non certificazione estetica.`));
     if(Array.isArray(review.observed_headlines)&&review.observed_headlines.length)
       notes.push(textElement('p',`Testi riconosciuti nel riferimento: ${review.observed_headlines.join(' · ')}`));
     if(plan.guide_fidelity==='inspiration' && !review.observed_headlines?.length)
-      notes.push(textElement('p','Attenzione: nessun testo leggibile riconosciuto nella guida. La diversità delle frasi non può essere verificata automaticamente.'));
+      notes.push(textElement('p','Nessun testo leggibile riconosciuto nella guida: il sistema non può dedurre posizioni tipografiche né verificare la diversità delle frasi originali.'));
     return notes;
   }
   function updateSceneActionLabel(view) {
@@ -2372,7 +2389,7 @@
     notesInput.id = `vs-scene-note-${index}`;
     notesInput.rows = 3;
     notesInput.maxLength = 700;
-    notesInput.placeholder = 'Es. Mantieni il volto libero per il testo, mostra meglio la bolletta e rendi l’espressione più preoccupata.';
+    notesInput.placeholder = 'Es. Migliora profondità e contrasto, lascia spazio al titolo e rendi più chiara l’azione della scena.';
     notesInput.addEventListener('input',scheduleProjectAutosave);
     const notesHint = textElement('small', 'Lascia vuoto per usare il brief originale. Compila le note solo quando vuoi rigenerare questa scena.');
     notesWrap.append(notesLabel, notesInput, notesHint);
@@ -2563,7 +2580,7 @@
         data.guide_fidelity=brief.input.guide_fidelity;
         data.guide_context=brief.input.guide_context;
       } else data.theme=brief.input.theme;
-      generation = await labRequest('video-studio-storyboard', data, token, 110000);
+      generation = await labRequest('video-studio-storyboard', data, token, ['video','image'].includes(brief.mode)?260000:110000);
       if (!validSceneCount(generation?.plan?.scenes?.length) ||
         (brief.input.scene_count_preference!=='auto'&&generation.plan.scenes.length!==brief.input.scene_count_preference))
         throw Error('Storyboard generato non valido: numero di scene incoerente con la scelta.');
