@@ -134,7 +134,7 @@
       ]
     }
     </script>
-    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.118">
+    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.120">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -1933,6 +1933,10 @@
             box-shadow: 0 18px 38px rgba(22, 163, 74, .28);
             cursor: pointer;
         }
+        .guided-assistant-launcher { display: inline-flex; align-items: center; gap: 9px; padding: 7px 16px 7px 7px; }
+        .guided-assistant-launcher-image { display: block; flex: 0 0 34px; width: 34px; height: 34px; object-fit: cover; border-radius: 12px; background: #fff; }
+        .guided-assistant-launcher-label { white-space: nowrap; }
+        .guided-assistant-mobile-toggle img { display: block; width: 100%; height: 100%; border-radius: inherit; object-fit: cover; }
         .guided-assistant-launcher:hover {
             transform: translateY(-1px);
             box-shadow: 0 20px 44px rgba(22, 163, 74, .34);
@@ -2056,6 +2060,8 @@
             color: #fff; box-shadow: 0 5px 14px rgba(22, 163, 74, .2);
             font-size: 15px; font-weight: 950; letter-spacing: .3px;
         }
+        .guided-assistant-avatar { overflow: hidden; background: #f0fdf4; }
+        .guided-assistant-avatar img { display: block; width: 100%; height: 100%; object-fit: cover; }
         .guided-assistant-heading { display: flex; align-items: center; gap: 10px; min-width: 0; }
         .guided-assistant-journey {
             display: grid; grid-template-columns: repeat(4, 1fr); gap: 4px;
@@ -2145,7 +2151,7 @@
             .guided-assistant-launcher {
                 right: 14px;
                 bottom: 78px;
-                padding: 12px 15px;
+                padding: 7px 14px 7px 7px;
             }
             .guided-assistant {
                 right: 14px;
@@ -21374,14 +21380,15 @@ if (document.readyState === "loading") {
 </main>
 
 <button type="button" class="guided-assistant-launcher" id="guided-assistant-toggle" aria-expanded="false" aria-controls="guided-assistant-panel">
-    Chiedi a OLI
+    <img class="guided-assistant-launcher-image" src="/assets/oli-mascotte.webp" width="34" height="34" alt="" aria-hidden="true" decoding="async">
+    <span class="guided-assistant-launcher-label">Chiedi a OLI</span>
 </button>
-<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?">OLI</button>
+<button type="button" class="guided-assistant-mobile-toggle" id="guided-assistant-mobile-toggle" aria-expanded="false" aria-controls="guided-assistant-panel" aria-label="Apri l'assistente" title="Hai bisogno di aiuto?"><img src="/assets/oli-mascotte.webp" width="34" height="34" alt="" aria-hidden="true" decoding="async"></button>
 
 <section class="guided-assistant" id="guided-assistant-panel" aria-label="OLI, assistente guidato OffertaLogica">
     <div class="guided-assistant-header">
         <div class="guided-assistant-heading">
-            <div class="guided-assistant-avatar" aria-hidden="true">OLI</div>
+            <div class="guided-assistant-avatar" aria-hidden="true"><img src="/assets/oli-mascotte.webp" width="44" height="44" alt="" decoding="async"></div>
             <div>
                 <strong>OLI · La tua guida OffertaLogica</strong>
                 <span>Ti accompagno fino alle offerte. Decidi tu come procedere, senza obbligo di registrazione.</span>
@@ -21713,7 +21720,8 @@ if (document.readyState === "loading") {
     function aggiornaIndicatoreOli() {
         if (!percorsoOliAvviato) return;
         const offertePronte = Boolean(primaCardDisponibile());
-        toggle.textContent = offertePronte ? "OLI · Offerte pronte" : "OLI · Continua";
+        const toggleLabel = toggle.querySelector(".guided-assistant-launcher-label");
+        if (toggleLabel) toggleLabel.textContent = offertePronte ? "OLI · Offerte pronte" : "OLI · Continua";
         toggle.classList.add("is-active");
         mobileToggle?.classList.add("is-active");
         mobileToggle?.setAttribute("title", offertePronte ? "OLI: offerte pronte da consultare" : "Continua con OLI");
