@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.119";
+  const VERSION = "0.12.120";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -17,6 +17,7 @@
   let plannerLoadError = "";
   let automationLoaded = false;
   let socialPlanLoaded = false;
+  let decisionImageNotice = { articleId: "", message: "" };
   let automationLoadError = "";
   let socialPlanLoadError = "";
   let opportunityTopicKeys = new Set();
@@ -667,6 +668,77 @@
     return String(topic || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("it");
   }
 
+  // Presentazione soltanto: usa la foto gia associata alla bozza o lo stato
+  // immagine esistente nell'opportunità. Nessuna chiamata alla generazione.
+  function decisionArticleImageMarkup(cycle, opportunity) {
+    const article = cycle?.article && typeof cycle.article === "object" ? cycle.article : null;
+    const imageState = opportunity?.evidence?.article_image;
+    const state = imageState && typeof imageState === "object" ? imageState : {};
+    const safeImageUrl = (value) => /^https:\/\//i.test(String(value || "").trim()) ? String(value).trim() : "";
+    const articleImageKnown = article && Object.prototype.hasOwnProperty.call(article, "featured_image_url");
+    const articleImageUrl = safeImageUrl(article?.featured_image_url);
+    const currentImageUrl = safeImageUrl(state?.current?.url);
+    const approvedUrl = articleImageUrl || currentImageUrl;
+    const approvedAlt = articleImageUrl
+      ? (article.featured_image_alt || article.title || "Immagine della bozza")
+      : (state?.current?.alt_text || article?.title || "Immagine approvata dell'articolo");
+    const candidateUrl = safeImageUrl(state?.candidate?.url);
+    const candidateAlt = state?.candidate?.alt_text || "Anteprima immagine in attesa di approvazione";
+    const renderPreview = (url, alt, label, detail) => `<figure class="ol-decision-image-preview"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async"><figcaption><strong>${esc(label)}</strong><span>${esc(detail)}</span></figcaption></figure>`;
+    const previews = [];
+    if (approvedUrl) {
+      previews.push(renderPreview(approvedUrl, approvedAlt,
+        articleImageUrl ? "Immagine attuale della bozza" : "Immagine approvata nella coda",
+        articleImageUrl ? "Letta dal collegamento dell'articolo." : "Da verificare nella bozza: il dato è disponibile nello stato dell'opportunità."));
+      if (articleImageUrl && currentImageUrl && articleImageUrl !== currentImageUrl) {
+        previews.push('<p class="ol-decision-image-caution">La bozza usa un’immagine diversa da quella registrata nello storico delle approvazioni. Fa fede l’immagine della bozza.</p>');
+      }
+    }
+    if (candidateUrl && candidateUrl !== approvedUrl) {
+      previews.push(renderPreview(candidateUrl, candidateAlt, "Alternativa da approvare",
+        "Non è ancora l'immagine scelta per l'articolo."));
+    }
+    if (!previews.length) {
+      return `<div class="ol-decision-image-empty"><strong>Immagine articolo</strong><p>${opportunitiesLoaded || articleImageKnown ? "Nessuna immagine verificabile nei dati caricati." : "Stato immagine non ancora verificabile: aggiorna il quadro."}</p></div>`;
+    }
+    return `<div class="ol-decision-article-media" aria-label="Anteprima immagine articolo">${previews.join("")}</div>`;
+  }
+
+  // Il caricamento diretto usa le stesse API di candidatura e approvazione gia esistenti.
+  // Nessuna modifica al motore immagini o alla pubblicazione automatica.
+  function decisionArticleImageControls(cycle, opportunity, articleUrl) {
+    const articleId = String(cycle?.articleId || "");
+    const state = opportunity?.evidence?.article_image || {};
+    const candidate = state?.candidate?.url ? state.candidate : null;
+    const canUseWorkflow = Boolean(
+      opportunity?.id
+      && String(opportunity?.target_article_id || "") === articleId
+      && String(opportunity?.opportunity_type || "") === "new_article"
+    );
+    if (!canUseWorkflow) {
+      return `<div class="ol-decision-image-controls"><strong>Vuoi usare una tua immagine?</strong><p>Puoi sempre caricarla dalla scheda della bozza, se hai il permesso di modificare le immagini.</p><a class="ol-decision-link" href="${articleUrl}">Apri la bozza per caricare la tua immagine</a></div>`;
+    }
+    const id = String(opportunity.id);
+    const alt = String(candidate?.alt_text || cycle?.article?.featured_image_alt || `Immagine per ${cycle?.article?.title || opportunity.topic || "articolo"}`).slice(0, 180);
+    const notice = decisionImageNotice.articleId === articleId ? decisionImageNotice.message : "";
+    const manualCandidate = candidate?.source === "manual_upload";
+    return `<div class="ol-decision-image-controls" aria-label="Caricamento immagine personale">
+      <strong>Scegli tu l'immagine dell'articolo</strong>
+      <label for="ol-decision-image-file">Carica una tua foto o illustrazione</label>
+      <input id="ol-decision-image-file" data-decision-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif">
+      <small>JPG, PNG, WebP o AVIF, massimo 5 MB. L'immagine attuale resta invariata fino alla tua approvazione.</small>
+      <label for="ol-decision-image-alt">Testo alternativo</label>
+      <input id="ol-decision-image-alt" data-decision-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(alt)}">
+      <div class="ol-decision-image-buttons">
+        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-image-upload="${esc(id)}">Carica la mia immagine</button>
+        ${candidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-decision-image-approve="${esc(id)}">${manualCandidate ? "Approva e usa la mia immagine" : "Approva e usa l'anteprima"}</button>` : ""}
+      </div>
+      ${candidate ? `<small class="ol-decision-candidate-note">${manualCandidate ? "La tua immagine è stata caricata" : "È presente un'immagine candidata"}, ma non sostituirà la foto attuale finché non la approvi.</small>` : ""}
+      <p data-decision-image-message role="status" aria-live="polite">${esc(notice)}</p>
+      <small class="ol-decision-image-automation-note">Nota: l'attuale pubblicazione automatica può bloccare un'immagine caricata manualmente; in quel caso la pubblicazione va gestita dalla Redazione. Il motore automatico non viene modificato.</small>
+    </div>`;
+  }
+
   function renderDecisionHub(section) {
     const productionBox = section?.querySelector("[data-decision-production]");
     const selectionBox = section?.querySelector("[data-decision-selection]");
@@ -677,6 +749,11 @@
     const cycle = currentEditorialCycle();
     const cycleOpportunity = cycle?.opportunityId
       ? opportunityRows.find((row) => String(row?.id || "") === String(cycle.opportunityId)) : null;
+    const imageOpportunity = cycle?.articleId
+      ? (cycleOpportunity?.target_article_id === cycle.articleId ? cycleOpportunity : null)
+        || opportunityRows.find((row) => String(row?.target_article_id || "") === String(cycle.articleId))
+        || cycleOpportunity
+      : null;
     if (!automationLoaded || !socialPlanLoaded) {
       const error = [automationLoadError, socialPlanLoadError].filter(Boolean).join(" ");
       productionBox.innerHTML = error
@@ -685,7 +762,7 @@
     } else if (cycle?.articleId) {
       const title = String(cycle.article?.title || cycleOpportunity?.topic || "").trim();
       const articleUrl = `/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(cycle.articleId)}`;
-      productionBox.innerHTML = `<span class="ol-decision-state is-running">Articolo avviato</span><strong>${esc(title || "Articolo collegato al ciclo")}</strong><p>${esc(cycleOpportunity ? `Tema iniziale: ${cycleOpportunity.topic || "—"}.` : "Il tema iniziale non è disponibile nella coda caricata.")}</p><a class="ol-decision-link" href="${articleUrl}">Apri articolo in Redazione</a>`;
+      productionBox.innerHTML = `<span class="ol-decision-state is-running">Articolo avviato</span><strong>${esc(title || "Articolo collegato al ciclo")}</strong><p>${esc(cycleOpportunity ? `Tema iniziale: ${cycleOpportunity.topic || "—"}.` : "Il tema iniziale non è disponibile nella coda caricata.")}</p>${decisionArticleImageMarkup(cycle, imageOpportunity)}${decisionArticleImageControls(cycle, imageOpportunity, articleUrl)}<a class="ol-decision-link" href="${articleUrl}">Apri articolo in Redazione</a>${imageOpportunity ? `<button class="ol-decision-link" type="button" data-decision-open-opportunity="${esc(imageOpportunity.id || "")}">Apri controllo immagine e approvazione</button>` : ""}`;
     } else if (cycle?.opportunityId) {
       productionBox.innerHTML = `<span class="ol-decision-state">Bozza non collegata</span><strong>${esc(cycleOpportunity?.topic || "Ricerca del ciclo registrata")}</strong><p>Il ciclo ha un tema, ma non risulta ancora un articolo collegato.</p>`;
     } else {
@@ -2121,6 +2198,59 @@
     const message = section.querySelector("[data-opportunity-message]");
     const decisionTarget = event.target.closest("[data-decision-target]");
     const decisionOpenOpportunity = event.target.closest("[data-decision-open-opportunity]");
+    const decisionImageUploadButton = event.target.closest("[data-decision-image-upload]");
+    const decisionImageApproveButton = event.target.closest("[data-decision-image-approve]");
+    if (decisionImageUploadButton) {
+      const id = String(decisionImageUploadButton.dataset.decisionImageUpload || "");
+      const fileInput = section.querySelector(`[data-decision-image-file="${id}"]`);
+      const altInput = section.querySelector(`[data-decision-image-alt="${id}"]`);
+      const imageMessage = section.querySelector("[data-decision-image-message]");
+      const row = opportunityRows.find((item) => String(item?.id || "") === id);
+      if (!row?.target_article_id || !id || decisionImageUploadButton.disabled) return;
+      if (!fileInput?.files?.[0]) {
+        if (imageMessage) imageMessage.textContent = "Seleziona prima un file immagine.";
+        return;
+      }
+      decisionImageUploadButton.disabled = true;
+      if (imageMessage) imageMessage.textContent = "Caricamento della tua immagine…";
+      try {
+        const imageUrl = await uploadArticleImageFile(fileInput.files[0], id);
+        await endpoint("set-editorial-article-image-candidate", {
+          method: "POST",
+          body: { id, image_url: imageUrl, alt_text: altInput?.value || "" },
+        });
+        decisionImageNotice = { articleId: String(row.target_article_id), message: "Immagine personale caricata. Premi «Approva e usa la mia immagine» per collegarla alla bozza." };
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
+      } catch (error) {
+        decisionImageNotice = { articleId: String(row.target_article_id), message: `Caricamento non completato: ${error.message}` };
+        if (imageMessage) imageMessage.textContent = decisionImageNotice.message;
+        decisionImageUploadButton.disabled = false;
+      }
+      return;
+    }
+    if (decisionImageApproveButton) {
+      const id = String(decisionImageApproveButton.dataset.decisionImageApprove || "");
+      const row = opportunityRows.find((item) => String(item?.id || "") === id);
+      const candidate = row?.evidence?.article_image?.candidate;
+      const imageMessage = section.querySelector("[data-decision-image-message]");
+      const altInput = section.querySelector(`[data-decision-image-alt="${id}"]`);
+      if (!id || !row?.target_article_id || !candidate?.url || decisionImageApproveButton.disabled) return;
+      if (!window.confirm("Confermi di usare questa immagine come copertina dell’articolo, sostituendo quella eventualmente presente?")) return;
+      decisionImageApproveButton.disabled = true;
+      if (imageMessage) imageMessage.textContent = "Approvazione e collegamento dell'immagine alla bozza…";
+      try {
+        await endpoint("approve-editorial-article-image", {
+          method: "POST", body: { id, alt_text: altInput?.value || "" },
+        });
+        decisionImageNotice = { articleId: String(row.target_article_id), message: "Immagine approvata e collegata alla bozza. Puoi sostituirla ancora quando vuoi." };
+        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
+      } catch (error) {
+        decisionImageNotice = { articleId: String(row.target_article_id), message: `Approvazione non completata: ${error.message}` };
+        if (imageMessage) imageMessage.textContent = decisionImageNotice.message;
+        decisionImageApproveButton.disabled = false;
+      }
+      return;
+    }
     if (decisionTarget) {
       const target = decisionTarget.dataset.decisionTarget;
       if (target === "refresh") {
@@ -2142,6 +2272,8 @@
       if (id) expandedOpportunityIds.add(id);
       renderOpportunities(section, opportunityRows);
       const card = [...section.querySelectorAll("[data-opportunity-card]")].find((node) => node.dataset.opportunityCard === id);
+      const archive = card?.closest("[data-opportunity-archive]");
+      if (archive) archive.open = true;
       (card || stage)?.scrollIntoView({ behavior: "smooth", block: "start" });
       return;
     }

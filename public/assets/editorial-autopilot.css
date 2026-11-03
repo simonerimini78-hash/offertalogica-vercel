@@ -1,4 +1,4 @@
-/* OffertaLogica Informa - Autopilota editoriale v0.12.61 */
+/* OffertaLogica Informa - Interfaccia Autopilota editoriale v0.12.120 */
 .ol-autopilot-panel{margin:0 0 24px;min-width:0}
 .ol-management-shortcuts>[data-editorial-autopilot="1"]{grid-column:1/-1}
 .ol-autopilot-status{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:14px;align-items:center;padding:15px 16px;border:1px solid #a7d7b7;border-radius:10px;background:#f0fdf4}
@@ -92,7 +92,7 @@
 .ol-article-history-section{display:grid;gap:7px;padding:10px;border:1px solid #dfe8e3;border-radius:8px;background:#fff}.ol-article-history-section>strong{font-size:12px}.ol-article-history-section>small{font-size:11px;color:#526579;line-height:1.45}.ol-article-selected-topic{display:flex;gap:8px;align-items:center;justify-content:space-between;padding:8px 9px;border-radius:7px;background:#f4faf6}.ol-article-selected-topic b{font-size:12px}.ol-article-selected-topic span{font-size:11px;font-weight:700;color:#1f7a43}.ol-article-text-details{border:1px solid #e3ece7;border-radius:7px;background:#fbfefc}.ol-article-text-details>summary{cursor:pointer;padding:8px 9px;font-size:11px;font-weight:700}.ol-article-text-details>pre{margin:0;padding:10px;border-top:1px solid #e3ece7;white-space:pre-wrap;overflow-wrap:anywhere;font:inherit;font-size:11px;line-height:1.5;color:#526579}.ol-social-regenerate-box{display:grid;gap:8px;margin-top:8px;padding:9px 10px;border:1px solid #f0df99;border-radius:8px;background:#fff8df}.ol-social-regenerate-box small{font-size:11px;color:#725a00}
 
 
-/* Centro decisionale editoriale v0.12.119: la scelta confermata non viene confusa con il dry-run. */
+/* Centro decisionale editoriale v0.12.120: la scelta confermata non viene confusa con il dry-run. */
 .ol-decision-heading{margin-bottom:12px}
 .ol-decision-hub{display:grid;gap:12px;margin-bottom:14px;padding:15px;border:1px solid #b9d7c4;border-radius:12px;background:#f8fcf9}
 .ol-decision-path{display:flex;flex-wrap:wrap;gap:7px}
@@ -117,3 +117,28 @@
 .ol-decision-actions{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
 @media(max-width:1050px){.ol-decision-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.ol-decision-card-primary{grid-column:1/-1;grid-row:1}}
 @media(max-width:620px){.ol-decision-hub{padding:11px}.ol-decision-grid{grid-template-columns:1fr}.ol-decision-card-primary{grid-column:auto;grid-row:auto}.ol-decision-card{padding:12px}.ol-decision-actions .ol-button{width:100%}.ol-decision-path{display:grid;gap:4px}}
+
+/* Anteprima immagine della bozza: stato distinto da candidati non ancora approvati. */
+.ol-decision-article-media{display:grid;gap:10px;min-width:0;margin:5px 0 3px}
+.ol-decision-image-preview{display:grid;gap:5px;margin:0;min-width:0}
+.ol-decision-image-preview img{display:block;width:100%;max-height:230px;object-fit:contain;object-position:left center;border:1px solid #dce6df;border-radius:8px;background:#f5f7f6}
+.ol-decision-image-preview figcaption{display:grid;gap:2px;font-size:11px;line-height:1.45;color:#536579}
+.ol-decision-image-preview figcaption strong{font-size:12px;color:#224835}
+.ol-decision-image-empty{padding:9px 10px;border:1px dashed #c9d8ce;border-radius:8px;background:#f8fbf9}
+.ol-decision-image-empty strong{font-size:12px;color:#224835}
+.ol-decision-image-empty p{margin:3px 0 0}
+
+/* Scelta manuale della copertina: sempre raggiungibile dal quadro della bozza. */
+.ol-decision-image-controls{display:grid;gap:7px;min-width:0;padding:11px;border:1px solid #d3e4d9;border-radius:9px;background:#f8fbf9}
+.ol-decision-image-controls>strong{font-size:13px;color:#1e4330}
+.ol-decision-image-controls>label{font-size:12px;font-weight:700;color:#304d3d}
+.ol-decision-image-controls input{display:block;width:100%;min-width:0;box-sizing:border-box;border:1px solid #b8cbbf;border-radius:7px;padding:7px;background:white;color:#263c31}
+.ol-decision-image-controls input[type=file]{font-size:12px;line-height:1.5}
+.ol-decision-image-controls small{font-size:11px;line-height:1.45;color:#526a5a}
+.ol-decision-image-controls p{margin:0;overflow-wrap:anywhere}
+.ol-decision-image-controls [data-decision-image-message]:empty{display:none}
+.ol-decision-image-buttons{display:flex;gap:7px;flex-wrap:wrap}
+.ol-decision-image-automation-note{border-top:1px solid #dce9e1;padding-top:7px}
+@media(max-width:620px){.ol-decision-image-buttons .ol-button{width:100%}}
+
+.ol-decision-image-caution{font-size:11px;color:#845b18!important;border-left:3px solid #e5bc62;padding-left:8px}
