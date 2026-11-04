@@ -51,3 +51,8 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
   .bill-summary-kicker,.bill-summary-badge,.bill-summary-grid span,.bill-detail-grid span{font-size:13px;line-height:1.4}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: fotovoltaico al limite utile su mobile. */
+@media(max-width:700px){
+  .bill-summary-kicker,.bill-summary-badge,.bill-summary-grid span,.bill-detail-grid span{font-size:14px!important;line-height:1.45!important}
+}

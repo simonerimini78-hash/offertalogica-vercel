@@ -17,3 +17,10 @@
   .ol-menu-secondary a{font-size:13px;line-height:1.35}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: menu mobile al limite utile. */
+@media(max-width:700px){
+  .ol-menu-nav a strong{font-size:16px!important;line-height:1.25!important}
+  .ol-menu-nav a small{font-size:14px!important;line-height:1.45!important}
+  .ol-menu-secondary a{font-size:14px!important;line-height:1.4!important}
+}

@@ -8,3 +8,10 @@
   .ol-live-stat span{font-size:13px;line-height:1.35}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: dati energia al limite utile su mobile. */
+@media(max-width:680px){
+  .ol-live-kicker,.ol-live-meta,.ol-live-source,.ol-live-reference span,.ol-live-note{font-size:14px!important;line-height:1.45!important}
+  .ol-live-stat span{font-size:14px!important;line-height:1.4!important}
+  .ol-live-alert{font-size:14.5px!important;line-height:1.45!important}
+}

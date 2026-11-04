@@ -1264,3 +1264,50 @@ footer .ol-app-access-footer .ol-app-access-link:focus-visible {
   body.ol-mobile-journey-ready .use-card span{font-size:13px!important;line-height:1.45!important}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: limite utile leggibilita mobile pagine pubbliche. */
+@media (max-width:700px){
+  body.ol-mobile-journey-ready .ol-mobile-toc-hint{font-size:14px!important;line-height:1.45!important}
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td::before{font-size:13.5px!important;line-height:1.35!important}
+  body.ol-mobile-journey-ready .ol-fast-entry>p{font-size:14.5px!important;line-height:1.48!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-option strong{font-size:16px!important;line-height:1.25!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-option small{font-size:13.5px!important;line-height:1.4!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-help{font-size:14px!important;line-height:1.5!important}
+  body.ol-mobile-journey-ready .footer,body.ol-mobile-journey-ready .ol-footer{font-size:14px!important;line-height:1.55!important}
+  body.ol-mobile-journey-ready .ol-app-access-footer .ol-app-access-link{font-size:14px!important}
+  body.ol-mobile-journey-ready footer nav[aria-label='OffertaLogica Informa'] a{font-size:14px!important}
+  body.ol-offers-page .hero .eyebrow{font-size:14px!important}
+  body.ol-offers-page .ol-breadcrumbs{font-size:13.5px!important}
+  body.ol-offers-page #arera-update-note{font-size:14px!important;line-height:1.5!important}
+  body.ol-offers-page .ol-offer-toggle-name{font-size:14px!important;line-height:1.4!important}
+  body.ol-offers-page .ol-offer-toggle-tags{font-size:13.5px!important;line-height:1.35!important}
+  body.ol-offers-page .ol-offer-toggle-more{font-size:14px!important}
+  body.ol-mobile-journey-ready .eyebrow,
+  body.ol-mobile-journey-ready .provider-pill,
+  body.ol-mobile-journey-ready .status-pill,
+  body.ol-mobile-journey-ready .status,
+  body.ol-mobile-journey-ready .partner-label,
+  body.ol-mobile-journey-ready .gauge-label,
+  body.ol-mobile-journey-ready .metric span,
+  body.ol-mobile-journey-ready .affiliate-meta span,
+  body.ol-mobile-journey-ready .pipeline-row span,
+  body.ol-mobile-journey-ready .tag{font-size:13.5px!important;line-height:1.4!important}
+  body.ol-mobile-journey-ready .metric small,
+  body.ol-mobile-journey-ready .journey-step span,
+  body.ol-mobile-journey-ready .trust-item span,
+  body.ol-mobile-journey-ready .privacy-note,
+  body.ol-mobile-journey-ready .diagnostic-tip,
+  body.ol-mobile-journey-ready .economic-note,
+  body.ol-mobile-journey-ready .use-card span{font-size:14px!important;line-height:1.5!important}
+}
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104_EXTRA: componenti specifici delle pagine verticali. */
+@media(max-width:700px){
+  body.ol-mobile-journey-ready .speed-card span,
+  body.ol-mobile-journey-ready .network-tile span,
+  body.ol-mobile-journey-ready .device-tile span,
+  body.ol-mobile-journey-ready .figure figcaption,
+  body.ol-mobile-journey-ready .badge{font-size:13.5px!important;line-height:1.4!important}
+  body.ol-mobile-journey-ready footer p,
+  body.ol-mobile-journey-ready footer small{font-size:14px!important;line-height:1.5!important}
+}

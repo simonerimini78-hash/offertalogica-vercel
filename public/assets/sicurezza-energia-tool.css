@@ -82,3 +82,13 @@
   .security-source-details>summary{font-size:14px!important;line-height:1.35!important}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: sicurezza energia al limite utile su mobile. */
+@media(max-width:700px){
+  .security-result-section-label{font-size:14px!important;line-height:1.4!important}
+  .security-source-details>summary{font-size:15px!important;line-height:1.4!important}
+  .security-badge{font-size:13.5px!important;line-height:1.35!important}
+  .security-inline-info summary{font-size:14px!important;line-height:1.4!important}
+  .protection-contact-item-head span,.security-ol-number-kicker{font-size:13px!important;line-height:1.35!important}
+  .protection-contact-item small,.protection-contact-revoke{font-size:13.5px!important;line-height:1.4!important}
+}

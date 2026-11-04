@@ -41,3 +41,10 @@ main>.breadcrumbs{justify-content:center;min-height:28px;margin:4px auto 6px;pad
   .bill-data small{font-size:12.5px;line-height:1.35}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: percorso reclami al limite utile su mobile. */
+@media(max-width:700px){
+  .case-badge,.case-progress li small,.date-field label span,.date-field small,.optional-pill,.result-kicker,.journey-head span{font-size:14px!important;line-height:1.45!important}
+  .choice-grid small,.privacy-note,.bill-limit{font-size:14.5px!important;line-height:1.5!important}
+  .bill-data small{font-size:13.5px!important;line-height:1.42!important}
+}

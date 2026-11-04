@@ -116,3 +116,12 @@
   .footer{font-size:13px;line-height:1.45}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: tutela energia al limite utile su mobile. */
+@media(max-width:920px){
+  .breadcrumbs{font-size:14px!important;line-height:1.4!important}
+  .eyebrow,.section-kicker,.route-label{font-size:13.5px!important;line-height:1.4!important}
+  .route-card h3{font-size:16px!important;line-height:1.28!important}
+  .route-card p,.route-cta,.link-grid span{font-size:14px!important;line-height:1.48!important}
+  .footer{font-size:14px!important;line-height:1.5!important}
+}

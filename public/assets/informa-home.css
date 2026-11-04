@@ -426,3 +426,9 @@ body[data-editorial-view="archive"] .ol-featured-author {
   body[data-editorial-view="archive"] .ol-more-articles-section .ol-article-meta{font-size:13px;line-height:1.4}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: Informa al limite utile su mobile. */
+@media(max-width:700px){
+  body[data-editorial-view="archive"] .ol-more-articles-section .ol-article-meta{font-size:14px!important;line-height:1.45!important}
+  body[data-editorial-view="archive"] .ol-resource-list .ol-resource-card span{font-size:14px!important;line-height:1.4!important}
+}

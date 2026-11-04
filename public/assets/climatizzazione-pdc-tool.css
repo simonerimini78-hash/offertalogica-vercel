@@ -19,3 +19,10 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
   .service-switch label{font-size:14px}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: climatizzazione al limite utile su mobile. */
+@media(max-width:700px){
+  .choice-button span,.precision-badge,.precision-or,.bill-autofill>div:first-child p,.bill-autofill-grid small,
+  .advanced-panel summary::after,.source-line,.scenario-card span,.scenario-note{font-size:14px!important;line-height:1.45!important}
+  .service-switch label{font-size:15px!important;line-height:1.35!important}
+}

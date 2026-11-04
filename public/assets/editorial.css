@@ -258,3 +258,12 @@ body[data-editorial-view="article"] .ol-article-primary-cta{margin:2px 0 18px}
   .ol-session-author-text small,.ol-collapsible-summary small,.ol-collapsible-action,.ol-editorial-section-link small,
   .ol-editorial-block-kicker,.ol-editorial-block-action{font-size:13px;line-height:1.4}
 }
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: editoriale al limite utile su mobile. */
+@media(max-width:700px){
+  body[data-editorial-view="archive"] .ol-breadcrumbs,body[data-editorial-view="article"] .ol-breadcrumbs{font-size:13.5px!important;line-height:1.4!important}
+  .ol-new-badge,.ol-status,.ol-counter,.ol-my-article span,.ol-review-meta dt,.ol-status-pill,
+  .ol-permission-option small,.ol-category-table-head,.ol-resource-card span,.ol-session-author-text span,
+  .ol-session-author-text small,.ol-collapsible-summary small,.ol-collapsible-action,.ol-editorial-section-link small,
+  .ol-editorial-block-kicker,.ol-editorial-block-action{font-size:14px!important;line-height:1.45!important}
+}

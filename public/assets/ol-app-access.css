@@ -817,3 +817,18 @@ footer .ol-footer-privacy-options {
   .hero .eyebrow{font-size:13px!important;line-height:1.3!important}
 }
 
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: soglia alta leggibilita mobile condivisa. */
+@media (max-width:700px){
+  .top-nav a{font-size:14.5px!important;line-height:1.24!important}
+  .ol-breadcrumbs{font-size:13.5px!important;line-height:1.38!important}
+  .hero .eyebrow{font-size:14px!important;line-height:1.32!important}
+  .hero p,.hero-copy,.section-lead{font-size:17px!important;line-height:1.52!important}
+  .hero-actions .button,.hero-actions .btn-action,.hero-actions .lead-primary,.hero-actions .lead-secondary,
+  .hero-actions .business-secondary-action,.hero-actions .primary-link,.hero-actions .secondary-link{font-size:15.5px!important;line-height:1.25!important}
+  .notice{font-size:15px!important;line-height:1.5!important}
+  .ol-interactive .ol-choice-row .ol-choice{font-size:14.5px!important;line-height:1.3!important}
+  footer .ol-footer-privacy-options{font-size:14px!important;line-height:1.45!important}
+  main small{font-size:13.5px!important;line-height:1.42!important}
+  main label{font-size:14.5px;line-height:1.35}
+}
