@@ -75,3 +75,10 @@
 @media(max-width:580px){.security-result-section-label{margin-top:13px;margin-bottom:7px;font-size:11px}.security-ol-number-result{padding:13px}.protection-dashboard-card{padding:11px}.protection-dashboard-card h3{line-height:1.2}.protection-contact-summary p{line-height:1.4}.protection-contact-summary p b{margin-bottom:3px}.protection-logout{width:100%;min-height:42px}}
 
 .security-source-details{padding:0;overflow:hidden}.security-source-details>summary{cursor:pointer;list-style:none;padding:14px 16px;color:#1e3a8a;font-size:14px;font-weight:900}.security-source-details>summary::-webkit-details-marker{display:none}.security-source-details>summary::after{content:"▸";float:right;color:#64748b}.security-source-details[open]>summary{border-bottom:1px solid #bfdbfe}.security-source-details[open]>summary::after{content:"▾"}.security-source-box-body{padding:0 16px 16px}@media(max-width:580px){.security-source-details>summary{padding:12px 13px;font-size:13px}.security-source-box-body{padding:0 13px 13px}}
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: leggibilita mobile sicurezza energia. */
+@media(max-width:700px){
+  .security-result-section-label{font-size:13px!important;line-height:1.35!important}
+  .security-source-details>summary{font-size:14px!important;line-height:1.35!important}
+}
+

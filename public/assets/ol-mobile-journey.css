@@ -1228,3 +1228,39 @@ footer .ol-app-access-footer .ol-app-access-link:focus-visible {
 @media (min-width: 701px) {
   body.ol-offers-page .ol-offer-toggle { display: none !important; }
 }
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: audit leggibilita mobile condiviso pagine pubbliche. */
+@media (max-width:700px){
+  body.ol-mobile-journey-ready .ol-mobile-toc-hint{font-size:13px!important;line-height:1.4!important}
+  body.ol-mobile-journey-ready table.ol-mobile-card-table td::before{font-size:12.5px!important;line-height:1.3!important}
+  body.ol-mobile-journey-ready .ol-fast-entry>p{font-size:13.5px!important;line-height:1.42!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-option strong{font-size:15px!important;line-height:1.22!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-option small{font-size:12.5px!important;line-height:1.35!important}
+  body.ol-mobile-journey-ready .ol-fast-entry-help{font-size:13px!important;line-height:1.45!important}
+  body.ol-mobile-journey-ready .footer,body.ol-mobile-journey-ready .ol-footer{font-size:13px!important;line-height:1.5!important}
+  body.ol-mobile-journey-ready .ol-app-access-footer .ol-app-access-link{font-size:13px!important}
+  body.ol-mobile-journey-ready footer nav[aria-label='OffertaLogica Informa'] a{font-size:13px!important}
+  body.ol-offers-page .hero .eyebrow{font-size:13px!important}
+  body.ol-offers-page .ol-breadcrumbs{font-size:12.5px!important}
+  body.ol-offers-page #arera-update-note{font-size:13px!important;line-height:1.45!important}
+  body.ol-offers-page .ol-offer-toggle-tags{font-size:12.5px!important}
+  body.ol-offers-page .ol-offer-toggle-more{font-size:13px!important}
+  body.ol-mobile-journey-ready .eyebrow,
+  body.ol-mobile-journey-ready .provider-pill,
+  body.ol-mobile-journey-ready .status-pill,
+  body.ol-mobile-journey-ready .status,
+  body.ol-mobile-journey-ready .partner-label,
+  body.ol-mobile-journey-ready .gauge-label,
+  body.ol-mobile-journey-ready .metric span,
+  body.ol-mobile-journey-ready .affiliate-meta span,
+  body.ol-mobile-journey-ready .pipeline-row span,
+  body.ol-mobile-journey-ready .tag{font-size:13px!important;line-height:1.35!important}
+  body.ol-mobile-journey-ready .metric small,
+  body.ol-mobile-journey-ready .journey-step span,
+  body.ol-mobile-journey-ready .trust-item span,
+  body.ol-mobile-journey-ready .privacy-note,
+  body.ol-mobile-journey-ready .diagnostic-tip,
+  body.ol-mobile-journey-ready .economic-note,
+  body.ol-mobile-journey-ready .use-card span{font-size:13px!important;line-height:1.45!important}
+}
+

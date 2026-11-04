@@ -9,3 +9,11 @@
 .ol-menu-toggle:focus-visible,.ol-menu-close:focus-visible,.ol-menu-nav a:focus-visible,.ol-menu-secondary a:focus-visible{outline:3px solid rgba(37,99,235,.3);outline-offset:2px}
 @media(max-width:680px){.ol-public-header-inner{width:100%;min-height:68px;padding:8px 12px;grid-template-columns:minmax(0,1fr) 44px;gap:10px}.ol-public-logo img{width:min(190px,64vw);max-width:none}.ol-menu-toggle{width:44px;height:44px}}
 @media(prefers-reduced-motion:reduce){.ol-menu-backdrop,.ol-menu-drawer,.ol-menu-toggle span,.ol-menu-toggle::before,.ol-menu-toggle::after{transition:none!important}}
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: menu pubblico mobile piu leggibile. */
+@media(max-width:700px){
+  .ol-menu-nav a strong{font-size:15px}
+  .ol-menu-nav a small{font-size:13px;line-height:1.4}
+  .ol-menu-secondary a{font-size:13px;line-height:1.35}
+}
+

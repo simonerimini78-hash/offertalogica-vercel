@@ -106,3 +106,13 @@
     color:var(--primary-dark);
   }
 }
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: leggibilita mobile tutela energia. */
+@media(max-width:920px){
+  .breadcrumbs{font-size:13.5px}
+  .eyebrow,.section-kicker,.route-label{font-size:12.5px;line-height:1.35}
+  .route-card h3{font-size:15px;line-height:1.25}
+  .route-card p,.route-cta,.link-grid span{font-size:13px;line-height:1.4}
+  .footer{font-size:13px;line-height:1.45}
+}
+

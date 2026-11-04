@@ -11,3 +11,11 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
 .cta-card{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:center;gap:18px;padding:clamp(20px,3.5vw,30px)}.cta-card p{margin:7px 0 0;color:var(--muted);max-width:720px}.secondary-cta{margin-top:12px;background:rgba(248,250,252,.88)}.content-card{padding:clamp(20px,3.5vw,30px)}.content-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px;margin-top:14px}.info-box{padding:14px;border:1px solid rgba(203,213,225,.75);border-radius:15px;background:#f8fafc}.info-box h3{margin:0 0 6px;font-size:16px}.info-box p{margin:0;color:#536b78;font-size:13px}.footer{padding:28px 10px 0;text-align:center;color:var(--muted);font-size:13px}.footer nav{display:flex;justify-content:center;flex-wrap:wrap;gap:8px 14px;margin-top:10px}.footer a{color:#315564}
 @media(max-width:800px){.choice-grid,.scenario-grid,.content-grid,.bill-autofill-grid{grid-template-columns:1fr}.cta-card,.precision-cta{grid-template-columns:1fr}.precision-button{width:100%}}
 @media(max-width:620px){.page-shell{width:min(100% - 18px,1080px)}.form-grid,.metrics{grid-template-columns:1fr}.field.span-2{grid-column:auto}.button{width:100%}.actions{display:grid;grid-template-columns:1fr}.choice-grid{position:static}.top-nav{gap:6px}.top-nav a{padding:8px 10px;font-size:13px}}
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: leggibilita mobile strumento climatizzazione. */
+@media(max-width:700px){
+  .choice-button span,.precision-badge,.precision-or,.bill-autofill>div:first-child p,.bill-autofill-grid small,
+  .advanced-panel summary::after,.source-line,.scenario-card span,.scenario-note{font-size:13px;line-height:1.4}
+  .service-switch label{font-size:14px}
+}
+

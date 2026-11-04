@@ -33,3 +33,11 @@ main>.breadcrumbs{justify-content:center;min-height:28px;margin:4px auto 6px;pad
   .trust-item strong{margin:0;font-size:11px;line-height:1.2}
   .trust-item span{display:none}
 }
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: leggibilita mobile percorso reclami. */
+@media(max-width:700px){
+  .case-badge,.case-progress li small,.date-field label span,.date-field small,.optional-pill,.result-kicker,.journey-head span{font-size:13px;line-height:1.4}
+  .choice-grid small,.privacy-note,.bill-limit{font-size:13.5px;line-height:1.45}
+  .bill-data small{font-size:12.5px;line-height:1.35}
+}
+

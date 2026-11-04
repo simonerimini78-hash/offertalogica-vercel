@@ -420,3 +420,9 @@ body[data-editorial-view="archive"] .ol-featured-author {
     padding: 9px 11px;
   }
 }
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: metadati Informa leggibili su mobile. */
+@media(max-width:700px){
+  body[data-editorial-view="archive"] .ol-more-articles-section .ol-article-meta{font-size:13px;line-height:1.4}
+}
+
