@@ -10481,7 +10481,9 @@ function leggiProfiloBusiness() {
   const fasceParziali = bandValues.length > 0 && !fasceComplete;
   const consumoFasce = fasceComplete ? bandValues.reduce((sum, value) => sum + value, 0) : null;
   const consumoLuceManuale = numberOrNull("business-kwh");
-  const consumoLuce = consumoFasce !== null ? consumoFasce : consumoLuceManuale;
+  const consumoLuce = Number.isFinite(consumoLuceManuale) ? consumoLuceManuale : consumoFasce;
+  const fasceIncoerenti = Number.isFinite(consumoLuceManuale) && Number.isFinite(consumoFasce)
+    && Math.abs(consumoFasce - consumoLuceManuale) > Math.max(0.01, Math.abs(consumoLuceManuale) * 0.001);
   const consumoGas = numberOrNull("business-smc");
   const prezzoLuce = numberOrNull("business-prezzo-luce");
   const prezzoGas = numberOrNull("business-prezzo-gas");
@@ -10495,6 +10497,7 @@ function leggiProfiloBusiness() {
   if (fasceParziali && !Number.isFinite(consumoLuceManuale)) {
     campiMancanti.push("F1/F2/F3 complete oppure consumo annuo luce totale");
   }
+  if (fasceIncoerenti) campiMancanti.push("consumo annuo luce incoerente con F1/F2/F3: verificare i valori annui");
   if (hasLuce) {
     if (!Number.isFinite(consumoLuce)) campiMancanti.push("consumo annuo luce");
     if (!Number.isFinite(prezzoLuce)) campiMancanti.push("prezzo vendita luce");
