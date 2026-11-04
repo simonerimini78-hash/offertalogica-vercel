@@ -4644,50 +4644,45 @@
             <span>Calcolo domestico luce e gas con offerte proposte.</span>
         </button>
         <button type="button" id="btn-segmento-business">
-            Azienda / P.IVA
+            Azienda
             <span>Analisi preliminare per imprese, negozi, uffici e professionisti.</span>
         </button>
     </div>
 
-    <section class="mobile-fast-start" id="mobile-fast-start" aria-labelledby="mobile-fast-start-title">
-        <div class="mobile-fast-start-heading">
-            <h2 id="mobile-fast-start-title">Inizia il confronto</h2>
-            <p>Scegli quanto vuoi approfondire: puoi vedere subito una prima stima oppure partire direttamente dalla tua bolletta.</p>
-        </div>
+    <section class="mobile-fast-start" id="mobile-fast-start" aria-label="Scegli come confrontare le offerte">
         <div class="mobile-fast-options">
             <div class="mobile-fast-option-card mobile-fast-option-card-average">
                 <button type="button" class="mobile-fast-option mobile-fast-option-average" id="mobile-fast-average" aria-pressed="false">
-                    <strong>Vedi subito le offerte</strong>
-                    <small>Prima stima senza bolletta</small>
+                    <strong>Inizia il confronto</strong>
+                    <small>Vedi subito le offerte aggiornate</small>
                 </button>
                 <button type="button" class="mobile-fast-info-button" data-fast-help="average" aria-label="Come funziona la prima stima?">i</button>
             </div>
 
             <section class="mobile-fast-personalized-panel" aria-labelledby="mobile-fast-personalized-title">
                 <div class="mobile-fast-personalized-heading">
-                    <strong id="mobile-fast-personalized-title">Scopri quanto puoi risparmiare tu</strong>
-                    <span>Hai una bolletta? Usala per ottenere risultati personalizzati.</span>
+                    <strong id="mobile-fast-personalized-title">Scopri quanto puoi risparmiare inserendo la tua bolletta</strong>
                 </div>
 
                 <div class="mobile-fast-personalized-actions">
                     <div class="mobile-fast-option-card is-photo-card">
                         <button type="button" class="mobile-fast-option is-photo-action" id="mobile-fast-photo" aria-pressed="false">
                             <strong>Scatta una foto</strong>
-                            <small>Fotografa la bolletta</small>
+                            <small>Foto della bolletta</small>
                         </button>
                         <button type="button" class="mobile-fast-info-button" data-fast-help="photo" aria-label="Quale pagina della bolletta fotografare?">i</button>
                     </div>
                     <div class="mobile-fast-option-card">
                         <button type="button" class="mobile-fast-option" id="mobile-fast-pdf" aria-pressed="false">
                             <strong>Carica il PDF</strong>
-                            <small>Usa la bolletta originale</small>
+                            <small>PDF della bolletta</small>
                         </button>
                         <button type="button" class="mobile-fast-info-button" data-fast-help="pdf" aria-label="Quale PDF della bolletta caricare?">i</button>
                     </div>
                     <div class="mobile-fast-option-card mobile-fast-option-card-manual">
                         <button type="button" class="mobile-fast-option mobile-fast-option-manual" id="mobile-fast-manual" aria-pressed="false">
                             <strong>Inserisci i dati a mano</strong>
-                            <small>Se conosci già consumi e dati della fornitura</small>
+                            <small>Consumi e fornitore</small>
                         </button>
                         <button type="button" class="mobile-fast-info-button" data-fast-help="manual" aria-label="Come funziona l’inserimento manuale?">i</button>
                     </div>
@@ -6345,6 +6340,106 @@
         }
         @media (prefers-reduced-motion: reduce) {
             .guided-assistant-launcher, .guided-assistant-mobile-toggle { transition: none; }
+        }
+
+        /* OFFERTALOGICA_PUBLIC_V114_20261104: leggibilita mobile del selettore iniziale.
+           Solo copy e presentazione: logica, tracking e percorsi restano invariati. */
+        @media (max-width: 700px) {
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button {
+                min-height: 52px !important;
+                height: 52px !important;
+                padding: 8px 31px 8px 10px !important;
+                font-size: 16px !important;
+                line-height: 1.1 !important;
+                font-weight: 900 !important;
+            }
+            html.mobile-fast-flow body:not(.social-entry-active) .segment-switch button.active::after {
+                right: 9px !important;
+            }
+            .mobile-fast-start {
+                padding-top: 10px !important;
+            }
+            .mobile-fast-options {
+                gap: 8px !important;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option {
+                min-height: 84px !important;
+                padding: 15px 42px 14px 15px !important;
+                gap: 4px !important;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option strong {
+                font-size: 18px !important;
+                line-height: 1.12 !important;
+            }
+            .mobile-fast-option-card-average .mobile-fast-option small {
+                font-size: 12.5px !important;
+                line-height: 1.22 !important;
+            }
+            .mobile-fast-personalized-panel {
+                gap: 8px !important;
+                padding: 10px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading {
+                padding: 1px 3px 3px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading strong {
+                font-size: 15.5px !important;
+                line-height: 1.23 !important;
+            }
+            .mobile-fast-personalized-actions {
+                grid-auto-rows: auto;
+                gap: 7px !important;
+                align-items: stretch !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) {
+                height: 100%;
+                align-self: stretch;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option {
+                min-height: 92px !important;
+                height: 100% !important;
+                padding: 25px 8px 10px !important;
+                gap: 4px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option strong {
+                font-size: 14.5px !important;
+                line-height: 1.18 !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option small {
+                font-size: 12px !important;
+                line-height: 1.22 !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option {
+                min-height: 52px !important;
+                padding: 8px 38px 8px 10px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option strong {
+                font-size: 14px !important;
+                line-height: 1.18 !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option small {
+                font-size: 11.5px !important;
+                line-height: 1.2 !important;
+            }
+        }
+        @media (max-width: 360px) {
+            .mobile-fast-option-card-average .mobile-fast-option strong {
+                font-size: 17px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-personalized-heading strong {
+                font-size: 15px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option {
+                min-height: 94px !important;
+                padding-left: 6px !important;
+                padding-right: 6px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option strong {
+                font-size: 14px !important;
+            }
+            .mobile-fast-personalized-panel .mobile-fast-option-card:not(.mobile-fast-option-card-manual) .mobile-fast-option small {
+                font-size: 11.5px !important;
+            }
         }
 </style>
 <script>
