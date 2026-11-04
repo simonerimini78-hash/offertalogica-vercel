@@ -6767,6 +6767,50 @@
   .mobile-fast-personalized-panel .mobile-fast-option-card-manual .mobile-fast-option strong{font-size:17px!important}
 }
 </style>
+<style id="ol-mobile-readability-v121-home-fix">
+/* OFFERTALOGICA_PUBLIC_V121_HOME_FIX_20261104: corregge il limite reale delle due card home.
+   Mantiene la tipografia V121, ma lascia che gli slot crescano con il contenuto e riequilibra le colonne. */
+@media (max-width:700px){
+  .social-entry-actions{grid-template-columns:minmax(0,1fr) minmax(0,1fr)!important;gap:10px!important;align-items:stretch!important}
+  .social-entry-route{
+    min-height:228px!important;
+    height:auto!important;
+    grid-template-rows:auto auto auto auto!important;
+    align-content:start!important;
+    gap:8px!important;
+    padding:14px 11px 12px!important;
+  }
+  .social-entry-route-self .social-entry-route-title{grid-row:1 / 3!important;align-self:center!important}
+  .social-entry-route-title{font-size:18px!important;line-height:1.15!important}
+  .social-entry-route-kicker{font-size:13.5px!important;line-height:1.1!important;letter-spacing:.08em!important}
+  .social-entry-switcho-logo{width:min(72%,150px)!important;height:42px!important;margin:0 auto!important}
+  .social-entry-route .social-entry-route-copy{
+    min-height:0!important;
+    font-size:14px!important;
+    line-height:1.3!important;
+    padding:2px 3px!important;
+    overflow-wrap:anywhere!important;
+  }
+  .social-entry-route-copy-emphasis{font-size:14.5px!important;line-height:1.26!important;margin-top:5px!important}
+  .social-entry-route-cta{
+    min-height:44px!important;
+    margin-top:2px!important;
+    padding:9px 7px!important;
+    font-size:16px!important;
+    line-height:1.08!important;
+    align-self:end!important;
+  }
+  .social-entry-route-cta b{font-size:21px!important}
+}
+@media (max-width:360px){
+  .social-entry-actions{gap:8px!important}
+  .social-entry-route{padding-inline:9px!important}
+  .social-entry-route-title{font-size:17px!important}
+  .social-entry-route .social-entry-route-copy{font-size:13.5px!important}
+  .social-entry-route-copy-emphasis{font-size:14px!important}
+  .social-entry-route-cta{font-size:15.5px!important}
+}
+</style>
 
 <script>
 function avviaComparazioneDati() {
