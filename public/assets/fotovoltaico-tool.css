@@ -56,3 +56,8 @@ a{color:inherit}button,input,select{font:inherit}[hidden]{display:none!important
 @media(max-width:700px){
   .bill-summary-kicker,.bill-summary-badge,.bill-summary-grid span,.bill-detail-grid span{font-size:14px!important;line-height:1.45!important}
 }
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: step mobile leggibili senza ampliare il componente. */
+@media(max-width:700px){
+  .quick-progress li{font-size:13.5px!important;line-height:1.3!important}
+}

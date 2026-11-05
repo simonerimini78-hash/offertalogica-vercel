@@ -130,3 +130,41 @@ a{color:inherit}.skip-link{position:absolute;left:-999px;top:10px;z-index:1000;b
   .reason-provider-head{font-size:.46rem;line-height:1.02}
   .reason-column-header{min-height:44px}
 }
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: directory fornitori leggibile su mobile.
+ * La scheda dual passa a colonna singola: meno densita, testo piu leggibile, nessun overflow. */
+@media(max-width:700px){
+  .breadcrumbs{font-size:13.5px!important;line-height:1.4!important}
+  .hero .eyebrow,.section-kicker{font-size:13.5px!important;line-height:1.35!important}
+  .compare-tool-head p,.directory>p,.methodology>p,.partner-pages-head p{font-size:14px!important;line-height:1.5!important}
+  .provider-select-wrap label{font-size:14px!important;line-height:1.35!important}
+  .provider-empty span,.provider-card-title p{font-size:13.5px!important;line-height:1.45!important}
+  .provider-sectors-dual{grid-template-columns:1fr!important}
+  .sector-head strong{font-size:13.5px!important;line-height:1.3!important}
+  .data-subhead{font-size:13px!important;line-height:1.3!important;padding:7px 8px!important}
+  .data-subhead small{font-size:12.5px!important;line-height:1.3!important}
+  .metric-row,.reason-row{padding:8px!important;gap:7px!important}
+  .metric-row-label,.reason-row>span:first-child{font-size:13.5px!important;line-height:1.35!important}
+  .metric-row-value strong,.reason-row-value strong{font-size:13.5px!important;line-height:1.2!important}
+  .metric-row-value small,.reason-row-value small,.reason-row-value em{font-size:12px!important;line-height:1.25!important}
+  .observers-head strong,.observer-row>strong{font-size:13px!important;line-height:1.35!important}
+  .observers-head span,.observer-row>span{font-size:12.5px!important;line-height:1.4!important}
+  .btn,.partner-link{font-size:13.5px!important;line-height:1.3!important}
+  .comparison-summary h3{font-size:17px!important;line-height:1.3!important}
+  .comparison-summary li,.comparison-lead{font-size:13.5px!important;line-height:1.45!important}
+  .comparison-note{font-size:13px!important;line-height:1.45!important}
+  .provider-directory>summary{font-size:14px!important;line-height:1.35!important}
+  .provider-directory-grid{grid-template-columns:1fr!important}
+  .directory-item{min-height:62px!important;padding:9px 10px!important}
+  .directory-item strong,.partner-card strong{font-size:13.5px!important;line-height:1.3!important}
+  .directory-item span,.partner-card span{font-size:12.5px!important;line-height:1.35!important}
+  .method-card h3{font-size:15px!important;line-height:1.3!important}
+  .method-card p{font-size:13.5px!important;line-height:1.45!important}
+  .footer{font-size:13.5px!important;line-height:1.5!important}
+  .provider-section-title strong{font-size:13px!important;line-height:1.3!important}
+  .provider-section-title span{font-size:12px!important;line-height:1.3!important}
+  .matrix-header,.sector-group{font-size:12px!important;line-height:1.25!important}
+  .matrix-label,.matrix-value,.reason-matrix-label,.reason-matrix-cell{font-size:12.5px!important;line-height:1.25!important}
+  .matrix-combined small,.reason-column-header,.reason-provider-head{font-size:11.5px!important;line-height:1.2!important}
+}
+@media(max-width:700px){.partner-card span{font-size:13.5px!important}}

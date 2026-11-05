@@ -830,5 +830,40 @@ footer .ol-footer-privacy-options {
   .ol-interactive .ol-choice-row .ol-choice{font-size:14.5px!important;line-height:1.3!important}
   footer .ol-footer-privacy-options{font-size:14px!important;line-height:1.45!important}
   main small{font-size:13.5px!important;line-height:1.42!important}
-  main label{font-size:14.5px;line-height:1.35}
+  main label{font-size:14.5px!important;line-height:1.35!important}
+}
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: fallback leggibilita mobile per strumenti energia
+ * che caricano ancora fogli CSS senza query-version. Il foglio ol-app-access e versionato,
+ * quindi garantisce che i microtesti aggiornati arrivino subito anche con cache preesistente. */
+@media (max-width:700px) {
+  .ol-live-kicker,
+  .ol-live-meta,
+  .ol-live-source,
+  .ol-live-reference span,
+  .ol-live-note,
+  .ol-live-stat span {
+    font-size:14px !important;
+    line-height:1.45 !important;
+  }
+  .ol-live-alert {
+    font-size:14.5px !important;
+    line-height:1.45 !important;
+  }
+  .ol-market-card span,
+  .ol-market-card small,
+  .ol-market-status,
+  .ol-calc-note {
+    font-size:14px !important;
+    line-height:1.45 !important;
+  }
+  .ol-field label {
+    font-size:15px !important;
+    line-height:1.35 !important;
+  }
+  .ol-choice,
+  .ol-inline-cta {
+    font-size:15px !important;
+    line-height:1.3 !important;
+  }
 }

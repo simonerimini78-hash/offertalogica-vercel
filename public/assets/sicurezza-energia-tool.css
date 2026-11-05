@@ -92,3 +92,15 @@
   .protection-contact-item-head span,.security-ol-number-kicker{font-size:13px!important;line-height:1.35!important}
   .protection-contact-item small,.protection-contact-revoke{font-size:13.5px!important;line-height:1.4!important}
 }
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: Protezione OL, microtesti operativi sopra soglia mobile. */
+@media(max-width:700px){
+  .hero>.breadcrumbs.shell{font-size:13.5px!important;line-height:1.35!important}
+  .hero .eyebrow{font-size:13.5px!important;line-height:1.35!important}
+  .protection-account-badge{font-size:13.5px!important;line-height:1.35!important}
+  .protection-benefits span{font-size:13px!important;line-height:1.3!important;padding:7px 6px!important}
+  .protection-account-aside ol{font-size:13.5px!important;line-height:1.45!important}
+}
+@media(max-width:360px){
+  .protection-benefits span{font-size:12.5px!important;line-height:1.28!important}
+}

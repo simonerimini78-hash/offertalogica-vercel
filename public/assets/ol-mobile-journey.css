@@ -1311,3 +1311,23 @@ footer .ol-app-access-footer .ol-app-access-link:focus-visible {
   body.ol-mobile-journey-ready footer p,
   body.ol-mobile-journey-ready footer small{font-size:14px!important;line-height:1.5!important}
 }
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: chiusura audit leggibilita mobile. */
+@media (max-width:700px){
+  body.ol-mobile-journey-ready .ol-fast-entry-heading > p{
+    font-size:14.5px!important;
+    line-height:1.48!important;
+  }
+  body.ol-mobile-journey-ready .ol-fast-entry-personalized-heading strong{
+    font-size:17px!important;
+    line-height:1.28!important;
+  }
+  body.ol-mobile-journey-ready .ol-fast-entry-personalized-heading span{
+    font-size:14px!important;
+    line-height:1.45!important;
+  }
+  body.ol-mobile-journey-ready .ol-simulator-entry-kicker{
+    font-size:13.5px!important;
+    line-height:1.35!important;
+  }
+}

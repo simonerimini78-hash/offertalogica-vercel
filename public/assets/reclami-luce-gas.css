@@ -48,3 +48,11 @@ main>.breadcrumbs{justify-content:center;min-height:28px;margin:4px auto 6px;pad
   .choice-grid small,.privacy-note,.bill-limit{font-size:14.5px!important;line-height:1.5!important}
   .bill-data small{font-size:13.5px!important;line-height:1.42!important}
 }
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: trust e progress leggibili su telefono reale. */
+@media(max-width:650px){
+  .trust-item strong{font-size:13.5px!important;line-height:1.3!important}
+  .case-progress li span{font-size:13.5px!important;line-height:1!important}
+  main>.breadcrumbs{font-size:13.5px!important;line-height:1.35!important}
+}
+@media(max-width:650px){.legend-note{font-size:13.5px!important;line-height:1.45!important}}
