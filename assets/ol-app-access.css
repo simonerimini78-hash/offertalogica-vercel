@@ -1,0 +1,869 @@
+/* Accessi alle app OffertaLogica, mantenuti nel footer (v0.10.68). */
+.ol-app-access-bar {
+    display: none !important; /* Accessi App/Premium soltanto nel footer. */
+    position: sticky;
+    top: 0;
+    z-index: 940;
+    width: 100%;
+    background: transparent;
+    border: 0;
+    box-shadow: none;
+}
+
+.ol-app-access-inner,
+.ol-app-access-footer {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 10px;
+}
+
+.ol-app-access-inner {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 0 20px 10px;
+    flex-wrap: wrap;
+}
+
+.ol-app-access-footer {
+    flex-wrap: wrap;
+    margin: 0 auto 20px;
+    padding: 0 12px;
+}
+
+.ol-app-access-link {
+    min-height: 42px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    padding: 10px 16px;
+    border: 1px solid rgba(148, 163, 184, 0.45);
+    border-radius: 10px;
+    background: #ffffff;
+    color: #334155 !important;
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    font-size: 14px;
+    font-weight: 800;
+    line-height: 1.2;
+    text-align: center;
+    text-decoration: none !important;
+    box-shadow: 0 8px 18px rgba(15, 23, 42, 0.05);
+    transition: transform 0.15s ease, box-shadow 0.15s ease, border-color 0.15s ease, background 0.15s ease;
+}
+
+.ol-app-access-link:hover {
+    color: inherit !important;
+    text-decoration: none !important;
+    transform: translateY(-1px);
+    box-shadow: 0 10px 22px rgba(15, 23, 42, 0.08);
+}
+
+.ol-app-access-link:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, 0.22);
+    outline-offset: 3px;
+}
+
+.ol-app-access-free {
+    background: #f0fdf4;
+    color: #14532d !important;
+    border-color: rgba(22, 163, 74, 0.45);
+}
+
+.ol-app-access-premium {
+    background: #eff6ff;
+    color: #1d4ed8 !important;
+    border-color: rgba(59, 130, 246, 0.42);
+}
+
+@media (max-width: 560px) {
+    .ol-app-access-inner {
+        gap: 8px;
+        padding: 0 12px 10px;
+    }
+
+    .ol-app-access-inner .ol-app-access-link {
+        flex: 1 1 0;
+        min-width: 0;
+        min-height: 40px;
+        padding: 8px 9px;
+        font-size: 13px;
+    }
+
+    .ol-app-access-footer {
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 8px;
+        max-width: 420px;
+    }
+
+    .ol-app-access-footer .ol-app-access-link {
+        min-width: 0;
+        padding: 9px 8px;
+        font-size: 13px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .ol-app-access-link {
+        transition: none;
+    }
+}
+
+/*
+ * iOS Safari ingrandisce automaticamente la pagina quando riceve focus
+ * un controllo di testo con font inferiore a 16px. Manteniamo lo zoom
+ * manuale accessibile e portiamo soltanto i controlli mobili alla soglia
+ * che evita il focus-zoom automatico.
+ */
+@media (max-width: 700px) {
+    input:not([type="checkbox"]):not([type="radio"]):not([type="file"]):not([type="range"]):not([type="button"]):not([type="submit"]):not([type="reset"]):not([type="hidden"]),
+    select,
+    textarea {
+        font-size: 16px !important;
+    }
+}
+
+
+/*
+ * D2 mobile offerte: il selettore desktop
+ * .partner-vertical-card:not(.locked-offer) ha specificita maggiore della
+ * regola mobile .partner-vertical-card e mantiene quindi la seconda colonna
+ * min-width 180px. Su schermi stretti questa colonna comprime il testo della
+ * scheda. Forziamo il layout mobile gia previsto a una sola colonna.
+ */
+@media (max-width: 700px) {
+    .partner-vertical-card {
+        grid-template-columns: minmax(0, 1fr) !important;
+    }
+}
+
+/* ================================================================
+ * OFFERTALOGICA — CONSOLIDAMENTO VISIVO FLUID GLASS v1.0.0
+ * Solo presentazione: nessuna regola modifica display funzionali,
+ * ID, form logic, tracking, motore di confronto o aggiornamenti dati.
+ * ================================================================ */
+
+:root {
+    --ol-glass-text: #123044;
+    --ol-glass-muted: #647985;
+    --ol-glass-deep: #087f3a;
+    --ol-glass-green: #18a84b;
+    --ol-glass-lime: #84d126;
+    --ol-glass-border: rgba(227, 233, 231, .86);
+    --ol-glass-border-strong: rgba(148, 163, 184, .28);
+    --ol-glass-surface: linear-gradient(155deg, rgba(255,255,255,.74) 0%, rgba(244,247,245,.58) 52%, rgba(227,233,231,.42) 100%);
+    --ol-glass-surface-strong: linear-gradient(145deg, rgba(255,255,255,.86) 0%, rgba(244,248,245,.72) 58%, rgba(231,239,234,.58) 100%);
+    --ol-glass-shadow: 0 24px 58px rgba(18,48,68,.12), inset 0 1px 0 rgba(255,255,255,.90);
+    --ol-glass-shadow-soft: 0 14px 34px rgba(18,48,68,.09), inset 0 1px 0 rgba(255,255,255,.86);
+}
+
+/* Base comune: stessa atmosfera delle pagine Speed Test / FV / Clima. */
+html {
+    background: #f4f7f5;
+}
+
+body {
+    color: var(--ol-glass-text) !important;
+    font-family: ui-rounded, "SF Pro Rounded", "Aptos", "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif !important;
+    background:
+        radial-gradient(circle at 18% 10%, rgba(132,209,38,.15), transparent 30%),
+        radial-gradient(circle at 82% 26%, rgba(24,168,75,.11), transparent 34%),
+        radial-gradient(circle at 48% 92%, rgba(8,127,58,.07), transparent 36%),
+        linear-gradient(145deg, #f4f7f5 0%, #eef5f0 52%, #ffffff 100%) !important;
+    background-attachment: fixed !important;
+}
+
+/* Header e navigazione: continuita visiva fra aree editoriali e strumenti. */
+.topbar {
+    background: rgba(255,255,255,.58) !important;
+    border-bottom-color: rgba(227,233,231,.78) !important;
+    box-shadow: 0 10px 28px rgba(18,48,68,.05) !important;
+    -webkit-backdrop-filter: blur(24px) saturate(135%);
+    backdrop-filter: blur(24px) saturate(135%);
+}
+
+.nav a,
+.top-nav a {
+    border: 1px solid rgba(227,233,231,.86) !important;
+    border-radius: 14px !important;
+    background: rgba(255,255,255,.52) !important;
+    color: #315564 !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.88), 0 7px 18px rgba(18,48,68,.045) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(135%);
+    backdrop-filter: blur(18px) saturate(135%);
+}
+
+.nav a:hover,
+.top-nav a:hover,
+.nav a[aria-current="page"],
+.top-nav a.active {
+    color: var(--ol-glass-deep) !important;
+    border-color: rgba(24,168,75,.28) !important;
+    background: rgba(255,255,255,.70) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 10px 24px rgba(18,48,68,.07) !important;
+}
+
+/* Hero delle pagine classiche. Gli strumenti Fluid Glass hanno gia un hero proprio. */
+.hero > .shell {
+    border: 1px solid var(--ol-glass-border) !important;
+    border-radius: clamp(24px, 4vw, 36px) !important;
+    padding: clamp(24px, 4vw, 42px) !important;
+    background: var(--ol-glass-surface) !important;
+    box-shadow: var(--ol-glass-shadow) !important;
+    -webkit-backdrop-filter: blur(26px) saturate(138%);
+    backdrop-filter: blur(26px) saturate(138%);
+}
+
+.hero > .shell h1,
+.hero h1 {
+    color: var(--ol-glass-text) !important;
+    letter-spacing: -.03em !important;
+}
+
+.eyebrow {
+    color: var(--ol-glass-deep) !important;
+}
+
+.hero > .shell p,
+.hero-copy,
+.section-lead {
+    color: var(--ol-glass-muted) !important;
+}
+
+/* Superfici ricorrenti: cambia solo l'aspetto, non il layout. */
+.panel,
+.toc,
+.mini-card,
+.card,
+.provider-card,
+.related-card,
+.info-box,
+.method-card,
+.process-item,
+.pipeline-row,
+.network-tile,
+.device-tile,
+.business-section,
+.manual-block,
+.partner-box,
+.partner-vertical-card,
+.supply-compare-card,
+.smart-home-teaser,
+.figure,
+.detail-panel,
+.trust-strip,
+.ol-interactive,
+.ol-choice-result,
+.content-card,
+.cta-card {
+    border-color: var(--ol-glass-border) !important;
+    border-radius: 20px !important;
+    background: rgba(255,255,255,.72) !important;
+    box-shadow: var(--ol-glass-shadow-soft) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(135%);
+    backdrop-filter: blur(20px) saturate(135%);
+}
+
+/* I contenitori principali possono essere piu morbidi senza cambiare geometria. */
+.panel,
+.provider-card,
+.ol-interactive,
+.content-card,
+.cta-card {
+    border-radius: 24px !important;
+}
+
+.toc {
+    background: rgba(255,255,255,.66) !important;
+}
+
+.toc a {
+    border-top-color: rgba(148,163,184,.18) !important;
+    color: #315564 !important;
+}
+
+.toc a:hover {
+    color: var(--ol-glass-deep) !important;
+}
+
+/* Callout e messaggi: manteniamo il significato cromatico ma in stile glass. */
+.notice,
+.remember,
+.warning,
+.disclaimer,
+.legal-note,
+.input-guidance,
+.profile-missing,
+.storage-note,
+.diagnostic-callout,
+.pdf-context-notice {
+    border-radius: 16px !important;
+    box-shadow: 0 10px 26px rgba(18,48,68,.06) !important;
+    -webkit-backdrop-filter: blur(16px) saturate(130%);
+    backdrop-filter: blur(16px) saturate(130%);
+}
+
+.notice,
+.remember,
+.input-guidance,
+.profile-missing,
+.storage-note,
+.diagnostic-callout,
+.pdf-context-notice {
+    background: rgba(240,253,244,.76) !important;
+    border-color: rgba(134,239,172,.56) !important;
+}
+
+/* Pulsanti e scelte: stessa forma e profondita in tutto il sito. */
+.button,
+.btn-action,
+.lead-primary,
+.lead-secondary,
+.business-secondary-action,
+.ol-inline-cta,
+.ol-choice,
+.choice-button,
+.segment-switch button,
+.secondary-link {
+    border-radius: 14px !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.32), 0 8px 20px rgba(18,48,68,.07) !important;
+}
+
+.button.primary,
+.btn-action,
+.lead-primary,
+.ol-inline-cta:not(.secondary) {
+    background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+    border-color: rgba(8,127,58,.30) !important;
+    color: #fff !important;
+}
+
+.button.secondary,
+.lead-secondary,
+.business-secondary-action,
+.ol-inline-cta.secondary,
+.ol-choice,
+.choice-button {
+    background: rgba(255,255,255,.70) !important;
+    border-color: rgba(148,163,184,.30) !important;
+    color: #315564 !important;
+}
+
+.button:hover,
+.btn-action:hover,
+.lead-primary:hover,
+.lead-secondary:hover,
+.business-secondary-action:hover,
+.ol-inline-cta:hover,
+.ol-choice:hover,
+.choice-button:hover {
+    transform: translateY(-1px);
+}
+
+/* Form: nessun cambio di nome, valore, stato o comportamento. */
+.input-group input,
+.input-group select,
+.input-group textarea,
+.field input,
+.field select,
+.field textarea,
+.ol-field input,
+.ol-field select,
+.lead-field input,
+.lead-field select,
+.fixed-fee-input,
+input[type="text"],
+input[type="email"],
+input[type="tel"],
+input[type="number"],
+select,
+textarea {
+    border-color: rgba(148,163,184,.42) !important;
+    border-radius: 13px !important;
+    background: rgba(255,255,255,.78) !important;
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.90), 0 5px 16px rgba(18,48,68,.04) !important;
+}
+
+input:focus,
+select:focus,
+textarea:focus {
+    border-color: rgba(24,168,75,.55) !important;
+    box-shadow: 0 0 0 3px rgba(24,168,75,.10), inset 0 1px 0 rgba(255,255,255,.94) !important;
+}
+
+/* Tabelle e dati: superfici leggere, numeri sempre leggibili. */
+.table-wrap {
+    border-color: var(--ol-glass-border) !important;
+    border-radius: 18px !important;
+    background: rgba(255,255,255,.64) !important;
+    box-shadow: var(--ol-glass-shadow-soft) !important;
+    -webkit-backdrop-filter: blur(18px) saturate(130%);
+    backdrop-filter: blur(18px) saturate(130%);
+}
+
+.table-wrap table,
+table {
+    background: rgba(255,255,255,.58) !important;
+}
+
+th {
+    background: rgba(244,247,245,.84) !important;
+    color: #315564 !important;
+}
+
+th,
+td {
+    border-bottom-color: rgba(148,163,184,.18) !important;
+}
+
+/* CTA scure preesistenti: diventano una superficie premium coerente. */
+.cta {
+    border: 1px solid rgba(227,233,231,.28) !important;
+    border-radius: 24px !important;
+    background: linear-gradient(145deg, rgba(18,48,68,.96), rgba(8,92,61,.94)) !important;
+    box-shadow: 0 22px 50px rgba(18,48,68,.18), inset 0 1px 0 rgba(255,255,255,.10) !important;
+}
+
+.cta h2,
+.cta strong {
+    color: #fff !important;
+}
+
+.cta p {
+    color: rgba(240,253,244,.78) !important;
+}
+
+/* Barra App / Premium: elemento comune visibile su quasi tutto il sito. */
+.ol-app-access-inner {
+    padding-top: 10px;
+}
+
+.ol-app-access-link {
+    border-radius: 14px;
+    background: rgba(255,255,255,.66);
+    border-color: rgba(227,233,231,.90);
+    box-shadow: inset 0 1px 0 rgba(255,255,255,.94), 0 10px 24px rgba(18,48,68,.07);
+    -webkit-backdrop-filter: blur(20px) saturate(140%);
+    backdrop-filter: blur(20px) saturate(140%);
+}
+
+.ol-app-access-free {
+    background: rgba(240,253,244,.74);
+    border-color: rgba(24,168,75,.28);
+    color: #087f3a !important;
+}
+
+.ol-app-access-premium {
+    background: rgba(239,246,255,.76);
+    border-color: rgba(59,130,246,.24);
+    color: #1d4ed8 !important;
+}
+
+/* Footer: stessa chiusura visiva su tutte le famiglie di pagina. */
+.footer {
+    border-top-color: rgba(227,233,231,.76) !important;
+    background: rgba(255,255,255,.46) !important;
+    -webkit-backdrop-filter: blur(20px) saturate(130%);
+    backdrop-filter: blur(20px) saturate(130%);
+}
+
+.footer a,
+.footer button {
+    color: #536b78 !important;
+}
+
+.footer a:hover,
+.footer button:hover {
+    color: var(--ol-glass-deep) !important;
+}
+
+/* Accessibilita e motion: nessuna animazione necessaria per capire lo stato. */
+@media (prefers-reduced-motion: reduce) {
+    .button,
+    .btn-action,
+    .lead-primary,
+    .lead-secondary,
+    .business-secondary-action,
+    .ol-inline-cta,
+    .ol-choice,
+    .choice-button,
+    .nav a,
+    .top-nav a {
+        transition: none !important;
+        transform: none !important;
+    }
+}
+
+@media (max-width: 700px) {
+    body {
+        background-attachment: scroll !important;
+    }
+
+    .hero > .shell {
+        border-radius: 24px !important;
+        padding: 22px 18px !important;
+    }
+
+    .panel,
+    .provider-card,
+    .ol-interactive,
+    .content-card,
+    .cta-card,
+    .cta {
+        border-radius: 20px !important;
+    }
+
+    .nav a,
+    .top-nav a {
+        border-radius: 12px !important;
+    }
+}
+
+/* Stati selezionati: restano visivamente distinguibili dopo l'override comune. */
+.ol-choice[aria-pressed="true"],
+.choice-button.active,
+.segment-switch button.active,
+.segment-button.active {
+    background: linear-gradient(135deg, rgba(187,247,208,.72), rgba(220,252,231,.82)) !important;
+    border-color: rgba(74,222,128,.72) !important;
+    color: #166534 !important;
+    box-shadow: 0 0 0 2px rgba(22,163,74,.10), inset 0 1px 0 rgba(255,255,255,.82) !important;
+}
+
+/* ================================================================
+ * MOBILE READABILITY v1.0.0
+ * Correzioni mirate verificate a 320-430 px: testo secondario utile
+ * piu leggibile e accessi App/Premium con target piu comodi.
+ * Non modifica struttura, ordine DOM o logica dei componenti.
+ * ================================================================ */
+@media (max-width: 700px) {
+    .nav a,
+    .top-nav a,
+    .ol-app-access-inner .ol-app-access-link,
+    .ol-app-access-footer .ol-app-access-link {
+        min-height: 44px;
+        font-size: 14px !important;
+        line-height: 1.3;
+    }
+
+    .nav a,
+    .top-nav a {
+        display: inline-flex;
+        align-items: center;
+    }
+
+    .hero .hero-note,
+    .field small,
+    .ol-live-note,
+    .ol-calc-note,
+    .precision-or,
+    .info-box p,
+    .related-card span,
+    .figure figcaption {
+        font-size: 14px !important;
+        line-height: 1.55 !important;
+    }
+}
+
+/* ================================================================
+ * MOBILE CONTENT PRIORITY v1.1.0
+ * Pagine informative: meno altezza prima del contenuto, CTA principale
+ * piu evidente, navigazione completa ma su una sola riga scorrevole.
+ * La barra App/Premium resta secondaria e compatta, mentre il calcolatore
+ * diventa l’azione primaria sopra la piega sui dispositivi mobili.
+ * ================================================================ */
+@media (max-width: 700px) {
+    .topbar .topbar-inner {
+        min-height: 0 !important;
+        align-items: stretch !important;
+        flex-direction: column !important;
+        justify-content: flex-start !important;
+        gap: 7px !important;
+        padding: 8px 0 7px !important;
+    }
+
+    .topbar .brand {
+        align-self: flex-start;
+    }
+
+    .topbar .brand img {
+        width: 126px !important;
+        max-width: 44vw !important;
+    }
+
+    .site-logo-main {
+        width: min(190px, 56vw) !important;
+        max-width: 100% !important;
+    }
+
+    header:has(.site-logo-main) {
+        padding: 10px 8px 8px !important;
+    }
+
+    .topbar .nav,
+    .topbar .top-nav {
+        width: 100%;
+        max-width: 100%;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        overflow-x: auto;
+        overflow-y: hidden;
+        padding: 0 0 2px;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+    }
+
+    .topbar .nav::-webkit-scrollbar,
+    .topbar .top-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .topbar .nav a,
+    .topbar .top-nav a {
+        flex: 0 0 auto;
+        min-height: 44px !important;
+        padding: 7px 10px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap;
+        scroll-snap-align: start;
+    }
+
+    .topbar .nav a[href="/"],
+    .topbar .top-nav a[href="/"] {
+        background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+        border-color: rgba(8,127,58,.34) !important;
+        color: #fff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 8px 18px rgba(8,127,58,.16) !important;
+    }
+
+    /* App/Premium resta disponibile, ma come navigazione secondaria compatta e non sticky. */
+    .ol-app-access-bar {
+        position: static !important;
+    }
+
+    .ol-app-access-inner {
+        flex-wrap: nowrap !important;
+        gap: 6px !important;
+        padding: 4px 12px 6px !important;
+    }
+
+    .ol-app-access-inner .ol-app-access-link {
+        min-height: 40px !important;
+        padding: 6px 10px !important;
+        border-radius: 10px !important;
+        font-size: 12px !important;
+        line-height: 1.15 !important;
+        box-shadow: none !important;
+    }
+
+    /* Le pagine con nav separata non devono piu impilare ogni voce a tutta larghezza. */
+    .top-nav {
+        width: min(100% - 24px, 1080px) !important;
+        max-width: 100% !important;
+        display: flex !important;
+        flex-wrap: nowrap !important;
+        justify-content: flex-start !important;
+        gap: 6px !important;
+        margin: 0 auto 12px !important;
+        overflow-x: auto !important;
+        overflow-y: hidden !important;
+        scrollbar-width: none;
+        -webkit-overflow-scrolling: touch;
+        scroll-snap-type: x proximity;
+    }
+
+    .top-nav::-webkit-scrollbar {
+        display: none;
+    }
+
+    .top-nav a {
+        width: auto !important;
+        flex: 0 0 auto !important;
+        min-height: 44px !important;
+        padding: 7px 10px !important;
+        font-size: 13px !important;
+        line-height: 1.2 !important;
+        white-space: nowrap;
+        scroll-snap-align: start;
+    }
+
+    .top-nav a[href="/"] {
+        background: linear-gradient(135deg, #087f3a 0%, #18a84b 62%, #67c82f 100%) !important;
+        border-color: rgba(8,127,58,.34) !important;
+        color: #fff !important;
+        box-shadow: inset 0 1px 0 rgba(255,255,255,.25), 0 8px 18px rgba(8,127,58,.16) !important;
+    }
+
+    .ol-breadcrumbs {
+        margin-top: 8px !important;
+        padding-top: 0 !important;
+        font-size: 12px !important;
+        line-height: 1.3 !important;
+        gap: 4px !important;
+    }
+
+    .hero {
+        padding: 14px 0 16px !important;
+    }
+
+    .hero > .shell {
+        padding: 18px 16px !important;
+        border-radius: 20px !important;
+    }
+
+    .hero .eyebrow {
+        margin-bottom: 7px !important;
+        font-size: 12px !important;
+        line-height: 1.25 !important;
+    }
+
+    .hero h1,
+    .hero h2 {
+        margin-bottom: 10px !important;
+        font-size: clamp(30px, 9.3vw, 40px) !important;
+        line-height: 1.02 !important;
+        letter-spacing: -.025em !important;
+    }
+
+    .hero p,
+    .hero-copy,
+    .section-lead {
+        font-size: 16px !important;
+        line-height: 1.48 !important;
+    }
+
+    .hero-actions {
+        gap: 8px !important;
+        margin-top: 14px !important;
+    }
+
+    .hero-actions .button,
+    .hero-actions .btn-action,
+    .hero-actions .lead-primary,
+    .hero-actions .lead-secondary,
+    .hero-actions .business-secondary-action,
+    .hero-actions .primary-link,
+    .hero-actions .secondary-link {
+        min-height: 46px !important;
+        font-size: 14px !important;
+        line-height: 1.2 !important;
+    }
+
+    .notice {
+        margin-top: 14px !important;
+        padding: 12px 13px !important;
+        font-size: 14px !important;
+        line-height: 1.45 !important;
+    }
+
+    .ol-interactive {
+        margin-bottom: 20px !important;
+        padding: 15px !important;
+    }
+
+    .ol-interactive h2 {
+        font-size: 22px !important;
+    }
+
+    .ol-interactive .ol-choice-row {
+        display: grid !important;
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 8px !important;
+        margin-top: 12px !important;
+    }
+
+    .ol-interactive .ol-choice-row .ol-choice {
+        min-height: 46px !important;
+        padding: 8px 9px !important;
+        font-size: 13px !important;
+        line-height: 1.25 !important;
+    }
+
+    .ol-interactive .ol-choice-row .ol-choice:last-child:nth-child(odd) {
+        grid-column: 1 / -1;
+    }
+}
+
+@media (max-width: 380px) {
+    .topbar .brand img {
+        width: 118px !important;
+    }
+
+    .hero h1,
+    .hero h2 {
+        font-size: clamp(29px, 9.2vw, 36px) !important;
+    }
+}
+
+/* v0.10.69 — controllo preferenze sempre raggiungibile dal footer,
+   anche quando il widget privacy flottante è disattivato da iubenda. */
+/* I link alle preferenze mantengono la tipografia degli altri link del footer. */
+footer a.iubenda-cs-preferences-link:focus-visible {
+    outline: 3px solid rgba(37, 99, 235, .3);
+    outline-offset: 3px;
+}
+footer .ol-footer-privacy-options {
+    margin: 12px auto 0;
+    text-align: center;
+    font-size: 13px;
+}
+
+/* OFFERTALOGICA_PUBLIC_V120_20261104: accessi app leggibili su mobile. */
+@media (max-width:700px){
+  .ol-app-access-link,.ol-app-access-bar .ol-app-access-link,.ol-app-access-footer .ol-app-access-link{font-size:13.5px!important;line-height:1.25!important}
+  .hero .eyebrow{font-size:13px!important;line-height:1.3!important}
+}
+
+
+/* OFFERTALOGICA_PUBLIC_V121_20261104: soglia alta leggibilita mobile condivisa. */
+@media (max-width:700px){
+  .top-nav a{font-size:14.5px!important;line-height:1.24!important}
+  .ol-breadcrumbs{font-size:13.5px!important;line-height:1.38!important}
+  .hero .eyebrow{font-size:14px!important;line-height:1.32!important}
+  .hero p,.hero-copy,.section-lead{font-size:17px!important;line-height:1.52!important}
+  .hero-actions .button,.hero-actions .btn-action,.hero-actions .lead-primary,.hero-actions .lead-secondary,
+  .hero-actions .business-secondary-action,.hero-actions .primary-link,.hero-actions .secondary-link{font-size:15.5px!important;line-height:1.25!important}
+  .notice{font-size:15px!important;line-height:1.5!important}
+  .ol-interactive .ol-choice-row .ol-choice{font-size:14.5px!important;line-height:1.3!important}
+  footer .ol-footer-privacy-options{font-size:14px!important;line-height:1.45!important}
+  main small{font-size:13.5px!important;line-height:1.42!important}
+  main label{font-size:14.5px!important;line-height:1.35!important}
+}
+
+/* OFFERTALOGICA_PUBLIC_V122_20261105: fallback leggibilita mobile per strumenti energia
+ * che caricano ancora fogli CSS senza query-version. Il foglio ol-app-access e versionato,
+ * quindi garantisce che i microtesti aggiornati arrivino subito anche con cache preesistente. */
+@media (max-width:700px) {
+  .ol-live-kicker,
+  .ol-live-meta,
+  .ol-live-source,
+  .ol-live-reference span,
+  .ol-live-note,
+  .ol-live-stat span {
+    font-size:14px !important;
+    line-height:1.45 !important;
+  }
+  .ol-live-alert {
+    font-size:14.5px !important;
+    line-height:1.45 !important;
+  }
+  .ol-market-card span,
+  .ol-market-card small,
+  .ol-market-status,
+  .ol-calc-note {
+    font-size:14px !important;
+    line-height:1.45 !important;
+  }
+  .ol-field label {
+    font-size:15px !important;
+    line-height:1.35 !important;
+  }
+  .ol-choice,
+  .ol-inline-cta {
+    font-size:15px !important;
+    line-height:1.3 !important;
+  }
+}
