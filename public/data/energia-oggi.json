@@ -1,7 +1,7 @@
 {
   "versione": "energia-oggi-2026-11-03",
   "aggiornatoIl": "2026-11-03",
-  "acquisitoIl": "2026-11-04",
+  "acquisitoIl": "2026-11-05",
   "fonteInterna": "OffertaLogica - aggiornamento dati energia",
   "origineAggiornamento": "ARERA - Unità di Vigilanza Energetica",
   "urlOrigineAggiornamento": "https://www.arera.it/fileadmin/home/slider/bollettino_vigilanza_energetica/Bollettino_vigilanza_energetica_20261102.pdf",
@@ -37,10 +37,10 @@
     },
     "psvMensile": {
       "label": "PSV DA / P_ING,M PLACET",
-      "periodo": "2026-09",
-      "periodoLabel": "Settembre 2026",
+      "periodo": "2026-10",
+      "periodoLabel": "Ottobre 2026",
       "valoreEurMwh": null,
-      "valoreEurSmc": 0.843182,
+      "valoreEurSmc": 0.945436,
       "fonte": "OffertaLogica - calcolo-parametri.json",
       "origineDato": "ARERA - Offerte PLACET",
       "fonteOriginaleLabel": "ARERA — PSV day-ahead mensile",
