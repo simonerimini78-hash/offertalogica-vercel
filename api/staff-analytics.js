@@ -1,2955 +1,9742 @@
 import crypto from "node:crypto";
-import { isIP } from "node:net";
-import { clientIp, json, method, requireAllowedOrigin } from "../lib/http.js";
-import { deleteCustomerAnalytics, listCustomerAnalytics } from "../lib/customerDb.js";
-import { isStaffAdminRole } from "../lib/staffRoles.js";
-import { requireStaffSession } from "../lib/staffSessionAuth.js";
-import { writeStaffAudit } from "../lib/staffAudit.js";
+import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
+import { enforceRateLimit } from "../lib/rateLimit.js";
+import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const CUSTOMER_DB_SUPABASE_URL =
-  process.env.CUSTOMER_DB_SUPABASE_URL ||
-  process.env.SUPABASE_URL ||
-  "";
+const VERSION = "0.12.121";
+const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
+const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
+const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
+const MAX_ROWS = 100000;
+const PAGE_SIZE = 25000;
+const DB_BATCH_SIZE = 500;
+const ANALYSIS_PAGE_SIZE = 1000;
+const ANALYSIS_MAX_ROWS_PER_SNAPSHOT = 20000;
+const ANALYSIS_SIGNAL_LIMIT = 100;
+const ANALYSIS_WINDOWS = [7, 28, 90];
+const EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION = 3;
+const EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION = 1;
+const EDITORIAL_RESEARCH_HINT_MAX_ACTIVE = 8;
+const EDITORIAL_RESEARCH_HINT_DEPTHS = new Set(["normal", "deep"]);
+const EDITORIAL_RESEARCH_RADAR_DAYS = new Set([1, 6, 7]); // lunedi, sabato, domenica
+const EDITORIAL_RESEARCH_RADAR_START_MINUTE = 8 * 60;
+const EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES = 8;
+const EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS = 28;
+const EDITORIAL_RESEARCH_RADAR_CANDIDATE_MAX_AGE_DAYS = 6;
+const EDITORIAL_RESEARCH_RADAR_MAX_ATTEMPTS_PER_DAY = 2;
+const OPPORTUNITY_STATUSES = new Set(["pending", "selected", "deferred", "rejected"]);
+const OPPORTUNITY_TYPES = new Set(["new_article", "social_only", "monitor"]);
+const OPPORTUNITY_LIST_LIMIT = 50;
+const TARGET_PAGE_MAX_BYTES = 2 * 1024 * 1024;
+const UPDATE_PROPOSAL_DECISIONS = new Set(["approved", "rejected"]);
+const UPDATE_TEXT_DECISIONS = new Set(["approved", "rejected"]);
+const UPDATE_PREVIEW_DECISIONS = new Set(["confirmed", "cancelled"]);
+const MANUAL_IDEA_PRIORITIES = new Set(["normal", "high", "urgent"]);
+const MANUAL_IDEA_TYPES = new Set(["new_article"]);
+const MANUAL_IDEA_PRIORITY_RANK = { normal: 100, high: 300, urgent: 400 };
+const EDITORIAL_AI_DEFAULT_MODEL = "gpt-5.6-terra";
+const EDITORIAL_AI_HTTP_TIMEOUT_MS = 45000;
+const EDITORIAL_JOB_MAX_AGE_MS = 90 * 60 * 1000;
+const EDITORIAL_RECOVERY_BLOCK_MS = 7 * 24 * 60 * 60 * 1000;
+const EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS = 240000;
+const EDITORIAL_PAGE_FETCH_TIMEOUT_MS = 20000;
+const EDITORIAL_PLAN_POST_TYPES = new Set(["article_followup", "related", "evergreen", "service", "data"]);
+const EDITORIAL_PLAN_EDITABLE_STATUSES = new Set(["draft", "approved", "cancelled"]);
+const EDITORIAL_SOCIAL_PLATFORMS = new Set(["facebook", "instagram", "linkedin"]);
+const EDITORIAL_PLAN_SOCIAL_PLATFORMS = new Set(["facebook", "instagram"]);
+const EDITORIAL_SOCIAL_RUNTIME_VERSIONS = Object.freeze({ facebook: "0.12.87", instagram: "0.12.87", linkedin: "0.12.87" });
+const EDITORIAL_SOCIAL_CONTENT_VERSION = "social_content_v3";
+const EDITORIAL_SOCIAL_VISUAL_VERSION = "social_visual_v2";
+// Il renderer grafico delle card social e' caricato solo quando serve.
+// Dalla v0.12.70 usa resvg WebAssembly: nessun Pango/Fontconfig/libvips e nessun addon nativo
+// nel percorso di composizione della card. Il JPEG finale e' codificato in puro JavaScript.
+const EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION = "offertalogica_informa_card_v2";
+let editorialSocialCardRendererPromise = null;
 
-const CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY =
-  process.env.CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY ||
-  process.env.SUPABASE_SERVICE_ROLE_KEY ||
-  "";
-
-const CUSTOMER_DB_EVENTS_TABLE = process.env.CUSTOMER_DB_EVENTS_TABLE || "lead_events";
-const CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE = process.env.CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE || "usage_count_exclusions";
-const CAMPAIGN_BASELINE_ISO = "2026-09-02T22:00:00.000Z";
-const CAMPAIGN_BASELINE_LABEL = "3 settembre 2026, 00:00";
-const ANALYTICS_TIME_ZONE = "Europe/Rome";
-
-
-function usageRomeDayKey(timestamp) {
-  const date = new Date(timestamp);
-  if (!Number.isFinite(date.getTime())) return "";
-  const parts = new Intl.DateTimeFormat("en-CA", {
-    timeZone: ANALYTICS_TIME_ZONE, year: "numeric", month: "2-digit", day: "2-digit",
-  }).formatToParts(date);
-  const part = (type) => parts.find((item) => item.type === type)?.value || "";
-  return `${part("year")}-${part("month")}-${part("day")}`;
-}
-
-function usagePeakWithin(timestamps, windowMs) {
-  let best = 0;
-  let left = 0;
-  for (let right = 0; right < timestamps.length; right += 1) {
-    while (timestamps[right] - timestamps[left] > windowMs) left += 1;
-    best = Math.max(best, right - left + 1);
-  }
-  return best;
-}
-
-function usagePercentile(values, percentile) {
-  const sorted = values.filter(Number.isFinite).sort((a, b) => a - b);
-  if (!sorted.length) return 0;
-  const index = Math.min(sorted.length - 1, Math.max(0, Math.ceil(sorted.length * percentile) - 1));
-  return sorted[index];
-}
-
-function usageObservation(events = [], now = Date.now(), exclusions = [], options = {}) {
-  const requestedWindowDays = Number(options?.windowDays || 7);
-  const windowDays = [1, 7, 30].includes(requestedWindowDays) ? requestedWindowDays : 7;
-  const requestedTool = String(options?.tool || "all").trim().toLowerCase();
-  const tool = ["all", "domestic", "business"].includes(requestedTool) ? requestedTool : "all";
-  const windowMs = windowDays * 24 * 60 * 60 * 1000;
-  const twoHoursMs = 2 * 60 * 60 * 1000;
-  const oneDayMs = 24 * 60 * 60 * 1000;
-  const dedupMs = 10 * 60 * 1000;
-  const cutoff = now - windowMs;
-  const groups = new Map();
-  const activeExclusions = new Set(
-    (Array.isArray(exclusions) ? exclusions : [])
-      .filter((entry) => entry?.active !== false)
-      .map((entry) => `${String(entry?.subjectType || "")}:${String(entry?.subjectHash || "")}`)
-      .filter((value) => !value.endsWith(":")),
-  );
-
-  const observedEventTypes = tool === "domestic"
-    ? new Set(["comparison_completed"])
-    : tool === "business"
-      ? new Set(["business_calculation_completed"])
-      : new Set(["comparison_completed", "business_calculation_completed"]);
-  const ordered = events
-    .filter((event) => observedEventTypes.has(String(event?.eventType || "")))
-    .filter((event) => event?.usageIdentityVersion === "usage-v1" && event?.usageVisitorHash)
-    .filter((event) => event?.payload?.usageExcluded !== true)
-    .filter((event) => !activeExclusions.has(`visitor_hash:${String(event?.usageVisitorHash || "")}`))
-    .filter((event) => !activeExclusions.has(`ip_hash:${String(event?.usageIpHash || "")}`))
-    .map((event) => ({ ...event, timestamp: new Date(event.createdAt || 0).getTime() }))
-    .filter((event) => Number.isFinite(event.timestamp) && event.timestamp >= cutoff && event.timestamp <= now + 60000)
-    .sort((a, b) => a.timestamp - b.timestamp);
-
-  const lastAnalysisByVisitor = new Map();
-  ordered.forEach((event) => {
-    const visitor = String(event.usageVisitorHash || "");
-    const analysis = String(event.usageAnalysisHash || "");
-    const eventType = String(event.eventType || "");
-    const dedupKey = analysis ? `${visitor}:${eventType}:${analysis}` : "";
-    if (dedupKey) {
-      const previous = Number(lastAnalysisByVisitor.get(dedupKey) || 0);
-      lastAnalysisByVisitor.set(dedupKey, event.timestamp);
-      if (previous && event.timestamp - previous <= dedupMs) return;
-    }
-    if (!groups.has(visitor)) groups.set(visitor, []);
-    groups.get(visitor).push(event);
-  });
-
-  const rows = [...groups.entries()].map(([visitorHash, visitorEvents]) => {
-    const timestamps = visitorEvents.map((event) => event.timestamp).sort((a, b) => a - b);
-    const sessions = new Set(visitorEvents.map((event) => String(event.sessionId || "")).filter(Boolean));
-    const days = new Set(timestamps.map(usageRomeDayKey).filter(Boolean));
-    const profiles = new Set(visitorEvents
-      .map((event) => {
-        const hash = String(event.usageAnalysisHash || "");
-        return hash ? `${String(event.eventType || "")}:${hash}` : "";
+async function editorialSocialCardRenderer() {
+  if (!editorialSocialCardRendererPromise) {
+    editorialSocialCardRendererPromise = import("../lib/editorial-social-card.js")
+      .then((module) => {
+        if (module?.EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION !== EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION) {
+          throw new Error("Cover social: versione template renderer non allineata");
+        }
+        if (typeof module?.renderEditorialSocialCard !== "function") {
+          throw new Error("Cover social: renderer non disponibile");
+        }
+        return module.renderEditorialSocialCard;
       })
-      .filter(Boolean));
-    const domesticAnalysesWindow = visitorEvents.filter((event) => event.eventType === "comparison_completed").length;
-    const businessAnalysesWindow = visitorEvents.filter((event) => event.eventType === "business_calculation_completed").length;
-    const analysesWindow = timestamps.length;
-    const activeDays = days.size;
-    const sessionCount = sessions.size;
-    const distinctProfiles = profiles.size;
-    const watchCandidate = analysesWindow > 1 || activeDays > 1 || sessionCount > 1 || distinctProfiles > 1;
-    return {
-      visitorHash,
-      firstAt: new Date(timestamps[0]).toISOString(),
-      lastAt: new Date(timestamps[timestamps.length - 1]).toISOString(),
-      analysesWindow,
-      domesticAnalysesWindow,
-      businessAnalysesWindow,
-      // Alias mantenuti per compatibilità con eventuali consumer Staff precedenti.
-      analyses7d: analysesWindow,
-      domesticAnalyses7d: domesticAnalysesWindow,
-      businessAnalyses7d: businessAnalysesWindow,
-      analysesCurrent2h: timestamps.filter((value) => value >= now - twoHoursMs).length,
-      analysesCurrent24h: timestamps.filter((value) => value >= now - oneDayMs).length,
-      peak2h: usagePeakWithin(timestamps, twoHoursMs),
-      peak24h: usagePeakWithin(timestamps, oneDayMs),
-      activeDays,
-      sessions: sessionCount,
-      distinctProfiles,
-      watchCandidate,
-    };
-  }).sort((a, b) => (
-    b.peak24h - a.peak24h
-    || b.activeDays - a.activeDays
-    || b.distinctProfiles - a.distinctProfiles
-    || String(b.lastAt).localeCompare(String(a.lastAt))
-  ));
-
-  const peak24hValues = rows.map((row) => row.peak24h);
-  const occasionalVisitors = rows.filter((row) => !row.watchCandidate).length;
-  return {
-    mode: "shadow",
-    identityVersion: "usage-v1",
-    windowDays,
-    tool,
-    dedupMinutes: 10,
-    summary: {
-      visitors: rows.length,
-      meaningfulAnalyses: rows.reduce((sum, row) => sum + row.analysesWindow, 0),
-      domesticAnalyses: rows.reduce((sum, row) => sum + row.domesticAnalysesWindow, 0),
-      businessAnalyses: rows.reduce((sum, row) => sum + row.businessAnalysesWindow, 0),
-      occasionalVisitors,
-      watchVisitors: rows.length - occasionalVisitors,
-      multiDayVisitors: rows.filter((row) => row.activeDays > 1).length,
-      maxPeak24h: peak24hValues.length ? Math.max(...peak24hValues) : 0,
-      p50Peak24h: usagePercentile(peak24hValues, 0.50),
-      p90Peak24h: usagePercentile(peak24hValues, 0.90),
-    },
-    rows,
-  };
+      .catch((error) => {
+        editorialSocialCardRendererPromise = null;
+        throw error;
+      });
+  }
+  return editorialSocialCardRendererPromise;
 }
 
-function normalizeAnalyticsMonth(value) {
-  const normalized = String(value || "").trim();
-  return /^\d{4}-(0[1-9]|1[0-2])$/.test(normalized) ? normalized : "";
-}
+const EDITORIAL_IMAGE_DEFAULT_MODEL = "gpt-image-2";
+const EDITORIAL_IMAGE_BUCKET = "editorial-images";
+const EDITORIAL_IMAGE_MAX_BYTES = 5 * 1024 * 1024;
+const EDITORIAL_IMAGE_ARTICLE_STATUSES = new Set(["draft", "in_review", "changes_requested", "approved", "published"]);
+const EDITORIAL_IMAGE_QA_MAX_REGENERATIONS = 2;
+const EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS = 2;
+const EDITORIAL_SOCIAL_IMAGE_SIZE = "1024x1024";
+const EDITORIAL_IMAGE_SOURCE_POLICY = "generated_from_scratch_no_web_source";
 
-function timeZoneParts(date, timeZone = ANALYTICS_TIME_ZONE) {
-  const parts = new Intl.DateTimeFormat("en", {
-    timeZone, year: "numeric", month: "2-digit", day: "2-digit",
-    hour: "2-digit", minute: "2-digit", second: "2-digit", hourCycle: "h23",
-  }).formatToParts(date);
-  const value = (type) => Number(parts.find((part) => part.type === type)?.value || 0);
-  return { year: value("year"), month: value("month"), day: value("day"), hour: value("hour"), minute: value("minute"), second: value("second") };
-}
-
-function timeZoneOffsetMs(date, timeZone = ANALYTICS_TIME_ZONE) {
-  const parts = timeZoneParts(date, timeZone);
-  const reconstructed = Date.UTC(parts.year, parts.month - 1, parts.day, parts.hour, parts.minute, parts.second);
-  return reconstructed - Math.floor(date.getTime() / 1000) * 1000;
-}
-
-function zonedMidnightIso(year, month, day, timeZone = ANALYTICS_TIME_ZONE) {
-  const wallClockUtc = Date.UTC(year, month - 1, day, 0, 0, 0);
-  let candidate = new Date(wallClockUtc);
-  let offset = timeZoneOffsetMs(candidate, timeZone);
-  candidate = new Date(wallClockUtc - offset);
-  const adjustedOffset = timeZoneOffsetMs(candidate, timeZone);
-  if (adjustedOffset !== offset) candidate = new Date(wallClockUtc - adjustedOffset);
-  return candidate.toISOString();
-}
-
-function currentAnalyticsMonth() {
-  const parts = timeZoneParts(new Date(), ANALYTICS_TIME_ZONE);
-  return `${String(parts.year).padStart(4, "0")}-${String(parts.month).padStart(2, "0")}`;
-}
-
-function analyticsMonthPeriod(value) {
-  const month = normalizeAnalyticsMonth(value);
-  if (!month) return null;
-  const [year, monthNumber] = month.split("-").map(Number);
-  const nextYear = monthNumber === 12 ? year + 1 : year;
-  const nextMonth = monthNumber === 12 ? 1 : monthNumber + 1;
-  const rawFrom = zonedMidnightIso(year, monthNumber, 1);
-  const to = zonedMidnightIso(nextYear, nextMonth, 1);
-  const baselineMs = new Date(CAMPAIGN_BASELINE_ISO).getTime();
-  const rawFromMs = new Date(rawFrom).getTime();
-  const from = Number.isFinite(rawFromMs) && rawFromMs < baselineMs ? CAMPAIGN_BASELINE_ISO : rawFrom;
-  const label = new Intl.DateTimeFormat("it-IT", { timeZone: ANALYTICS_TIME_ZONE, month: "long", year: "numeric" })
-    .format(new Date(Date.UTC(year, monthNumber - 1, 15, 12)));
-  return { month, from, to, label, partial: month === currentAnalyticsMonth(), timezone: ANALYTICS_TIME_ZONE };
-}
-function analyticsRelativeRangeFrom(period, rangeValue) {
-  if (!period) return "";
-  const range = normalizeLandingRange(rangeValue);
-  const days = range === "7d" ? 7 : range === "30d" ? 30 : 0;
-  if (!days) return period.from;
-  const periodStart = new Date(period.from).getTime();
-  const periodEnd = new Date(period.to).getTime();
-  const anchor = period.partial ? Date.now() : periodEnd;
-  const candidate = anchor - days * 86400000;
-  return new Date(Math.max(periodStart, candidate)).toISOString();
-}
-
-const LANDING_AUTOMATIC_DATA_ORIGIN = "landing_average_profile";
-const LANDING_PATH_EVENTS = Object.freeze({
-  view: "landing_view",
-  selfService: "landing_self_service_click",
-  assisted: "landing_assisted_click",
+const EDITORIAL_ARTICLE_IMAGE_PROFILES = Object.freeze({
+  auto: {
+    label: "Auto editoriale",
+    ui_hint: "Selezione automatica del profilo più adatto in base all'articolo.",
+    directive: "Choose the most suitable visual approach for the specific article. Prefer a believable editorial scene with one clear focal action, authentic context and a visible reason for the reader to open the article.",
+  },
+  warm_human: {
+    label: "Calda e umana",
+    ui_hint: "Scena reale con presenza umana, atmosfera calda e gesto chiaro.",
+    directive: "Prefer human-centered editorial photography only where a person helps explain the specific story. In domestic scenes use soft, warm natural window light, gentle shadows, natural skin tones and an inviting lived-in atmosphere; show a real gesture or decision and keep props secondary.",
+  },
+  clean_context: {
+    label: "Pulita e contestuale",
+    ui_hint: "Composizione più pulita, contesto chiaro, documenti o strumenti secondari.",
+    directive: "Prefer a clean, highly legible editorial composition with minimal clutter, a clearly understandable context and a restrained number of supporting objects. The scene should feel informative and premium, not dramatic.",
+  },
+  objects_context: {
+    label: "Oggetti e contesto",
+    ui_hint: "Focus sugli oggetti rilevanti e sull'ambiente, con minima presenza umana.",
+    directive: "Prefer a context-and-objects driven editorial image. Use relevant objects and the real environment as the visual anchor. If people appear, they must remain secondary and natural, never posed as stock-advertising models.",
+  },
+  professional_context: {
+    label: "Professionale / attività",
+    ui_hint: "Per imprese, agricoltura o contesti di lavoro: scena reale, concreta e non pubblicitaria.",
+    directive: "Prefer a professional real-world setting relevant to the article, with believable work activity, tools or machinery when appropriate. Keep the image informative and trustworthy, not promotional.",
+  },
 });
-const LANDING_RANGES = new Set(["7d", "30d", "all"]);
-const HUMAN_INTERACTION_EVENTS = new Set([
-  "landing_self_service_click",
-  "landing_assisted_click",
-  "landing_free_app_click",
-  "landing_premium_app_click",
-  "comparison_started",
-  "offer_consent_opened",
-  "lead_modal_opened",
-  "otp_request_started",
-  "comparison_path_selected",
-  "pdf_picker_opened",
-  "pdf_file_selected",
-  "pdf_analysis_started",
-  "pdf_analysis_interrupted",
-  "bill_photo_camera_opened",
-  "bill_photo_gallery_opened",
-  "bill_photo_selected",
-  "bill_photo_analysis_started",
-  "bill_photo_analysis_failed",
-  "bill_photo_comparison_auto_started",
-  "activation_data_copied",
-  "business_photovoltaic_tool_opened",
-  "assistance_callback_verified",
-  "activation_channel_choice_opened",
-  "activation_channel_selected",
-  "provider_site_redirect",
-  "offer_switcho_redirect",
-  "switcho_landing_opened",
-  "offer_redirect",
+const EDITORIAL_ARTICLE_IMAGE_PROFILE_KEYS = new Set(Object.keys(EDITORIAL_ARTICLE_IMAGE_PROFILES));
+const EDITORIAL_PAGE_UPDATE_ACTIONS = new Set([
+  "prepare-editorial-update",
+  "review-editorial-update",
+  "prepare-editorial-update-text",
+  "review-editorial-update-text",
+  "prepare-editorial-update-preview",
+  "review-editorial-update-preview",
+  "complete-editorial-update",
+  "check-editorial-update-impact",
 ]);
 
-function customerDbConfiguredForLandingAnalytics() {
-  return Boolean(CUSTOMER_DB_SUPABASE_URL && CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY);
+function env(name) {
+  return String(process.env[name] || "").trim();
 }
 
-function customerDbBaseUrl() {
-  return String(CUSTOMER_DB_SUPABASE_URL || "").replace(/\/+$/, "");
+function bearerToken(req) {
+  const auth = String(req.headers?.authorization || "");
+  return auth.match(/^Bearer\s+(.+)$/i)?.[1] || "";
 }
 
-function customerDbIsLegacyJwtKey(key) {
-  return String(key || "").split(".").length === 3;
+function supabaseConfig() {
+  return {
+    url: env("SUPABASE_URL").replace(/\/+$/, ""),
+    serviceKey: env("SUPABASE_SERVICE_ROLE_KEY"),
+  };
 }
 
-function customerDbReadHeaders() {
+function searchConsoleConfig() {
+  return {
+    clientEmail: env("GOOGLE_SEARCH_CONSOLE_CLIENT_EMAIL"),
+    privateKey: env("GOOGLE_SEARCH_CONSOLE_PRIVATE_KEY").replace(/\\n/g, "\n"),
+    siteUrl: env("GOOGLE_SEARCH_CONSOLE_SITE_URL"),
+  };
+}
+
+function searchConsoleConfigured() {
+  const cfg = searchConsoleConfig();
+  return Boolean(cfg.clientEmail && cfg.privateKey && cfg.siteUrl);
+}
+
+function base64url(value) {
+  return Buffer.from(value).toString("base64url");
+}
+
+async function serviceFetch(path, { method = "GET", body, prefer } = {}) {
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+
   const headers = {
-    apikey: CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY,
-    Accept: "application/json",
-  };
-  if (customerDbIsLegacyJwtKey(CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY)) {
-    headers.Authorization = `Bearer ${CUSTOMER_DB_SUPABASE_SERVICE_ROLE_KEY}`;
-  }
-  return headers;
-}
-
-function customerDbWriteHeaders(prefer = "return=representation") {
-  return {
-    ...customerDbReadHeaders(),
+    apikey: serviceKey,
+    Authorization: `Bearer ${serviceKey}`,
     "Content-Type": "application/json",
-    Prefer: prefer,
   };
-}
+  if (prefer) headers.Prefer = prefer;
 
-function usageSubjectHash(value) {
-  const normalized = String(value || "").trim().toLowerCase();
-  return /^[a-f0-9]{64}$/.test(normalized) ? normalized : "";
-}
-
-function usageIpSubjectHash(ip) {
-  const secret = String(process.env.USAGE_CONTROL_HASH_SECRET || "").trim();
-  const normalizedIp = String(ip || "").trim();
-  if (secret.length < 32 || !isIP(normalizedIp)) return "";
-  return crypto.createHmac("sha256", secret).update(`usage-ip:${normalizedIp}`).digest("hex");
-}
-
-function usageExclusionRow(row = {}) {
-  return {
-    id: String(row.id || ""),
-    subjectType: String(row.subject_type || ""),
-    subjectHash: String(row.subject_hash || ""),
-    label: String(row.label || ""),
-    reason: String(row.reason || ""),
-    active: row.active !== false,
-    createdAt: row.created_at || "",
-  };
-}
-
-async function listUsageCountExclusions() {
-  if (!customerDbConfiguredForLandingAnalytics()) {
-    return { ok: false, error: "Database clienti non configurato", rows: [] };
-  }
-  const query = new URLSearchParams({
-    select: "id,subject_type,subject_hash,label,reason,active,created_at",
-    active: "eq.true",
-    order: "created_at.desc",
-    limit: "500",
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
   });
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
+  const payload = await response.json().catch(() => null);
   if (!response.ok) {
-    return { ok: false, error: `Archivio esclusioni non disponibile (${response.status})`, rows: [] };
+    const message = payload?.message || payload?.error || `Supabase ${response.status}`;
+    throw new Error(message);
   }
-  const payload = await response.json().catch(() => []);
-  return { ok: true, rows: Array.isArray(payload) ? payload.map(usageExclusionRow) : [] };
+  return payload;
 }
 
-async function createUsageCountExclusion({ subjectType, subjectHash, label, reason, staffUserId }) {
-  const hash = usageSubjectHash(subjectHash);
-  if (!hash || !["visitor_hash", "ip_hash"].includes(subjectType)) {
-    return { ok: false, error: "Esclusione non valida" };
-  }
+async function editorialUserFetch(user, path, { method = "GET", body, prefer } = {}) {
+  const { url, serviceKey } = supabaseConfig();
+  const accessToken = String(user?._editorialAccessToken || "").trim();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!accessToken) throw new Error("Sessione editoriale autenticata non disponibile");
 
-  const existingQuery = new URLSearchParams({
-    select: "id,subject_type,subject_hash,label,reason,active,created_at",
-    subject_type: `eq.${subjectType}`,
-    subject_hash: `eq.${hash}`,
-    active: "eq.true",
-    limit: "1",
+  const headers = {
+    apikey: serviceKey,
+    Authorization: `Bearer ${accessToken}`,
+    "Content-Type": "application/json",
+  };
+  if (prefer) headers.Prefer = prefer;
+
+  const response = await fetch(`${url}/rest/v1/${path}`, {
+    method,
+    headers,
+    body: body === undefined ? undefined : JSON.stringify(body),
+    cache: "no-store",
   });
-  const existingResponse = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${existingQuery.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
-  if (!existingResponse.ok) return { ok: false, error: `Archivio esclusioni non disponibile (${existingResponse.status})` };
-  const existingRows = await existingResponse.json().catch(() => []);
-  if (Array.isArray(existingRows) && existingRows[0]) {
-    return { ok: true, created: false, row: usageExclusionRow(existingRows[0]) };
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.message || payload?.error || `Supabase ${response.status}`;
+    throw new Error(message);
   }
+  return payload;
+}
 
-  const response = await fetch(`${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}`, {
+async function editorialArticleCreate(user, body) {
+  if (user?._automation) {
+    const payload = await serviceFetch("rpc/editorial_autopilot_create_draft", {
+      method: "POST",
+      body: {
+        p_actor_user_id: user.id,
+        p_title: body.title,
+        p_slug: body.slug,
+        p_category: body.category || null,
+      },
+    });
+    if (!payload?.id) throw new Error("RPC Autopilota: bozza non creata");
+    return payload;
+  }
+  const rows = await editorialUserFetch(user, "editorial_articles?select=*", {
+    method: "POST", prefer: "return=representation", body,
+  });
+  return rows?.[0] || null;
+}
+
+async function editorialArticleUpdateDraft(user, articleId, body) {
+  if (user?._automation) {
+    const payload = await serviceFetch("rpc/editorial_autopilot_update_draft", {
+      method: "POST",
+      body: {
+        p_actor_user_id: user.id,
+        p_article_id: articleId,
+        p_title: body.title ?? null,
+        p_category: body.category ?? null,
+        p_excerpt: body.excerpt ?? null,
+        p_content: body.content ?? null,
+        p_sources: body.sources ?? null,
+        p_seo_title: body.seo_title ?? null,
+        p_seo_description: body.seo_description ?? null,
+      },
+    });
+    if (!payload?.id) throw new Error("RPC Autopilota: bozza non aggiornata");
+    return payload;
+  }
+  const rows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(articleId)}&select=*`, {
+    method: "PATCH", prefer: "return=representation", body,
+  });
+  return rows?.[0] || null;
+}
+
+async function authenticatedAdmin(req) {
+  const token = bearerToken(req);
+  if (!token) return null;
+
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+
+  const userResponse = await fetch(`${url}/auth/v1/user`, {
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${token}`,
+    },
+    cache: "no-store",
+  });
+  if (!userResponse.ok) return null;
+
+  const user = await userResponse.json().catch(() => null);
+  if (!user?.id) return null;
+
+  const rows = await serviceFetch(
+    `editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(user.id)}&limit=1`,
+  );
+  const member = rows?.[0];
+  if (!member?.active || member.role !== "admin") return null;
+  Object.defineProperty(user, "_editorialAccessToken", { value: token, enumerable: false, configurable: false });
+  return user;
+}
+
+async function googleAccessToken() {
+  const { clientEmail, privateKey } = searchConsoleConfig();
+  const now = Math.floor(Date.now() / 1000);
+  const header = base64url(JSON.stringify({ alg: "RS256", typ: "JWT" }));
+  const payload = base64url(JSON.stringify({
+    iss: clientEmail,
+    scope: SEARCH_CONSOLE_SCOPE,
+    aud: SEARCH_CONSOLE_TOKEN_URL,
+    iat: now,
+    exp: now + 3600,
+  }));
+  const unsigned = `${header}.${payload}`;
+  const signature = crypto.createSign("RSA-SHA256").update(unsigned).end().sign(privateKey).toString("base64url");
+  const assertion = `${unsigned}.${signature}`;
+
+  const body = new URLSearchParams({
+    grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+    assertion,
+  });
+  const response = await fetch(SEARCH_CONSOLE_TOKEN_URL, {
     method: "POST",
-    headers: customerDbWriteHeaders(),
-    body: JSON.stringify([{
-      subject_type: subjectType,
-      subject_hash: hash,
-      label: String(label || "").trim().slice(0, 120),
-      reason: String(reason || "").trim().slice(0, 500),
-      active: true,
-      created_by: staffUserId || null,
-    }]),
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body,
   });
-  if (!response.ok) return { ok: false, error: `Creazione esclusione non riuscita (${response.status})` };
-  const rows = await response.json().catch(() => []);
-  return { ok: true, created: true, row: usageExclusionRow(Array.isArray(rows) ? rows[0] || {} : {}) };
-}
-
-async function revokeUsageCountExclusion({ id, staffUserId }) {
-  const normalizedId = String(id || "").trim().toLowerCase();
-  if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/.test(normalizedId)) {
-    return { ok: false, error: "Identificativo esclusione non valido" };
+  const data = await response.json().catch(() => null);
+  if (!response.ok || !data?.access_token) {
+    throw new Error(data?.error_description || data?.error || "Autenticazione Google non riuscita");
   }
-  const query = new URLSearchParams({ id: `eq.${normalizedId}`, active: "eq.true" });
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_USAGE_EXCLUSIONS_TABLE}?${query.toString()}`,
-    {
-      method: "PATCH",
-      headers: customerDbWriteHeaders(),
-      body: JSON.stringify({
-        active: false,
-        revoked_at: new Date().toISOString(),
-        revoked_by: staffUserId || null,
-      }),
-    },
-  );
-  if (!response.ok) return { ok: false, error: `Revoca esclusione non riuscita (${response.status})` };
-  const rows = await response.json().catch(() => []);
-  const row = Array.isArray(rows) ? rows[0] || null : null;
-  if (!row) return { ok: false, error: "Esclusione attiva non trovata" };
-  return { ok: true, row: usageExclusionRow(row) };
+  return data.access_token;
 }
 
-function normalizeLandingRange(value) {
-  const normalized = String(value || "30d").trim().toLowerCase();
-  return LANDING_RANGES.has(normalized) ? normalized : "30d";
+function dateOnlyUtc(date) {
+  return date.toISOString().slice(0, 10);
 }
 
-function landingRangeFrom(range) {
-  const days = range === "7d" ? 7 : range === "30d" ? 30 : null;
-  const requestedFrom = days ? new Date(Date.now() - days * 86400000).toISOString() : CAMPAIGN_BASELINE_ISO;
-  return new Date(requestedFrom).getTime() < new Date(CAMPAIGN_BASELINE_ISO).getTime()
-    ? CAMPAIGN_BASELINE_ISO
-    : requestedFrom;
+function stablePeriod(days) {
+  const safeDays = ANALYSIS_WINDOWS.includes(Number(days)) ? Number(days) : 28;
+  const end = new Date();
+  end.setUTCHours(0, 0, 0, 0);
+  end.setUTCDate(end.getUTCDate() - 3);
+  const start = new Date(end);
+  start.setUTCDate(start.getUTCDate() - (safeDays - 1));
+  return { days: safeDays, startDate: dateOnlyUtc(start), endDate: dateOnlyUtc(end) };
 }
 
-const LANDING_SIGNAL_EVENT_TYPES = new Set([
-  ...Object.values(LANDING_PATH_EVENTS),
-  ...HUMAN_INTERACTION_EVENTS,
-]);
-const LANDING_SIGNAL_PAGE_SIZE = 1000;
-const LANDING_SIGNAL_MAX_ROWS = 20000;
-
-function percentage(part, total) {
-  if (!total) return null;
-  return Math.round((part / total) * 1000) / 10;
+function snapshotDays(snapshot) {
+  const start = Date.parse(`${snapshot?.period_start || ""}T00:00:00Z`);
+  const end = Date.parse(`${snapshot?.period_end || ""}T00:00:00Z`);
+  if (!Number.isFinite(start) || !Number.isFinite(end) || end < start) return null;
+  return Math.round((end - start) / 86400000) + 1;
 }
 
-function analyticsEventSequence(event = {}) {
-  const raw = event.sessionEventSeq ?? event.session_event_seq ?? event.payload?.session_event_seq ?? event.payload?.sessionEventSeq;
-  if (raw === null || raw === undefined || raw === "") return null;
-  const parsed = Number(raw);
-  return Number.isInteger(parsed) && parsed > 0 ? parsed : null;
-}
-
-function analyticsEventClientTimestamp(event = {}) {
-  return String(event.clientTimestamp || event.client_timestamp || event.payload?.client_timestamp || event.payload?.clientTimestamp || "").trim();
-}
-
-function analyticsEventTime(value) {
-  if (!value) return null;
-  const parsed = new Date(value).getTime();
-  return Number.isFinite(parsed) ? parsed : null;
-}
-
-function compareAnalyticsEventOrder(a = {}, b = {}) {
-  const aSeq = analyticsEventSequence(a);
-  const bSeq = analyticsEventSequence(b);
-  if (aSeq !== null && bSeq !== null && aSeq !== bSeq) return aSeq - bSeq;
-
-  const aClient = analyticsEventTime(analyticsEventClientTimestamp(a));
-  const bClient = analyticsEventTime(analyticsEventClientTimestamp(b));
-  if (aClient !== null && bClient !== null && aClient !== bClient) return aClient - bClient;
-
-  const aServer = analyticsEventTime(a.createdAt || a.created_at);
-  const bServer = analyticsEventTime(b.createdAt || b.created_at);
-  if (aServer !== null && bServer !== null && aServer !== bServer) return aServer - bServer;
-  if (aServer !== null && bServer === null) return -1;
-  if (aServer === null && bServer !== null) return 1;
-
-  const aId = Number(a.id);
-  const bId = Number(b.id);
-  if (Number.isFinite(aId) && Number.isFinite(bId) && aId !== bId) return aId - bId;
-  return String(a.id || "").localeCompare(String(b.id || ""));
-}
-
-function pdfDiagnosticReason({ status = "", codes = [], missingFieldCount = 0, mixedDocuments = false, mergeBlocked = false } = {}) {
-  const normalizedStatus = String(status || "").trim().toLowerCase();
-  const list = [...new Set((Array.isArray(codes) ? codes : String(codes || "").split(/[|,]/))
-    .map((code) => String(code || "").trim().toUpperCase())
-    .filter(Boolean))];
-  const signature = list.join(" ");
-  if (mixedDocuments || mergeBlocked) return "Documenti incompatibili o misti";
-  if (normalizedStatus === "unrecognized") return "Documento non riconosciuto";
-  if (normalizedStatus === "success_missing_data" || Number(missingFieldCount || 0) > 0) return "Dati insufficienti o da confermare";
-  if (/NETWORK|FETCH|UPLOAD|DIRECT_UPLOAD|UPLOAD_/.test(signature)) return "Errore di rete o caricamento";
-  if (/TIMEOUT|DEADLINE|INSUFFICIENT_TIME_BUDGET/.test(signature)) return "Timeout analisi";
-  if (/PDF_INVALID|PDF_PROTECTED|PDF_TOO_LARGE|FILE_MISSING/.test(signature)) return "PDF non valido o non leggibile";
-  if (/UNRECOGNIZED|NOT_RECOGNIZED/.test(signature)) return "Documento non riconosciuto";
-  if (/INVALID_RESULT|INVALID_OUTPUT|EMPTY_OUTPUT|JSON_PARSE|INCOMPLETE|REFUSAL|RESPONSE_INVALID/.test(signature)) return "Risposta analisi non utilizzabile";
-  if (normalizedStatus === "interrupted") return "Analisi interrotta o abbandonata";
-  if (normalizedStatus === "failed" || list.length) return list.length ? `Errore interno/altro · ${list.join(", ")}` : "Errore tecnico (evento storico senza codice)";
-  return "";
-}
-
-function landingSignalEvent(row = {}) {
-  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
-  return {
-    id: String(row?.id || ""),
-    eventType: String(row?.event_type || row?.eventType || ""),
-    sessionId: String(payload.sessionId || row?.sessionId || ""),
-    trafficAgent: String(payload.trafficAgent || row?.trafficAgent || ""),
-    trafficReason: String(payload.trafficReason || row?.trafficReason || ""),
-  };
-}
-
-export function classifyLandingPathRows(rows = []) {
-  const events = (Array.isArray(rows) ? rows : [])
-    .map(landingSignalEvent)
-    .filter((event) => event.eventType && LANDING_SIGNAL_EVENT_TYPES.has(event.eventType));
-
-  const groups = new Map();
-  events.forEach((event) => {
-    const key = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(event);
-  });
-
-  const eventVisitorType = new Map();
-  groups.forEach((group) => {
-    const visitor = visitorDescriptor(group);
-    group.forEach((event) => eventVisitorType.set(event, visitor.type));
-  });
-
-  const viewCounts = {
-    probable_person: 0,
-    known_bot: 0,
-    automation: 0,
-    undetermined: 0,
-  };
-  const selectionCounts = {
-    probable_person: { selfService: 0, assisted: 0 },
-    known_bot: { selfService: 0, assisted: 0 },
-    automation: { selfService: 0, assisted: 0 },
-    undetermined: { selfService: 0, assisted: 0 },
-  };
-
-  events.forEach((event) => {
-    const visitorType = eventVisitorType.get(event) || "undetermined";
-    if (event.eventType === LANDING_PATH_EVENTS.view) {
-      viewCounts[visitorType] = (viewCounts[visitorType] || 0) + 1;
-      return;
-    }
-    if (event.eventType === LANDING_PATH_EVENTS.selfService) {
-      selectionCounts[visitorType].selfService += 1;
-      return;
-    }
-    if (event.eventType === LANDING_PATH_EVENTS.assisted) {
-      selectionCounts[visitorType].assisted += 1;
-    }
-  });
-
-  const views = Object.values(viewCounts).reduce((sum, value) => sum + Number(value || 0), 0);
-  const probablePersonViews = viewCounts.probable_person;
-  const knownBotViews = viewCounts.known_bot;
-  const automationViews = viewCounts.automation;
-  const suspiciousViews = knownBotViews + automationViews;
-  const undeterminedViews = viewCounts.undetermined;
-
-  const selfServiceClicks = selectionCounts.probable_person.selfService;
-  const assistedClicks = selectionCounts.probable_person.assisted;
-  const totalSelections = selfServiceClicks + assistedClicks;
-  const rawSelfServiceClicks = Object.values(selectionCounts)
-    .reduce((sum, value) => sum + value.selfService, 0);
-  const rawAssistedClicks = Object.values(selectionCounts)
-    .reduce((sum, value) => sum + value.assisted, 0);
-
-  return {
-    views,
-    totalSelections,
-    selfServiceClicks,
-    assistedClicks,
-    selfServiceShare: percentage(selfServiceClicks, totalSelections),
-    assistedShare: percentage(assistedClicks, totalSelections),
-    rawTotalSelections: rawSelfServiceClicks + rawAssistedClicks,
-    rawSelfServiceClicks,
-    rawAssistedClicks,
-    traffic: {
-      probablePersonViews,
-      knownBotViews,
-      automationViews,
-      suspiciousViews,
-      undeterminedViews,
-      probablePersonShare: percentage(probablePersonViews, views),
-    },
-  };
-}
-
-async function fetchLandingSignalPage(from, offset, limit = LANDING_SIGNAL_PAGE_SIZE) {
-  const query = new URLSearchParams({
-    select: "id,event_type,created_at,payload",
-    event_type: `in.(${[...LANDING_SIGNAL_EVENT_TYPES].join(",")})`,
-    order: "created_at.asc",
-    limit: String(limit),
-    offset: String(offset),
-  });
-  if (from) query.set("created_at", `gte.${from}`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
-  if (!response.ok) {
-    throw new Error(`Customer DB landing analytics error ${response.status}`);
-  }
-  const rows = await response.json();
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function loadLandingSignalRows(from) {
+async function querySearchConsole({ startDate, endDate }) {
+  const { siteUrl } = searchConsoleConfig();
+  const accessToken = await googleAccessToken();
   const rows = [];
-  for (let offset = 0; offset < LANDING_SIGNAL_MAX_ROWS; offset += LANDING_SIGNAL_PAGE_SIZE) {
-    const page = await fetchLandingSignalPage(from, offset);
-    rows.push(...page);
-    if (page.length < LANDING_SIGNAL_PAGE_SIZE) return rows;
+  let startRow = 0;
+  let pages = 0;
+
+  while (startRow < MAX_ROWS) {
+    const response = await fetch(
+      `${SEARCH_CONSOLE_API}/sites/${encodeURIComponent(siteUrl)}/searchAnalytics/query`,
+      {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${accessToken}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          startDate,
+          endDate,
+          dimensions: ["date", "query", "page"],
+          type: "web",
+          dataState: "final",
+          aggregationType: "auto",
+          rowLimit: PAGE_SIZE,
+          startRow,
+        }),
+      },
+    );
+    const data = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = data?.error?.message || `Search Console ${response.status}`;
+      throw new Error(message);
+    }
+
+    const batch = Array.isArray(data?.rows) ? data.rows : [];
+    pages += 1;
+    rows.push(...batch);
+    if (batch.length < PAGE_SIZE) break;
+    startRow += PAGE_SIZE;
   }
 
-  const overflow = await fetchLandingSignalPage(from, LANDING_SIGNAL_MAX_ROWS, 1);
-  if (overflow.length) {
-    throw new Error("Volume statistiche landing oltre il limite di lettura sicura");
-  }
-  return rows;
+  return { rows: rows.slice(0, MAX_ROWS), pages };
 }
 
-async function loadLandingPathAnalytics(rangeValue) {
-  const range = normalizeLandingRange(rangeValue);
-  const from = landingRangeFrom(range);
-  if (!customerDbConfiguredForLandingAnalytics()) {
+async function insertRowsBatched(path, rows) {
+  for (let index = 0; index < rows.length; index += DB_BATCH_SIZE) {
+    await serviceFetch(path, {
+      method: "POST",
+      prefer: "return=minimal",
+      body: rows.slice(index, index + DB_BATCH_SIZE),
+    });
+  }
+}
+
+async function collectSearchConsole(user, days) {
+  if (!searchConsoleConfigured()) throw new Error("Search Console non configurata lato server");
+
+  const period = stablePeriod(days);
+  const { rows, pages } = await querySearchConsole(period);
+  const normalized = rows
+    .map((row) => {
+      const keys = Array.isArray(row?.keys) ? row.keys : [];
+      const [date, query, pageUrl] = keys;
+      if (!date || !query) return null;
+      return {
+        query: String(query).slice(0, 1000),
+        page_url: pageUrl ? String(pageUrl).slice(0, 2000) : null,
+        clicks: Number.isFinite(Number(row.clicks)) ? Math.max(0, Math.trunc(Number(row.clicks))) : null,
+        impressions: Number.isFinite(Number(row.impressions)) ? Math.max(0, Math.trunc(Number(row.impressions))) : null,
+        ctr: Number.isFinite(Number(row.ctr)) ? Math.min(1, Math.max(0, Number(row.ctr))) : null,
+        avg_position: Number.isFinite(Number(row.position)) ? Math.max(0, Number(row.position)) : null,
+        observed_at: `${date}T12:00:00.000Z`,
+        dimensions: { date, source: "search_console", search_type: "web" },
+      };
+    })
+    .filter(Boolean);
+
+  const { siteUrl } = searchConsoleConfig();
+  const snapshotRows = await serviceFetch("editorial_research_snapshots", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      source: "search_console",
+      period_start: period.startDate,
+      period_end: period.endDate,
+      granularity: "daily",
+      row_count: normalized.length,
+      raw_payload: {
+        version: VERSION,
+        site_url: siteUrl,
+        data_state: "final",
+        search_type: "web",
+        dimensions: ["date", "query", "page"],
+        pages_fetched: pages,
+        row_limit: MAX_ROWS,
+      },
+      notes: `Search Console · acquisizione manuale ${period.days} giorni`,
+      created_by: user.id,
+    },
+  });
+  const snapshot = snapshotRows?.[0];
+  if (!snapshot?.id) throw new Error("Snapshot Search Console non creato");
+
+  try {
+    if (normalized.length) {
+      await insertRowsBatched(
+        "editorial_research_queries",
+        normalized.map((row) => ({ snapshot_id: snapshot.id, ...row })),
+      );
+    }
+  } catch (error) {
+    await serviceFetch(`editorial_research_snapshots?id=eq.${encodeURIComponent(snapshot.id)}`, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    }).catch(() => {});
+    throw error;
+  }
+
+  return {
+    snapshot_id: snapshot.id,
+    source: "search_console",
+    period_start: period.startDate,
+    period_end: period.endDate,
+    row_count: normalized.length,
+    captured_at: snapshot.captured_at,
+    days: period.days,
+  };
+}
+
+async function searchConsoleSnapshots() {
+  const rows = await serviceFetch(
+    "editorial_research_snapshots?select=id,source,period_start,period_end,captured_at,row_count,notes&source=eq.search_console&order=captured_at.desc&limit=24",
+  );
+  return (rows || []).map((row) => ({ ...row, days: snapshotDays(row) }));
+}
+
+function latestWindowSnapshots(rows) {
+  const found = new Map();
+  for (const row of rows || []) {
+    const days = Number(row?.days);
+    if (ANALYSIS_WINDOWS.includes(days) && !found.has(days)) found.set(days, row);
+  }
+  return ANALYSIS_WINDOWS.map((days) => found.get(days)).filter(Boolean);
+}
+
+async function statusPayload() {
+  const allSnapshots = await searchConsoleSnapshots();
+  const snapshots = latestWindowSnapshots(allSnapshots);
+  return {
+    ok: true,
+    version: VERSION,
+    configured: searchConsoleConfigured(),
+    site: searchConsoleConfigured() ? searchConsoleConfig().siteUrl : null,
+    latest: allSnapshots?.[0] || null,
+    snapshots,
+    analysis_ready: ANALYSIS_WINDOWS.every((days) => snapshots.some((row) => row.days === days)),
+  };
+}
+
+async function snapshotQueryRows(snapshotId) {
+  const rows = [];
+  let offset = 0;
+  while (offset < ANALYSIS_MAX_ROWS_PER_SNAPSHOT) {
+    const batch = await serviceFetch(
+      `editorial_research_queries?select=query,page_url,clicks,impressions,avg_position,observed_at&snapshot_id=eq.${encodeURIComponent(snapshotId)}&order=id.asc&limit=${ANALYSIS_PAGE_SIZE}&offset=${offset}`,
+    );
+    const safeBatch = Array.isArray(batch) ? batch : [];
+    rows.push(...safeBatch);
+    if (safeBatch.length < ANALYSIS_PAGE_SIZE) break;
+    offset += ANALYSIS_PAGE_SIZE;
+  }
+  return {
+    rows: rows.slice(0, ANALYSIS_MAX_ROWS_PER_SNAPSHOT),
+    truncated: rows.length >= ANALYSIS_MAX_ROWS_PER_SNAPSHOT,
+  };
+}
+
+const TOPIC_STOPWORDS = new Set([
+  "a","ad","ai","al","alla","alle","allo","agli","con","da","dal","dalla","dalle","dallo",
+  "dei","del","della","delle","dello","di","e","ed","gli","i","il","in","la","le","lo",
+  "nel","nella","nelle","nello","o","per","su","tra","fra","un","una","uno",
+]);
+
+function cleanToken(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .trim();
+}
+
+function topicKeyForQuery(query) {
+  const normalized = cleanToken(query);
+  const tokens = normalized
+    .split(/\s+/)
+    .filter(Boolean)
+    .filter((token) => !TOPIC_STOPWORDS.has(token));
+  const useful = [...new Set(tokens)];
+  if (!useful.length) return normalized || "altro";
+  return useful.sort((a, b) => a.localeCompare(b, "it")).join(" ");
+}
+
+function numeric(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? number : 0;
+}
+
+function aggregateSnapshot(rows) {
+  const topics = new Map();
+  for (const row of rows || []) {
+    const key = topicKeyForQuery(row.query);
+    if (!key) continue;
+    let topic = topics.get(key);
+    if (!topic) {
+      topic = {
+        key,
+        display_query: String(row.query || key),
+        display_impressions: -1,
+        clicks: 0,
+        impressions: 0,
+        position_weighted: 0,
+        position_weight: 0,
+        queries: new Set(),
+        query_impressions: new Map(),
+        pages: new Set(),
+        page_impressions: new Map(),
+      };
+      topics.set(key, topic);
+    }
+
+    const impressions = Math.max(0, numeric(row.impressions));
+    const clicks = Math.max(0, numeric(row.clicks));
+    const position = Math.max(0, numeric(row.avg_position));
+    topic.clicks += clicks;
+    topic.impressions += impressions;
+    const queryText = String(row.query || "");
+    topic.queries.add(queryText);
+    topic.query_impressions.set(queryText, (topic.query_impressions.get(queryText) || 0) + impressions);
+    if (row.page_url) {
+      const pageUrl = String(row.page_url);
+      topic.pages.add(pageUrl);
+      topic.page_impressions.set(pageUrl, (topic.page_impressions.get(pageUrl) || 0) + impressions);
+    }
+
+    if (impressions > topic.display_impressions) {
+      topic.display_impressions = impressions;
+      topic.display_query = String(row.query || key);
+    }
+    if (position > 0) {
+      const weight = impressions > 0 ? impressions : 1;
+      topic.position_weighted += position * weight;
+      topic.position_weight += weight;
+    }
+  }
+
+  return new Map([...topics.entries()].map(([key, topic]) => [key, {
+    key,
+    display_query: topic.display_query,
+    clicks: Math.round(topic.clicks),
+    impressions: Math.round(topic.impressions),
+    ctr: topic.impressions > 0 ? topic.clicks / topic.impressions : 0,
+    avg_position: topic.position_weight > 0 ? topic.position_weighted / topic.position_weight : null,
+    query_count: topic.queries.size,
+    query_examples: [...topic.query_impressions.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "it"))
+      .slice(0, 5)
+      .map(([query]) => query),
+    page_count: topic.pages.size,
+    page_urls: [...topic.page_impressions.entries()]
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .slice(0, 5)
+      .map(([url]) => url),
+  }]));
+}
+
+function logRelative(value, maxValue) {
+  if (value <= 0 || maxValue <= 0) return 0;
+  return Math.min(1, Math.log1p(value) / Math.log1p(maxValue));
+}
+
+function positionOpportunity(position) {
+  if (!Number.isFinite(position) || position <= 0) return 0;
+  if (position <= 3) return 0.15;
+  if (position <= 10) return 0.4 + ((position - 3) / 7) * 0.6;
+  if (position <= 20) return 1 - ((position - 10) / 10) * 0.5;
+  if (position <= 40) return Math.max(0, 0.5 - ((position - 20) / 20) * 0.5);
+  return 0;
+}
+
+function momentumScore(seven, twentyEight) {
+  if (!seven || !twentyEight || twentyEight.impressions <= 0) return { score: 0, ratio: null };
+  const recentDaily = seven.impressions / 7;
+  const baselineDaily = twentyEight.impressions / 28;
+  if (baselineDaily <= 0) return { score: 0, ratio: null };
+  const ratio = recentDaily / baselineDaily;
+  return {
+    ratio,
+    score: Math.max(0, Math.min(1, (ratio - 0.5) / 1.5)),
+  };
+}
+
+function roundMetric(value, decimals = 2) {
+  if (!Number.isFinite(value)) return null;
+  const factor = 10 ** decimals;
+  return Math.round(value * factor) / factor;
+}
+
+
+function opportunitySelect() {
+  return "id,snapshot_id,topic,category,opportunity_type,score,rationale,evidence,status,target_article_id,decided_by,decided_at,created_at,updated_at";
+}
+
+function validUuid(value) {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(String(value || ""));
+}
+
+function validCommitRef(value) {
+  return /^[0-9a-f]{7,64}$/i.test(String(value || "").trim());
+}
+
+function metricDelta(current, baseline) {
+  if (!current || !baseline) return null;
+  const numberOrNull = (value) => {
+    if (value === null || value === undefined || value === "") return null;
+    return Number.isFinite(Number(value)) ? Number(value) : null;
+  };
+  const cImpressions = numberOrNull(current.impressions);
+  const bImpressions = numberOrNull(baseline.impressions);
+  const cClicks = numberOrNull(current.clicks);
+  const bClicks = numberOrNull(baseline.clicks);
+  const cPosition = numberOrNull(current.avg_position);
+  const bPosition = numberOrNull(baseline.avg_position);
+  return {
+    impressions: cImpressions === null || bImpressions === null ? null : cImpressions - bImpressions,
+    clicks: cClicks === null || bClicks === null ? null : cClicks - bClicks,
+    avg_position: cPosition === null || bPosition === null ? null : roundMetric(cPosition - bPosition, 2),
+  };
+}
+
+function snapshotFullyAfter(snapshot, isoDate) {
+  const appliedDate = String(isoDate || "").slice(0, 10);
+  const periodStart = String(snapshot?.period_start || "");
+  return Boolean(appliedDate && periodStart && periodStart > appliedDate);
+}
+
+function cleanManualIdeaText(value, maxLength) {
+  return String(value || "").replace(/\s+/g, " ").trim().slice(0, maxLength);
+}
+
+function normalizeManualIdeaTopic(value) {
+  return cleanManualIdeaText(value, 240).toLocaleLowerCase("it-IT");
+}
+
+function validManualIdeaDeadline(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const date = String(value).trim();
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(date)) throw new Error("Scadenza idea non valida");
+  const parsed = Date.parse(`${date}T12:00:00Z`);
+  if (!Number.isFinite(parsed) || new Date(parsed).toISOString().slice(0, 10) !== date) {
+    throw new Error("Scadenza idea non valida");
+  }
+  return date;
+}
+
+function manualIdeaMeta(opportunity) {
+  const evidence = opportunity?.evidence;
+  const manual = evidence && typeof evidence === "object" ? evidence.manual_idea : null;
+  if (evidence?.source !== "manual_idea" || !manual || typeof manual !== "object") return null;
+  return manual;
+}
+
+function researchHintMeta(opportunity) {
+  const evidence = opportunity?.evidence;
+  const hint = evidence && typeof evidence === "object" ? evidence.research_hint : null;
+  if (evidence?.source !== "research_hint" || !hint || typeof hint !== "object") return null;
+  return hint;
+}
+
+function researchHintRationale(depth) {
+  return depth === "deep"
+    ? "Tema suggerito dalla Redazione per validazione Radar con approfondimento. Non riceve priorita editoriale automatica: deve essere confermato da domanda, fonti, archivio e utilita reale."
+    : "Tema suggerito dalla Redazione per validazione Radar. Non riceve priorita editoriale automatica: deve essere confermato da domanda, fonti, archivio e utilita reale.";
+}
+
+function manualIdeaRationale(priority, deadline) {
+  const priorityLabel = ({ urgent: "urgente", high: "alta", normal: "normale" })[priority] || "normale";
+  return `Idea editoriale inserita manualmente dalla Redazione. Priorità ${priorityLabel}${deadline ? `; scadenza ${deadline}` : ""}. La priorità manuale è distinta dai punteggi automatici di Search Console e Radar web.`;
+}
+
+function opportunityEditorialBrief(opportunity, signal = null) {
+  const topic = cleanEditorialText(opportunity?.topic, 240) || "tema editoriale";
+  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const manual = manualIdeaMeta(opportunity);
+  const queryExamples = [...new Set([
+    ...(Array.isArray(evidence.query_examples) ? evidence.query_examples : []),
+    ...(Array.isArray(signal?.query_examples) ? signal.query_examples : []),
+  ].map((value) => cleanEditorialText(value, 220)).filter(Boolean))].slice(0, 5);
+  const contextPages = [...new Set([
+    ...(Array.isArray(evidence.page_urls) ? evidence.page_urls : []),
+    ...(Array.isArray(signal?.page_urls) ? signal.page_urls : []),
+  ].map((value) => normalizedHttps(value)).filter(Boolean))].slice(0, 5);
+
+  if (manual) {
+    const notes = cleanEditorialText(manual.notes, 900);
     return {
-      ok: true,
-      configured: false,
-      range,
-      from,
-      views: 0,
-      totalSelections: 0,
-      selfServiceClicks: 0,
-      assistedClicks: 0,
-      selfServiceShare: null,
-      assistedShare: null,
-      rawTotalSelections: 0,
-      rawSelfServiceClicks: 0,
-      rawAssistedClicks: 0,
-      traffic: {
-        probablePersonViews: 0,
-        knownBotViews: 0,
-        automationViews: 0,
-        suspiciousViews: 0,
-        undeterminedViews: 0,
-        probablePersonShare: null,
+      source: "manual_idea",
+      search_intent: "Idea inserita manualmente dalla Redazione.",
+      article_angle: notes
+        ? `Seguire il taglio indicato dalla Redazione: ${notes}`
+        : `Sviluppare un nuovo articolo informativo su «${topic}», chiarendo il contesto, gli aspetti pratici da verificare e le alternative pertinenti con fonti aggiornate.`,
+      query_examples: queryExamples,
+      context_pages: contextPages,
+    };
+  }
+
+  if (evidence.source === "research_radar") {
+    const radar = evidence.research_radar && typeof evidence.research_radar === "object" ? evidence.research_radar : {};
+    const searchIntent = cleanEditorialText(radar.search_intent, 700) || `Interesse emergente verificato sul web per «${topic}».`;
+    const angle = cleanEditorialText(radar.angle, 1200) || `Sviluppare un articolo originale su «${topic}» verificando i fatti aggiornabili e distinguendolo dai contenuti OffertaLogica gia pubblicati.`;
+    const difference = cleanEditorialText(radar.difference_from_existing, 900);
+    const existingTitle = cleanEditorialText(radar.existing_article?.title, 180);
+    const toolLabels = (Array.isArray(radar.related_targets) ? radar.related_targets : [])
+      .map((row) => cleanEditorialText(row?.label, 180))
+      .filter(Boolean)
+      .slice(0, 4);
+    return {
+      source: "research_radar",
+      search_intent: searchIntent,
+      article_angle: [
+        angle,
+        radar.editorial_action === "NEW_ANGLE" && existingTitle
+          ? `Esiste gia l’articolo «${existingTitle}»: il nuovo contenuto deve rispondere a un intento diverso e non ripeterne struttura o risposta.`
+          : "",
+        difference ? `Differenza editoriale obbligatoria: ${difference}` : "",
+        toolLabels.length ? `Se pertinente e solo dopo avere risposto al problema del lettore, collega naturalmente gli strumenti OffertaLogica: ${toolLabels.join(" · ")}.` : "",
+      ].filter(Boolean).join(" "),
+      query_examples: queryExamples,
+      context_pages: contextPages,
+    };
+  }
+
+  const normalizedTopic = cleanToken(topic);
+  const commercialIntent = /\b(offerta|offerte|tariffa|tariffe|prezzo|prezzi|costo|costi|fornitore|fornitori|luce|gas|energia|energy|direct|contratto|contratti|mercato)\b/.test(normalizedTopic);
+  const questionIntent = /\b(come|quanto|perche|cosa|cos|conviene|convenienza|funziona|funzionamento|significa|leggere|calcolare|scegliere)\b/.test(normalizedTopic);
+  let articleAngle;
+  if (commercialIntent) {
+    articleAngle = `Spiegare che cos’è o a cosa si riferisce «${topic}», come funziona secondo fonti aggiornate, quali condizioni, costi o vincoli verificare e come confrontarlo con alternative pertinenti senza trasformare l’articolo in pubblicità.`;
+  } else if (questionIntent) {
+    articleAngle = `Rispondere direttamente all’intento di ricerca «${topic}» con una guida concreta: risposta iniziale chiara, passaggi o criteri utili, limiti da conoscere e fonti aggiornate per i dati che possono cambiare.`;
+  } else {
+    articleAngle = `Trasformare la ricerca «${topic}» in un articolo utile e comprensibile: spiegare il contesto, gli aspetti pratici rilevanti, cosa controllare, limiti ed eventuali alternative, verificando sul web i fatti aggiornabili.`;
+  }
+
+  return {
+    source: "search_console",
+    search_intent: queryExamples.length
+      ? `Gli utenti stanno cercando questo tema anche con query come: ${queryExamples.slice(0, 3).join(" · ")}.`
+      : `Gli utenti stanno mostrando interesse di ricerca per «${topic}».`,
+    article_angle: articleAngle,
+    query_examples: queryExamples,
+    context_pages: contextPages,
+  };
+}
+
+
+function researchRadarCandidateSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["candidates", "hint_reviews"],
+    properties: {
+      candidates: {
+        type: "array",
+        minItems: 1,
+        maxItems: EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: [
+            "topic", "search_intent", "angle", "query_examples", "demand_score", "trend_score",
+            "freshness_score", "content_gap_score", "user_utility_score", "offertalogica_fit_score",
+            "authority_score", "editorial_action", "existing_article_id", "difference_from_existing",
+            "related_target_ids", "rationale", "source_urls", "research_hint_id"
+          ],
+          properties: {
+            topic: { type: "string" },
+            search_intent: { type: "string" },
+            angle: { type: "string" },
+            query_examples: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+            demand_score: { type: "integer", minimum: 0, maximum: 100 },
+            trend_score: { type: "integer", minimum: 0, maximum: 100 },
+            freshness_score: { type: "integer", minimum: 0, maximum: 100 },
+            content_gap_score: { type: "integer", minimum: 0, maximum: 100 },
+            user_utility_score: { type: "integer", minimum: 0, maximum: 100 },
+            offertalogica_fit_score: { type: "integer", minimum: 0, maximum: 100 },
+            authority_score: { type: "integer", minimum: 0, maximum: 100 },
+            editorial_action: { type: "string", enum: ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE"] },
+            existing_article_id: { type: ["string", "null"] },
+            difference_from_existing: { type: "string" },
+            related_target_ids: { type: "array", maxItems: 4, items: { type: "string" } },
+            rationale: { type: "string" },
+            source_urls: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+            research_hint_id: { type: ["string", "null"] },
+          },
+        },
+      },
+      hint_reviews: {
+        type: "array",
+        maxItems: EDITORIAL_RESEARCH_HINT_MAX_ACTIVE,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["hint_id", "verdict", "score", "rationale", "suggested_angle", "source_urls"],
+          properties: {
+            hint_id: { type: "string" },
+            verdict: { type: "string", enum: ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE", "INSUFFICIENT_SIGNAL"] },
+            score: { type: "integer", minimum: 0, maximum: 100 },
+            rationale: { type: "string" },
+            suggested_angle: { type: "string" },
+            source_urls: { type: "array", minItems: 1, maxItems: 6, items: { type: "string" } },
+          },
+        },
+      },
+    },
+  };
+}
+
+function researchRadarClampScore(value) {
+  const number = Number(value);
+  return Number.isFinite(number) ? Math.max(0, Math.min(100, Math.round(number))) : 0;
+}
+
+function researchRadarTokens(value) {
+  return new Set(cleanToken(value)
+    .split(/\s+/)
+    .filter((token) => token.length >= 3 && !TOPIC_STOPWORDS.has(token)));
+}
+
+function researchRadarSimilarity(left, right) {
+  const a = researchRadarTokens(left);
+  const b = researchRadarTokens(right);
+  if (!a.size || !b.size) return 0;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection += 1;
+  return (2 * intersection) / (a.size + b.size);
+}
+
+function researchRadarLikelyDuplicate(left, right) {
+  const a = researchRadarTokens(left);
+  const b = researchRadarTokens(right);
+  if (!a.size || !b.size) return false;
+  let intersection = 0;
+  for (const token of a) if (b.has(token)) intersection += 1;
+  const dice = (2 * intersection) / (a.size + b.size);
+  const containment = intersection / Math.min(a.size, b.size);
+  return dice >= 0.60 || (intersection >= 3 && containment >= 0.80);
+}
+
+// Confronta il bisogno editoriale, non la chiave (che cambia con titolo o angolo).
+// Le formulazioni simili non devono essere trattate come nuove ricerche.
+function researchRadarSameNeed(left, right) {
+  const leftTopic = String(left?.topic || "");
+  const rightTopic = String(right?.topic || "");
+  if (!leftTopic || !rightTopic) return false;
+  const leftNormalized = cleanToken(leftTopic);
+  const rightNormalized = cleanToken(rightTopic);
+  // Il settore e il pubblico cambiano davvero il bisogno dell'utente.
+  const category = (value) => {
+    const gas = /\b(gas|metano|psv)\b/.test(value);
+    const luce = /\b(luce|elettric[aio]|elettricita|pun)\b/.test(value);
+    return gas && !luce ? "gas" : luce && !gas ? "luce" : null;
+  };
+  if (category(leftNormalized) && category(rightNormalized)
+    && category(leftNormalized) !== category(rightNormalized)) return false;
+  const audience = (value) => /\b(agricoltura|agricole|agricoli|aziende|impresa|imprese|pmi)\b/.test(value)
+    ? "business" : /\b(famiglie|domestico|domestica|casa)\b/.test(value) ? "domestico" : null;
+  if (audience(leftNormalized) && audience(rightNormalized)
+    && audience(leftNormalized) !== audience(rightNormalized)) return false;
+  const normalizedNeed = (value) => [...researchRadarTokens(value)]
+    .filter((token) => !["come", "quanto", "quale", "quali", "guida", "novita"].includes(token))
+    .map((token) => token.length >= 6 ? token.replace(/[aeio]$/, "") : token).join(" ");
+  const leftNeed = normalizedNeed(leftTopic);
+  const rightNeed = normalizedNeed(rightTopic);
+  if (researchRadarLikelyDuplicate(leftNeed, rightNeed)) return true;
+  const leftIntent = String(left?.search_intent || "");
+  const rightIntent = String(right?.search_intent || "");
+  return Boolean(leftIntent && rightIntent
+    && researchRadarSimilarity(leftNeed, rightNeed) >= 0.40
+    && researchRadarSimilarity(normalizedNeed(leftIntent), normalizedNeed(rightIntent)) >= 0.65);
+}
+
+function researchRadarCandidateRecent(candidate, now = Date.now()) {
+  const localDate = String(candidate?.scan_date || "");
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(localDate)) return false;
+  const dateTime = Date.parse(`${localDate}T23:59:59Z`);
+  return Number.isFinite(dateTime) && dateTime <= now + 86400000
+    && now - dateTime <= EDITORIAL_RESEARCH_RADAR_CANDIDATE_MAX_AGE_DAYS * 86400000;
+}
+
+function researchRadarKey(candidate) {
+  const seed = `${cleanToken(candidate?.topic)}|${cleanToken(candidate?.search_intent)}|${cleanToken(candidate?.angle)}`;
+  return crypto.createHash("sha256").update(seed).digest("hex").slice(0, 24);
+}
+
+async function researchRadarArchive() {
+  const rows = await serviceFetch(
+    "editorial_articles?select=id,title,slug,status,published_at,excerpt&status=eq.published&order=published_at.desc&limit=120",
+  ).catch(() => []);
+  return (rows || []).filter((row) => validUuid(String(row?.id || ""))).map((row) => ({
+    id: row.id,
+    title: cleanEditorialText(row.title, 180),
+    slug: cleanEditorialText(row.slug, 160),
+    published_at: row.published_at || null,
+    excerpt: cleanEditorialText(row.excerpt, 420),
+  }));
+}
+
+async function researchRadarTargets() {
+  const rows = await enabledPromotionTargets().catch(() => []);
+  return (rows || []).slice(0, 30).map((row) => ({
+    id: String(row.id || ""),
+    label: cleanEditorialText(row.label, 180),
+    url_path: cleanEditorialText(row.url_path, 500),
+    category: cleanEditorialText(row.category, 100) || null,
+  })).filter((row) => validUuid(row.id) && row.label);
+}
+
+async function researchRadarHints() {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,deferred)&order=created_at.asc&limit=100`,
+  ).catch(() => []);
+  return (rows || []).filter((row) => researchHintMeta(row)).slice(0, EDITORIAL_RESEARCH_HINT_MAX_ACTIVE).map((row) => {
+    const hint = researchHintMeta(row) || {};
+    return {
+      id: String(row.id || ""),
+      topic: cleanEditorialText(row.topic, 240),
+      depth: EDITORIAL_RESEARCH_HINT_DEPTHS.has(String(hint.depth || "")) ? String(hint.depth) : "normal",
+      created_at: row.created_at || hint.created_at || null,
+    };
+  }).filter((row) => validUuid(row.id) && row.topic);
+}
+
+async function researchRadarSearchSignals() {
+  const analysis = await analysisPayload().catch(() => null);
+  if (!analysis?.ready) return [];
+  return (analysis.signals || []).slice(0, 20).map((signal) => ({
+    topic: cleanEditorialText(signal.topic, 220),
+    score: Number(signal.score || 0),
+    momentum_ratio: signal.momentum_ratio ?? null,
+    query_examples: (signal.query_examples || []).slice(0, 5),
+    metrics_7: signal.metrics?.["7"] || null,
+    metrics_28: signal.metrics?.["28"] || null,
+  }));
+}
+
+function researchRadarDateCutoff(days = EDITORIAL_RESEARCH_RADAR_LOOKBACK_DAYS) {
+  return new Date(Date.now() - Math.max(1, Number(days) || 1) * 86400000).toISOString();
+}
+
+async function researchRadarRuns(limit = 30) {
+  const cutoff = encodeURIComponent(researchRadarDateCutoff());
+  const rows = await serviceFetch(
+    `editorial_automation_runs?select=id,run_type,status,started_at,finished_at,details,last_error,created_at&run_type=eq.research_radar&created_at=gte.${cutoff}&order=created_at.desc&limit=${Math.max(1, Math.min(60, Number(limit) || 30))}`,
+  ).catch(() => []);
+  return rows || [];
+}
+
+function researchRadarPreviousCandidates(runs) {
+  const values = [];
+  for (const run of runs || []) {
+    if (String(run?.status || "") !== "success") continue;
+    for (const candidate of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
+      const value = {
+        topic: cleanEditorialText(candidate?.topic, 220),
+        search_intent: cleanEditorialText(candidate?.search_intent, 420),
+        editorial_action: cleanEditorialText(candidate?.editorial_action, 40),
+        score: Number(candidate?.score || 0),
+      };
+      if (!value.topic || values.some((existing) => researchRadarSameNeed(existing, value))) continue;
+      values.push(value);
+      if (values.length >= 32) return values;
+    }
+  }
+  return values;
+}
+
+async function startOpenAiResearchRadar({ localDate, archive, targets, searchSignals, previousCandidates, researchHints }) {
+  const input = JSON.stringify({
+    local_date: localDate,
+    country: "Italia",
+    search_console_top_signals: searchSignals,
+    published_offertalogica_articles: archive,
+    offertalogica_tools_and_destinations: targets,
+    previous_weekend_radar_candidates: previousCandidates,
+    editorial_research_hints: researchHints,
+  });
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      tools: [{ type: "web_search", search_context_size: "high" }],
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
+      instructions: [
+        "Sei il radar editoriale di OffertaLogica.it per il mercato energia italiano.",
+        "Fai una ricerca web reale e aggiornata prima di proporre i temi. Cerca cosa sta emergendo negli ultimi giorni: domande degli utenti, variazioni di prezzo, bollette, mercato libero e vulnerabilita, offerte, PUN/PSV, regolazione, ARERA, GSE, MASE, Acquirente Unico, Terna, efficienza, pompe di calore e fotovoltaico quando pertinenti.",
+        "Privilegia fonti primarie e istituzionali per i fatti. Usa fonti secondarie affidabili per capire quali domande o temi stanno circolando. Se Google Trends o altre evidenze di domanda sono accessibili, usale; non inventare volumi di ricerca e non trasformare il demand_score in un numero di ricerche mensili.",
+        "Search Console e' un segnale quantitativo forte ma non deve creare un circuito chiuso: trova anche temi nuovi sui quali OffertaLogica non ha ancora impressioni.",
+        "Confronta ogni proposta con l'archivio articoli fornito. Se lo stesso intento e' gia coperto e non ci sono novita sostanziali usa SKIP_DUPLICATE. Se fatti, prezzi o regole rendono vecchio un articolo esistente usa UPDATE_EXISTING. Usa NEW_ANGLE solo quando l'intento del lettore e' realmente diverso e spiega precisamente la differenza. Usa NEW_ARTICLE per un bisogno nuovo non coperto.",
+        "Considera previous_weekend_radar_candidates un elenco di bisogni gia' individuati nelle ultime quattro settimane: non riproporli cambiando titolo, sinonimi o angolo. Cerca problemi concreti differenti e fonti recenti, diversificando tra utenze domestiche, piccole imprese, agricoltura, mercato, agevolazioni e tecnologie SOLO se emergono evidenze pertinenti. Non inventare novita per riempire l'elenco; temi gia' coperti vanno classificati come aggiornamento o duplicato.",
+        "Gli strumenti OffertaLogica non devono guidare artificialmente la scelta. Prima identifica un problema reale dell'utente; poi indica eventuali destinazioni OffertaLogica che permettono un passo pratico successivo. Non trasformare l'articolo in pubblicita.",
+        "I temi in editorial_research_hints sono suggerimenti della Redazione da verificare, non ordini di pubblicazione e non ricevono bonus di punteggio. Per ciascun hint devi fare ricerche mirate e restituire esattamente una hint_review. Se depth=deep, approfondisci con piu query e confronto fonti, ma non alzare il punteggio per il solo fatto che il tema e' stato suggerito.",
+        "Per una hint_review usa NEW_ARTICLE o NEW_ANGLE solo se le evidenze la validano davvero; UPDATE_EXISTING se e' meglio aggiornare un articolo presente; SKIP_DUPLICATE se l'intento e' gia coperto; INSUFFICIENT_SIGNAL se non trovi domanda o evidenze sufficienti. Se un hint validato merita di competere nella graduatoria, includilo anche tra candidates impostando research_hint_id con il suo ID.",
+        "Attribuisci punteggi 0-100 separati: demand_score=forza della domanda osservabile, trend_score=crescita/accelerazione recente, freshness_score=novita e attualita, content_gap_score=buco nell'archivio OffertaLogica, user_utility_score=utilita concreta, offertalogica_fit_score=collegamento naturale con strumenti esistenti, authority_score=qualita delle fonti.",
+        "Preferisci 3-8 candidati diversificati, ma non riempire l’output con temi deboli: se solo 1-2 temi sono davvero verificabili restituisci solo quelli. Evita varianti dello stesso tema nello stesso output.",
+        "source_urls deve contenere solo URL https effettivamente consultati nella ricerca. existing_article_id e related_target_ids devono usare soltanto gli ID forniti nell'input oppure null/lista vuota.",
+        "Scrivi topic, intento, angolo, motivazione e differenza in italiano, in modo concreto e verificabile.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 7600,
+      background: true,
+      store: true,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_research_radar_v3",
+          strict: true,
+          schema: researchRadarCandidateSchema(),
+        },
+      },
+    },
+    economics: { activity: "research_radar" },
+  });
+  if (!response?.id) throw new Error("Radar editoriale: ricerca web non avviata");
+  return { response_id: response.id, status: response.status || "queued" };
+}
+
+function validateResearchRadarPayload(payload, { archive, targets, researchHints = [], previousCandidates = [] }) {
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(payload));
+  } catch {
+    throw new Error("Radar editoriale: risposta AI non interpretabile");
+  }
+  const observedSources = new Set(responseSourceUrls(payload).map(sourceUrlKey).filter(Boolean));
+  const archiveById = new Map((archive || []).map((row) => [String(row.id), row]));
+  const targetById = new Map((targets || []).map((row) => [String(row.id), row]));
+  const hintById = new Map((researchHints || []).map((row) => [String(row.id), row]));
+  const output = [];
+  const seen = new Set();
+
+  for (const raw of Array.isArray(parsed?.candidates) ? parsed.candidates : []) {
+    const topic = cleanEditorialText(raw?.topic, 240);
+    const searchIntent = cleanEditorialText(raw?.search_intent, 700);
+    const angle = cleanEditorialText(raw?.angle, 1200);
+    if (topic.length < 8 || searchIntent.length < 20 || angle.length < 30) continue;
+
+    const candidateText = `${topic} ${searchIntent} ${angle}`;
+    let closest = null;
+    let closestSimilarity = 0;
+    for (const article of archive || []) {
+      const similarity = researchRadarSimilarity(candidateText, `${article.title} ${article.excerpt}`);
+      if (similarity > closestSimilarity) {
+        closest = article;
+        closestSimilarity = similarity;
+      }
+    }
+
+    let action = ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE"].includes(String(raw?.editorial_action || ""))
+      ? String(raw.editorial_action)
+      : "NEW_ARTICLE";
+    let existing = archiveById.get(String(raw?.existing_article_id || "")) || closest || null;
+    const difference = cleanEditorialText(raw?.difference_from_existing, 900);
+    const freshness = researchRadarClampScore(raw?.freshness_score);
+
+    if (closestSimilarity >= 0.72) {
+      action = freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE";
+      existing = closest || existing;
+    } else if (action === "NEW_ARTICLE" && closestSimilarity >= 0.55) {
+      action = difference.length >= 45 ? "NEW_ANGLE" : (freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE");
+      existing = closest || existing;
+    } else if (action === "NEW_ANGLE" && (!existing || difference.length < 45)) {
+      action = closestSimilarity >= 0.45 ? (freshness >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE") : "NEW_ARTICLE";
+    }
+
+    // Il confronto con i run precedenti e' obbligatorio anche lato server:
+    // non basta chiedere al modello di evitare i duplicati.
+    const previousMatch = (previousCandidates || []).find((item) => researchRadarSameNeed(
+      { topic, search_intent: searchIntent }, item,
+    ));
+    const currentScanMatch = output.find((item) => researchRadarSameNeed(
+      { topic, search_intent: searchIntent }, item,
+    ));
+    if (previousMatch || currentScanMatch) action = "SKIP_DUPLICATE";
+
+    const componentScores = {
+      demand: researchRadarClampScore(raw?.demand_score),
+      trend: researchRadarClampScore(raw?.trend_score),
+      freshness,
+      content_gap: researchRadarClampScore(raw?.content_gap_score),
+      user_utility: researchRadarClampScore(raw?.user_utility_score),
+      offertalogica_fit: researchRadarClampScore(raw?.offertalogica_fit_score),
+      authority: researchRadarClampScore(raw?.authority_score),
+    };
+    const baseScore = Math.round(
+      componentScores.demand * 0.25
+      + componentScores.trend * 0.20
+      + componentScores.freshness * 0.15
+      + componentScores.content_gap * 0.15
+      + componentScores.user_utility * 0.10
+      + componentScores.offertalogica_fit * 0.10
+      + componentScores.authority * 0.05,
+    );
+    const duplicationPenalty = action === "NEW_ANGLE"
+      ? Math.round(closestSimilarity * 18)
+      : action === "NEW_ARTICLE"
+        ? Math.round(closestSimilarity * 28)
+        : 100;
+    const score = ["NEW_ARTICLE", "NEW_ANGLE"].includes(action)
+      ? Math.max(0, Math.min(100, baseScore - duplicationPenalty))
+      : baseScore;
+
+    const queryExamples = [...new Set((Array.isArray(raw?.query_examples) ? raw.query_examples : [])
+      .map((value) => cleanEditorialText(value, 220)).filter(Boolean))].slice(0, 6);
+    const relatedTargets = [...new Set(Array.isArray(raw?.related_target_ids) ? raw.related_target_ids.map(String) : [])]
+      .map((id) => targetById.get(id)).filter(Boolean).slice(0, 4);
+    const sourceUrls = [...new Set((Array.isArray(raw?.source_urls) ? raw.source_urls : [])
+      .map(normalizedHttps).filter(Boolean))]
+      .filter((url) => observedSources.has(sourceUrlKey(url)))
+      .slice(0, 6);
+    if (!sourceUrls.length) continue;
+    const requestedHintId = String(raw?.research_hint_id || "").trim();
+    const researchHint = hintById.get(requestedHintId) || null;
+
+    const candidate = {
+      schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+      topic,
+      search_intent: searchIntent,
+      angle,
+      query_examples: queryExamples,
+      component_scores: componentScores,
+      base_score: baseScore,
+      duplication_penalty: duplicationPenalty,
+      score,
+      editorial_action: action,
+      existing_article: existing ? { id: existing.id, title: existing.title, slug: existing.slug, published_at: existing.published_at || null } : null,
+      existing_article_similarity: roundMetric(closestSimilarity, 3),
+      difference_from_existing: difference,
+      novelty_note: previousMatch
+        ? "Bisogno editoriale gia' emerso nelle scansioni precedenti."
+        : currentScanMatch
+          ? "Bisogno editoriale gia' presente in questa scansione."
+          : null,
+      related_targets: relatedTargets,
+      rationale: cleanEditorialText(raw?.rationale, 1000),
+      source_urls: sourceUrls,
+      research_hint: researchHint ? { id: researchHint.id, topic: researchHint.topic, depth: researchHint.depth } : null,
+    };
+    candidate.radar_key = researchRadarKey(candidate);
+    if (seen.has(candidate.radar_key)) continue;
+    seen.add(candidate.radar_key);
+    output.push(candidate);
+  }
+
+  const hintReviews = [];
+  const reviewed = new Set();
+  for (const raw of Array.isArray(parsed?.hint_reviews) ? parsed.hint_reviews : []) {
+    const hintId = String(raw?.hint_id || "").trim();
+    const hint = hintById.get(hintId);
+    if (!hint || reviewed.has(hintId)) continue;
+    const sourceUrls = [...new Set((Array.isArray(raw?.source_urls) ? raw.source_urls : [])
+      .map(normalizedHttps).filter(Boolean))]
+      .filter((url) => observedSources.has(sourceUrlKey(url)))
+      .slice(0, 6);
+    if (!sourceUrls.length) continue;
+    const verdict = ["NEW_ARTICLE", "NEW_ANGLE", "UPDATE_EXISTING", "SKIP_DUPLICATE", "INSUFFICIENT_SIGNAL"].includes(String(raw?.verdict || ""))
+      ? String(raw.verdict)
+      : "INSUFFICIENT_SIGNAL";
+    hintReviews.push({
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      hint_id: hintId,
+      topic: hint.topic,
+      depth: hint.depth,
+      verdict,
+      score: researchRadarClampScore(raw?.score),
+      rationale: cleanEditorialText(raw?.rationale, 1000),
+      suggested_angle: cleanEditorialText(raw?.suggested_angle, 1200),
+      source_urls: sourceUrls,
+    });
+    reviewed.add(hintId);
+  }
+
+  for (const hint of researchHints || []) {
+    if (reviewed.has(String(hint.id))) continue;
+    hintReviews.push({
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      hint_id: String(hint.id),
+      topic: hint.topic,
+      depth: hint.depth,
+      verdict: "INSUFFICIENT_SIGNAL",
+      score: 0,
+      rationale: "Il Radar non ha prodotto una validazione verificabile per questo tema nella scansione corrente.",
+      suggested_angle: "",
+      source_urls: [],
+    });
+  }
+
+  if (!output.length) throw new Error("Radar editoriale: nessun candidato verificabile prodotto");
+  return { candidates: output.slice(0, EDITORIAL_RESEARCH_RADAR_MAX_CANDIDATES), hint_reviews: hintReviews };
+}
+
+function consolidateResearchRadarCandidates(runs) {
+  const groups = [];
+  // I run arrivano in ordine decrescente: vince la valutazione piu' recente,
+  // non quella con il punteggio storico piu' alto.
+  for (const run of runs || []) {
+    if (String(run?.status || "") !== "success") continue;
+    for (const raw of Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates : []) {
+      const key = String(raw?.radar_key || researchRadarKey(raw));
+      if (!key) continue;
+      const date = run?.details?.local_date || null;
+      const group = groups.find(({ candidate }) => candidate.radar_key === key || researchRadarSameNeed(candidate, raw));
+      if (group) {
+        group.appearances += 1;
+        if (date) group.scan_dates.add(date);
+      } else {
+        groups.push({
+          candidate: { ...raw, radar_key: key, scan_date: date },
+          appearances: 1,
+          scan_dates: new Set([date].filter(Boolean)),
+        });
+      }
+    }
+  }
+  return groups.map(({ candidate, appearances, scan_dates }) => ({
+    ...candidate,
+    appearances,
+    scan_dates: [...scan_dates].sort(),
+    // Nessun bonus per la ripetizione: un tema vecchio non deve battere una novita'.
+    score: Number(candidate.score || 0),
+  })).sort((a, b) => Number(b.score || 0) - Number(a.score || 0));
+}
+
+async function researchRadarPayload(knownArchive = null) {
+  const [runs, hints, archive] = await Promise.all([
+    researchRadarRuns(40), researchRadarHints(), knownArchive ? Promise.resolve(knownArchive) : researchRadarArchive(),
+  ]);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  const candidates = consolidateResearchRadarCandidates(runs).map((candidate) => {
+    const publishedMatch = (archive || []).find((article) => researchRadarSameNeed(
+      candidate, { topic: article.title },
+    ));
+    const hasNewAction = ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || ""));
+    const eligible = hasNewAction && researchRadarCandidateRecent(candidate) && !publishedMatch;
+    return {
+      ...candidate,
+      eligible_for_selection: eligible,
+      ...(publishedMatch && hasNewAction ? {
+        editorial_action: Number(candidate?.component_scores?.freshness || 0) >= 60 ? "UPDATE_EXISTING" : "SKIP_DUPLICATE",
+        existing_article: {
+          id: publishedMatch.id, title: publishedMatch.title, slug: publishedMatch.slug,
+          published_at: publishedMatch.published_at || null,
+        },
+        novelty_note: "Articolo gia' pubblicato su questo bisogno editoriale.",
+      } : {}),
+    };
+  });
+  // I candidati nuovi e recenti precedono sempre l'archivio, anche con score inferiore.
+  candidates.sort((a, b) => Number(b.eligible_for_selection) - Number(a.eligible_for_selection)
+    || Number(b.score || 0) - Number(a.score || 0));
+  const scans = (runs || []).filter((run) => String(run?.status || "") !== "running").slice(0, 12).map((run) => ({
+    id: run.id,
+    status: run.status,
+    local_date: run?.details?.local_date || null,
+    started_at: run.started_at || run.created_at || null,
+    finished_at: run.finished_at || null,
+    candidate_count: Array.isArray(run?.details?.radar_candidates) ? run.details.radar_candidates.length : 0,
+    last_error: run.last_error || null,
+  }));
+  const hintStatus = (hints || []).map((hint) => {
+    const reviews = [];
+    for (const run of runs || []) {
+      if (String(run?.status || "") !== "success") continue;
+      const review = (Array.isArray(run?.details?.research_hint_reviews) ? run.details.research_hint_reviews : [])
+        .find((row) => String(row?.hint_id || "") === String(hint.id));
+      if (!review) continue;
+      reviews.push({ ...review, scan_date: run?.details?.local_date || null, reviewed_at: run.finished_at || run.created_at || null });
+    }
+    return {
+      ...hint,
+      review_count: reviews.length,
+      scan_dates: [...new Set(reviews.map((row) => row.scan_date).filter(Boolean))].sort(),
+      latest_review: reviews[0] || null,
+    };
+  });
+  return {
+    ok: true,
+    version: VERSION,
+    schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+    automatic_days: ["sabato", "domenica", "lunedi"],
+    automatic_after_local_time: "08:00",
+    running: running ? { id: running.id, local_date: running?.details?.local_date || null, stage: running?.details?.stage || null, started_at: running.started_at || null } : null,
+    scans,
+    candidates,
+    research_hints: hintStatus,
+  };
+}
+
+async function startResearchRadarRun(user, { local, trigger = "scheduler" } = {}) {
+  const currentLocal = local || schedulerLocalParts("Europe/Rome");
+  const archive = await researchRadarArchive();
+  const targets = await researchRadarTargets();
+  const searchSignals = await researchRadarSearchSignals();
+  const researchHints = await researchRadarHints();
+  const recentRuns = await researchRadarRuns(30);
+  const previousCandidates = researchRadarPreviousCandidates(recentRuns);
+  const run = await automationSchedulerRunStart("research_radar", {
+    stage: "starting",
+    trigger,
+    local_date: currentLocal.date,
+    local_time: currentLocal.time,
+    timezone: currentLocal.time_zone,
+    publication_performed: false,
+  });
+  if (!run?.id) throw new Error("Radar editoriale: run non creato");
+  try {
+    const started = await startOpenAiResearchRadar({ localDate: currentLocal.date, archive, targets, searchSignals, previousCandidates, researchHints });
+    const updated = await automationSchedulerRunPatch(run, {
+      stage: "web_search_running",
+      response_id: started.response_id,
+      response_status: started.status,
+      archive_count: archive.length,
+      target_count: targets.length,
+      search_console_signal_count: searchSignals.length,
+      research_hint_count: researchHints.length,
+      research_hint_ids: researchHints.map((row) => row.id),
+      research_hint_snapshot: researchHints,
+      previous_candidate_snapshot: previousCandidates,
+    });
+    return { action: "research_radar_started", pending: true, run: updated, local: currentLocal };
+  } catch (error) {
+    await automationRunFinish(run, "failed", {
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { ...(run.details || {}), stage: "failed", trigger, local_date: currentLocal.date, version: VERSION, source: "scheduler" },
+    });
+    throw error;
+  }
+}
+
+async function resumeResearchRadarRun(run) {
+  const responseId = String(run?.details?.response_id || "").trim();
+  if (!responseId) {
+    await automationRunFinish(run, "failed", { last_error: "Radar editoriale: response_id mancante", details: { ...(run.details || {}), stage: "failed" } });
+    return { action: "research_radar_failed", pending: false };
+  }
+  const payload = await retrieveOpenAiEditorialPackage(responseId);
+  const status = String(payload?.status || "");
+  if (["queued", "in_progress"].includes(status)) {
+    const updated = await automationSchedulerRunPatch(run, { stage: "web_search_running", response_status: status });
+    return { action: "research_radar_waiting", pending: true, run: updated };
+  }
+  if (status !== "completed") {
+    const message = payload?.error?.message || payload?.incomplete_details?.reason || `stato ${status || "sconosciuto"}`;
+    await automationRunFinish(run, "failed", { last_error: `Radar editoriale: ${message}`.slice(0, 2000), details: { ...(run.details || {}), stage: "failed", response_status: status } });
+    return { action: "research_radar_failed", pending: false, error: message };
+  }
+  const [archive, targets] = await Promise.all([researchRadarArchive(), researchRadarTargets()]);
+  const researchHints = Array.isArray(run?.details?.research_hint_snapshot) ? run.details.research_hint_snapshot : [];
+  const previousCandidates = Array.isArray(run?.details?.previous_candidate_snapshot)
+    ? run.details.previous_candidate_snapshot : [];
+  const validated = validateResearchRadarPayload(payload, { archive, targets, researchHints, previousCandidates });
+  const candidates = validated.candidates;
+  const sourceUrls = responseSourceUrls(payload).map(normalizedHttps).filter(Boolean).slice(0, 40);
+  const details = {
+    ...(run.details || {}),
+    stage: "completed",
+    response_status: status,
+    radar_schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+    radar_candidates: candidates,
+    research_hint_reviews: validated.hint_reviews,
+    source_urls: sourceUrls,
+    completed_at: new Date().toISOString(),
+  };
+  await automationRunFinish(run, "success", { details });
+  return { action: "research_radar_completed", pending: false, candidate_count: candidates.length, candidates };
+}
+
+async function schedulerMaybeResearchRadar(user, settings, local) {
+  const runs = await researchRadarRuns(30);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  if (running) return resumeResearchRadarRun(running);
+
+  if (!EDITORIAL_RESEARCH_RADAR_DAYS.has(Number(local?.weekday))) return null;
+  if (Number(local?.minutes || 0) < EDITORIAL_RESEARCH_RADAR_START_MINUTE) return null;
+  const sameDay = runs.filter((run) => String(run?.details?.local_date || "") === String(local.date || ""));
+  if (sameDay.some((run) => String(run?.status || "") === "success")) return null;
+  const failures = sameDay.filter((run) => String(run?.status || "") === "failed").length;
+  if (failures >= EDITORIAL_RESEARCH_RADAR_MAX_ATTEMPTS_PER_DAY) return null;
+  return startResearchRadarRun(user, { local, trigger: "scheduler_weekend_radar" });
+}
+
+async function startManualResearchRadar(user, settings) {
+  const runs = await researchRadarRuns(30);
+  const running = runs.find((run) => String(run?.status || "") === "running") || null;
+  if (running) return { action: "research_radar_already_running", pending: true, run: running };
+  const local = schedulerLocalParts(settings?.timezone || "Europe/Rome");
+  return startResearchRadarRun(user, { local, trigger: "manual" });
+}
+
+async function saveResearchRadarOpportunity(user, candidate) {
+  const radarKey = String(candidate?.radar_key || "").trim();
+  if (!radarKey) throw new Error("Radar editoriale: candidato non valido");
+  const existingRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,deferred)&order=created_at.desc&limit=100`,
+  );
+  const duplicate = (existingRows || []).find((row) => String(row?.evidence?.research_radar?.radar_key || "") === radarKey);
+  if (duplicate) return duplicate;
+
+  const evidence = {
+    source: "research_radar",
+    research_radar: {
+      schema_version: EDITORIAL_RESEARCH_RADAR_SCHEMA_VERSION,
+      radar_key: radarKey,
+      editorial_action: candidate.editorial_action,
+      search_intent: candidate.search_intent,
+      angle: candidate.angle,
+      query_examples: candidate.query_examples || [],
+      component_scores: candidate.component_scores || {},
+      base_score: candidate.base_score ?? null,
+      duplication_penalty: candidate.duplication_penalty ?? null,
+      appearances: candidate.appearances || 1,
+      scan_dates: candidate.scan_dates || [],
+      existing_article: candidate.existing_article || null,
+      difference_from_existing: candidate.difference_from_existing || "",
+      related_targets: candidate.related_targets || [],
+      rationale: candidate.rationale || "",
+      source_urls: candidate.source_urls || [],
+    },
+    query_examples: candidate.query_examples || [],
+    page_urls: [],
+  };
+  evidence.editorial_brief = opportunityEditorialBrief({ topic: candidate.topic, evidence });
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic: candidate.topic,
+      category: null,
+      opportunity_type: "new_article",
+      score: Math.round(Number(candidate.score || 0)),
+      rationale: candidate.rationale || "Tema individuato dal radar web e confrontato con l'archivio OffertaLogica.",
+      evidence,
+      status: "pending",
+    },
+  });
+  if (!rows?.[0]?.id) throw new Error("Radar editoriale: opportunita non salvata");
+  return rows[0];
+}
+
+async function selectResearchRadarCandidate(user, payload = {}) {
+  const radarKey = String(payload?.radar_key || "").trim();
+  if (!radarKey) throw new Error("Candidato Radar non valido");
+  const radar = await researchRadarPayload();
+  const candidate = (Array.isArray(radar?.candidates) ? radar.candidates : [])
+    .find((row) => String(row?.radar_key || "") === radarKey);
+  if (!candidate) throw new Error("Candidato Radar non più disponibile");
+  if (!["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate.editorial_action || "")) || !candidate.eligible_for_selection) {
+    throw new Error("Questo candidato non può creare un nuovo articolo");
+  }
+  let opportunity = await saveResearchRadarOpportunity(user, candidate);
+  if (!opportunity?.id) throw new Error("Opportunità Radar non disponibile");
+  if (!opportunity.target_article_id) {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id, {
+      origin: "manual",
+      score: candidate.score,
+      reason: `Scelta manuale dalla graduatoria Radar: ${candidate.score}/100.`,
+      radar_key: candidate.radar_key,
+    });
+  }
+  return opportunity;
+}
+
+function manualIdeaDeadlineTime(value) {
+  const parsed = value ? Date.parse(`${value}T12:00:00Z`) : NaN;
+  return Number.isFinite(parsed) ? parsed : Number.POSITIVE_INFINITY;
+}
+
+function plannerCandidateComparator(a, b) {
+  if (a.rank !== b.rank) return b.rank - a.rank;
+  if (a.rank === 500 && b.rank === 500) {
+    const aDecision = Date.parse(String(a.decided_at || "")) || 0;
+    const bDecision = Date.parse(String(b.decided_at || "")) || 0;
+    if (aDecision !== bDecision) return bDecision - aDecision;
+  }
+  const aDeadline = manualIdeaDeadlineTime(a.deadline);
+  const bDeadline = manualIdeaDeadlineTime(b.deadline);
+  if (aDeadline !== bDeadline) return aDeadline - bDeadline;
+  if (a.score !== b.score) return b.score - a.score;
+  return String(a.created_at || "").localeCompare(String(b.created_at || ""));
+}
+
+async function opportunitiesPayload() {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=${OPPORTUNITY_LIST_LIMIT}`,
+  );
+  const opportunities = (Array.isArray(rows) ? rows : []).filter((row) => !researchHintMeta(row));
+  const articleIds = [...new Set(opportunities.map((row) => String(row?.target_article_id || "")).filter(validUuid))];
+  let articleMap = new Map();
+  if (articleIds.length) {
+    const articleRows = await serviceFetch(`editorial_articles?select=id,title,status,slug,category,excerpt,content,sources,seo_title,seo_description,featured_image_url,featured_image_alt&id=in.(${articleIds.map((id) => encodeURIComponent(id)).join(",")})`);
+    articleMap = new Map((Array.isArray(articleRows) ? articleRows : []).map((article) => [String(article.id), article]));
+  }
+  const needsContext = opportunities.some((row) => {
+    const savedPages = row?.evidence?.page_urls;
+    return (!Array.isArray(savedPages) || !savedPages.length) && row?.evidence?.topic_key;
+  });
+  let signalsByTopic = new Map();
+  if (needsContext) {
+    const analysis = await analysisPayload().catch(() => null);
+    if (analysis?.ready) {
+      signalsByTopic = new Map((analysis.signals || []).map((signal) => [signal.topic_key, signal]));
+    }
+  }
+  return {
+    ok: true,
+    version: VERSION,
+    opportunities: opportunities.map((row) => {
+      const liveSignal = signalsByTopic.get(row?.evidence?.topic_key) || null;
+      const savedPages = Array.isArray(row?.evidence?.page_urls) ? row.evidence.page_urls : [];
+      const livePages = liveSignal?.page_urls || [];
+      const savedQueries = Array.isArray(row?.evidence?.query_examples) ? row.evidence.query_examples : [];
+      const liveQueries = liveSignal?.query_examples || [];
+      const article = articleMap.get(String(row?.target_article_id || "")) || null;
+      const enriched = {
+        ...row,
+        context_pages: (savedPages.length ? savedPages : livePages).slice(0, 5),
+        query_examples: (savedQueries.length ? savedQueries : liveQueries).slice(0, 5),
+        article_automation: articleAutomationUiState(row, article),
+      };
+      return { ...enriched, editorial_brief: opportunityEditorialBrief(enriched, liveSignal) };
+    }),
+  };
+}
+
+async function existingActiveManualIdea(topic) {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,deferred)&order=created_at.desc&limit=100`,
+  );
+  const normalized = normalizeManualIdeaTopic(topic);
+  return (rows || []).find((row) => manualIdeaMeta(row) && normalizeManualIdeaTopic(row.topic) === normalized) || null;
+}
+
+async function createManualEditorialIdea(user, payload = {}) {
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const category = cleanManualIdeaText(payload.category, 80) || null;
+  const notes = String(payload.notes || "").trim().slice(0, 2000);
+  const priority = String(payload.priority || "normal").trim();
+  const opportunityType = "new_article";
+  const deadline = validManualIdeaDeadline(payload.deadline);
+
+  if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
+  if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali della Redazione devono generare nuovi articoli");
+
+  const duplicate = await existingActiveManualIdea(topic);
+  if (duplicate) return { created: false, opportunity: duplicate };
+
+  const now = new Date().toISOString();
+  const evidence = {
+    source: "manual_idea",
+    manual_idea: {
+      schema_version: 1,
+      priority,
+      deadline,
+      notes,
+      created_at: now,
+      created_by: user.id,
+      updated_at: now,
+      updated_by: user.id,
+    },
+  };
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic,
+      category,
+      opportunity_type: opportunityType,
+      score: 0,
+      rationale: manualIdeaRationale(priority, deadline),
+      evidence,
+      status: "pending",
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Idea editoriale non salvata");
+  return { created: true, opportunity };
+}
+
+async function existingActiveResearchHint(topic) {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,deferred)&order=created_at.desc&limit=100`,
+  );
+  const normalized = normalizeManualIdeaTopic(topic);
+  return (rows || []).find((row) => researchHintMeta(row) && normalizeManualIdeaTopic(row.topic) === normalized) || null;
+}
+
+async function createEditorialResearchHint(user, payload = {}) {
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const depth = String(payload.depth || "normal").trim();
+  if (topic.length < 3) throw new Error("Inserisci un tema di almeno 3 caratteri");
+  if (!EDITORIAL_RESEARCH_HINT_DEPTHS.has(depth)) throw new Error("Livello di ricerca non valido");
+  const duplicate = await existingActiveResearchHint(topic);
+  if (duplicate) return { created: false, hint: duplicate };
+  const active = await researchRadarHints();
+  if (active.length >= EDITORIAL_RESEARCH_HINT_MAX_ACTIVE) {
+    throw new Error(`Puoi mantenere al massimo ${EDITORIAL_RESEARCH_HINT_MAX_ACTIVE} temi da validare attivi`);
+  }
+  const now = new Date().toISOString();
+  const evidence = {
+    source: "research_hint",
+    research_hint: {
+      schema_version: EDITORIAL_RESEARCH_HINT_SCHEMA_VERSION,
+      depth,
+      created_at: now,
+      created_by: user.id,
+    },
+  };
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: null,
+      topic,
+      category: null,
+      opportunity_type: "monitor",
+      score: 0,
+      rationale: researchHintRationale(depth),
+      evidence,
+      status: "pending",
+    },
+  });
+  const hint = rows?.[0];
+  if (!hint?.id) throw new Error("Tema da validare non salvato");
+  return { created: true, hint };
+}
+
+async function selectEditorialResearchHint(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo tema non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = rows?.[0];
+  if (!current || !researchHintMeta(current)) throw new Error("Tema suggerito non trovato");
+  if (!["pending", "deferred"].includes(String(current.status || "")) || current.target_article_id) {
+    throw new Error("Il tema non è più disponibile come prossima scelta editoriale");
+  }
+
+  // La valutazione Radar informa la Redazione, ma non prevale su una scelta umana.
+  // Conserviamo l'ultimo verdetto e le sue fonti per consentire controlli editoriali.
+  const radar = await researchRadarPayload();
+  const latestReview = (radar.research_hints || []).find((hint) => hint.id === id)?.latest_review || null;
+  return selectEditorialOpportunity(user, id, {
+    origin: "manual",
+    reason: "Tema suggerito al Radar e scelto esplicitamente dalla Redazione: precede la graduatoria automatica.",
+    promoteResearchHint: { review: latestReview },
+  });
+}
+
+async function archiveEditorialResearchHint(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo tema non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = rows?.[0];
+  const hint = researchHintMeta(current);
+  if (!current || !hint) throw new Error("Tema da validare non trovato");
+  const now = new Date().toISOString();
+  const evidence = {
+    ...(current.evidence && typeof current.evidence === "object" ? current.evidence : {}),
+    research_hint: { ...hint, archived_at: now, archived_by: user.id },
+  };
+  const updated = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: "rejected", evidence, updated_at: now },
+  });
+  if (!updated?.[0]?.id) throw new Error("Tema da validare non rimosso");
+  return updated[0];
+}
+
+async function updateManualEditorialIdea(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo idea non valido");
+
+  const currentRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Idea editoriale non trovata");
+  const manual = manualIdeaMeta(current);
+  if (!manual) throw new Error("Questa opportunità non è un’idea inserita manualmente");
+  if (current.status === "completed" || current.target_article_id) {
+    throw new Error("Un’idea già collegata o completata non può essere modificata da questo pannello");
+  }
+
+  const topic = cleanManualIdeaText(payload.topic, 240);
+  const category = cleanManualIdeaText(payload.category, 80) || null;
+  const notes = String(payload.notes || "").trim().slice(0, 2000);
+  const priority = String(payload.priority || "normal").trim();
+  const opportunityType = "new_article";
+  const deadline = validManualIdeaDeadline(payload.deadline);
+  if (topic.length < 3) throw new Error("Inserisci un’idea editoriale di almeno 3 caratteri");
+  if (!MANUAL_IDEA_PRIORITIES.has(priority)) throw new Error("Priorità idea non valida");
+  if (!MANUAL_IDEA_TYPES.has(opportunityType)) throw new Error("Le idee manuali della Redazione devono generare nuovi articoli");
+  const duplicate = await existingActiveManualIdea(topic);
+  if (duplicate && duplicate.id !== id) throw new Error("Esiste già un’idea manuale attiva con lo stesso argomento");
+
+  const now = new Date().toISOString();
+  const currentEvidence = current.evidence && typeof current.evidence === "object" ? current.evidence : {};
+  const { target_page_url: _oldTarget, page_urls: _oldPages, ...evidenceBase } = currentEvidence;
+  const evidence = {
+    ...evidenceBase,
+    source: "manual_idea",
+    manual_idea: {
+      ...manual,
+      schema_version: 1,
+      priority,
+      deadline,
+      notes,
+      updated_at: now,
+      updated_by: user.id,
+    },
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      topic,
+      category,
+      opportunity_type: opportunityType,
+      rationale: manualIdeaRationale(priority, deadline),
+      evidence,
+      updated_at: now,
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Idea editoriale non aggiornata");
+  return opportunity;
+}
+
+function editorialRecoveryTopicKey(topic) {
+  return String(topic || "").normalize("NFKC").trim().toLocaleLowerCase("it-IT").replace(/\s+/g, " ").slice(0, 240);
+}
+
+async function editorialPlannerPreview() {
+  const settingsRows = await serviceFetch(
+    "editorial_automation_settings?select=id,enabled,execution_mode,minimum_opportunity_score,allow_no_publish,max_articles_per_cycle,timezone&id=eq.1&limit=1",
+  );
+  const settings = settingsRows?.[0] || {};
+  const minimumScore = Number.isFinite(Number(settings.minimum_opportunity_score))
+    ? Number(settings.minimum_opportunity_score)
+    : 60;
+
+  const savedRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=in.(pending,selected,rejected)&order=created_at.desc&limit=200`,
+  );
+  const candidates = [];
+  // Non riproporre immediatamente un tema scartato dal recupero fonti.
+  const excludedTopics = new Set((savedRows || [])
+    .filter((row) => Date.parse(row?.evidence?.autopilot_recovery?.blocked_until || "") > Date.now())
+    .map((row) => editorialRecoveryTopicKey(row.topic)).filter(Boolean));
+
+  for (const row of savedRows || []) {
+    if (excludedTopics.has(editorialRecoveryTopicKey(row.topic))) continue;
+    if (row.status === "rejected") continue;
+    const savedType = String(row.opportunity_type || "");
+    if (!MANUAL_IDEA_TYPES.has(savedType) && savedType !== "update_article") continue;
+    const manual = manualIdeaMeta(row);
+    const selectionOrigin = String(row?.evidence?.selection?.origin || "");
+    if (row.status === "selected" && validUuid(String(row.target_article_id || ""))) continue;
+    if (row.status === "selected") {
+      // Solo una scelta esplicitamente umana deve bloccare il planner.
+      // Le selezioni automatiche senza articolo vengono ricalcolate contro i segnali correnti,
+      // altrimenti un vecchio candidato può restare "incollato" e battere Radar/Search Console.
+      if (manual || selectionOrigin === "manual") {
+        candidates.push({
+          source: manual ? "manual_idea" : "saved_opportunity",
+          id: row.id,
+          topic: row.topic,
+          opportunity_type: row.opportunity_type,
+          priority: manual?.priority || null,
+          deadline: manual?.deadline || null,
+          score: Number(row.score || 0),
+          status: row.status,
+          created_at: row.created_at,
+          decided_at: row.decided_at || null,
+          rank: 500,
+          reason: "Opportunita selezionata manualmente dalla Redazione: precede ogni scelta automatica.",
+        });
+      }
+      continue;
+    }
+    if (!manual) continue;
+    // Un suggerimento promosso e poi sostituito non deve tornare da solo in cima:
+    // la sua priorita' esiste solo finche' la scelta umana resta esplicitamente attiva.
+    if (manual.promoted_from_research_hint === true) continue;
+    const priority = MANUAL_IDEA_PRIORITIES.has(String(manual.priority)) ? String(manual.priority) : "normal";
+    candidates.push({
+      source: "manual_idea",
+      id: row.id,
+      topic: row.topic,
+      opportunity_type: row.opportunity_type,
+      priority,
+      deadline: manual.deadline || null,
+      score: 0,
+      status: row.status,
+      created_at: row.created_at,
+      rank: MANUAL_IDEA_PRIORITY_RANK[priority],
+      reason: priority === "urgent"
+        ? "Idea manuale urgente: precede i segnali automatici."
+        : priority === "high"
+          ? "Idea manuale ad alta priorita: precede i segnali automatici."
+          : "Idea manuale a priorita normale: viene considerata dopo i segnali automatici sopra soglia.",
+    });
+  }
+
+  const analysis = await analysisPayload().catch(() => null);
+  const allSearchSignals = analysis?.ready && Array.isArray(analysis.signals) ? analysis.signals : [];
+  const archive = await researchRadarArchive();
+  let searchSignalsExcludedArchive = 0;
+  const searchSignals = allSearchSignals.filter((signal) => {
+    const cycleStatus = String(signal?.cycle_opportunity?.status || "");
+    if (cycleStatus === "rejected" || cycleStatus === "completed") return false;
+    if (signal?.cycle_opportunity?.target_article_id) return false;
+    const signalText = `${signal?.topic || ""} ${(signal?.query_examples || []).join(" ")}`;
+    let closestSimilarity = 0;
+    let likelyDuplicate = false;
+    for (const article of archive) {
+      closestSimilarity = Math.max(closestSimilarity, researchRadarSimilarity(signalText, `${article.title} ${article.excerpt}`));
+      if (researchRadarLikelyDuplicate(signal?.topic || "", article.title || "")) likelyDuplicate = true;
+    }
+    // Search Console da sola non dimostra un nuovo intento. Se il nucleo del tema e' gia
+    // contenuto in un titolo pubblicato (anche con parole aggiuntive), il segnale viene escluso
+    // e lasciato al Radar, che puo' proporre UPDATE_EXISTING o un vero NEW_ANGLE.
+    if (closestSimilarity >= 0.60 || likelyDuplicate) {
+      searchSignalsExcludedArchive += 1;
+      return false;
+    }
+    return true;
+  });
+  const qualifiedSearch = searchSignals.filter((signal) =>
+    Number(signal.score || 0) >= minimumScore && !excludedTopics.has(editorialRecoveryTopicKey(signal.topic))
+  ).slice(0, 8);
+  for (const signal of qualifiedSearch) {
+    candidates.push({
+      source: "search_console", id: null, topic: signal.topic,
+      opportunity_type: "research_candidate", priority: null, deadline: null,
+      score: Number(signal.score || 0), status: "live_signal", created_at: null, rank: 200,
+      reason: `Segnale Search Console sopra la soglia ${minimumScore}/100.`,
+      topic_key: signal.topic_key, metrics: signal.metrics, fallback_below_threshold: false,
+    });
+  }
+
+  const radar = await researchRadarPayload(archive).catch(() => ({ candidates: [] }));
+  const radarAll = Array.isArray(radar?.candidates) ? radar.candidates : [];
+  const radarEligible = radarAll.filter((candidate) => candidate?.eligible_for_selection
+    && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || ""))
+    && !excludedTopics.has(editorialRecoveryTopicKey(candidate.topic)));
+  const qualifiedRadar = radarEligible.filter((candidate) => Number(candidate.score || 0) >= minimumScore).slice(0, 8);
+  for (const candidate of qualifiedRadar) {
+    candidates.push({
+      source: "research_radar", id: null, topic: candidate.topic,
+      opportunity_type: "research_candidate", priority: null, deadline: null,
+      score: Number(candidate.score || 0), status: "live_signal", created_at: null, rank: 200,
+      reason: `Radar web ${candidate.editorial_action === "NEW_ANGLE" ? "con nuovo angolo" : "su tema nuovo"} sopra la soglia ${minimumScore}/100.`,
+      radar_key: candidate.radar_key, radar_candidate: candidate, fallback_below_threshold: false,
+    });
+  }
+
+  const hasQualifiedAutomatic = Boolean(qualifiedSearch.length || qualifiedRadar.length);
+  if (!hasQualifiedAutomatic && !Boolean(settings.allow_no_publish)) {
+    for (const signal of searchSignals.filter((row) => row?.topic_key && row?.topic
+      && !excludedTopics.has(editorialRecoveryTopicKey(row.topic))).slice(0, 8)) {
+      candidates.push({ source: "search_console", topic: signal.topic,
+        opportunity_type: "research_candidate", score: Number(signal.score || 0),
+        status: "live_signal", rank: 50,
+        reason: `Candidato Search Console di ripiego sotto soglia ${minimumScore}/100.`,
+        topic_key: signal.topic_key, metrics: signal.metrics, fallback_below_threshold: true });
+    }
+    for (const candidate of radarEligible.slice(0, 8)) {
+      candidates.push({ source: "research_radar", topic: candidate.topic,
+        opportunity_type: "research_candidate", score: Number(candidate.score || 0),
+        status: "live_signal", rank: 50,
+        reason: `Candidato Radar web di ripiego sotto soglia ${minimumScore}/100.`,
+        radar_key: candidate.radar_key, radar_candidate: candidate, fallback_below_threshold: true });
+    }
+  }
+
+  candidates.sort(plannerCandidateComparator);
+  const maxArticlesPerCycle = Number.isFinite(Number(settings.max_articles_per_cycle))
+    ? Math.max(0, Number(settings.max_articles_per_cycle))
+    : 1;
+  const articleCycleDisabled = maxArticlesPerCycle === 0;
+  const decision = articleCycleDisabled ? null : (candidates[0] || null);
+  const duplicateProtectionNoPublish = !decision && searchSignalsExcludedArchive > 0 && !radarEligible.length;
+  const noPublish = articleCycleDisabled || (!decision && (Boolean(settings.allow_no_publish) || duplicateProtectionNoPublish));
+  return {
+    ok: true,
+    version: VERSION,
+    dry_run: true,
+    writes_database: false,
+    automation_enabled: Boolean(settings.enabled),
+    execution_mode: settings.execution_mode || "approval",
+    minimum_opportunity_score: minimumScore,
+    max_articles_per_cycle: maxArticlesPerCycle,
+    article_cycle_disabled: articleCycleDisabled,
+    timezone: settings.timezone || "Europe/Rome",
+    search_console_ready: Boolean(analysis?.ready),
+    search_signals_available: allSearchSignals.length,
+    search_signals_eligible: searchSignals.length,
+    search_signals_excluded_current_cycle: Math.max(0, allSearchSignals.length - searchSignals.length),
+    search_signals_excluded_archive_duplicate: searchSignalsExcludedArchive,
+    duplicate_protection_no_publish: duplicateProtectionNoPublish,
+    research_radar_candidates: radarAll.length,
+    research_radar_new_candidates: radarEligible.length,
+    research_radar_update_suggestions: radarAll.filter((row) => row?.editorial_action === "UPDATE_EXISTING").length,
+    research_radar_duplicates_skipped: radarAll.filter((row) => row?.editorial_action === "SKIP_DUPLICATE").length,
+    analysis_reference_snapshot_id: analysis?.reference_snapshot_id || null,
+    decision,
+    no_publish: noPublish,
+    ordering: [
+      "opportunita gia selezionata manualmente",
+      "idea manuale urgente",
+      "idea manuale ad alta priorita",
+      "miglior segnale automatico sopra soglia (Search Console o Radar web)",
+      "idea manuale a priorita normale",
+      "miglior segnale automatico sotto soglia quando il ciclo non puo chiudersi senza articolo",
+    ],
+  };
+}
+
+function opportunityRationale(signal) {
+  const m28 = signal?.metrics?.["28"];
+  const position = Number.isFinite(Number(m28?.avg_position)) ? Number(m28.avg_position).toFixed(1) : "n/d";
+  const impressions = Number.isFinite(Number(m28?.impressions)) ? Number(m28.impressions) : 0;
+  return `Segnale Search Console salvato manualmente dalla redazione. Punteggio tecnico ${Number(signal?.score || 0)}/100; ${impressions} impressioni negli ultimi 28 giorni disponibili; posizione media ${position}. Da validare prima di qualsiasi preparazione editoriale.`;
+}
+
+async function upsertResearchTopic(user, signal) {
+  const now = new Date().toISOString();
+  await serviceFetch("editorial_research_topics?on_conflict=topic_key", {
+    method: "POST",
+    prefer: "resolution=merge-duplicates,return=minimal",
+    body: {
+      topic_key: signal.topic_key,
+      display_name: signal.topic,
+      active: true,
+      notes: "Segnale Search Console persistito manualmente dalla redazione.",
+      updated_at: now,
+      updated_by: user.id,
+    },
+  });
+}
+
+async function existingOpportunity(topicKey, snapshotId) {
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&snapshot_id=eq.${encodeURIComponent(snapshotId)}&order=created_at.desc&limit=100`,
+  );
+  return (rows || []).find((row) => String(row?.evidence?.topic_key || "") === topicKey) || null;
+}
+
+async function saveEditorialOpportunity(user, topicKeyValue, requestedStatusValue = "pending") {
+  const topicKey = String(topicKeyValue || "").trim();
+  const requestedStatus = String(requestedStatusValue || "pending").trim();
+  if (!topicKey || topicKey.length > 1000) throw new Error("Segnale editoriale non valido");
+  if (!["pending", "selected", "rejected"].includes(requestedStatus)) {
+    throw new Error("Decisione sul segnale non valida");
+  }
+
+  const analysis = await analysisPayload();
+  if (!analysis.ready) throw new Error("Storico Search Console non ancora sufficiente");
+  const signal = (analysis.signals || []).find((row) => row.topic_key === topicKey);
+  if (!signal) {
+    throw new Error(`Segnale non disponibile nella graduatoria corrente (primi ${Number(analysis.signal_limit || ANALYSIS_SIGNAL_LIMIT)} risultati)`);
+  }
+
+  const snapshot = analysis.snapshots.find((row) => String(row.id || "") === String(analysis.reference_snapshot_id || ""))
+    || analysis.snapshots.find((row) => Number(row.days) === 90)
+    || analysis.snapshots.find((row) => Number(row.days) === 28)
+    || analysis.snapshots[0];
+  if (!snapshot?.id) throw new Error("Snapshot di riferimento non disponibile");
+
+  const duplicate = await existingOpportunity(topicKey, snapshot.id);
+  if (duplicate) {
+    if (requestedStatus === "selected") {
+      const opportunity = await selectEditorialOpportunity(user, duplicate.id);
+      return { created: false, status_changed: duplicate.status !== "selected", opportunity };
+    }
+    if (requestedStatus === "rejected") {
+      const opportunity = await updateEditorialOpportunity(user, duplicate.id, "rejected");
+      return { created: false, status_changed: duplicate.status !== "rejected", opportunity };
+    }
+    return { created: false, status_changed: false, opportunity: duplicate };
+  }
+
+  await upsertResearchTopic(user, signal);
+  const now = new Date().toISOString();
+  const evidence = {
+    source: "search_console",
+    analysis_version: VERSION,
+    topic_key: signal.topic_key,
+    query_count: signal.query_count,
+    query_examples: Array.isArray(signal.query_examples) ? signal.query_examples.slice(0, 5) : [],
+    page_count: signal.page_count,
+    page_urls: Array.isArray(signal.page_urls) ? signal.page_urls.slice(0, 5) : [],
+    momentum_ratio: signal.momentum_ratio,
+    metrics: signal.metrics,
+    analysis_reference_snapshot_id: snapshot.id,
+    snapshots: analysis.snapshots.map((row) => ({
+      id: row.id,
+      days: row.days,
+      period_start: row.period_start,
+      period_end: row.period_end,
+      row_count: row.row_count,
+      captured_at: row.captured_at,
+    })),
+    saved_at: now,
+  };
+  evidence.editorial_brief = opportunityEditorialBrief({ topic: signal.topic, evidence }, signal);
+
+  const rows = await serviceFetch("editorial_research_opportunities", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      snapshot_id: snapshot.id,
+      topic: signal.topic,
+      category: null,
+      opportunity_type: "monitor",
+      score: signal.score,
+      rationale: opportunityRationale(signal),
+      evidence,
+      status: "pending",
+    },
+  });
+  let opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Opportunità editoriale non salvata");
+
+  if (requestedStatus === "selected") {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id);
+  } else if (requestedStatus === "rejected") {
+    opportunity = await updateEditorialOpportunity(user, opportunity.id, "rejected");
+  }
+  return { created: true, status_changed: requestedStatus !== "pending", opportunity };
+}
+
+async function selectEditorialOpportunity(user, idValue, options = {}) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+
+  const currentRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Opportunità non trovata");
+  if (current.status === "completed") throw new Error("Un’opportunità completata non può essere selezionata");
+  if (current.target_article_id) {
+    throw new Error("L’articolo per questa opportunità è già stato avviato: la scelta non è più modificabile in questo ciclo");
+  }
+
+  let evidence = current.evidence && typeof current.evidence === "object" ? { ...current.evidence } : {};
+  const promotedHint = options.promoteResearchHint || null;
+  if (promotedHint) {
+    if (!researchHintMeta(current) || !["pending", "deferred"].includes(String(current.status || ""))) {
+      throw new Error("Solo un suggerimento Radar ancora attivo può essere scelto da questo pannello");
+    }
+    const review = promotedHint.review && typeof promotedHint.review === "object" ? promotedHint.review : null;
+    const now = new Date().toISOString();
+    evidence = {
+      ...evidence,
+      source: "manual_idea",
+      manual_idea: {
+        schema_version: 1,
+        // Il comando di scelta e' prioritario grazie a selection.origin=manual e status=selected,
+        // non tramite un bonus permanente se la scelta viene poi sostituita.
+        priority: "normal",
+        deadline: null,
+        notes: cleanEditorialText(review?.suggested_angle, 1200),
+        created_at: now,
+        created_by: user.id,
+        updated_at: now,
+        updated_by: user.id,
+        promoted_from_research_hint: true,
+      },
+      research_hint_selection: {
+        chosen_at: now,
+        chosen_by: user.id,
+        last_review: review ? {
+          verdict: String(review.verdict || "INSUFFICIENT_SIGNAL"),
+          score: researchRadarClampScore(review.score),
+          rationale: cleanEditorialText(review.rationale, 1000),
+          suggested_angle: cleanEditorialText(review.suggested_angle, 1200),
+          source_urls: (Array.isArray(review.source_urls) ? review.source_urls : []).map(normalizedHttps).filter(Boolean).slice(0, 6),
+          reviewed_at: review.reviewed_at || null,
+        } : null,
       },
     };
   }
+  let liveSignal = null;
+  if (evidence.source === "search_console" && evidence.topic_key) {
+    const analysis = await analysisPayload().catch(() => null);
+    if (analysis?.ready) {
+      liveSignal = (analysis.signals || []).find((row) => row.topic_key === evidence.topic_key) || null;
+    }
+    if (liveSignal) {
+      if (!Array.isArray(evidence.query_examples) || !evidence.query_examples.length) {
+        evidence.query_examples = Array.isArray(liveSignal.query_examples) ? liveSignal.query_examples.slice(0, 5) : [];
+      }
+      if (!Array.isArray(evidence.page_urls) || !evidence.page_urls.length) {
+        evidence.page_urls = Array.isArray(liveSignal.page_urls) ? liveSignal.page_urls.slice(0, 5) : [];
+      }
+      if (!evidence.metrics && liveSignal.metrics) evidence.metrics = liveSignal.metrics;
+      if (!evidence.query_count && liveSignal.query_count) evidence.query_count = liveSignal.query_count;
+      if (!evidence.page_count && liveSignal.page_count) evidence.page_count = liveSignal.page_count;
+    }
+  }
+  evidence.editorial_brief = opportunityEditorialBrief({ ...current, evidence }, liveSignal);
 
+  const now = new Date().toISOString();
+  const selectionOrigin = String(options?.origin || "manual") === "scheduler" ? "scheduler" : "manual";
+  evidence.selection = {
+    ...(evidence.selection && typeof evidence.selection === "object" ? evidence.selection : {}),
+    origin: selectionOrigin,
+    selected_at: now,
+    selected_score: Number.isFinite(Number(options?.score)) ? Number(options.score) : Number(current.score || 0),
+    selected_reason: cleanEditorialText(options?.reason, 600) || null,
+    selected_radar_key: cleanEditorialText(options?.radar_key, 80) || null,
+  };
+  // Una scelta umana deve essere univoca tra le opportunità non ancora avviate.
+  // Le opportunità già collegate a un articolo appartengono a cicli in corso/passati
+  // e restano intatte; il planner le ignora già quando sceglie il prossimo articolo.
+  await serviceFetch(
+    `editorial_research_opportunities?status=eq.selected&target_article_id=is.null&id=neq.${encodeURIComponent(id)}`,
+    {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        status: "pending",
+        decided_by: null,
+        decided_at: null,
+        updated_at: now,
+      },
+    },
+  );
+
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      status: "selected",
+      opportunity_type: ["monitor", "update_article"].includes(String(current.opportunity_type || "")) ? "new_article" : current.opportunity_type,
+      ...(promotedHint ? { rationale: "Scelta esplicita della Redazione da un suggerimento analizzato dal Radar: priorità sulla selezione automatica. Verifiche editoriali e fonti restano obbligatorie." } : {}),
+      evidence,
+      decided_by: user.id,
+      decided_at: now,
+      updated_at: now,
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Scelta opportunità non salvata");
+  return opportunity;
+}
+
+async function updateEditorialOpportunity(user, idValue, statusValue) {
+  const id = String(idValue || "").trim();
+  const status = String(statusValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!OPPORTUNITY_STATUSES.has(status)) throw new Error("Stato opportunità non valido");
+  if (status === "selected") return selectEditorialOpportunity(user, id);
+
+  const current = await serviceFetch(
+    `editorial_research_opportunities?select=id,status,target_article_id&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  if (!current?.[0]) throw new Error("Opportunità non trovata");
+  if (current[0].status === "completed") throw new Error("Un’opportunità completata non può essere riaperta da questa fase");
+  if (current[0].target_article_id) throw new Error("L’opportunità è già collegata a un articolo; gestiscila dalla bozza collegata");
+
+  const now = new Date().toISOString();
+  const decided = status !== "pending";
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      status,
+      decided_by: decided ? user.id : null,
+      decided_at: decided ? now : null,
+      updated_at: now,
+    },
+  });
+  const opportunity = rows?.[0];
+  if (!opportunity?.id) throw new Error("Stato opportunità non aggiornato");
+  return opportunity;
+}
+
+
+function normalizeArticleSlug(value) {
+  return String(value || "")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "")
+    .slice(0, 120);
+}
+
+async function classifyEditorialOpportunity(user, idValue, typeValue) {
+  const id = String(idValue || "").trim();
+  const requestedType = String(typeValue || "").trim();
+  const opportunityType = requestedType === "update_article" ? "new_article" : requestedType;
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!OPPORTUNITY_TYPES.has(opportunityType)) throw new Error("Destinazione editoriale non valida");
+
+  const current = await serviceFetch(
+    `editorial_research_opportunities?select=id,status,target_article_id,opportunity_type&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = current?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("Seleziona prima l’opportunità");
+  if (opportunity.target_article_id) throw new Error("Questa opportunità è già collegata a una bozza");
+
+  const now = new Date().toISOString();
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      opportunity_type: opportunityType,
+      updated_at: now,
+      decided_by: user.id,
+    },
+  });
+  const updated = rows?.[0];
+  if (!updated?.id) throw new Error("Destinazione editoriale non aggiornata");
+  return updated;
+}
+
+async function articleSummary(articleId) {
+  if (!validUuid(articleId)) return null;
+  const rows = await serviceFetch(
+    `editorial_articles?select=id,title,slug,status&id=eq.${encodeURIComponent(articleId)}&limit=1`,
+  );
+  return rows?.[0] || null;
+}
+
+async function prepareEditorialDraft(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+
+  const current = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = current?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+
+  if (opportunity.target_article_id) {
+    const existingArticle = await articleSummary(opportunity.target_article_id);
+    if (existingArticle) return { created: false, article: existingArticle, opportunity };
+  }
+  if (opportunity.status !== "selected") throw new Error("L’opportunità deve essere selezionata");
+  if (opportunity.opportunity_type !== "new_article") {
+    throw new Error("La bozza è disponibile solo per opportunità classificate come Nuovo articolo");
+  }
+
+  const authorRows = await serviceFetch(
+    `editorial_authors?select=id,user_id,slug,display_name,active&user_id=eq.${encodeURIComponent(user.id)}&active=eq.true&limit=1`,
+  );
+  const author = authorRows?.[0];
+  if (!author?.id) throw new Error("Profilo autore attivo non disponibile per questo account");
+
+  const title = String(opportunity.topic || "Bozza editoriale").trim().slice(0, 140) || "Bozza editoriale";
+  const baseSlug = normalizeArticleSlug(title).slice(0, 76) || "bozza-editoriale";
+  const slug = `${baseSlug}-${id}`.slice(0, 120);
+  const article = await editorialArticleCreate(user, {
+    title,
+    slug,
+    category: opportunity.category || null,
+    featured_image_url: null,
+    featured_image_alt: null,
+    excerpt: "",
+    content: "",
+    sources: null,
+    seo_title: null,
+    seo_description: null,
+    status: "draft",
+    author_id: author.id,
+    created_by: user.id,
+    updated_by: user.id,
+  });
+  if (!article?.id) throw new Error("Bozza editoriale non creata");
+
+  const now = new Date().toISOString();
   try {
-    const rows = await loadLandingSignalRows(from);
+    const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: {
+        target_article_id: article.id,
+        decided_by: user.id,
+        updated_at: now,
+      },
+    });
+    const updatedOpportunity = opportunityRows?.[0];
+    if (!updatedOpportunity?.id) throw new Error("Collegamento opportunità-bozza non confermato");
     return {
-      ok: true,
-      configured: true,
-      range,
-      from,
-      ...classifyLandingPathRows(rows),
+      created: true,
+      article: { id: article.id, title: article.title, slug: article.slug, status: article.status },
+      opportunity: updatedOpportunity,
     };
   } catch (error) {
-    return {
-      ok: false,
-      configured: true,
-      range,
-      from,
-      error: String(error?.message || error || "landing_analytics_error"),
-    };
+    await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(article.id)}`, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    }).catch(() => {});
+    throw error;
   }
 }
 
 
-const SWITCHO_EVENT_TYPES = ["offer_switcho_redirect", "offer_redirect", "switcho_landing_opened"];
-const SWITCHO_ANALYTICS_PAGE_SIZE = 1000;
-const SWITCHO_ANALYTICS_MAX_ROWS = 20000;
-
-function switchoEventFromRow(row = {}) {
-  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
-  const eventType = String(row?.event_type || row?.eventType || "");
-  const destinationType = String(payload.destinationType || "").trim().toLowerCase();
-  const route = String(payload.route || "").trim().toLowerCase();
-  const isSwitcho = eventType === "offer_switcho_redirect"
-    || eventType === "switcho_landing_opened"
-    || (eventType === "offer_redirect" && (destinationType === "switcho" || route === "switcho"));
-  if (!isSwitcho) return null;
-  return {
-    id: String(row?.id || ""),
-    leadId: String(row?.lead_id || ""),
-    eventType,
-    createdAt: row?.created_at || "",
-    sessionId: String(payload.sessionId || ""),
-    page: String(payload.page || ""),
-    dataOrigin: String(payload.dataOrigin || ""),
-    trafficSource: normalizeTrafficSource(payload.trafficSource || payload.source || payload.leadSource || "direct"),
-    trafficCampaign: String(payload.trafficCampaign || ""),
-    trafficMedium: String(payload.trafficMedium || ""),
-    trafficTerm: String(payload.trafficTerm || ""),
-    trafficContent: String(payload.trafficContent || ""),
-    trafficCampaignId: String(payload.trafficCampaignId || ""),
-    trafficAdGroupId: String(payload.trafficAdGroupId || ""),
-    trafficCreativeId: String(payload.trafficCreativeId || ""),
-    trafficMatchType: String(payload.trafficMatchType || ""),
-    trafficDevice: String(payload.trafficDevice || ""),
-    trafficNetwork: String(payload.trafficNetwork || ""),
-    trafficReferrer: String(payload.trafficReferrer || ""),
-    trafficLandingPage: String(payload.trafficLandingPage || ""),
-    trafficClickIdType: String(payload.trafficClickIdType || ""),
-    trafficClickId: String(payload.trafficClickId || ""),
-    clientTimestamp: String(payload.client_timestamp || payload.clientTimestamp || ""),
-    sessionEventSeq: analyticsEventSequence({ payload }),
-    switchoSource: String(payload.source || ""),
-    offerId: String(payload.offerId || ""),
-    offerName: String(payload.offerName || ""),
-    provider: String(payload.provider || ""),
-    destinationType: String(payload.destinationType || ""),
-    destinationStatus: String(payload.destinationStatus || ""),
-    displayGroup: String(payload.displayGroup || ""),
-    economyRank: Number.isFinite(Number(payload.economyRank)) ? Number(payload.economyRank) : null,
-    displayRank: Number.isFinite(Number(payload.displayRank)) ? Number(payload.displayRank) : null,
-    annualCost: Number.isFinite(Number(payload.annualCost)) ? Number(payload.annualCost) : null,
-    annualSaving: Number.isFinite(Number(payload.annualDelta)) ? Number(payload.annualDelta) : null,
-  };
+function cleanEditorialText(value, maxLength) {
+  return String(value || "").replace(/\r\n?/g, "\n").trim().slice(0, maxLength);
 }
 
-function switchoSessionsFromEvents(events = []) {
-  const groups = new Map();
-  events.forEach((event) => {
-    const key = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(event);
+
+function editorialImageModel() {
+  return env("EDITORIAL_IMAGE_MODEL") || EDITORIAL_IMAGE_DEFAULT_MODEL;
+}
+
+function encodedStoragePath(value) {
+  return String(value || "").split("/").filter(Boolean).map(encodeURIComponent).join("/");
+}
+
+function editorialImagePublicUrl(objectPath) {
+  const { url } = supabaseConfig();
+  return `${url}/storage/v1/object/public/${EDITORIAL_IMAGE_BUCKET}/${encodedStoragePath(objectPath)}`;
+}
+
+function editorialImageObjectPathFromUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  const { url } = supabaseConfig();
+  try {
+    const imageUrl = new URL(raw);
+    const supabaseUrl = new URL(url);
+    const prefix = `/storage/v1/object/public/${EDITORIAL_IMAGE_BUCKET}/`;
+    if (imageUrl.protocol !== "https:" || imageUrl.origin !== supabaseUrl.origin || !imageUrl.pathname.startsWith(prefix)) return null;
+    const encoded = imageUrl.pathname.slice(prefix.length);
+    if (!encoded) return null;
+    return encoded.split("/").map((part) => decodeURIComponent(part)).join("/");
+  } catch {
+    return null;
+  }
+}
+
+// La selezione manuale accetta solo file reali nel bucket editoriale, caricati
+// dall'utente autenticato. Non si accettano URL esterni o dati dichiarati dal client.
+async function editorialSocialUploadedImage(user, imageUrl, allowArticleImageUrl = "", allowWebp = false) {
+  const objectPath = editorialImageObjectPathFromUrl(imageUrl);
+  const ownUpload = Boolean(objectPath && objectPath.startsWith(`${user.id}/`));
+  const approvedArticle = Boolean(allowArticleImageUrl && imageUrl === allowArticleImageUrl && objectPath);
+  if (!ownUpload && !approvedArticle) throw new Error("L'immagine deve essere caricata nello spazio immagini della Redazione");
+  if (!/\.(?:jpe?g|png|webp)$/i.test(objectPath)) throw new Error("Immagine non valida: usa JPG, PNG o WebP");
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Storage editoriale non disponibile");
+  const response = await fetch(`${url}/storage/v1/object/${EDITORIAL_IMAGE_BUCKET}/${encodedStoragePath(objectPath)}`, {
+    headers: { apikey: serviceKey, Authorization: `Bearer ${serviceKey}` }, cache: "no-store",
   });
-
-  const rows = [...groups.values()].map((group) => {
-    const ordered = [...group].sort(compareAnalyticsEventOrder);
-    const choice = ordered.find((event) => event.eventType === "offer_switcho_redirect");
-    const redirect = ordered.find((event) => event.eventType === "offer_redirect");
-    const landing = ordered.find((event) => event.eventType === "switcho_landing_opened");
-    const representative = landing || redirect || choice || ordered[ordered.length - 1] || {};
-    const offerEvent = [choice, redirect, landing, representative].find((event) => event?.offerName || event?.provider) || representative;
-    const trafficEvent = ordered.find((event) => event?.trafficSource && event.trafficSource !== "direct") || representative;
-    return {
-      sessionId: String(representative.sessionId || ""),
-      leadId: String(representative.leadId || ""),
-      createdAt: representative.createdAt || "",
-      firstAt: ordered[0]?.createdAt || representative.createdAt || "",
-      trafficSource: trafficEvent?.trafficSource || representative.trafficSource || "direct",
-      trafficSourceLabel: trafficSourceLabel(trafficEvent?.trafficSource || representative.trafficSource || "direct"),
-      trafficCampaign: trafficEvent?.trafficCampaign || representative.trafficCampaign || "",
-      trafficMedium: trafficEvent?.trafficMedium || representative.trafficMedium || "",
-      trafficTerm: trafficEvent?.trafficTerm || representative.trafficTerm || "",
-      trafficContent: trafficEvent?.trafficContent || representative.trafficContent || "",
-      trafficCampaignId: trafficEvent?.trafficCampaignId || representative.trafficCampaignId || "",
-      trafficAdGroupId: trafficEvent?.trafficAdGroupId || representative.trafficAdGroupId || "",
-      trafficCreativeId: trafficEvent?.trafficCreativeId || representative.trafficCreativeId || "",
-      trafficMatchType: trafficEvent?.trafficMatchType || representative.trafficMatchType || "",
-      trafficDevice: trafficEvent?.trafficDevice || representative.trafficDevice || "",
-      trafficNetwork: trafficEvent?.trafficNetwork || representative.trafficNetwork || "",
-      trafficReferrer: trafficEvent?.trafficReferrer || representative.trafficReferrer || "",
-      trafficLandingPage: trafficEvent?.trafficLandingPage || representative.trafficLandingPage || "",
-      trafficClickIdType: trafficEvent?.trafficClickIdType || representative.trafficClickIdType || "",
-      trafficClickId: trafficEvent?.trafficClickId || representative.trafficClickId || "",
-      dataOrigin: offerEvent?.dataOrigin || representative.dataOrigin || "",
-      switchoSource: landing?.switchoSource || choice?.switchoSource || representative.switchoSource || "",
-      offerId: offerEvent?.offerId || "",
-      offerName: offerEvent?.offerName || "",
-      provider: offerEvent?.provider || "",
-      economyRank: offerEvent?.economyRank ?? null,
-      displayRank: offerEvent?.displayRank ?? null,
-      annualCost: offerEvent?.annualCost ?? null,
-      annualSaving: offerEvent?.annualSaving ?? null,
-      choiceRecorded: Boolean(choice),
-      redirectRecorded: Boolean(redirect),
-      landingOpened: Boolean(landing),
-      eventsCount: ordered.length,
-    };
-  }).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-
-  return rows;
+  if (!response.ok) throw new Error("File immagine non presente nello storage editoriale");
+  const declaredBytes = Number(response.headers.get("content-length") || 0);
+  if (declaredBytes > EDITORIAL_IMAGE_MAX_BYTES) { await response.body?.cancel(); throw new Error("Immagine oltre 5 MB"); }
+  const reader = response.body?.getReader();
+  if (!reader) throw new Error("File immagine non leggibile");
+  const chunks = []; let total = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      total += value.byteLength;
+      if (total > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("Immagine oltre 5 MB");
+      chunks.push(Buffer.from(value));
+    }
+  } finally { await reader.cancel().catch(() => {}); }
+  const buffer = Buffer.concat(chunks);
+  const jpeg = buffer.length > 3 && buffer[0] === 0xff && buffer[1] === 0xd8 && buffer[2] === 0xff;
+  const png = buffer.length > 8 && buffer.subarray(0, 8).equals(Buffer.from([137,80,78,71,13,10,26,10]));
+  const webp = buffer.length > 12 && buffer.toString("ascii",0,4) === "RIFF" && buffer.toString("ascii",8,12) === "WEBP";
+  const mime = jpeg ? "image/jpeg" : png ? "image/png" : webp ? "image/webp" : "";
+  const extensionMatches = mime === "image/jpeg" ? /\.jpe?g$/i.test(objectPath)
+    : mime === "image/png" ? /\.png$/i.test(objectPath)
+    : mime === "image/webp" ? /\.webp$/i.test(objectPath) : false;
+  if (!mime || !extensionMatches) throw new Error("File non riconosciuto come JPG, PNG o WebP valido");
+  if (!allowWebp && mime === "image/webp") throw new Error("Per la card social carica JPG o PNG (WebP viene convertito automaticamente dalla Redazione)");
+  return { url: imageUrl, object_path: objectPath, mime_type: mime, buffer };
 }
 
-function switchoAnalyticsFromRawRows(rawRows = []) {
-  const events = (Array.isArray(rawRows) ? rawRows : []).map(switchoEventFromRow).filter(Boolean);
-  const rows = switchoSessionsFromEvents(events);
-  const sourceCounts = {};
-  rows.forEach((row) => increment(sourceCounts, row.trafficSource || "direct"));
-  return {
-    ok: true,
-    configured: customerDbConfiguredForLandingAnalytics(),
-    rows,
-    summary: {
-      sessions: rows.length,
-      offerSelections: rows.filter((row) => row.choiceRecorded || row.offerName).length,
-      guidedSessions: rows.filter((row) => !row.offerName).length,
-      redirects: rows.filter((row) => row.redirectRecorded || row.landingOpened).length,
-      sources: sourceEntries(sourceCounts),
+async function uploadEditorialImageBuffer(objectPath, buffer, mimeType = "image/jpeg") {
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!Buffer.isBuffer(buffer) || !buffer.length) throw new Error("Immagine generata vuota");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine generata supera il limite di 5 MB dello storage editoriale");
+  const response = await fetch(`${url}/storage/v1/object/${EDITORIAL_IMAGE_BUCKET}/${encodedStoragePath(objectPath)}`, {
+    method: "POST",
+    headers: {
+      apikey: serviceKey,
+      Authorization: `Bearer ${serviceKey}`,
+      "Content-Type": mimeType,
+      "x-upsert": "false",
     },
-  };
+    body: buffer,
+    cache: "no-store",
+  });
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) throw new Error(payload?.message || payload?.error || `Storage ${response.status}`);
+  return editorialImagePublicUrl(objectPath);
 }
 
-async function loadSwitchoAnalytics(from = CAMPAIGN_BASELINE_ISO) {
-  if (!customerDbConfiguredForLandingAnalytics()) {
-    return { ok: true, configured: false, rows: [], summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0 } };
-  }
-
-  const allEvents = [];
-  for (let offset = 0; offset < SWITCHO_ANALYTICS_MAX_ROWS; offset += SWITCHO_ANALYTICS_PAGE_SIZE) {
-    const query = new URLSearchParams({
-      select: "id,lead_id,event_type,created_at,payload",
-      order: "created_at.asc",
-      limit: String(SWITCHO_ANALYTICS_PAGE_SIZE),
-      offset: String(offset),
-      event_type: `in.(${SWITCHO_EVENT_TYPES.join(",")})`,
+async function deleteEditorialImageObjects(objectPaths) {
+  const prefixes = [...new Set((Array.isArray(objectPaths) ? objectPaths : [])
+    .map((value) => String(value || "").trim())
+    .filter(Boolean))];
+  if (!prefixes.length) return { deleted: 0, warning: null };
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) return { deleted: 0, warning: "Storage Supabase non configurato" };
+  try {
+    const response = await fetch(`${url}/storage/v1/object/${EDITORIAL_IMAGE_BUCKET}`, {
+      method: "DELETE",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ prefixes }),
+      cache: "no-store",
     });
-    if (from) query.set("created_at", `gte.${from}`);
-    const response = await fetch(
-      `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-      { method: "GET", headers: customerDbReadHeaders() },
-    );
-    if (!response.ok) throw new Error(`Customer DB Switcho analytics error ${response.status}`);
-    const rawRows = await response.json();
-    const batch = (Array.isArray(rawRows) ? rawRows : []).map(switchoEventFromRow).filter(Boolean);
-    allEvents.push(...batch);
-    if (!Array.isArray(rawRows) || rawRows.length < SWITCHO_ANALYTICS_PAGE_SIZE) break;
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) throw new Error(payload?.message || payload?.error || `Storage ${response.status}`);
+    return { deleted: Array.isArray(payload) ? payload.length : prefixes.length, warning: null };
+  } catch (error) {
+    return { deleted: 0, warning: String(error?.message || error).slice(0, 500) };
   }
+}
 
-  const rows = switchoSessionsFromEvents(allEvents);
-  const sourceCounts = {};
-  rows.forEach((row) => increment(sourceCounts, row.trafficSource || "direct"));
+function articleImageState(opportunity) {
+  const raw = opportunity?.evidence?.article_image;
+  const state = raw && typeof raw === "object" ? raw : {};
   return {
-    ok: true,
-    configured: true,
-    rows,
-    summary: {
-      sessions: rows.length,
-      offerSelections: rows.filter((row) => row.choiceRecorded || row.offerName).length,
-      guidedSessions: rows.filter((row) => !row.offerName).length,
-      redirects: rows.filter((row) => row.redirectRecorded || row.landingOpened).length,
-      sources: sourceEntries(sourceCounts),
-    },
+    schema_version: 1,
+    current: state.current && typeof state.current === "object" ? state.current : null,
+    candidate: state.candidate && typeof state.candidate === "object" ? state.candidate : null,
+    history: Array.isArray(state.history) ? state.history.slice(-8) : [],
   };
 }
 
-
-const OFFER_ROUTE_EVENT_TYPES = [
-  "activation_channel_choice_opened",
-  "activation_channel_selected",
-  "provider_site_redirect",
-  "offer_switcho_redirect",
-  "offer_redirect",
-];
-const OFFER_ROUTE_ANALYTICS_PAGE_SIZE = 1000;
-const OFFER_ROUTE_ANALYTICS_MAX_ROWS = 20000;
-
-function offerRouteCategory(eventType = "", payload = {}) {
-  const route = String(payload.route || "").trim().toLowerCase();
-  if (route === "offertalogica_partner") return "offertalogica_partner";
-  if (route === "switcho_provider") return "switcho_provider";
-  if (route === "provider_site") return "external_provider";
-  if (route === "no_route") return "no_route";
-
-  const channel = String(payload.channel || "").trim().toLowerCase();
-  const destinationType = String(payload.destinationType || "").trim().toLowerCase();
-  const destinationStatus = String(payload.destinationStatus || "").trim().toLowerCase();
-  if (eventType === "provider_site_redirect") return "external_provider";
-  if (eventType === "offer_redirect") return destinationType === "switcho" ? "switcho_provider" : "offertalogica_partner";
-  if (eventType === "offer_switcho_redirect") return destinationType === "affiliazione" ? "offertalogica_partner" : "switcho_provider";
-  if (eventType === "activation_channel_selected") {
-    if (channel === "bill_upload") return "offertalogica_partner";
-    if (channel === "provider_site") return "external_provider";
-    if (channel === "switcho") return destinationType === "affiliazione" ? "offertalogica_partner" : "switcho_provider";
-  }
-  if (eventType === "activation_channel_choice_opened") {
-    if (destinationType === "affiliazione" && destinationStatus === "attiva") return "offertalogica_partner";
-  }
-  return "";
+function imageHistoryAppend(history, asset, outcome) {
+  if (!asset || typeof asset !== "object") return Array.isArray(history) ? history.slice(-8) : [];
+  return [...(Array.isArray(history) ? history : []), {
+    ...asset,
+    outcome,
+    archived_at: new Date().toISOString(),
+  }].slice(-8);
 }
 
-function offerRouteEventFromRow(row = {}) {
-  const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
-  const eventType = String(row?.event_type || row?.eventType || "");
-  const category = offerRouteCategory(eventType, payload);
-  if (!category) return null;
-  return {
-    id: String(row?.id || ""),
-    eventType,
-    createdAt: row?.created_at || "",
-    sessionId: String(payload.sessionId || ""),
-    provider: String(payload.provider || "").trim(),
-    offerId: String(payload.offerId || "").trim(),
-    offerName: String(payload.offerName || "").trim(),
-    route: String(payload.route || "").trim().toLowerCase(),
-    channel: String(payload.channel || "").trim().toLowerCase(),
-    destinationType: String(payload.destinationType || "").trim().toLowerCase(),
-    destinationStatus: String(payload.destinationStatus || "").trim().toLowerCase(),
-    category,
-  };
+function defaultArticleImageAlt(article) {
+  const title = cleanEditorialText(article?.title, 140) || "approfondimento OffertaLogica";
+  return cleanEditorialText(`Immagine editoriale fotografica dedicata all’articolo “${title}”.`, 180);
 }
 
-function summarizeOfferRouteEvents(events = []) {
-  const categoryKeys = ["offertalogica_partner", "switcho_provider", "external_provider", "no_route"];
-  const makeBucket = () => ({
-    sessions: new Set(),
-    opens: new Set(),
-    billUploads: new Set(),
-    switchoChoices: new Set(),
-    providerRedirects: new Set(),
-    partnerRedirects: new Set(),
-    providerSessions: new Map(),
-  });
-  const state = Object.fromEntries(categoryKeys.map((key) => [key, makeBucket()]));
-  const classifiedSessions = new Set();
-  const providerDetails = new Map();
-  const offerDetails = new Map();
-
-  const ensureDetail = (map, key, seed = {}) => {
-    if (!key) return null;
-    if (!map.has(key)) {
-      map.set(key, {
-        key,
-        provider: String(seed.provider || "").trim(),
-        offerName: String(seed.offerName || "").trim(),
-        categories: new Map(),
-        sessions: new Set(),
-        opens: new Set(),
-        billUploads: new Set(),
-        switchoChoices: new Set(),
-        providerRedirects: new Set(),
-        partnerRedirects: new Set(),
-        actionSessions: new Set(),
-      });
-    }
-    return map.get(key);
-  };
-
-  const registerDetail = (detail, event, sessionKey) => {
-    if (!detail) return;
-    detail.sessions.add(sessionKey);
-    if (!detail.categories.has(event.category)) detail.categories.set(event.category, new Set());
-    detail.categories.get(event.category).add(sessionKey);
-    if (event.eventType === "activation_channel_choice_opened") detail.opens.add(sessionKey);
-    if (event.eventType === "activation_channel_selected" && event.channel === "bill_upload") {
-      detail.billUploads.add(sessionKey);
-      detail.actionSessions.add(sessionKey);
-    }
-    if ((event.eventType === "activation_channel_selected" && event.channel === "switcho") || event.eventType === "offer_switcho_redirect") {
-      detail.switchoChoices.add(sessionKey);
-      detail.actionSessions.add(sessionKey);
-    }
-    if (event.eventType === "provider_site_redirect") {
-      detail.providerRedirects.add(sessionKey);
-      detail.actionSessions.add(sessionKey);
-    }
-    if (event.eventType === "offer_redirect") {
-      detail.partnerRedirects.add(sessionKey);
-      detail.actionSessions.add(sessionKey);
-    }
-  };
-
-  events.forEach((event) => {
-    const bucket = state[event.category];
-    if (!bucket) return;
-    const sessionKey = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
-    bucket.sessions.add(sessionKey);
-    classifiedSessions.add(sessionKey);
-    if (event.eventType === "activation_channel_choice_opened") bucket.opens.add(sessionKey);
-    if (event.eventType === "activation_channel_selected" && event.channel === "bill_upload") bucket.billUploads.add(sessionKey);
-    if ((event.eventType === "activation_channel_selected" && event.channel === "switcho") || event.eventType === "offer_switcho_redirect") bucket.switchoChoices.add(sessionKey);
-    if (event.eventType === "provider_site_redirect") bucket.providerRedirects.add(sessionKey);
-    if (event.eventType === "offer_redirect") bucket.partnerRedirects.add(sessionKey);
-    if (event.provider) {
-      if (!bucket.providerSessions.has(event.provider)) bucket.providerSessions.set(event.provider, new Set());
-      bucket.providerSessions.get(event.provider).add(sessionKey);
-      registerDetail(ensureDetail(providerDetails, event.provider, { provider: event.provider }), event, sessionKey);
-    }
-    if (event.provider || event.offerName) {
-      const offerKey = `${event.provider || "Fornitore"} - ${event.offerName || "Offerta"}`;
-      registerDetail(ensureDetail(offerDetails, offerKey, { provider: event.provider, offerName: event.offerName }), event, sessionKey);
-    }
-  });
-
-  const finalize = (bucket) => ({
-    sessions: bucket.sessions.size,
-    opens: bucket.opens.size,
-    billUploads: bucket.billUploads.size,
-    switchoChoices: bucket.switchoChoices.size,
-    providerRedirects: bucket.providerRedirects.size,
-    partnerRedirects: bucket.partnerRedirects.size,
-    topProviders: [...bucket.providerSessions.entries()]
-      .map(([key, sessions]) => ({ key, count: sessions.size }))
-      .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
-      .slice(0, 5),
-  });
-
-  const detailNetwork = (detail) => {
-    const observed = [...detail.categories.entries()]
-      .filter(([, sessions]) => sessions.size > 0)
-      .map(([category]) => category)
-      .filter((category) => category !== "no_route");
-    const unique = [...new Set(observed)];
-    if (unique.length === 1) return unique[0];
-    if (unique.length > 1) return "mixed";
-    return detail.categories.has("no_route") ? "no_route" : "unknown";
-  };
-
-  const finalizeDetailMap = (map) => [...map.values()].map((detail) => {
-    const stopped = [...detail.opens].filter((sessionKey) => !detail.actionSessions.has(sessionKey)).length;
-    const categoryCounts = Object.fromEntries(categoryKeys.map((category) => [category, detail.categories.get(category)?.size || 0]));
-    return {
-      key: detail.key,
-      provider: detail.provider,
-      offerName: detail.offerName,
-      network: detailNetwork(detail),
-      networkCounts: categoryCounts,
-      sessions: detail.sessions.size,
-      opens: detail.opens.size,
-      billUploads: detail.billUploads.size,
-      switchoChoices: detail.switchoChoices.size,
-      providerRedirects: detail.providerRedirects.size,
-      partnerRedirects: detail.partnerRedirects.size,
-      noActionAfterOpen: stopped,
-    };
-  }).sort((a, b) => b.sessions - a.sessions || a.key.localeCompare(b.key));
-
-  return {
-    classifiedSessions: classifiedSessions.size,
-    offertalogicaPartner: finalize(state.offertalogica_partner),
-    switchoProvider: finalize(state.switcho_provider),
-    externalProvider: finalize(state.external_provider),
-    noRoute: finalize(state.no_route),
-    providerDetails: finalizeDetailMap(providerDetails),
-    offerDetails: finalizeDetailMap(offerDetails),
-  };
-}
-
-async function loadOfferRouteAnalytics(from = CAMPAIGN_BASELINE_ISO) {
-  const emptySummary = summarizeOfferRouteEvents([]);
-  if (!customerDbConfiguredForLandingAnalytics()) {
-    return { ok: true, configured: false, from, summary: emptySummary };
-  }
-  const allEvents = [];
-  for (let offset = 0; offset < OFFER_ROUTE_ANALYTICS_MAX_ROWS; offset += OFFER_ROUTE_ANALYTICS_PAGE_SIZE) {
-    const query = new URLSearchParams({
-      select: "id,event_type,created_at,payload",
-      order: "created_at.asc",
-      limit: String(OFFER_ROUTE_ANALYTICS_PAGE_SIZE),
-      offset: String(offset),
-      event_type: `in.(${OFFER_ROUTE_EVENT_TYPES.join(",")})`,
-    });
-    if (from) query.set("created_at", `gte.${from}`);
-    const response = await fetch(
-      `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-      { method: "GET", headers: customerDbReadHeaders() },
-    );
-    if (!response.ok) throw new Error(`Customer DB offer route analytics error ${response.status}`);
-    const rawRows = await response.json();
-    const batch = (Array.isArray(rawRows) ? rawRows : []).map(offerRouteEventFromRow).filter(Boolean);
-    allEvents.push(...batch);
-    if (!Array.isArray(rawRows) || rawRows.length < OFFER_ROUTE_ANALYTICS_PAGE_SIZE) break;
-  }
-  return {
-    ok: true,
-    configured: true,
-    from,
-    summary: summarizeOfferRouteEvents(allEvents),
-  };
-}
-
-function analyticsLimit(value) {
-  const parsed = Number(value);
-  if (!Number.isFinite(parsed)) return 200;
-  return Math.max(1, Math.min(2000, Math.floor(parsed)));
-}
-
-async function loadAnalyticsTrafficSignals(limitValue, from = CAMPAIGN_BASELINE_ISO) {
-  const signals = new Map();
-  if (!customerDbConfiguredForLandingAnalytics()) return signals;
-
-  const query = new URLSearchParams({
-    select: "id,payload",
-    order: "created_at.desc",
-    limit: String(analyticsLimit(limitValue)),
-  });
-  if (from) query.set("created_at", `gte.${from}`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
+async function articleImageContext(idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
   );
-  if (!response.ok) {
-    throw new Error(`Customer DB traffic analytics error ${response.status}`);
-  }
-
-  const rows = await response.json();
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const payload = row?.payload && typeof row.payload === "object" ? row.payload : {};
-    signals.set(String(row?.id || ""), {
-      trafficAgent: String(payload.trafficAgent || ""),
-      trafficReason: String(payload.trafficReason || ""),
-    });
-  });
-  return signals;
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.opportunity_type !== "new_article") throw new Error("L’immagine dedicata è disponibile solo per un nuovo articolo");
+  if (!validUuid(opportunity.target_article_id)) throw new Error("Genera prima la bozza completa dell’articolo");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+  const article = articleRows?.[0];
+  if (!article) throw new Error("Articolo collegato non trovato");
+  if (!EDITORIAL_IMAGE_ARTICLE_STATUSES.has(String(article.status || ""))) throw new Error("Lo stato dell’articolo non consente di cambiare l’immagine da questo pannello");
+  return { id, opportunity, article, state: articleImageState(opportunity) };
 }
 
-const ANALYTICS_RECENT_JOURNEY_MAX_ROWS = 5000;
-const ANALYTICS_SUMMARY_RPC = "offertalogica_staff_analytics_summary";
-
-function analyticsRpcMissing(status, payload = {}) {
-  const code = String(payload?.code || "").trim();
-  const message = String(payload?.message || payload?.error || "").toLowerCase();
-  return status === 404 || code === "PGRST202" || code === "42883" || message.includes("could not find the function") || message.includes("does not exist");
-}
-
-async function loadDatabaseAnalyticsSummary(from = CAMPAIGN_BASELINE_ISO) {
-  if (!customerDbConfiguredForLandingAnalytics()) return null;
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/rpc/${ANALYTICS_SUMMARY_RPC}`,
-    {
-      method: "POST",
-      headers: { ...customerDbReadHeaders(), "Content-Type": "application/json" },
-      body: JSON.stringify({ p_from: from || CAMPAIGN_BASELINE_ISO }),
-    },
-  );
-  const payload = await response.json().catch(() => ({}));
-  if (!response.ok) {
-    if (analyticsRpcMissing(response.status, payload)) return null;
-    throw new Error(`Customer DB analytics summary error ${response.status}: ${payload?.message || payload?.error || "unknown"}`);
-  }
-  const summary = Array.isArray(payload) ? payload[0] : payload;
-  return summary && typeof summary === "object" ? summary : null;
-}
-
-async function loadRecentAnalyticsRows(from = CAMPAIGN_BASELINE_ISO, limit = ANALYTICS_RECENT_JOURNEY_MAX_ROWS) {
-  if (!customerDbConfiguredForLandingAnalytics()) return [];
-  const safeLimit = Math.max(1, Math.min(ANALYTICS_RECENT_JOURNEY_MAX_ROWS, Number(limit) || ANALYTICS_RECENT_JOURNEY_MAX_ROWS));
-  const query = new URLSearchParams({
-    select: "id,lead_id,event_type,created_at,payload",
-    order: "created_at.desc",
-    limit: String(safeLimit),
-  });
-  if (from) query.set("created_at", `gte.${from}`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
-  if (!response.ok) throw new Error(`Customer DB recent analytics error ${response.status}`);
-  const rows = await response.json();
-  return Array.isArray(rows) ? rows : [];
-}
-
-function increment(map, key) {
-  const normalized = String(key || "").trim();
-  if (!normalized) return;
-  map[normalized] = (map[normalized] || 0) + 1;
-}
-
-function topEntries(map, limit = 8) {
-  return Object.entries(map)
-    .map(([key, count]) => ({ key, count }))
-    .sort((a, b) => b.count - a.count || a.key.localeCompare(b.key))
+function cleanEditorialStringList(values, limit = 6, maxLength = 180) {
+  return (Array.isArray(values) ? values : [])
+    .map((value) => cleanEditorialText(value, maxLength).replace(/\s+/g, " "))
+    .filter(Boolean)
     .slice(0, limit);
 }
 
-const OFFER_SELECTION_EVENT_TYPES = Object.freeze([
-  "offer_card_clicked",
-  "activation_channel_choice_opened",
-  "activation_channel_selected",
-  "provider_site_redirect",
-  "offer_click_locked",
-  "offer_consent_opened",
-  "offer_partner_consent_confirmed",
-  "offer_request_started",
-  "offer_request_recorded",
-  "offer_switcho_redirect",
-  "offer_redirect",
-]);
-const OFFER_SELECTION_PAGE_SIZE = 1000;
-const OFFER_SELECTION_MAX_ROWS = 100000;
+function normalizeArticleImageProfile(value) {
+  const key = String(value || "").trim();
+  return EDITORIAL_ARTICLE_IMAGE_PROFILE_KEYS.has(key) ? key : "auto";
+}
 
-async function fetchOfferSelectionPage(from, offset = 0) {
-  if (!customerDbConfiguredForLandingAnalytics()) return [];
-  const query = new URLSearchParams({
-    select: "id,event_type,created_at,payload",
-    order: "created_at.asc",
-    limit: String(OFFER_SELECTION_PAGE_SIZE),
-    offset: String(Math.max(0, Number(offset) || 0)),
+function articleImageProfileByKey(value) {
+  const key = normalizeArticleImageProfile(value);
+  return { key, ...(EDITORIAL_ARTICLE_IMAGE_PROFILES[key] || EDITORIAL_ARTICLE_IMAGE_PROFILES.auto) };
+}
+
+function articleImageTopicSignals(article, opportunity) {
+  const combined = [
+    cleanEditorialText(article?.title, 300),
+    cleanEditorialText(article?.excerpt, 600),
+    cleanEditorialText(article?.category, 120),
+    cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800),
+  ].filter(Boolean).join(" ").toLowerCase();
+  return {
+    text: combined,
+    household: /(bollett|luce|gas|utenz|spesa|rincar|consum|fornitor|mercato liber|tutela|scheda sintetica|contratt|switch|cambiare)/.test(combined),
+    documents: /(bollett|scheda|contratt|fattur|document|lettura|controll|verifica|simulatore)/.test(combined),
+    professional: /(azienda|aziend|impres|business|agricol|allevament|stalla|capannone|fotovoltaico aziend|microclima)/.test(combined),
+    technical: /(pun|psv|spread|indice|tariff|prezzo fisso|variabile|fasce|kwh|smc|cmem)/.test(combined),
+    home_service: /(casa|domestic|pompa di calore|riscaldamento|raffrescamento|caldaia|climatizz)/.test(combined),
+    equipment_subject: /(contator|misurator|autolettur|pannell[oi]|fotovoltaic|pomp[ae] di calore|caldaia|impiant|climatizzator|termostat|grandine)/.test(cleanEditorialText(article?.title, 300).toLowerCase()),
+  };
+}
+
+function inferArticleImageProfile(article, opportunity, requestedProfile = "auto") {
+  const requested = normalizeArticleImageProfile(requestedProfile);
+  if (requested !== "auto") return requested;
+  const signals = articleImageTopicSignals(article, opportunity);
+  if (signals.professional) return "professional_context";
+  // Dispositivi e impianti citati nel titolo devono essere il soggetto, non un ritratto domestico standard.
+  if (signals.equipment_subject) return "objects_context";
+  if (signals.technical) return "clean_context";
+  if (signals.household || signals.home_service) return "warm_human";
+  return "clean_context";
+}
+
+function articleImageGlobalDirection(article, opportunity, effectiveProfile) {
+  const signals = articleImageTopicSignals(article, opportunity);
+  const lines = [
+    "The image must feel like a strong editorial photograph that makes the reader want to open the article, not like a generic stock illustration of the sector.",
+    "Prefer one main subject, one readable action or decision moment, and a believable real-world environment.",
+    "Use supporting objects only to clarify the context. They must never overwhelm the frame.",
+    "If papers, bills, contracts or printed materials appear, keep them secondary, partially visible, out of focus or unreadable. Never place fake documents front-and-center.",
+    "Avoid magnifying glasses, fake dashboards, readable paperwork, perfect staged smiles, exaggerated poses and any composition that feels like stock advertising.",
+    "The result must be visually authentic, emotionally credible and immediately understandable at a glance.",
+  ];
+  if (effectiveProfile === "warm_human") {
+    lines.push("Default preference: a warm domestic or everyday setting with a believable adult person and a clear gesture of checking, deciding, comparing or understanding something important.");
+  }
+  if (effectiveProfile === "clean_context") {
+    lines.push("Default preference: a cleaner composition, restrained styling, elegant editorial clarity and fewer visible elements.");
+  }
+  if (effectiveProfile === "objects_context") {
+    lines.push("Default preference: relevant objects and the environment should carry the story, while people remain absent or secondary.");
+  }
+  if (effectiveProfile === "professional_context") {
+    lines.push("Default preference: a real professional or operational context, with believable work tools or surroundings and no promotional tone.");
+  }
+  if (signals.documents) {
+    lines.push("For this topic, document-related elements may appear only as supporting context and must never look like invented forms or fake bills created just to illustrate the theme.");
+  }
+  if (signals.technical) {
+    lines.push("For this topic, translate the abstract concept into a real-life consequence or decision context instead of showing abstract numbers, charts or fake interfaces.");
+  }
+  if (signals.professional) {
+    lines.push("For this topic, prefer a concrete activity or operational scene over a static posed portrait.");
+  }
+  return lines.join(" ");
+}
+
+// Memoria visiva read-only: solo immagini effettivamente pubblicate e approvate.
+// Non cambia piano, calendario, job, stati o politiche di pubblicazione.
+async function editorialRecentPublishedVisuals(articleId, limit = 10) {
+  try {
+    const articles = await serviceFetch(
+      `editorial_articles?select=id,title,featured_image_url,published_at&status=eq.published&featured_image_url=not.is.null&order=published_at.desc&limit=${Math.min(12, Math.max(1, limit))}`,
+    );
+    const valid = (articles || []).filter((row) => validUuid(row?.id) && row.id !== articleId && /^https:\/\//i.test(String(row.featured_image_url || "")));
+    if (!valid.length) return [];
+    const ids = valid.map((row) => encodeURIComponent(row.id)).join(",");
+    const opportunities = await serviceFetch(
+      `editorial_research_opportunities?select=target_article_id,evidence&target_article_id=in.(${ids})`,
+    );
+    const byId = new Map();
+    for (const opportunity of opportunities || []) {
+      const asset = opportunity?.evidence?.article_image?.current;
+      if (!asset?.url || !asset?.visual_brief || typeof asset.visual_brief !== "object") continue;
+      // Non usare come memoria una candidata sostituita o una descrizione non corrispondente alla foto pubblicata.
+      const article = valid.find((row) => row.id === opportunity.target_article_id);
+      if (!article || article.featured_image_url !== asset.url || String(asset.status || "") !== "approved") continue;
+      if (!byId.has(article.id)) byId.set(article.id, asset);
+    }
+    return valid.flatMap((article) => {
+      const asset = byId.get(article.id);
+      const brief = asset?.visual_brief;
+      if (!brief) return [];
+      const subject = cleanEditorialText(brief.primary_subject, 150);
+      const scene = cleanEditorialText(brief.visual_story, 190);
+      const environment = cleanEditorialText(brief.environment, 120);
+      if (!subject && !scene) return [];
+      return [{ subject, scene, environment, article_id: article.id }];
+    }).slice(0, limit);
+  } catch (error) {
+    // La diversificazione non deve mai fermare il ciclo editoriale se la lettura dello storico fallisce.
+    console.warn("editorial_recent_visual_memory_unavailable", String(error?.message || error));
+    return [];
+  }
+}
+
+// Evita anche le ripetizioni tra hero, Follow-up e post OffertaLogica dello stesso ciclo.
+// Si considerano soltanto asset social realmente generati, non bozze testuali non pubblicate.
+async function editorialCycleVisuals(articleId, currentPlanItemId = null) {
+  if (!validUuid(String(articleId || ""))) return [];
+  try {
+    const rows = await serviceFetch(
+      `editorial_research_opportunities?select=evidence&target_article_id=eq.${encodeURIComponent(articleId)}&limit=6`,
+    );
+    const seen = new Set();
+    const output = [];
+    for (const row of rows || []) {
+      const items = row?.evidence?.social_assets?.items;
+      if (!items || typeof items !== "object") continue;
+      for (const [id, asset] of Object.entries(items)) {
+        if (id === currentPlanItemId || !asset?.image?.url || String(asset?.image?.qa?.status || "") !== "passed" || !asset?.brief) continue;
+        const subject = cleanEditorialText(asset.brief.visual_subject, 150);
+        const scene = cleanEditorialText(asset.brief.visual_scene, 190);
+        if (!subject && !scene) continue;
+        if (seen.has(id)) continue;
+        seen.add(id);
+        output.push({ subject, scene, environment: "" });
+        if (output.length >= 4) return output;
+      }
+    }
+    return output;
+  } catch (error) {
+    console.warn("editorial_cycle_visual_memory_unavailable", String(error?.message || error));
+    return [];
+  }
+}
+
+function editorialRecentVisualDirections(memory, maxItems = 10) {
+  if (!Array.isArray(memory) || !memory.length) return "";
+  const lines = memory.slice(0, maxItems).map((item, index) => {
+    const parts = [item.subject, item.scene, item.environment].map((part) => cleanEditorialText(part, 190)).filter(Boolean);
+    return parts.length ? `${index + 1}. ${parts.join(" | ")}` : "";
+  }).filter(Boolean);
+  return lines.length ? [
+    "Scene visive delle recenti fotografie editoriali approvate, dalla piu' recente:",
+    ...lines,
+    "Evita di riproporre la stessa combinazione di protagonista, eta' rappresentata, gesto, ambiente e inquadratura; cerca un momento narrativo davvero differente ma fedele all'articolo.",
+    "Non cambiare arbitrariamente le persone coinvolte se il testo richiede una specifica condizione: la varieta' non deve creare rappresentazioni fuorvianti.",
+  ].join("\n") : "";
+}
+
+// Standard fotografico comune a hero e social: indicazioni operative, non preset di scena.
+// La luce domestica deve essere calda e morbida; l'illuminazione di un evento tecnico
+// o atmosferico deve restare fedele alla situazione reale. L'editor conserva priorita'.
+function editorialPhotoArtDirection() {
+  return [
+    "PHOTO QUALITY: premium, photographic realism with one specific subject that communicates the article or post meaning immediately, including in a small mobile crop. Select a meaningful moment and camera viewpoint, not a generic desk still life or staged portrait.",
+    "DOMESTIC LIGHT: for everyday home, household-bill and consumer-choice stories favor warm natural daylight filtered through a window, soft reflected fill, gentle gradual shadow edges, subtle honey/cream/wood tones, believable skin and neutral whites. Light should feel welcoming and lived-in, never cold, flat, harsh midday sun or an artificial orange filter.",
+    "DEPTH AND TEXTURE: use natural foreground/background separation, intentional focus on the protagonist or object, realistic materials and tactility, uncluttered supporting context. Keep faces and device details believable; preserve information relevant to the topic.",
+    "STORY-SPECIFIC EXCEPTION: for storm, hail, night, outdoor infrastructure, industrial and technical scenes follow authentic weather, time of day and functional visibility; do not force golden sunlight or a home interior. Let technical equipment dominate when the article is about equipment.",
+    "EDITOR CONTROL: explicit editorial lighting, subject, presence of people and camera choices take precedence whenever factually sound. Do not replace them with warm-human presets or add decorative props.",
+    "TRUTHFUL SCREENS: no authentic website screenshot is supplied to this text-to-image request. Any screen must be out of focus, turned away or visually neutral; never fabricate readable OffertaLogica, ARERA, utility comparisons, prices, forms or invoices.",
+  ].join(" ");
+}
+
+// Regia visuale autonoma: libera nella narrazione, vincolata alla veridicita'.
+// Non impone un set fotografico fisso ne' trasforma tutti i temi in ritratti.
+function editorialAutonomousVisualDirection() {
+  return [
+    "AUTONOMOUS VISUAL DIRECTION: read the article or post and extract its ONE specific central idea before choosing any image. Act as a commercial editorial photographer and art director: invent the most meaningful realistic scene independently, rather than illustrating isolated keywords or repeating familiar stock compositions.",
+    "SUBJECT SELECTION: identify the article's distinctive consequence or action. Consider three different truthful photographic concepts internally, then select ONE that communicates this exact story at a glance. Do not output multiple images or panels.",
+    "HUMAN EMOTION WHEN RELEVANT: in consumer and family stories, human presence is valuable only when an expressive, natural action conveys the real decision or consequence. Otherwise choose the most revealing real-world subject; do not cast a person merely because the topic is household spending.",
+    "TECHNICAL SUBJECT EXCEPTION: if the actual article is about hail on solar panels, a meter, an installed heating system, or a physical event, let that subject and its real environment dominate. Do not add a person solely to satisfy a lifestyle template; human interaction is useful only if it makes the topic clearer.",
+    "LIGHT AND CAMERA: in homes use welcoming, naturally warm diffused window daylight, or physically plausible warm lamps in the evening; soft shadow transitions, tactile textures, lifelike skin, neutral whites and warm but realistic colors. Compose with deliberate photographic perspective, documentary 35mm-lens character where appropriate, a sharp narrative focal point and subtle background bokeh. Avoid cold flat stock lighting and artificial amber filters.",
+    "REALISTIC DETAILS: use only relevant everyday objects that help communicate the story at a glance. No fake readable bills, invented amounts, brands, logos or interface screens, giant floating text, 3D icons, abstract graphs or decorative magnifying glasses. OffertaLogica pages may appear legibly only through separately approved real screenshots, never fabricated by text-to-image.",
+    "EDITORIAL DIFFERENTIATION: the image should make this article distinguishable from other energy stories. Let the article determine subject, action, room and viewpoint. Do not inherit composition or casting from prior pictures, the approved hero or the social cover.",
+    "COMPOSITION: a single credible moment, one unmistakable focal point, real textures and restrained supporting detail, legible in a small social preview. Avoid decorative props and staged advertising expressions.",
+  ].join(" ");
+}
+
+function editorialArticleVisualBriefSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["primary_subject", "environment", "visual_story", "must_show", "must_avoid", "rationale"],
+    properties: {
+      primary_subject: { type: "string" },
+      environment: { type: "string" },
+      visual_story: { type: "string" },
+      must_show: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      rationale: { type: "string" },
+    },
+  };
+}
+
+async function buildEditorialArticleVisualBrief(article, opportunity, guidance = "", requestedProfile = "auto", recentVisuals = [], directionMode = "auto") {
+  const content = cleanEditorialText(article?.content, 5000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 1000);
+  const extra = cleanEditorialText(guidance, 600);
+  const editorDirected = directionMode === "editor" && Boolean(extra);
+  const requested = articleImageProfileByKey(requestedProfile);
+  const effectiveProfile = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
+  const input = [
+    editorDirected ? `DIREZIONE CREATIVA ESPLICITA DELL'EDITOR (vincolante per le scelte artistiche, se compatibile con il tema e la veridicita'): ${extra}.` : "",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    article?.category ? `Categoria: ${cleanEditorialText(article.category, 80)}.` : "",
+    content ? `Contenuto: ${content}.` : "",
+    notes ? `Note redazione: ${notes}.` : "",
+    `Profilo visivo richiesto dall'editor: ${requested.label}.`,
+    requested.key !== "auto" ? `Profilo visivo esplicito da rispettare: ${requested.label}.` : "Regia automatica autonoma: nessun soggetto o ambiente preimpostato.",
+    "Il titolo e il contenuto decidono il concetto visivo, non il profilo automatico: individua il problema, la scelta, il risultato o l'oggetto tecnico realmente centrali per il consumatore.",
+    editorDirected
+      ? "La direzione dell'editor decide soggetto, presenza di persone, ambiente, luce e inquadratura. Non sostituirla con un preset di persona alla scrivania o una cucina. Mantieni i vincoli fattuali e di autenticita'."
+      : "Scegli una scena in autonomia dopo aver compreso l'articolo: presenza umana autentica per decisioni e problemi quotidiani; dispositivo o evento come protagonista quando e' il vero tema. Fotografia coinvolgente e credibile, non una formula stock.",
+    !editorDirected ? editorialRecentVisualDirections(recentVisuals) : "",
+    !editorDirected && extra ? `Indicazioni di rigenerazione: ${extra}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il photo editor e art director di una testata italiana per consumatori. Devi creare un brief per UNA immagine orizzontale fotografica, coinvolgente e veritiera, non un collage o un reel.",
+        "Prima comprendi la domanda reale a cui l'articolo risponde; quindi individua il singolo momento, oggetto o confronto che rende VISIBILE il problema o il vantaggio per il lettore in un secondo. Non illustrare semplicemente una parola del titolo.",
+        editorDirected ? "L'editor ha gia' scelto una direzione creativa: rispettala nei dettagli visivi concreti (soggetto, persone o assenza di persone, azione, ambiente, luce, inquadratura). Non cambiarla per un automatismo di scenario o un brief precedente; correggi solo dettagli che contraddicono i fatti, la sicurezza o l'autenticita'." : "",
+        !editorDirected ? editorialAutonomousVisualDirection() : "",
+        !editorDirected ? "Per offerte e confronti scegli il momento piu' espressivo e specifico, senza imporre documenti, tavoli, laptop o pose predefinite. Eventuali display devono essere illeggibili: nessuno screenshot autentico e' stato fornito." : "",
+        "Se riguarda contatori o letture, il dispositivo specifico deve dominare e essere ben illuminato. Se riguarda POD/PDR, evidenzia l'area pertinente di bolletta o contratto; non confondere POD/PDR con la matricola del contatore. Se riguarda un'azione procedurale, mostra l'azione corretta in modo riconoscibile.",
+        !editorDirected ? "Scegli una scena immersiva e specifica: protagonista riconoscibile, distanza e punto di vista intenzionali, profondita' fotografica, dettagli materiali credibili. Nei contesti domestici richiedi luce naturale calda e DIFFUSA, ombre morbide e atmosfera accogliente senza filtro arancione; per grandine, maltempo, impianti e scene tecniche rispetta la luce reale del contesto." : "",
+        "Le persone possono avere espressioni forti, credibili e coerenti con l'articolo; non imporre ritratti o cucine per articoli dove un oggetto tecnico o uno schermo spiega meglio il contenuto. Non usare la calcolatrice come scorciatoia visiva generica.",
+        "I documenti possono ESSERE il soggetto principale quando l'articolo spiega precisamente la bolletta o un dato da individuarvi. In altri casi restano subordinati al vero concetto visivo. Evita fogli generici su un tavolo visti dall'alto e lenti di ingrandimento decorative.",
+        "Non generare interfacce leggibili o schede offerte sintetiche, neppure all'interno di schermi fotografati: non abbiamo fornito un asset di riferimento verificato. Se serve un dispositivo, mostra gesti e contesto autentici con display neutro, fuori fuoco o non visibile. Non simulare portali ufficiali, schermate ARERA, offerte, risultati, percentuali, importi, codici o dati personali.",
+        "I campi must_show devono descrivere elementi visibili pertinenti al contenuto e alle sue conseguenze; must_avoid deve escludere i fraintendimenti specifici del caso. Non inserire come elementi obbligatori dettagli inventati o tecnicismi decorativi.",
+        "Niente titoli sovrapposti, banner, loghi, etichette pubblicitarie fuori dalla scena o false infografiche. Una schermata OffertaLogica autentica puo' essere inserita solo da una fase separata che utilizzi uno screenshot reale approvato; questa generazione text-to-image non dispone di tale sorgente.",
+        "La qualita' puo' essere cinematografica e visivamente persuasiva senza rendere il contenuto promozionale o fuorviante: rifiuta foto stock anonime e pose senza relazione causale con il tema.",
+        editorialPhotoArtDirection(),
+        "Diversifica ambienti, punti di vista e protagonisti rispetto alle immagini recenti, senza sacrificare la pertinenza e senza trasformare sistematicamente i problemi economici in ritratti stereotipati di donne anziane.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1400,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_article_visual_brief",
+          strict: true,
+          schema: editorialArticleVisualBriefSchema(),
+        },
+      },
+    },
+    economics: { activity: "article_visual_brief", articleId: article?.id || null, opportunityId: opportunity?.id || null },
   });
-  if (from) query.set("created_at", `gte.${from}`);
-  query.set("event_type", `in.(${OFFER_SELECTION_EVENT_TYPES.join(",")})`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Brief immagine articolo: risposta AI non interpretabile");
+  }
+  const brief = {
+    primary_subject: cleanEditorialText(parsed?.primary_subject, 300),
+    environment: cleanEditorialText(parsed?.environment, 300),
+    visual_story: cleanEditorialText(parsed?.visual_story, 500),
+    must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
+    must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
+    rationale: cleanEditorialText(parsed?.rationale, 500),
+  };
+  if (!brief.primary_subject || !brief.environment || !brief.visual_story || brief.must_show.length < 2) {
+    throw new Error("Brief immagine articolo incompleto");
+  }
+  return brief;
+}
+
+function articleImagePrompt(article, opportunity, visualBrief, guidance = "", requestedProfile = "auto", recentVisuals = [], directionMode = "auto") {
+  const title = cleanEditorialText(article?.title, 140);
+  const summary = cleanEditorialText(article?.excerpt, 320);
+  const notes = cleanEditorialText(manualIdeaMeta(opportunity)?.notes, 800);
+  const extra = cleanEditorialText(guidance, 600);
+  const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
+  const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180).join("; ");
+  const editorDirected = directionMode === "editor" && Boolean(extra);
+  const requested = articleImageProfileByKey(requestedProfile);
+  const autonomous = !editorDirected && requested.key === "auto";
+  const effectiveProfile = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
+
+  // Il titolo e' il segnale prioritario: una parola in un lungo sommario non deve imporre la scena.
+  const headline = title.toLocaleLowerCase("it");
+  const context = `${headline} ${summary.toLocaleLowerCase("it")}`;
+  const isSimulator = /simul(?:a|at|azion)|stima(?:re|ta|to|zione)?\s+(?:della?\s+)?spes|preventiv|calcol(?:are|o|atrice)\s+(?:la\s+)?bollett/.test(headline);
+  const isOffer = /offert|tariff|pian[oi]\s+(?:luce|gas|energetic)|fornitor|contratt|prezzo\s+(?:fiss|variabil)|spread|indice\s+(?:pun|psv)|quota\s+fiss|mercato\s+libero/.test(context);
+  const isComparison = /confront|compar|paragon|scegl|scelt|convenien|miglior|risparmi|valut|quale\s+(?:offert|tariff|fornitor)|differenz/.test(headline);
+  const isCode = /\bpod\b|\bpdr\b|matricol|codic[ei]\s+(?:contator|utenza|fornitur|pod|pdr)|identificativ/.test(headline);
+  const isMeter = /contator|misurator|autolettur|lettur[ae]\s+(?:del\s+)?contator/.test(headline);
+  const isBill = /bollett|fattur|conguagli|addeb|voci\s+di\s+spesa|costi?\s+in\s+bollett/.test(headline);
+  const isCostPressure = /rincar|aument|troppo\s+alt|\bcar[aoei]\b|esagerat|error[ei]|anomali|spesa\s+(?:eccessiv|imprevist)|sorpres|salass|contest|non\s+torna/.test(headline);
+  const isProcedure = /voltur|subentr|disdett|attivazion|cambio\s+fornitor|reclam|rateizz|voltura|trasloc|richiedere|come\s+fare\s+(?:la|il)/.test(headline);
+  const isPlant = /pomp[ae]\s+di\s+calore|caldaia|fotovoltaic|climatizz|riscaldament|impiant|pannell[oi]\s+solar/.test(headline);
+
+  // Sono scenari comunicativi, non una mappatura automatica parola -> oggetto.
+  // Istruzioni editoriali finali e scopo del titolo prevalgono sui suggerimenti stock del brief.
+  const scenario = isSimulator ? "simulation"
+    : isOffer && isComparison ? "offer_comparison"
+    : isCode ? "identifier"
+    : isMeter ? "meter"
+    : isProcedure ? "procedure"
+    : isCostPressure && (isBill || /luce|gas|energi|prezz|cost/.test(headline)) ? "cost_problem"
+    : isBill ? "bill_explainer"
+    : isPlant ? "physical_system"
+    : isOffer ? "offer_explainer"
+    : isComparison ? "choice"
+    : "article_specific";
+
+  const sceneDirections = {
+    simulation: [
+      "Visual idea: make the benefit of a trustworthy household-bill simulation obvious, not the mathematics behind it.",
+      isComparison
+        ? "When the article compares alternative offers, photograph a credible consumer weighing a real choice, with one visible gesture and believable context. A laptop may be present, but its screen must be unreadable; do not invent competing results, cards, suppliers or prices."
+        : "When the article describes a simulation or spending estimate without comparing offers, show the real-world act of estimating or checking a bill, not a fabricated simulation output. If a laptop appears, leave the screen unreadable.",
+      "Convey the decision through a specific person, gesture, and environment rather than fabricated form fields. No stock-market graphs, trading dashboards, candlesticks, finance aesthetics or invented numeric results.",
+      "No reference screenshot is provided: do not render a readable or recognizable utility comparison interface. Never imply a named supplier is cheaper or any saving is guaranteed.",
+    ],
+    offer_comparison: [
+      "Visual idea: a consumer deciding between TWO genuinely distinguishable household energy offers, not a market analyst studying financial prices.",
+      "Show an understandable A-versus-B decision through the consumer's credible action and context, without creating synthetic offer cards, fabricated screen layouts or color-coded winners. Keep the scene photographically natural and focused.",
+      "If the article explains variable pricing, spread, index or fixed fees, show the reader-facing difference between offers; avoid depicting stock-exchange charts or abstract financial trading. Do not pretend to quote actual provider offers, ARERA screens, tariffs or amounts.",
+    ],
+    identifier: [
+      "Visual idea: reveal WHERE to find the specific utility identifier or code that the article explains.",
+      "Use an absorbing close-up of the correct real-world context: an electricity/gas bill or contract section for POD/PDR when that is the subject, a meter plate only if the article actually asks for a number found on the meter. Show a natural hand pointing precisely to the relevant area. Distinguish meter serial number from POD/PDR: they are NOT interchangeable.",
+      "One clear focal location, good ambient light, believable materials and depth; no generic paperwork from above, decorative magnifier, fake full-length codes or readable personal information.",
+    ],
+    meter: [
+      "Visual idea: the exact electricity or gas METER and the action or problem described in the article must dominate the entire image.",
+      "Create a striking, brightly readable close or medium-close photograph of plausible Italian/European metering hardware, with an illuminated or naturally highlighted reading area, rich physical texture and an environmental hint of a real home or installation. A hand may indicate the display or button if it clarifies the article.",
+      "For rising usage or costs, a subtle warm/red visual cue may add urgency, but never depict an increase if the story is simply about reading the meter. Do not make the scene extremely dark, invent measurements or substitute an unrelated person at a calculator.",
+    ],
+    cost_problem: [
+      "Visual idea: let the reader immediately FEEL the real household cost problem rather than merely see a bill.",
+      "Prefer a believable expressive adult in a warm, lived-in home, caught in a meaningful close moment of discovering an unexpectedly high bill or expense. The facial expression can be strongly worried, surprised or frustrated, as justified by the story; posture and gaze must connect to the actual problem.",
+      "Use cinematic natural window light, foreground/background depth and personal domestic details so the viewer feels present in the room. The bill can be held in the person's hands, need not lie on the table, and must not look like a fabricated financial statement. No forced calculator prop or theatrical panic.",
+    ],
+    bill_explainer: [
+      "Visual idea: make the specific part or practical consequence of the electricity/gas BILL immediately clear.",
+      "A believable bill in a real person's hands or a meaningful close detail can be the hero if it answers the article's question; otherwise show the person's recognizable discovery, verification or decision. An authentic lived-in room, warm light and close framing should create immersion.",
+      "Never settle for a cold top-down stock image of anonymous sheets on a desk; do not invent readable amounts, contract terms or personal details.",
+    ],
+    procedure: [
+      "Visual idea: portray the exact step, obstacle or result in the consumer procedure, not a generic office task.",
+      "A believable person in an everyday home or service setting taking the central action, with the correct physical object or screen clearly visible; show human relief, concentration or uncertainty only when relevant. No arbitrary forms, government logos or fake completion confirmations.",
+    ],
+    physical_system: [
+      "Visual idea: make the specific heating, solar or household-energy system the protagonist, photographed in its credible installed environment.",
+      "Use a strong close or medium-wide perspective, readable details, appealing natural light and a human interaction only if it explains the article. Do not replace the device with an unrelated house, abstract electricity icon or staged portrait.",
+    ],
+    offer_explainer: [
+      "Visual idea: explain what the energy offer means to the household, without visualizing it as a financial market.",
+      "Use a relatable offer decision in an authentically lit home, with a meaningful consumer interaction and no fabricated offer presentation, price, supplier or comparison UI. Let the human action and environment communicate the topic.",
+    ],
+    choice: [
+      "Visual idea: stage the concrete A-versus-B decision described by the article so the alternatives and the consequence of choosing are intelligible instantly.",
+      "Use only the real choice described by the article, one dominant interaction and a rich but uncluttered physical setting. Do not invent visually labeled alternatives or imply an unverified winner through green/red cards.",
+    ],
+    article_specific: [
+      "Visual idea: determine the exact consumer problem, discovery, decision or outcome promised by THIS title and summary; then portray its clearest tangible sign or human consequence.",
+      "Prefer the specific object or action that makes this particular article recognizable even without a caption. If a face adds understanding, show a sincere expressive person in a believable environment; otherwise use an arresting object-led close-up. Do not use a generic person behind a laptop as a fallback.",
+    ],
+  };
+
+  return [
+    "Create ONE original high-resolution horizontal 3:2 editorial hero image for an Italian consumer information article on OffertaLogica. Produce a single coherent scene, not a storyboard, collage or multi-panel reel.",
+    "Use only the supplied article information. Do not copy, trace, reuse or imitate existing imagery, recognizable campaigns, copyrighted compositions or named artists.",
+    `ARTICLE TITLE (primary source of visual meaning): ${title}.`,
+    `Article summary: ${summary}.`,
+    article?.category ? `Editorial category: ${cleanEditorialText(article.category, 80)}.` : "",
+    editorDirected
+      ? "CREATIVE DECISION: the editor has already defined the scene. Express the selected subject and moment clearly without replacing the art direction with an automatic subject or scenario. Check only that it does not misrepresent the article."
+      : "CREATIVE DECISION — Identify the article's actual reader-facing consequence, consider distinct photographic treatments, and choose ONE truthful, memorable moment with a clear focal subject. Supporting people and objects must serve that meaning; do not build the composition from stock props or title keywords. Make it legible on mobile.",
+    editorDirected
+      ? "CREATIVE AUTHORITY: follow the editor's selected scene without substituting automatic presets."
+      : autonomous ? editorialAutonomousVisualDirection() : `Chosen visual storytelling scenario: ${scenario}.`,
+    ...(editorDirected || autonomous ? [] : sceneDirections[scenario]),
+    editorDirected
+      ? "VISUAL IMPACT: follow the editor's requested lighting, palette, composition and camera viewpoint. Aim for believable professional photography with one clear subject and without accidentally hiding important details; do not impose warm kitchens, dramatic faces or cinematic tones unless requested."
+      : "VISUAL IMPACT: choose the article's decisive subject and compose an arresting but credible editorial photograph. For domestic consumer situations use naturally warm, DIFFUSED window daylight with soft transitions and a lived-in, welcoming feeling; add tactile detail and cinematic depth without artificially darkening the scene. For meters, systems, storms or exterior subjects keep truthful lighting and make the actual subject dominant.",
+    !editorDirected ? "EMOTION WITH PURPOSE: for a cost scare, show an unmistakable credible emotional reaction; for a choice, show contrasting outcomes; for a code or meter, make its location and use instantly visible. Faces are OPTIONAL and must only appear if they strengthen the meaning. Do not force elderly women, calculators, phones, bills on tables or perfectly posed smiles into unrelated subjects." : "",
+    editorDirected
+      ? "CLARITY ON MOBILE: retain the editor's selected camera angle and mood while ensuring a legible central subject, sufficient detail and believable exposure. Minimalist, neutral and cool-light choices are valid when explicitly requested."
+      : "CLARITY ON MOBILE: one recognizable subject and clear action or technical detail, natural close crop and depth, only supporting props. Prefer warm color temperature and soft shadows for home-related scenes while keeping whites neutral and skin believable; avoid cold stock lighting and hard midday highlights. Maltempo and technical environments may legitimately use cool or neutral lighting.",
+    editorialPhotoArtDirection(),
+    "SCREEN SOURCE RULE: this text-to-image request contains NO authenticated screenshot. A photographed computer may suggest digital research through the person's action and composition, but the display must not show readable interfaces, offer cards, estimates, data tables or brand-specific results. Keep it out of focus, neutral or outside the frame. A real OffertaLogica screenshot requires separate approved-source compositing.",
+    "TRUTHFULNESS: any cost advantage is only a conceptual illustration unless the article provides verified comparable prices; do not invent euro figures, guaranteed savings, suppliers, actual regulator results, POD/PDR numbers, logos, official documents or measured consumption. If brief and scene direction conflict, retain all factual constraints but prioritize the article's consumer-facing meaning over generic props.",
+    `Requested visual profile: ${requested.label}.`,
+    editorDirected ? `EDITOR'S EXPLICIT ART DIRECTION (highest creative priority): ${extra}.` : "",
+    !autonomous ? `Automatically inferred profile: ${effectiveProfile.label}.` : "",
+    editorDirected
+      ? "Profiles and the prepared brief may support the editor's selected subject and scene but may not replace them. Keep only factual and authenticity constraints when they conflict with the editor's artistic choices."
+      : requested.key === "auto"
+        ? "The autonomous creative direction and the article meaning decide the scene. No warm-human, office, desk or document preset should determine the protagonist."
+        : `User-selected profile should guide the atmosphere where compatible with truthful, instantly understandable portrayal: ${requested.directive}.`,
+    !editorDirected && !autonomous ? `Prepared brief — proposed subject: ${cleanEditorialText(visualBrief?.primary_subject, 300)}.` : "",
+    !editorDirected && !autonomous ? `Prepared brief — environment: ${cleanEditorialText(visualBrief?.environment, 300)}.` : "",
+    !editorDirected && !autonomous ? `Prepared brief — visual story: ${cleanEditorialText(visualBrief?.visual_story, 500)}.` : "",
+    !editorDirected && !autonomous && mustShow ? `Prepared brief — meaningful factual elements to represent: ${mustShow}.` : "",
+    !editorDirected && !autonomous && mustAvoid ? `Prepared brief — elements to avoid: ${mustAvoid}.` : "",
+    notes ? `Editor notes: ${notes}.` : "",
+    !editorDirected && extra ? `Editor regeneration direction, prioritize when consistent with the article: ${extra}.` : "",
+    !editorDirected && !autonomous ? editorialRecentVisualDirections(recentVisuals) : "",
+    "FINAL NEGATIVE CHECK: reject any scene that merely shows somebody reading a random document, typing on a laptop or touching a calculator without conveying the specific article meaning. Reject financial trading visuals for consumer bills, fake interfaces disguised as official ones, irrelevant meters or stock photo overhead desk layouts. The image should be convincing and recognizable before anyone reads the headline.",
+    "Do not superimpose headlines, captions, promotional badges, floating icons, logos, watermarks or graphic arrows on the photograph. Do not generate readable private data, synthetic simulator screens or unsupported promotional claims. No readable text on a screen may imitate an actual utility comparison or simulation result.",
+  ].filter(Boolean).join(" ");
+}
+function editorialImageQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["relevant", "clear", "misleading", "editorial_quality", "authentic", "clickworthy", "generic_stock", "fake_document_risk", "editor_direction_respected", "reason", "regeneration_guidance"],
+    properties: {
+      relevant: { type: "boolean" },
+      clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      editorial_quality: { type: "boolean" },
+      authentic: { type: "boolean" },
+      clickworthy: { type: "boolean" },
+      generic_stock: { type: "boolean" },
+      fake_document_risk: { type: "boolean" },
+      editor_direction_respected: { type: "boolean" },
+      reason: { type: "string" },
+      regeneration_guidance: { type: "string" },
+    },
+  };
+}
+
+function articleImageQaFailureCount(state) {
+  const failed = (asset) => ["failed", "human_review_required"].includes(String(asset?.qa?.status || ""));
+  return (Array.isArray(state?.history) ? state.history.filter(failed).length : 0)
+    + (failed(state?.candidate) ? 1 : 0);
+}
+
+function isAutopilotGeneratedImageAsset(asset) {
+  return Boolean(
+    asset
+    && asset.source === "generated"
+    && asset.provider === "openai"
+    && asset.generation_mode === "text_to_image"
+    && asset.source_policy === EDITORIAL_IMAGE_SOURCE_POLICY
+    && asset.url
+    && asset.object_path
   );
-  if (!response.ok) throw new Error(`Customer DB offer selections error ${response.status}`);
-  const rows = await response.json();
+}
+
+async function evaluateEditorialArticleImage(article, candidate) {
+  const imageUrl = String(candidate?.url || "").trim();
+  if (!/^https:\/\//i.test(imageUrl)) throw new Error("QA immagine: URL candidato non valido");
+  const title = cleanEditorialText(article?.title, 140);
+  const excerpt = cleanEditorialText(article?.excerpt, 320);
+  const content = cleanEditorialText(article?.content, 1600).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const visualBrief = candidate?.visual_brief && typeof candidate.visual_brief === "object" ? candidate.visual_brief : null;
+  const mustShow = cleanEditorialStringList(visualBrief?.must_show, 6, 180).join("; ");
+  const editorGuidance = candidate?.direction_mode === "editor" ? cleanEditorialText(candidate?.guidance, 600) : "";
+  const useVisualBriefAsConstraint = !editorGuidance && candidate?.generation_profile_requested && candidate.generation_profile_requested !== "auto";
+  const inputText = [
+    "Valuta la fotografia hero di questo articolo OffertaLogica confrontando CIO' CHE VEDI con il tema preciso e la promessa al consumatore, non solo con il settore luce/gas.",
+    `Titolo: ${title}.`,
+    `Sommario: ${excerpt}.`,
+    editorGuidance ? `Direzione creativa VINCOLANTE scelta dall'editor: ${editorGuidance}.` : "",
+    content ? `Contesto articolo: ${content}.` : "",
+    useVisualBriefAsConstraint && visualBrief?.primary_subject ? `Soggetto visivo richiesto: ${cleanEditorialText(visualBrief.primary_subject, 300)}.` : "",
+    useVisualBriefAsConstraint && visualBrief?.visual_story ? `Scena richiesta: ${cleanEditorialText(visualBrief.visual_story, 500)}.` : "",
+    useVisualBriefAsConstraint && mustShow ? `Elementi concreti attesi: ${mustShow}.` : "",
+    "Criteri essenziali: soggetto primario coerente con questa specifica storia, messaggio visivo riconoscibile in un secondo anche da mobile, composizione leggibile e luminosa, assenza di affermazioni o dati inventati.",
+    editorGuidance ? "editor_direction_respected deve essere vero SOLO se nell'immagine si vedono le scelte artistiche esplicite dell'editor (inclusi soggetto, persone/assenza, ambiente, azione, luce o punto di vista, quando richiesti). Non e' sufficiente la sola pertinenza al tema. Rifiuta le immagini che tornano al preset automatico ignorando l'editor; segnala precisamente cosa cambiare." : "Se non vi e' una direzione creativa dell'editor, imposta editor_direction_respected a true: non inventare requisiti ulteriori.",
+    "Una buona immagine puo' raccontare un rincaro tramite un'espressione umana autentica, illustrare una scelta con un gesto credibile o rendere protagonista un contatore pertinente. Non imporre nessuno di questi soggetti se il titolo non lo giustifica.",
+    "Valuta profondita', luce espressiva, ambiente vissuto, tensione narrativa o chiarezza della scelta. Nei temi di casa/bollette la luce deve risultare naturalmente calda e morbida, con ombre diffuse, incarnati e bianchi credibili; luce dura da mezzogiorno, dominante fredda non motivata o effetto arancione artificiale sono difetti di qualita'. Per maltempo o tecnica valuta invece la luce coerente con i fatti. Una fotografia piatta di fogli letti dall'alto o una persona neutra al computer non e' clickworthy solo perche' tematicamente vicina.",
+    "Questa immagine e' generata senza screenshot di riferimento: non accettare schermi con interfacce leggibili inventate, schede offerte fittizie o risultati di simulazione non autenticati, anche se presentati come illustrativi. Un display neutro, illeggibile o fuori fuoco e' ammesso se la fotografia resta pertinente.",
+    "Non penalizzare l'estetica cinematografica o pubblicitaria DI QUALITA' da sola: generic_stock deve essere vero solo quando il soggetto e' stereotipato, artificioso, intercambiabile o non racconta il contenuto specifico. Non scambiare forte impatto visivo per un difetto.",
+    "fake_document_risk e' vero se bollette, contratti, schermate o grafici contengono dati, codici, offerte o risultati inventati, oppure se uno schermo mostra un'interfaccia di offerte/simulazione leggibile non autenticata, anche senza loghi ufficiali. Un documento puo' essere centrale solo se il testo insegna a leggerlo e non presenta dettagli falsamente precisi.",
+    "Non accettare schede comparative verde/rosso sintetiche come sostituto di uno screenshot approvato. La fotografia puo' mostrare un confronto nella gestualita' e nel contesto, senza asserzioni su convenienza o risparmi.",
+    "Per codici POD/PDR verifica che la posizione mostrata sia coerente con bolletta/contratto e non la matricola del dispositivo. Per lettura del contatore, il contatore e' protagonista, non un accessorio sullo sfondo.",
+    "Il testo o i loghi sovrapposti alla foto non sono richiesti; la scelta semantica e la gerarchia visiva devono funzionare anche senza scritte. Etichette o risultati leggibili inventati sullo schermo sono un difetto quando simulano offerte, portali o calcolatori reali.",
+    "Se una qualunque condizione obbligatoria fallisce, spiega esattamente quale problema EFFETTIVAMENTE VISIBILE hai osservato e suggerisci una rigenerazione mirata. Se tutti i criteri passano, regeneration_guidance e' vuota.",
+  ].filter(Boolean).join(" ");
+
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: "Agisci come revisore visivo editoriale rigoroso. Valuta soltanto elementi realmente visibili e fatti supportati dall'articolo; premia pertinenti fotografie coinvolgenti e leggibili, rifiuta scene generiche o informazioni inventate. Non confondere lo stile cinematografico con pubblicita' ingannevole.",
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: imageUrl, detail: "high" },
+        ],
+      }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 1200,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_editorial_image_qa",
+          strict: true,
+          schema: editorialImageQaSchema(),
+        },
+      },
+    },
+    economics: { activity: "article_image_qa", articleId: article?.id || null },
+  });
+  const raw = responseOutputText(response);
+  let parsed;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("QA immagine: risposta AI non interpretabile");
+  }
+  const relevant = parsed?.relevant === true;
+  const clear = parsed?.clear === true;
+  const misleading = parsed?.misleading === true;
+  const editorialQuality = parsed?.editorial_quality === true;
+  const authentic = parsed?.authentic === true;
+  const clickworthy = parsed?.clickworthy === true;
+  const genericStock = parsed?.generic_stock === true;
+  const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const editorDirectionRespected = parsed?.editor_direction_respected === true;
+  const passed = relevant && clear && !misleading && editorialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk
+    && (!editorGuidance || editorDirectionRespected);
+  return {
+    schema_version: 1,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    relevant,
+    clear,
+    misleading,
+    editorial_quality: editorialQuality,
+    authentic,
+    clickworthy,
+    generic_stock: genericStock,
+    fake_document_risk: fakeDocumentRisk,
+    editor_direction_respected: editorGuidance ? editorDirectionRespected : null,
+    reason: cleanEditorialText(parsed?.reason, 600) || (passed ? "Immagine coerente con il tema e adatta alla pubblicazione editoriale." : "QA visiva non superata."),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 600),
+    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+  };
+}
+
+async function generateOpenAiArticleImage(article, opportunity, guidance = "", requestedProfile = "auto", directionMode = "auto") {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const model = editorialImageModel();
+  const requested = articleImageProfileByKey(requestedProfile);
+  const editorDirected = directionMode === "editor" && Boolean(cleanEditorialText(guidance, 600));
+  // Evita un primo modello AI che imponga un protagonista e una stanza alla regia autonoma.
+  // Il brief strutturato resta disponibile solo per profili visivi scelti esplicitamente.
+  const requiresStructuredBrief = !editorDirected && requested.key !== "auto";
+  const recentVisuals = requiresStructuredBrief ? await editorialRecentPublishedVisuals(article?.id) : [];
+  const visualBrief = requiresStructuredBrief
+    ? await buildEditorialArticleVisualBrief(article, opportunity, guidance, requestedProfile, recentVisuals, directionMode)
+    : null;
+  const prompt = articleImagePrompt(article, opportunity, visualBrief, guidance, requestedProfile, recentVisuals, directionMode);
+  const effective = articleImageProfileByKey(inferArticleImageProfile(article, opportunity, requested.key));
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch("https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        model,
+        prompt,
+        size: "1536x1024",
+        quality: "high",
+        output_format: "jpeg",
+        n: 1,
+      }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la generazione dell’immagine HD: riprova");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  await recordEditorialImageAiEconomicEvent({
+    eventId: payload?.id || response.headers?.get?.("x-request-id") || `editorial-image:${crypto.randomUUID()}`,
+    response: payload || {},
+    model,
+    outcome: response.ok ? "completed" : "failed",
+    opportunityId: opportunity?.id || null,
+    articleId: article?.id || null,
+    size: "1536x1024",
+    quality: "high",
+    activity: "article_hero_image",
+  }).catch(() => {});
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  const item = Array.isArray(payload?.data) ? payload.data[0] : null;
+  let buffer = null;
+  if (item?.b64_json) {
+    buffer = Buffer.from(item.b64_json, "base64");
+  } else if (item?.url) {
+    const remote = await fetch(item.url, { cache: "no-store" });
+    if (!remote.ok) throw new Error("Immagine generata non scaricabile");
+    buffer = Buffer.from(await remote.arrayBuffer());
+  }
+  if (!buffer?.length) throw new Error("OpenAI non ha restituito un’immagine utilizzabile");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L’immagine HD generata supera 5 MB: rigenera l’immagine");
+  return { model, prompt, buffer, visualBrief, directionMode, generationProfileRequested: requested.key, generationProfileEffective: effective.key };
+}
+
+async function saveArticleImageState(user, opportunity, state) {
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    article_image: state,
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  if (!rows?.[0]?.id) throw new Error("Stato immagine articolo non salvato");
+  return rows[0];
+}
+
+async function generateEditorialArticleImage(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  if (!String(context.article.title || "").trim() || !String(context.article.content || "").trim()) {
+    throw new Error("Completa prima la bozza dell’articolo: titolo e contenuto sono necessari per generare l’immagine dedicata");
+  }
+  const requestedProfile = normalizeArticleImageProfile(payload.generation_profile || payload.profile || "auto");
+  const directionMode = payload.direction_mode === "editor" && cleanEditorialText(payload.guidance, 600) ? "editor" : "auto";
+  const generated = await generateOpenAiArticleImage(context.article, context.opportunity, payload.guidance, requestedProfile, directionMode);
+  const objectPath = `autopilot/${context.article.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+  const now = new Date().toISOString();
+  const candidate = {
+    source: "generated",
+    provider: "openai",
+    generation_mode: "text_to_image",
+    source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+    status: "pending_review",
+    url: imageUrl,
+    object_path: objectPath,
+    mime_type: "image/jpeg",
+    size: "1536x1024",
+    quality: "high",
+    model: generated.model,
+    prompt: generated.prompt,
+    visual_brief: generated.visualBrief,
+    guidance: cleanEditorialText(payload.guidance, 600) || null,
+    direction_mode: generated.directionMode,
+    generation_profile_requested: generated.generationProfileRequested || requestedProfile,
+    generation_profile_effective: generated.generationProfileEffective || inferArticleImageProfile(context.article, context.opportunity, requestedProfile),
+    alt_text: defaultArticleImageAlt(context.article),
+    created_at: now,
+    created_by: user.id,
+  };
+  const state = {
+    ...context.state,
+    history: context.state.candidate
+      ? imageHistoryAppend(context.state.history, context.state.candidate, "superseded")
+      : context.state.history,
+    candidate,
+  };
+  const opportunity = await saveArticleImageState(user, context.opportunity, state);
+  return { candidate, current: state.current, opportunity_id: opportunity.id, article_id: context.article.id, featured_image_unchanged: true };
+}
+
+async function setEditorialArticleImageCandidate(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  const imageUrl = String(payload.image_url || "").trim();
+  const objectPath = editorialImageObjectPathFromUrl(imageUrl);
+  if (!objectPath || !objectPath.startsWith(`${user.id}/`)) {
+    throw new Error("L’immagine manuale deve provenire dal tuo spazio immagini editoriale OffertaLogica");
+  }
+  const altText = cleanEditorialText(payload.alt_text, 180) || defaultArticleImageAlt(context.article);
+  const now = new Date().toISOString();
+  const candidate = {
+    source: "manual_upload",
+    status: "pending_review",
+    url: imageUrl,
+    object_path: objectPath,
+    mime_type: null,
+    size: null,
+    quality: "manual",
+    model: null,
+    prompt: null,
+    guidance: null,
+    alt_text: altText,
+    created_at: now,
+    created_by: user.id,
+  };
+  const state = {
+    ...context.state,
+    history: context.state.candidate
+      ? imageHistoryAppend(context.state.history, context.state.candidate, "superseded")
+      : context.state.history,
+    candidate,
+  };
+  await saveArticleImageState(user, context.opportunity, state);
+  return { candidate, current: state.current, article_id: context.article.id, featured_image_unchanged: true };
+}
+
+async function approveEditorialArticleImage(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  const candidate = context.state.candidate;
+  if (!candidate?.url) throw new Error("Genera o carica prima una nuova immagine da approvare");
+  const altText = cleanEditorialText(payload.alt_text, 180) || cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(context.article);
+  const previousUrl = String(context.article.featured_image_url || "").trim();
+  const rows = await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(context.article.id)}&select=*`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      featured_image_url: candidate.url,
+      featured_image_alt: altText,
+      updated_by: user.id,
+    },
+  });
+  const article = rows?.[0];
+  if (!article?.id) throw new Error("Immagine approvata ma collegamento all’articolo non confermato");
+  const now = new Date().toISOString();
+  let history = context.state.history;
+  if (context.state.current?.url) {
+    history = imageHistoryAppend(history, context.state.current, "replaced");
+  } else if (previousUrl && previousUrl !== candidate.url) {
+    history = imageHistoryAppend(history, {
+      source: "preexisting",
+      status: "previous_featured_image",
+      url: previousUrl,
+      alt_text: context.article.featured_image_alt || null,
+    }, "replaced");
+  }
+  const current = {
+    ...candidate,
+    alt_text: altText,
+    status: "approved",
+    approved_at: now,
+    approved_by: user.id,
+  };
+  const state = { ...context.state, current, candidate: null, history };
+  try {
+    await saveArticleImageState(user, context.opportunity, state);
+  } catch (error) {
+    await editorialUserFetch(user, `editorial_articles?id=eq.${encodeURIComponent(context.article.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        featured_image_url: context.article.featured_image_url || null,
+        featured_image_alt: context.article.featured_image_alt || null,
+        updated_by: user.id,
+      },
+    }).catch(() => {});
+    throw error;
+  }
+  return {
+    article: { id: article.id, featured_image_url: article.featured_image_url, featured_image_alt: article.featured_image_alt },
+    current,
+    candidate: null,
+    replaced_previous_image: Boolean(previousUrl && previousUrl !== candidate.url),
+  };
+}
+
+async function discardEditorialArticleImageCandidate(user, payload = {}) {
+  const context = await articleImageContext(payload.id);
+  if (!context.state.candidate) return { discarded: false, current: context.state.current, candidate: null };
+  const state = {
+    ...context.state,
+    history: imageHistoryAppend(context.state.history, context.state.candidate, "discarded"),
+    candidate: null,
+  };
+  await saveArticleImageState(user, context.opportunity, state);
+  return { discarded: true, current: state.current, candidate: null };
+}
+
+function editorialAiModel() {
+  return env("EDITORIAL_AI_MODEL") || EDITORIAL_AI_DEFAULT_MODEL;
+}
+
+function responseOutputText(payload) {
+  const parts = [];
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    if (item?.type !== "message") continue;
+    for (const content of Array.isArray(item?.content) ? item.content : []) {
+      if (content?.type === "output_text" && typeof content.text === "string") parts.push(content.text);
+    }
+  }
+  return parts.join("\n").trim();
+}
+
+function responseSourceUrls(payload) {
+  const urls = new Set();
+  for (const item of Array.isArray(payload?.output) ? payload.output : []) {
+    if (item?.type === "web_search_call") {
+      for (const source of Array.isArray(item?.action?.sources) ? item.action.sources : []) {
+        if (typeof source?.url === "string") urls.add(source.url);
+      }
+    }
+    if (item?.type === "message") {
+      for (const content of Array.isArray(item?.content) ? item.content : []) {
+        for (const annotation of Array.isArray(content?.annotations) ? content.annotations : []) {
+          if (typeof annotation?.url === "string") urls.add(annotation.url);
+          if (typeof annotation?.url_citation?.url === "string") urls.add(annotation.url_citation.url);
+        }
+      }
+    }
+  }
+  return [...urls];
+}
+
+function normalizedHttps(value) {
+  try {
+    const url = new URL(String(value || "").trim());
+    if (url.protocol !== "https:") return null;
+    url.hash = "";
+    return url.href;
+  } catch {
+    return null;
+  }
+}
+
+function articleEditorialFingerprint(article) {
+  const stable = {
+    title: String(article?.title || ""),
+    slug: String(article?.slug || ""),
+    category: String(article?.category || ""),
+    excerpt: String(article?.excerpt || ""),
+    content: String(article?.content || ""),
+    sources: String(article?.sources || ""),
+    seo_title: String(article?.seo_title || ""),
+    seo_description: String(article?.seo_description || ""),
+  };
+  return crypto.createHash("sha256").update(JSON.stringify(stable)).digest("hex");
+}
+
+function articleAutomationHandoff(opportunity) {
+  const raw = opportunity?.evidence?.article_automation_handoff;
+  return raw && typeof raw === "object" ? raw : null;
+}
+
+function articleAutomationHandoffMatches(opportunity, article) {
+  const handoff = articleAutomationHandoff(opportunity);
+  if (!handoff || String(handoff.status || "") !== "armed") return false;
+  if (!validUuid(String(article?.id || "")) || String(handoff.article_id || "") !== String(article.id || "")) return false;
+  const expected = String(handoff.article_fingerprint_sha256 || "").trim();
+  if (!expected) return false;
+  return expected === articleEditorialFingerprint(article);
+}
+
+function articleAutomationUiState(opportunity, article) {
+  if (!article?.id) return { state: "unavailable", can_resume: false };
+  if (String(article.status || "") === "published") return { state: "published", can_resume: false };
+  const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidence.article_generation_job;
+  if (job?.response_id && ["queued", "in_progress"].includes(String(job.status || ""))) {
+    return { state: "revision_in_progress", can_resume: false };
+  }
+  const handoff = articleAutomationHandoff(opportunity);
+  const currentFingerprint = articleEditorialFingerprint(article);
+  if (handoff) {
+    const handoffStatus = String(handoff.status || "");
+    const matches = String(handoff.article_id || "") === String(article.id || "")
+      && String(handoff.article_fingerprint_sha256 || "") === currentFingerprint;
+    if (handoffStatus === "armed" && matches) {
+      return { state: "armed", can_resume: false, armed_at: handoff.armed_at || null };
+    }
+    if (handoffStatus !== "armed") {
+      return { state: "manual_control", can_resume: true, armed_at: handoff.armed_at || null };
+    }
+    return { state: "manual_changes_after_handoff", can_resume: true, armed_at: handoff.armed_at || null };
+  }
+  const generation = evidence.article_generation;
+  const generatedFingerprint = String(generation?.article_fingerprint_sha256 || "").trim();
+  if (generatedFingerprint && generatedFingerprint === currentFingerprint) {
+    const manualJob = String(job?.source || "") === "manual_controlled_run" || generation?.revision_mode === true;
+    if (manualJob) return { state: "manual_control", can_resume: true };
+    return { state: "automatic", can_resume: false };
+  }
+  if (generation) return { state: "manual_control", can_resume: true };
+  return { state: "draft_pending", can_resume: false };
+}
+
+async function activeEditorialCategories() {
+  const rows = await serviceFetch("editorial_categories?select=slug,name,active&active=eq.true&order=sort_order.asc,name.asc");
   return Array.isArray(rows) ? rows : [];
 }
 
-function isCommercialOfferSelectionEvent(row, payload = {}) {
-  const type = String(row?.event_type || "");
-  if (type === "offer_card_clicked") return false;
-  if (type === "activation_channel_choice_opened" || type === "activation_channel_selected") {
-    const route = String(payload.route || "").trim();
-    const channel = String(payload.channel || "").trim();
-    if (route === "internal_activatable_view" || channel === "internal") return false;
-    return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
-      || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
+async function enabledPromotionTargets() {
+  const rows = await serviceFetch("editorial_promotion_targets?select=id,label,url_path,category,enabled,sort_order&enabled=eq.true&order=sort_order.asc,label.asc");
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function editorialSocialChannels() {
+  const rows = await serviceFetch("editorial_social_channels?select=platform,display_name,enabled,public_handle,sort_order&order=sort_order.asc");
+  return Array.isArray(rows) ? rows : [];
+}
+
+async function editorialEnabledSocialPlatforms() {
+  const channels = await editorialSocialChannels();
+  return channels
+    .filter((row) => row?.enabled && EDITORIAL_SOCIAL_PLATFORMS.has(String(row.platform || "")))
+    .map((row) => String(row.platform));
+}
+
+function validateRequestedPlatforms(values, channels) {
+  const enabled = new Set((channels || []).filter((row) => row.enabled).map((row) => row.platform));
+  const requested = [...new Set((Array.isArray(values) ? values : []).map((value) => String(value || "").trim()))]
+    .filter((value) => EDITORIAL_SOCIAL_PLATFORMS.has(value));
+  for (const platform of requested) {
+    if (!enabled.has(platform)) throw new Error(`Il canale ${platform} non risulta collegato: non può essere preselezionato nel piano post`);
   }
+  return requested;
+}
+
+function categorySlugForPackage(value, categories, opportunity) {
+  const requested = String(value || "").trim().toLocaleLowerCase("it-IT");
+  const opportunityCategory = String(opportunity?.category || "").trim().toLocaleLowerCase("it-IT");
+  const rows = Array.isArray(categories) ? categories : [];
+  const match = rows.find((row) => String(row.slug || "").toLocaleLowerCase("it-IT") === requested)
+    || rows.find((row) => String(row.name || "").toLocaleLowerCase("it-IT") === requested)
+    || rows.find((row) => String(row.slug || "").toLocaleLowerCase("it-IT") === opportunityCategory)
+    || rows.find((row) => String(row.name || "").toLocaleLowerCase("it-IT") === opportunityCategory);
+  if (!match?.slug) throw new Error("La generazione non ha restituito una categoria editoriale valida");
+  return match.slug;
+}
+
+function editorialPackageSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["title", "category_slug", "excerpt", "content", "seo_title", "seo_description", "sources", "posts"],
+    properties: {
+      title: { type: "string" },
+      category_slug: { type: "string" },
+      excerpt: { type: "string" },
+      content: { type: "string" },
+      seo_title: { type: "string" },
+      seo_description: { type: "string" },
+      sources: {
+        type: "array",
+        minItems: 2,
+        maxItems: 8,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["title", "url", "source_type"],
+          properties: {
+            title: { type: "string" },
+            url: { type: "string" },
+            source_type: { type: "string", enum: ["primary", "secondary"] },
+          },
+        },
+      },
+      posts: {
+        type: "array",
+        minItems: 2,
+        maxItems: 2,
+        items: {
+          type: "object",
+          additionalProperties: false,
+          required: ["post_type", "theme", "brief", "canonical_text", "destination_target_id"],
+          properties: {
+            post_type: { type: "string", enum: ["article_followup", "related"] },
+            theme: { type: "string" },
+            brief: { type: "string" },
+            canonical_text: { type: "string" },
+            destination_target_id: { type: ["string", "null"] },
+          },
+        },
+      },
+    },
+  };
+}
+
+async function openAiResponseRequest(path, { method = "GET", body, economics = null } = {}) {
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_AI_HTTP_TIMEOUT_MS);
+  let response;
+  try {
+    response = await fetch(`https://api.openai.com/v1/responses${path}`, {
+      method,
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "Content-Type": "application/json",
+      },
+      body: body === undefined ? undefined : JSON.stringify(body),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout di connessione con il servizio AI");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  const hasBillableUsage = Boolean(payload?.usage) || (Array.isArray(payload?.output) && payload.output.some((item) => item?.type === "web_search_call"));
+  if (economics && hasBillableUsage) {
+    const eventId = String(payload?.id || response.headers?.get?.("x-request-id") || `editorial-support:${crypto.randomUUID()}`);
+    await recordEditorialSupportAiEconomicEvent({
+      eventId,
+      response: payload || {},
+      model: economics.model || body?.model || payload?.model || editorialAiModel(),
+      outcome: response.ok ? "completed" : "failed",
+      opportunityId: economics.opportunityId || null,
+      articleId: economics.articleId || null,
+      runSource: economics.runSource || "",
+      activity: economics.activity || "editorial_support",
+      socialPlanItemId: economics.socialPlanItemId || null,
+    }).catch(() => {});
+  }
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI ${response.status}`);
+  return payload;
+}
+
+async function startOpenAiEditorialPackage({ opportunity, article, categories, targets, revisionNotes = "", revisionMode = false }) {
+  const model = editorialAiModel();
+  const categoryList = categories.map((row) => `${row.slug} = ${row.name}`).join("\n");
+  const targetList = targets.map((row) => `${row.id} | ${row.label} | ${row.url_path}${row.category ? ` | ${row.category}` : ""}`).join("\n");
+  const manual = manualIdeaMeta(opportunity);
+  const notes = cleanEditorialText(manual?.notes, 2000);
+  const signal = opportunity?.evidence?.metrics ? JSON.stringify(opportunity.evidence.metrics) : "non disponibile";
+  const editorialBrief = opportunityEditorialBrief(opportunity);
+  const queryExamples = Array.isArray(editorialBrief.query_examples) ? editorialBrief.query_examples : [];
+  const contextPages = Array.isArray(editorialBrief.context_pages) ? editorialBrief.context_pages : [];
+  const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
+  const radarSources = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls.slice(0, 6) : [];
+  const radarTools = Array.isArray(radarEvidence?.related_targets) ? radarEvidence.related_targets.slice(0, 4) : [];
+  const revisionText = cleanEditorialText(revisionNotes, 3000);
+  const sourceRetry = Number(opportunity?.evidence?.autopilot_recovery?.source_retry_count || 0) > 0;
+  const revisionBaseline = revisionMode || revisionText
+    ? {
+        title: cleanEditorialText(article?.title, 180),
+        excerpt: cleanEditorialText(article?.excerpt, 600),
+        content: cleanEditorialText(article?.content, 30000),
+        sources: cleanEditorialText(article?.sources, 5000),
+        seo_title: cleanEditorialText(article?.seo_title, 120),
+        seo_description: cleanEditorialText(article?.seo_description, 260),
+      }
+    : null;
+  const articleUrl = `https://offertalogica.it/articoli/${encodeURIComponent(article.slug)}.html`;
+  const instructions = [
+    "Sei il motore editoriale server-side di OffertaLogica.it.",
+    "Devi preparare una bozza informativa in italiano, chiara e prudente, non un testo promozionale aggressivo.",
+    "Usa il web search per verificare fatti attuali e preferisci fonti primarie/istituzionali quando disponibili.",
+    "Non inventare dati, percentuali, norme, prezzi, date o dichiarazioni. Se un punto non è verificabile, omettilo.",
+    "Il contenuto deve essere originale, non copiare passaggi estesi dalle fonti.",
+    "Ottimizza la struttura per SEO e leggibilità: intento di ricerca chiaro, risposta utile nelle prime sezioni, intestazioni descrittive, entità e concetti espliciti, passaggi autosufficienti e facilmente comprensibili anche da sistemi di ricerca e assistenti AI.",
+    "Quando utile inserisci nel Markdown link https pertinenti alle fonti e collegamenti interni OffertaLogica coerenti con le destinazioni fornite, senza forzature o keyword stuffing.",
+    "Il campo content usa Markdown semplice con paragrafi, elenchi e intestazioni ## / ###. Non inserire HTML.",
+    "Le fonti devono essere URL https realmente consultati durante la ricerca.",
+    "Genera esattamente due post statici: article_followup rimanda all'articolo; related rimanda a UNA destinazione OffertaLogica consentita dall'elenco fornito.",
+    "Non scegliere canali social: i canali sono decisi separatamente dalla Redazione.",
+    "Non proporre Reel, video o TikTok come strategia. LinkedIn è gestito separatamente per il solo lancio dell’articolo e non deve comparire nei due post statici.",
+    "Il BRIEF EDITORIALE fornito nell'input è vincolante per il taglio dell'articolo: il tema Search Console non va usato come semplice titolo se non descrive già chiaramente l'intento.",
+    "Se il tema cita un marchio, prodotto o offerta, spiega prima che cosa sia e verifica condizioni e informazioni attuali da fonti affidabili; evita recensioni arbitrarie o conclusioni promozionali.",
+    "Se il brief proviene dal Radar web e indica strumenti OffertaLogica pertinenti, usali solo quando rappresentano davvero il passo pratico successivo per il lettore; per il post related preferisci una di quelle destinazioni se resta coerente con il contenuto reale della pagina.",
+    "Se sono presenti INDICAZIONI DI REVISIONE REDAZIONE e una BOZZA ATTUALE, tratta quella bozza come base editoriale vincolante: conserva le parti corrette e le modifiche manuali, applica le richieste della Redazione, ricontrolla i fatti sul web e restituisci l'intero pacchetto aggiornato. Non tornare arbitrariamente a una versione precedente e non ignorare le modifiche già presenti nella bozza.",
+  ].join(" ");
+  const revisionBlock = revisionBaseline
+    ? `\nINDICAZIONI DI REVISIONE REDAZIONE: ${revisionText || "mantieni le modifiche manuali già presenti e completa/rafforza la bozza senza perderle"}\nBOZZA ATTUALE DA REVISIONARE:\nTitolo: ${revisionBaseline.title || ""}\nSommario: ${revisionBaseline.excerpt || ""}\nSEO title: ${revisionBaseline.seo_title || ""}\nSEO description: ${revisionBaseline.seo_description || ""}\nFonti correnti: ${revisionBaseline.sources || ""}\nContenuto:\n${revisionBaseline.content || ""}\n`
+    : "";
+  const input = `${sourceRetry ? "SECONDO TENTATIVO FONTI: la precedente ricerca non ha superato il QA. Esegui una NUOVA ricerca web, consulta almeno due URL HTTPS distinti e riportali nel campo sources esattamente come verificati, preferendo una fonte istituzionale. Se non trovi due fonti attendibili non inventarle.\n" : ""}ARGOMENTO: ${opportunity.topic}\nTIPO: nuovo articolo\nBRIEF EDITORIALE: ${editorialBrief.article_angle}\nINTENTO DI RICERCA: ${editorialBrief.search_intent}\nQUERY COLLEGATE: ${queryExamples.length ? queryExamples.join(" | ") : "non disponibili"}\nPAGINE OFFERTALOGICA GIÀ INTERCETTATE: ${contextPages.length ? contextPages.join(" | ") : "nessuna"}\nAZIONE RADAR: ${radarEvidence?.editorial_action || "non applicabile"}\nDIFFERENZA DA ARTICOLO ESISTENTE: ${cleanEditorialText(radarEvidence?.difference_from_existing, 900) || "non applicabile"}\nFONTI RADAR DA RIVERIFICARE: ${radarSources.length ? radarSources.join(" | ") : "nessuna"}\nSTRUMENTI OFFERTALOGICA PERTINENTI INDIVIDUATI DAL RADAR: ${radarTools.length ? radarTools.map((row) => `${row.label} (${row.url_path})`).join(" | ") : "nessuno"}\nNOTE REDAZIONE: ${notes || "nessuna"}\nSEGNALI SEARCH CONSOLE: ${signal}\nURL ARTICOLO DOPO PUBBLICAZIONE: ${articleUrl}\n\nCATEGORIE AMMESSE (restituisci esattamente uno slug):\n${categoryList}\n\nDESTINAZIONI PROMOZIONALI AMMESSE PER IL POST related (restituisci esattamente l'id scelto):\n${targetList || "nessuna"}${revisionBlock}\nVincoli editoriali: titolo <= 140 caratteri; excerpt <= 320; SEO title <= 70; SEO description <= 180; contenuto sostanziale, leggibile e realmente utile; almeno 2 fonti, includendo una fonte primaria se disponibile. Se AZIONE RADAR e' NEW_ANGLE, il contenuto deve rispettare la differenza editoriale indicata e non ripetere l'articolo esistente. Gli strumenti OffertaLogica vanno citati solo quando risolvono naturalmente il problema trattato. Il post article_followup deve includere il link ${articleUrl}. Il post related deve includere l'URL della destinazione consentita scelta.`;
+  const payload = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model,
+      tools: [{ type: "web_search", search_context_size: "high" }],
+      tool_choice: "required",
+      include: ["web_search_call.action.sources"],
+      instructions,
+      input,
+      reasoning: { effort: "medium" },
+      max_output_tokens: 9000,
+      background: true,
+      store: true,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_editorial_package",
+          strict: true,
+          schema: editorialPackageSchema(),
+        },
+      },
+    },
+  });
+  if (!payload?.id) throw new Error("Generazione editoriale non avviata");
+  return { responseId: payload.id, status: payload.status || "queued", model };
+}
+
+async function retrieveOpenAiEditorialPackage(responseId) {
+  const id = String(responseId || "").trim();
+  if (!/^resp_[A-Za-z0-9_-]+$/.test(id)) throw new Error("Identificativo generazione AI non valido");
+  const include = encodeURIComponent("web_search_call.action.sources");
+  return openAiResponseRequest(`/${encodeURIComponent(id)}?include%5B%5D=${include}`);
+}
+
+function sourceUrlKey(value) {
+  const normalized = normalizedHttps(value);
+  if (!normalized) return null;
+  try {
+    const url = new URL(normalized);
+    const path = url.pathname.replace(/\/+$/, "") || "/";
+    return `${url.origin}${path}`.toLowerCase();
+  } catch {
+    return null;
+  }
+}
+
+function validateGeneratedEditorialPackage(generated, { opportunity, categories, targets, settings, observedSourceUrls }) {
+  const title = cleanEditorialText(generated?.title, 140);
+  const excerpt = cleanEditorialText(generated?.excerpt, 320);
+  const content = cleanEditorialText(generated?.content, 40000);
+  const seoTitle = cleanEditorialText(generated?.seo_title, 70);
+  const seoDescription = cleanEditorialText(generated?.seo_description, 180);
+  if (title.length < 12) throw new Error("Titolo generato troppo breve");
+  if (excerpt.length < 60) throw new Error("Sommario generato troppo breve");
+  if (content.length < 1200) throw new Error("Contenuto generato troppo breve per una bozza editoriale completa");
+  if (!seoTitle || !seoDescription) throw new Error("Metadati SEO non completi");
+  const category = categorySlugForPackage(generated?.category_slug, categories, opportunity);
+
+  const observed = new Set((observedSourceUrls || []).map(sourceUrlKey).filter(Boolean));
+  const sources = [];
+  for (const source of Array.isArray(generated?.sources) ? generated.sources : []) {
+    const url = normalizedHttps(source?.url);
+    if (!url) continue;
+    if (observed.size && !observed.has(sourceUrlKey(url))) continue;
+    if (sources.some((row) => row.url === url)) continue;
+    sources.push({
+      title: cleanEditorialText(source?.title, 240) || new URL(url).hostname,
+      url,
+      source_type: source?.source_type === "primary" ? "primary" : "secondary",
+    });
+  }
+  if (Boolean(settings?.require_sources) && observed.size < 2) {
+    throw new Error("QA fonti fallito: la ricerca web non ha restituito almeno 2 fonti verificabili");
+  }
+  if (Boolean(settings?.require_sources) && sources.length < 2) {
+    throw new Error("QA fonti fallito: servono almeno 2 fonti web effettivamente usate dalla ricerca");
+  }
+  if (Boolean(settings?.require_primary_source) && sources.length && !sources.some((row) => row.source_type === "primary")) {
+    throw new Error("QA fonti fallito: manca una fonte primaria");
+  }
+
+  const targetMap = new Map((targets || []).map((row) => [String(row.id), row]));
+  const posts = [];
+  for (const post of Array.isArray(generated?.posts) ? generated.posts : []) {
+    const type = String(post?.post_type || "");
+    if (!EDITORIAL_PLAN_POST_TYPES.has(type) || !["article_followup", "related"].includes(type)) continue;
+    const destinationTargetId = post?.destination_target_id ? String(post.destination_target_id) : null;
+    if (type === "related" && (!destinationTargetId || !targetMap.has(destinationTargetId))) {
+      throw new Error("Il post collegato non usa una destinazione promozionale consentita");
+    }
+    posts.push({
+      post_type: type,
+      theme: cleanEditorialText(post?.theme, 240),
+      brief: cleanEditorialText(post?.brief, 1200),
+      canonical_text: cleanEditorialText(post?.canonical_text, 4000),
+      destination_target_id: type === "related" ? destinationTargetId : null,
+    });
+  }
+  if (posts.length !== 2 || new Set(posts.map((row) => row.post_type)).size !== 2) {
+    throw new Error("QA post fallito: servono esattamente un follow-up articolo e un post collegato");
+  }
+  if (posts.some((row) => row.canonical_text.length < 80)) throw new Error("QA post fallito: testo social troppo breve");
+
+  return {
+    article: { title, category, excerpt, content, seo_title: seoTitle, seo_description: seoDescription },
+    sources,
+    posts,
+    qa: {
+      title_ok: true,
+      excerpt_ok: true,
+      content_min_length_ok: true,
+      seo_ok: true,
+      sources_count: sources.length,
+      primary_source_present: sources.some((row) => row.source_type === "primary"),
+      web_source_match_enforced: observed.size > 0,
+      static_posts_count: posts.length,
+      writes_publication: false,
+    },
+  };
+}
+
+async function upsertGeneratedSocialPlans(user, opportunity, article, posts, platforms) {
+  const planPlatforms = [...new Set((Array.isArray(platforms) ? platforms : []).filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || ""))))];
+  const existing = await serviceFetch(
+    `editorial_social_plan_items?select=id,post_type,status,source_article_id,opportunity_id&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&source_article_id=eq.${encodeURIComponent(article.id)}&limit=20`,
+  );
+  const byType = new Map((existing || []).map((row) => [row.post_type, row]));
+  const protectedRows = (existing || []).filter((row) => !["draft", "cancelled"].includes(String(row.status || "")));
+  if (protectedRows.length) throw new Error("Esiste già un post del piano approvato o in lavorazione: rigenerazione bloccata");
+  const now = new Date().toISOString();
+  const result = [];
+  for (const post of posts) {
+    const current = byType.get(post.post_type);
+    const body = {
+      source_article_id: article.id,
+      opportunity_id: opportunity.id,
+      post_type: post.post_type,
+      destination_target_id: post.destination_target_id,
+      theme: post.theme || opportunity.topic,
+      brief: post.brief || null,
+      canonical_text: post.canonical_text,
+      platforms: planPlatforms,
+      scheduled_for: null,
+      status: "draft",
+      updated_at: now,
+      updated_by: user.id,
+    };
+    let rows;
+    if (current?.id) {
+      rows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(current.id)}`, {
+        method: "PATCH", prefer: "return=representation", body,
+      });
+    } else {
+      rows = await serviceFetch("editorial_social_plan_items", {
+        method: "POST", prefer: "return=representation", body: { ...body, created_by: user.id },
+      });
+    }
+    if (!rows?.[0]?.id) throw new Error("Piano post statici non salvato");
+    result.push(rows[0]);
+  }
+  return result;
+}
+
+async function automationRunStart(opportunityId, source = "manual_controlled_run") {
+  const rows = await serviceFetch("editorial_automation_runs", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      run_type: "article_prepare",
+      status: "running",
+      started_at: new Date().toISOString(),
+      opportunity_id: opportunityId,
+      details: { version: VERSION, source },
+    },
+  });
+  return rows?.[0] || null;
+}
+
+async function automationRunFinish(run, status, patch = {}) {
+  if (!run?.id) return;
+  const body = {
+    status,
+    finished_at: new Date().toISOString(),
+    details: patch.details || run.details || {},
+    last_error: patch.last_error || null,
+  };
+  if (Object.prototype.hasOwnProperty.call(patch, "opportunity_id") || run.opportunity_id) body.opportunity_id = patch.opportunity_id || run.opportunity_id || null;
+  if (Object.prototype.hasOwnProperty.call(patch, "article_id") || run.article_id) body.article_id = patch.article_id || run.article_id || null;
+  if (Object.prototype.hasOwnProperty.call(patch, "social_plan_item_id") || run.social_plan_item_id) body.social_plan_item_id = patch.social_plan_item_id || run.social_plan_item_id || null;
+  await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body,
+  }).catch(() => {});
+}
+
+async function generateEditorialArticlePackage(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  let opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("Seleziona prima l’opportunità");
+  if (opportunity.opportunity_type !== "new_article") throw new Error("La generazione completa è disponibile solo per un nuovo articolo");
+
+  const existingJob = opportunity?.evidence?.article_generation_job;
+  if (existingJob?.response_id && ["queued", "in_progress"].includes(String(existingJob.status || ""))) {
+    return {
+      pending: true,
+      status: existingJob.status,
+      response_id: existingJob.response_id,
+      started_at: existingJob.started_at || null,
+      article_id: existingJob.article_id || opportunity.target_article_id || null,
+    };
+  }
+
+  const [categories, targets, channels] = await Promise.all([
+    activeEditorialCategories(),
+    enabledPromotionTargets(),
+    editorialSocialChannels(),
+  ]);
+  const platforms = validateRequestedPlatforms(payload.platforms, channels);
+  const revisionNotes = cleanEditorialText(payload.revision_notes, 3000);
+  const runSource = user?._automation ? "scheduler" : "manual_controlled_run";
+  if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
+  if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
+
+  const draftResult = await prepareEditorialDraft(user, id);
+  const articleId = draftResult?.article?.id;
+  if (!articleId) throw new Error("Bozza articolo non disponibile");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  const article = articleRows?.[0];
+  if (!article) throw new Error("Bozza articolo non trovata");
+  if (article.status !== "draft") throw new Error("La generazione può aggiornare solo una bozza ancora in stato Bozza");
+
+  opportunity = (await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  ))?.[0] || opportunity;
+  const previousGeneration = opportunity?.evidence?.article_generation;
+  const currentFingerprint = articleEditorialFingerprint(article);
+  const hasEditorialContent = Boolean(String(article.content || "").trim() || String(article.excerpt || "").trim());
+  const manuallyChanged = Boolean(hasEditorialContent && (!previousGeneration?.article_fingerprint_sha256 || previousGeneration.article_fingerprint_sha256 !== currentFingerprint));
+  const manualRevision = runSource === "manual_controlled_run" && Boolean(previousGeneration || revisionNotes || manuallyChanged);
+  if (manuallyChanged && !manualRevision) {
+    throw new Error("La bozza contiene modifiche manuali: l’Autopilota non la sovrascrive automaticamente. Usa la revisione manuale dalla Redazione per rigenerarla mantenendo le tue modifiche.");
+  }
+
+  const run = await automationRunStart(id, runSource);
+  try {
+    const ai = await startOpenAiEditorialPackage({ opportunity, article, categories, targets, revisionNotes, revisionMode: manualRevision });
+    const now = new Date().toISOString();
+    const job = {
+      schema_version: 1,
+      status: ai.status,
+      started_at: now,
+      started_by: user.id,
+      checked_at: now,
+      model: ai.model,
+      response_id: ai.responseId,
+      article_id: article.id,
+      article_fingerprint_sha256: currentFingerprint,
+      automation_run_id: run?.id || null,
+      // Identificativo dello slot settimanale: resta aperto fino al QA conclusivo.
+      scheduler_slot_run_id: runSource === "scheduler" && validUuid(String(payload.scheduler_slot_run_id || ""))
+        ? String(payload.scheduler_slot_run_id) : null,
+      platforms,
+      automatic_publish: false,
+      source: runSource,
+      revision_mode: manualRevision,
+      revision_notes: revisionNotes || null,
+    };
+    const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const previousHandoff = articleAutomationHandoff(opportunity);
+    const manualControlPatch = runSource === "manual_controlled_run" ? {
+      article_automation_handoff: {
+        ...(previousHandoff || {}),
+        schema_version: 1,
+        status: "suspended",
+        article_id: article.id,
+        article_fingerprint_sha256: null,
+        suspended_at: now,
+        suspended_by: user.id,
+        suspended_reason: manualRevision ? "manual_revision_started" : "manual_generation_started",
+      },
+    } : {};
+    const evidence = {
+      ...evidenceBase,
+      ...manualControlPatch,
+      ...(manualRevision && previousGeneration ? {
+        article_generation: {
+          ...previousGeneration,
+          status: "revision_in_progress",
+          article_fingerprint_sha256: null,
+          revision_requested_at: now,
+          revision_notes: revisionNotes || null,
+        },
+      } : {}),
+      article_generation_job: job,
+    };
+    const savedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: { evidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
+    });
+    if (!savedRows?.[0]?.id) throw new Error("Stato generazione asincrona non salvato");
+    return {
+      pending: true,
+      status: ai.status,
+      response_id: ai.responseId,
+      started_at: now,
+      article_id: article.id,
+      automatic_publish: false,
+    };
+  } catch (error) {
+    await automationRunFinish(run, "failed", {
+      article_id: article?.id || null,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
+    });
+    throw error;
+  }
+}
+
+async function resumeEditorialAutomaticCycle(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (String(opportunity.status || "") !== "selected" || String(opportunity.opportunity_type || "") !== "new_article") {
+    throw new Error("Il ripristino automatico è disponibile solo per l’articolo selezionato del ciclo corrente");
+  }
+  const articleId = String(opportunity.target_article_id || "");
+  if (!validUuid(articleId)) throw new Error("Bozza articolo non disponibile");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  const article = articleRows?.[0];
+  if (!article?.id) throw new Error("Articolo collegato non trovato");
+  if (String(article.status || "") === "published") {
+    return { resumed: false, already_published: true, article_id: article.id };
+  }
+  if (!["draft", "in_review", "approved"].includes(String(article.status || ""))) {
+    throw new Error("Lo stato attuale dell’articolo non consente di ripristinare il ciclo automatico");
+  }
+  const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidenceBase.article_generation_job;
+  if (job?.response_id && ["queued", "in_progress"].includes(String(job.status || ""))) {
+    throw new Error("La rigenerazione della bozza è ancora in corso: attendi il completamento prima di ripristinare l’automatico");
+  }
+  if (!evidenceBase.article_generation || String(evidenceBase.article_generation.status || "") !== "draft_ready_for_review") {
+    throw new Error("La bozza completa non è ancora pronta per essere riconsegnata all’Autopilota");
+  }
+
+  const now = new Date().toISOString();
+  const fingerprint = articleEditorialFingerprint(article);
+  const handoff = {
+    schema_version: 1,
+    status: "armed",
+    article_id: article.id,
+    article_fingerprint_sha256: fingerprint,
+    armed_at: now,
+    armed_by: user.id,
+    source_generation_response_id: evidenceBase.article_generation?.response_id || null,
+    source_generation_generated_at: evidenceBase.article_generation?.generated_at || null,
+  };
+  const nextEvidence = { ...evidenceBase, article_automation_handoff: handoff };
+  const savedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence: nextEvidence, updated_at: now, decided_by: user.id },
+  });
+  if (!savedRows?.[0]?.id) throw new Error("Ripristino automatico non salvato");
+
+  // Se lo slot di pubblicazione di oggi era già stato consumato soltanto perché il ciclo
+  // manuale non era ancora riconsegnato all'Autopilota, lo rendiamo nuovamente eseguibile.
+  // Non tocchiamo errori reali, pubblicazioni già eseguite o altri tipi di slot.
+  let releasedRuns = 0;
+  try {
+    const settings = await automationSchedulerSettings();
+    const local = schedulerLocalParts(settings?.timezone || "Europe/Rome");
+    const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
+    const publishSlot = (schedule || []).find((slot) => {
+      if (String(slot?.kind || "") !== "article_publish") return false;
+      if (Number(slot.weekday) !== Number(local.weekday)) return false;
+      const minutes = schedulerSlotMinutes(slot.time_local);
+      return minutes !== null && local.minutes >= minutes;
+    }) || null;
+    if (publishSlot?.id) {
+      const schedulerKey = `${local.date}:${publishSlot.id}`;
+      const runs = await automationSchedulerRuns(120);
+      const releasable = (runs || []).filter((run) =>
+        run?.details?.scheduler_key === schedulerKey
+        && String(run?.status || "") === "success"
+        && run?.details?.publication_performed !== true
+        && String(run?.details?.stage || "") === "skipped"
+        && String(run?.details?.reason || "") === "no_article_cycle"
+      );
+      for (const run of releasable) {
+        const details = { ...(run.details || {}) };
+        const releasedKey = details.scheduler_key;
+        delete details.scheduler_key;
+        details.released_scheduler_key = releasedKey;
+        details.handoff_released_at = now;
+        details.handoff_opportunity_id = id;
+        await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+          method: "PATCH",
+          prefer: "return=minimal",
+          body: { details },
+        });
+        releasedRuns += 1;
+      }
+    }
+  } catch {
+    // Il ripristino dell'handoff resta valido anche se non c'è uno slot odierno da riaprire.
+  }
+
+  return {
+    resumed: true,
+    article_id: article.id,
+    opportunity_id: id,
+    armed_at: now,
+    released_skipped_publish_runs: releasedRuns,
+  };
+}
+
+async function schedulerFinishArticlePrepareSlot(job, status, stage, errorMessage = null) {
+  const slotRunId = String(job?.scheduler_slot_run_id || "");
+  if (!validUuid(slotRunId) || job?.source !== "scheduler") return;
+  const rows = await serviceFetch(`editorial_automation_runs?select=id,run_type,status,details,opportunity_id,article_id&id=eq.${encodeURIComponent(slotRunId)}&limit=1`);
+  const slotRun = rows?.[0];
+  if (!slotRun || slotRun.run_type !== "article_prepare"
+    || slotRun?.details?.source !== "scheduler"
+    || !slotRun?.details?.scheduler_key
+    || !["running", "failed", "success"].includes(String(slotRun.status || ""))) return;
+  // Non modificare uno slot gia' concluso: richieste di polling concorrenti non
+  // devono sovrascrivere un esito registrato in precedenza.
+  if (slotRun.status !== "running") return;
+  await automationRunFinish(slotRun, status, {
+    opportunity_id: validUuid(String(job.opportunity_id || "")) ? job.opportunity_id : (slotRun.opportunity_id || null),
+    article_id: job.article_id || slotRun.article_id || null,
+    last_error: status === "failed" ? String(errorMessage || "Generazione non completata").slice(0, 2000) : null,
+    details: { ...slotRun.details, stage, completed_opportunity_id: job.opportunity_id || null,
+      publication_performed: false, generation_finished_at: new Date().toISOString() },
+  });
+}
+
+async function checkEditorialArticlePackage(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const evidenceBase = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const job = evidenceBase.article_generation_job;
+  const completedGeneration = evidenceBase.article_generation;
+  const runSource = String(job?.source || (user?._automation ? "scheduler" : "manual_controlled_run"));
+  if (!job?.response_id) {
+    if (completedGeneration?.status === "draft_ready_for_review") {
+      return { pending: false, status: "completed", qa: completedGeneration.qa || {}, generation: completedGeneration };
+    }
+    throw new Error("Nessuna generazione editoriale in corso");
+  }
+  if (job.status === "completed" && completedGeneration?.response_id === job.response_id) {
+    return { pending: false, status: "completed", qa: completedGeneration.qa || {}, generation: completedGeneration };
+  }
+  if (["failed", "cancelled", "incomplete"].includes(String(job.status || ""))) {
+    throw new Error(job.last_error || `Generazione editoriale terminata con stato ${job.status}`);
+  }
+
+  const response = await retrieveOpenAiEditorialPackage(job.response_id);
+  const status = String(response?.status || "");
+  if (!["queued", "in_progress"].includes(status)) {
+    await recordEditorialArticleAiEconomicEvent({
+      eventId: response?.id || job.response_id,
+      response: response || {},
+      model: job.model || editorialAiModel(),
+      outcome: status === "completed" ? "completed" : "failed",
+      opportunityId: id,
+      articleId: job.article_id || opportunity.target_article_id || null,
+      runSource,
+    }).catch(() => {});
+  }
+  if (["queued", "in_progress"].includes(status)) {
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status, checked_at: now },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: { evidence: nextEvidence, updated_at: now },
+    });
+    return { pending: true, status, response_id: job.response_id, started_at: job.started_at || null };
+  }
+
+  const runRef = job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: runSource } } : null;
+  if (status !== "completed") {
+    const message = response?.error?.message || response?.incomplete_details?.reason || `Generazione editoriale terminata con stato ${status || "sconosciuto"}`;
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", remote_status: status || "unknown",
+        checked_at: now, finished_at: now, last_error: String(message).slice(0, 2000) },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: job.article_id || opportunity.target_article_id || null,
+      last_error: String(message).slice(0, 2000),
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
+    });
+    throw new Error(message);
+  }
+
+  const [settingsRows, categories, targets] = await Promise.all([
+    serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1"),
+    activeEditorialCategories(),
+    enabledPromotionTargets(),
+  ]);
+  const settings = settingsRows?.[0] || {};
+  if (!categories.length) throw new Error("Nessuna categoria editoriale attiva disponibile");
+  if (!targets.length) throw new Error("Nessuna destinazione promozionale attiva disponibile per il post collegato");
+  const articleId = job.article_id || opportunity.target_article_id;
+  if (!validUuid(articleId)) throw new Error("Bozza articolo associata alla generazione non valida");
+  const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+  let article = articleRows?.[0];
+  if (!article) throw new Error("Bozza articolo non trovata");
+  if (article.status !== "draft") throw new Error("La generazione può completare solo una bozza ancora in stato Bozza");
+  if (job.article_fingerprint_sha256 && articleEditorialFingerprint(article) !== job.article_fingerprint_sha256) {
+    const message = "La bozza è stata modificata manualmente durante la generazione: risultato AI non applicato";
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: message },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: article.id,
+      last_error: message,
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false },
+    });
+    throw new Error(message);
+  }
+
+  let validated;
+  let sourceUrls = [];
+  let generatedSourceUrls = [];
+  try {
+    const text = responseOutputText(response);
+    if (!text) throw new Error("La generazione non ha restituito contenuto strutturato");
+    let generated;
+    try { generated = JSON.parse(text); }
+    catch { throw new Error("Risposta editoriale non interpretabile"); }
+    generatedSourceUrls = (Array.isArray(generated?.sources) ? generated.sources : [])
+      .map((source) => normalizedHttps(source?.url)).filter(Boolean).slice(0, 20);
+    const currentWebSourceUrls = responseSourceUrls(response);
+    const radarEvidence = opportunity?.evidence?.source === "research_radar" ? opportunity.evidence.research_radar : null;
+    const radarSourceUrls = Array.isArray(radarEvidence?.source_urls) ? radarEvidence.source_urls : [];
+    sourceUrls = [...new Set([...currentWebSourceUrls, ...radarSourceUrls].map(normalizedHttps).filter(Boolean))];
+    validated = validateGeneratedEditorialPackage(generated, {
+      opportunity, categories, targets, settings, observedSourceUrls: sourceUrls,
+    });
+  } catch (error) {
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now,
+        last_error: String(error?.message || error).slice(0, 2000),
+        qa_source_diagnostics: {
+          observed_count: new Set(sourceUrls.map(sourceUrlKey).filter(Boolean)).size,
+          declared_count: generatedSourceUrls.length,
+          matched_count: generatedSourceUrls.filter((url) => sourceUrls.some((observed) => sourceUrlKey(observed) === sourceUrlKey(url))).length,
+          observed_urls: sourceUrls.slice(0, 12),
+          declared_urls: generatedSourceUrls.slice(0, 12),
+        },
+      },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: article.id,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false, background: true },
+    });
+    throw error;
+  }
+
+  const originalArticle = { ...article };
+  let articleUpdated = false;
+  try {
+    const sourcesText = validated.sources.map((source) => `${source.title} — ${source.url}`).join("\n").slice(0, 4000);
+    article = await editorialArticleUpdateDraft(user, article.id, {
+      title: validated.article.title,
+      category: validated.article.category,
+      excerpt: validated.article.excerpt,
+      content: validated.article.content,
+      sources: sourcesText || null,
+      seo_title: validated.article.seo_title,
+      seo_description: validated.article.seo_description,
+      updated_by: user.id,
+    });
+    if (!article?.id) throw new Error("Bozza articolo generata ma non salvata");
+    articleUpdated = true;
+
+    const platforms = Array.isArray(job.platforms) ? job.platforms : [];
+    const plans = await upsertGeneratedSocialPlans(user, opportunity, article, validated.posts, platforms);
+    const articleFingerprint = articleEditorialFingerprint(article);
+    const now = new Date().toISOString();
+    const generation = {
+      schema_version: 2,
+      status: "draft_ready_for_review",
+      generated_at: now,
+      generated_by: job.started_by || user.id,
+      model: job.model || editorialAiModel(),
+      response_id: job.response_id,
+      article_fingerprint_sha256: articleFingerprint,
+      web_source_urls: sourceUrls,
+      sources: validated.sources,
+      qa: validated.qa,
+      social_plan_item_ids: plans.map((row) => row.id),
+      platforms,
+      automatic_publish: false,
+      background: true,
+      revision_mode: Boolean(job.revision_mode),
+      revision_notes: cleanEditorialText(job.revision_notes, 3000) || null,
+      revision_number: Number(evidenceBase?.article_generation?.revision_number || 0) + (job.revision_mode ? 1 : 0),
+    };
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation: generation,
+      article_generation_job: { ...job, status: "completed", checked_at: now, finished_at: now },
+    };
+    const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH",
+      prefer: "return=representation",
+      body: { evidence: nextEvidence, target_article_id: article.id, updated_at: now, decided_by: user.id },
+    });
+    const updatedOpportunity = opportunityRows?.[0];
+    if (!updatedOpportunity?.id) throw new Error("Metadati generazione non salvati");
+    await automationRunFinish(runRef, "success", {
+      article_id: article.id,
+      social_plan_item_id: plans?.[0]?.id || null,
+      details: {
+        version: VERSION,
+        source: runSource,
+        model: generation.model,
+        opportunity_id: id,
+        qa: validated.qa,
+        sources_count: validated.sources.length,
+        social_plan_item_ids: plans.map((row) => row.id),
+        platforms,
+        publication_performed: false,
+        background: true,
+      },
+    });
+    // Lo slot automatico e' completato soltanto DOPO che contenuto e QA sono salvati.
+    await schedulerFinishArticlePrepareSlot({ ...job, opportunity_id: id }, "success", "draft_ready_for_review");
+    return {
+      pending: false,
+      status: "completed",
+      article: { id: article.id, title: article.title, slug: article.slug, status: article.status, category: article.category },
+      opportunity: updatedOpportunity,
+      qa: validated.qa,
+      sources: validated.sources,
+      plans,
+      model: generation.model,
+      automatic_publish: false,
+    };
+  } catch (error) {
+    if (articleUpdated && originalArticle?.id) {
+      await editorialArticleUpdateDraft(user, originalArticle.id, {
+        title: originalArticle.title,
+        category: originalArticle.category,
+        excerpt: originalArticle.excerpt,
+        content: originalArticle.content,
+        sources: originalArticle.sources,
+        seo_title: originalArticle.seo_title,
+        seo_description: originalArticle.seo_description,
+        updated_by: user.id,
+      }).catch(() => {});
+    }
+    const now = new Date().toISOString();
+    const nextEvidence = {
+      ...evidenceBase,
+      article_generation_job: { ...job, status: "failed", checked_at: now, finished_at: now, last_error: String(error?.message || error).slice(0, 2000) },
+    };
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+      method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: now },
+    }).catch(() => {});
+    await automationRunFinish(runRef, "failed", {
+      article_id: article?.id || null,
+      last_error: String(error?.message || error).slice(0, 2000),
+      details: { version: VERSION, source: runSource, opportunity_id: id, publication_performed: false, background: true },
+    });
+    throw error;
+  }
+}
+
+async function deleteEditorialDraftArticle(user, payload = {}) {
+  const articleId = String(payload.article_id || "").trim();
+  if (!validUuid(articleId)) throw new Error("Identificativo articolo non valido");
+
+  const articleRows = await serviceFetch(
+    `editorial_articles?select=id,title,status,featured_image_url,featured_image_alt,created_by&id=eq.${encodeURIComponent(articleId)}&limit=1`,
+  );
+  const article = articleRows?.[0];
+  if (!article) throw new Error("Articolo non trovato");
+  if (String(article.status || "") !== "draft") {
+    throw new Error("Solo una bozza può essere eliminata definitivamente. Per gli altri stati usa Archivia.");
+  }
+
+  const opportunities = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&target_article_id=eq.${encodeURIComponent(articleId)}&limit=20`,
+  );
+  const socialItems = await serviceFetch(
+    `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(articleId)}&limit=100`,
+  );
+  const protectedSocialItems = (socialItems || []).filter((row) => !["draft", "cancelled"].includes(String(row.status || "")));
+  if (protectedSocialItems.length) {
+    throw new Error("La bozza ha post social già approvati o avviati: annullali prima di eliminare l’articolo");
+  }
+
+  const imagePaths = new Set();
+  const generatedPrefix = `autopilot/${articleId}/`;
+  const featuredPath = editorialImageObjectPathFromUrl(article.featured_image_url);
+  if (featuredPath?.startsWith(generatedPrefix)) imagePaths.add(featuredPath);
+  for (const opportunity of opportunities || []) {
+    const state = articleImageState(opportunity);
+    for (const asset of [state.current, state.candidate, ...(state.history || [])]) {
+      const objectPath = String(asset?.object_path || "").trim();
+      if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+    }
+    const socialAssets = editorialSocialAssetsState(opportunity);
+    const introAssets = [
+      socialAssets.article_intro?.card,
+      ...((Array.isArray(socialAssets.article_intro?.card_history) ? socialAssets.article_intro.card_history : [])),
+    ];
+    for (const image of introAssets) {
+      const objectPath = String(image?.object_path || "").trim();
+      if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+    }
+    for (const socialAsset of Object.values(socialAssets.items || {})) {
+      const generatedAssets = [
+        socialAsset?.image,
+        ...((Array.isArray(socialAsset?.history) ? socialAsset.history : [])),
+        socialAsset?.card,
+        ...((Array.isArray(socialAsset?.card_history) ? socialAsset.card_history : [])),
+      ];
+      for (const image of generatedAssets) {
+        const objectPath = String(image?.object_path || "").trim();
+        if (objectPath.startsWith(generatedPrefix)) imagePaths.add(objectPath);
+      }
+    }
+  }
+
+  const socialIds = (socialItems || []).map((row) => String(row.id || "")).filter(validUuid);
+  if (socialIds.length) {
+    await serviceFetch(
+      `editorial_automation_runs?social_plan_item_id=in.(${socialIds.map((id) => encodeURIComponent(id)).join(",")})`,
+      { method: "PATCH", prefer: "return=minimal", body: { social_plan_item_id: null } },
+    );
+  }
+  await serviceFetch(`editorial_automation_runs?article_id=eq.${encodeURIComponent(articleId)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: { article_id: null },
+  });
+
+  if (socialItems?.length) {
+    await serviceFetch(`editorial_social_plan_items?source_article_id=eq.${encodeURIComponent(articleId)}`, {
+      method: "DELETE",
+      prefer: "return=minimal",
+    });
+  }
+  await serviceFetch(`editorial_article_notes?article_id=eq.${encodeURIComponent(articleId)}`, {
+    method: "DELETE",
+    prefer: "return=minimal",
+  });
+
+  const now = new Date().toISOString();
+  for (const opportunity of opportunities || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object"
+      ? { ...opportunity.evidence }
+      : {};
+    delete evidence.article_generation;
+    delete evidence.article_generation_job;
+    delete evidence.article_image;
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: {
+        target_article_id: null,
+        evidence,
+        updated_at: now,
+        decided_by: user.id,
+      },
+    });
+  }
+
+  const deletedRows = await serviceFetch(`editorial_articles?id=eq.${encodeURIComponent(articleId)}&select=id`, {
+    method: "DELETE",
+    prefer: "return=representation",
+  });
+  if (!deletedRows?.[0]?.id) throw new Error("Eliminazione articolo non confermata");
+
+  const storage = await deleteEditorialImageObjects([...imagePaths]);
+  return {
+    deleted: true,
+    article_id: articleId,
+    opportunity_ids: (opportunities || []).map((row) => row.id).filter(Boolean),
+    social_plan_items_deleted: (socialItems || []).length,
+    generated_images_deleted: storage.deleted,
+    storage_warning: storage.warning,
+    opportunity_reset: Boolean((opportunities || []).length),
+  };
+}
+
+async function discardEditorialDraftOpportunity(user, payload = {}) {
+  const opportunityId = String(payload?.id || "").trim();
+  const articleId = String(payload?.article_id || "").trim();
+  if (!validUuid(opportunityId) || !validUuid(articleId)) throw new Error("Bozza o opportunità non valida");
+
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunityId)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (String(opportunity.target_article_id || "") !== articleId) {
+    throw new Error("La bozza non appartiene all’opportunità indicata");
+  }
+
+  const deleted = await deleteEditorialDraftArticle(user, { article_id: articleId });
+  const rejected = await updateEditorialOpportunity(user, opportunityId, "rejected");
+  return { deleted, opportunity: rejected };
+}
+
+async function editorialSocialPlanPayload() {
+  // Il piano deve restare consultabile anche se un arricchimento secondario
+  // (canali, destinazioni o contenuto completo degli articoli) fallisce.
+  // In passato Promise.all rendeva l'intera vista indisponibile con HTTP 500.
+  const items = await serviceFetch("editorial_social_plan_items?select=*&order=updated_at.desc&limit=50");
+  const warnings = [];
+
+  let channels = [];
+  try {
+    channels = await editorialSocialChannels();
+  } catch (error) {
+    warnings.push(`channels: ${String(error?.message || error)}`);
+    console.warn("editorial_social_plan_channels_unavailable", error);
+  }
+
+  const targetIds = [...new Set((items || [])
+    .map((row) => String(row.destination_target_id || "").trim())
+    .filter(validUuid))];
+  const articleIds = [...new Set((items || [])
+    .map((row) => String(row.source_article_id || "").trim())
+    .filter(validUuid))];
+  const opportunityIds = [...new Set((items || [])
+    .map((row) => String(row.opportunity_id || "").trim())
+    .filter(validUuid))];
+
+  const targets = [];
+  for (let index = 0; index < targetIds.length; index += 12) {
+    const chunk = targetIds.slice(index, index + 12);
+    try {
+      const rows = await serviceFetch(`editorial_promotion_targets?select=id,label,url_path,category&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})`);
+      targets.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      warnings.push(`targets: ${String(error?.message || error)}`);
+      console.warn("editorial_social_plan_targets_unavailable", error);
+      break;
+    }
+  }
+
+  const articles = [];
+  for (let index = 0; index < articleIds.length; index += 8) {
+    const chunk = articleIds.slice(index, index + 8);
+    const ids = chunk.map((id) => encodeURIComponent(id)).join(",");
+    try {
+      const rows = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,content,sources,featured_image_url,featured_image_alt&id=in.(${ids})`);
+      articles.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      // Fallback leggero: stato e piano rimangono visibili anche se il payload
+      // editoriale completo è troppo grande o una colonna non è disponibile.
+      try {
+        const rows = await serviceFetch(`editorial_articles?select=id,title,slug,status,published_at,created_at,updated_at,excerpt,featured_image_url,featured_image_alt&id=in.(${ids})`);
+        articles.push(...(Array.isArray(rows) ? rows : []));
+        warnings.push(`article_detail_reduced: ${String(error?.message || error)}`);
+        console.warn("editorial_social_plan_article_detail_reduced", error);
+      } catch (fallbackError) {
+        warnings.push(`articles: ${String(fallbackError?.message || fallbackError)}`);
+        console.warn("editorial_social_plan_articles_unavailable", fallbackError);
+      }
+    }
+  }
+
+  const opportunities = [];
+  for (let index = 0; index < opportunityIds.length; index += 8) {
+    const chunk = opportunityIds.slice(index, index + 8);
+    try {
+      const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence&id=in.(${chunk.map((id) => encodeURIComponent(id)).join(",")})`);
+      opportunities.push(...(Array.isArray(rows) ? rows : []));
+    } catch (error) {
+      warnings.push(`social_assets: ${String(error?.message || error)}`);
+      console.warn("editorial_social_plan_assets_unavailable", error);
+      break;
+    }
+  }
+
+  const compactSocialAsset = (asset) => {
+    if (!asset || typeof asset !== "object") return null;
+    const qa = asset.image?.qa && typeof asset.image.qa === "object" ? asset.image.qa : null;
+    return {
+      status: String(asset.status || ""),
+      updated_at: asset.updated_at || null,
+      brief: asset.brief ? {
+        cover_ready: editorialSocialBriefHasCover(asset.brief),
+        content_version: asset.brief.content_version || null,
+        article_takeaway: asset.brief.article_takeaway || null,
+        destination_solution: asset.brief.destination_solution || null,
+        copy_qa: asset.brief.copy_qa ? {
+          status: asset.brief.copy_qa.status || null,
+          reason: asset.brief.copy_qa.reason || null,
+          rewrite_guidance: asset.brief.copy_qa.rewrite_guidance || null,
+        } : null,
+      } : null,
+      image: asset.image?.url ? {
+        source: asset.image.source || null,
+        url: asset.image.url,
+        alt_text: asset.image.alt_text || null,
+        attempt: Number(asset.image.attempt || 0) || null,
+        qa: qa ? {
+          status: qa.status || null,
+          reason: qa.reason || null,
+          regeneration_guidance: qa.regeneration_guidance || null,
+          approval_mode: qa.approval_mode || null,
+          original_qa_status: qa.original_qa_status || null,
+          evaluated_at: qa.evaluated_at || null,
+        } : null,
+      } : null,
+      manual_image_candidate: asset.manual_image_candidate?.url ? {
+        url: asset.manual_image_candidate.url,
+        source: asset.manual_image_candidate.source || null,
+        alt_text: asset.manual_image_candidate.alt_text || null,
+        guidance: asset.manual_image_candidate.guidance || null,
+        attempt_count: Number(asset.manual_image_candidate.attempt_count || 1),
+        attempts_history: Array.isArray(asset.manual_image_candidate.attempts_history)
+          ? asset.manual_image_candidate.attempts_history.slice(-EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS) : [],
+        manual_approval_allowed: editorialManualSocialImageApprovalEligibility(asset.manual_image_candidate.qa, asset.manual_image_candidate),
+        qa: asset.manual_image_candidate.qa ? {
+          status: asset.manual_image_candidate.qa.status || null,
+          reason: asset.manual_image_candidate.qa.reason || null,
+          distinct_from_previous_candidate: asset.manual_image_candidate.qa.distinct_from_previous_candidate ?? null,
+          regeneration_guidance: asset.manual_image_candidate.qa.regeneration_guidance || null,
+        } : null,
+      } : null,
+      card: asset.card?.url ? {
+        url: asset.card.url,
+        source: asset.card.source || null,
+        renderer: asset.card.renderer || null,
+        template_version: asset.card.template_version || null,
+      } : null,
+    };
+  };
+
+  const targetMap = new Map((targets || []).map((row) => [row.id, row]));
+  const articleMap = new Map((articles || []).map((row) => [row.id, row]));
+  const opportunityMap = new Map((opportunities || []).map((row) => [row.id, row]));
+  return {
+    ok: true,
+    version: VERSION,
+    warnings,
+    channels,
+    items: (items || []).map((row) => {
+      const opportunity = opportunityMap.get(row.opportunity_id) || null;
+      const socialAsset = opportunity?.evidence?.social_assets?.items?.[row.id] || null;
+      return {
+        ...row,
+        destination_target: targetMap.get(row.destination_target_id) || null,
+        source_article: articleMap.get(row.source_article_id) || null,
+        source_article_image: articleMap.get(row.source_article_id) || null,
+        social_asset: compactSocialAsset(socialAsset),
+      };
+    }),
+  };
+}
+
+async function updateEditorialSocialPlanItem(user, payload = {}) {
+  const id = String(payload.id || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo post non valido");
+  const currentRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(id)}&limit=1`);
+  const current = currentRows?.[0];
+  if (!current) throw new Error("Post del piano non trovato");
+  if (["publishing", "published", "failed"].includes(String(current.status || ""))) {
+    throw new Error("Un post già avviato o pubblicato non può essere modificato da questo pannello");
+  }
+  const channels = await editorialSocialChannels();
+  const platforms = validateRequestedPlatforms(payload.platforms, channels)
+    .filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
+  const status = String(payload.status || current.status || "draft");
+  if (!EDITORIAL_PLAN_EDITABLE_STATUSES.has(status)) throw new Error("Stato post non modificabile da questo pannello");
+  const canonicalText = cleanEditorialText(payload.canonical_text ?? current.canonical_text, 4000);
+  if (!canonicalText) throw new Error("Il testo del post non può essere vuoto");
+  const theme = cleanEditorialText(payload.theme ?? current.theme, 240) || null;
+  const brief = cleanEditorialText(payload.brief ?? current.brief, 1200) || null;
+  const rows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      theme,
+      brief,
+      canonical_text: canonicalText,
+      platforms,
+      status,
+      scheduled_for: null,
+      updated_at: new Date().toISOString(),
+      updated_by: user.id,
+    },
+  });
+  if (!rows?.[0]?.id) throw new Error("Post del piano non aggiornato");
+  return rows[0];
+}
+
+
+function editorialSocialAssetsState(opportunity) {
+  const raw = opportunity?.evidence?.social_assets;
+  const safe = raw && typeof raw === "object" ? raw : {};
+  const items = safe?.items && typeof safe.items === "object" ? safe.items : {};
+  const articleIntro = safe?.article_intro && typeof safe.article_intro === "object" ? safe.article_intro : null;
+  return { ...safe, schema_version: 2, article_intro: articleIntro ? { ...articleIntro } : null, items: { ...items } };
+}
+
+function editorialMasterVisualContextSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["primary_subject", "environment", "visual_story", "human_presence", "action", "mood", "lighting", "composition", "authenticity_cues", "must_preserve", "must_avoid", "quality_rationale"],
+    properties: {
+      primary_subject: { type: "string" },
+      environment: { type: "string" },
+      visual_story: { type: "string" },
+      human_presence: { type: "string" },
+      action: { type: "string" },
+      mood: { type: "string" },
+      lighting: { type: "string" },
+      composition: { type: "string" },
+      authenticity_cues: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_preserve: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      quality_rationale: { type: "string" },
+    },
+  };
+}
+
+function normalizeEditorialMasterVisualContext(raw, fallback = {}) {
+  const context = raw && typeof raw === "object" ? raw : {};
+  return {
+    schema_version: 1,
+    visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    source: cleanEditorialText(context.source || fallback.source, 80) || "derived",
+    article_id: fallback.article_id || null,
+    article_image_url: fallback.article_image_url || null,
+    primary_subject: cleanEditorialText(context.primary_subject || fallback.primary_subject, 320),
+    environment: cleanEditorialText(context.environment || fallback.environment, 320),
+    visual_story: cleanEditorialText(context.visual_story || fallback.visual_story, 600),
+    human_presence: cleanEditorialText(context.human_presence || fallback.human_presence, 320),
+    action: cleanEditorialText(context.action || fallback.action, 320),
+    mood: cleanEditorialText(context.mood || fallback.mood, 240),
+    lighting: cleanEditorialText(context.lighting || fallback.lighting, 240),
+    composition: cleanEditorialText(context.composition || fallback.composition, 320),
+    authenticity_cues: cleanEditorialStringList(context.authenticity_cues || fallback.authenticity_cues, 6, 180),
+    must_preserve: cleanEditorialStringList(context.must_preserve || fallback.must_preserve, 6, 180),
+    must_avoid: cleanEditorialStringList(context.must_avoid || fallback.must_avoid, 8, 180),
+    quality_rationale: cleanEditorialText(context.quality_rationale || fallback.quality_rationale, 600),
+    created_at: fallback.created_at || new Date().toISOString(),
+  };
+}
+
+function editorialMasterVisualFallback(article, opportunity, heroAsset, articleImageUrl) {
+  const visualBrief = heroAsset?.visual_brief && typeof heroAsset.visual_brief === "object" ? heroAsset.visual_brief : null;
+  const effectiveProfileKey = inferArticleImageProfile(article, opportunity, heroAsset?.generation_profile_effective || heroAsset?.generation_profile_requested || "auto");
+  const profile = articleImageProfileByKey(effectiveProfileKey);
+  const mustPreserve = cleanEditorialStringList(visualBrief?.must_show, 6, 180);
+  const mustAvoid = cleanEditorialStringList(visualBrief?.must_avoid, 8, 180);
+  return normalizeEditorialMasterVisualContext({
+    source: visualBrief ? "article_visual_brief" : "article_context_fallback",
+    primary_subject: visualBrief?.primary_subject || cleanEditorialText(article?.title, 220),
+    environment: visualBrief?.environment || "A real-world environment directly connected to the article, without staged advertising cues.",
+    visual_story: visualBrief?.visual_story || "A believable moment in which a person, object or activity makes the concrete consequence of the article understandable at a glance.",
+    human_presence: effectiveProfileKey === "objects_context" ? "People may be absent or secondary." : "Use natural human presence only when it strengthens the real-world story; avoid posed models.",
+    action: "Show a concrete action, decision, check, comparison or operational activity rather than a static symbolic pose.",
+    mood: effectiveProfileKey === "warm_human" ? "Warm, credible and emotionally restrained." : "Credible, informative and visually calm.",
+    lighting: "Natural or practical believable light, with realistic contrast and no artificial glow effects.",
+    composition: "One clear focal point, natural perspective, strong editorial crop and restrained supporting objects.",
+    authenticity_cues: [
+      "realistic environment and materials",
+      "natural body language or believable object placement",
+      "supporting details that feel used rather than staged",
+      "no synthetic-looking documents or interfaces",
+    ],
+    must_preserve: mustPreserve.length >= 2 ? mustPreserve : [profile.directive, "one clear real-world visual action"],
+    must_avoid: [...mustAvoid, "generic stock-advertising pose", "front-facing readable or fake documents", "fake dashboards or interfaces"].slice(0, 8),
+    quality_rationale: "Maintain the approved article image's realism, visual clarity and editorial credibility even when the social post uses a different moment or crop.",
+  }, {
+    source: "article_context_fallback",
+    article_id: article?.id || null,
+    article_image_url: articleImageUrl,
+  });
+}
+
+function editorialMasterVisualContextCurrent(state, article, articleImageUrl) {
+  const context = state?.master_visual_context && typeof state.master_visual_context === "object" ? state.master_visual_context : null;
+  return Boolean(
+    context
+    && String(context.visual_version || "") === EDITORIAL_SOCIAL_VISUAL_VERSION
+    && String(context.article_id || "") === String(article?.id || "")
+    && String(context.article_image_url || "") === String(articleImageUrl || "")
+    && cleanEditorialText(context.primary_subject, 320)
+    && cleanEditorialText(context.visual_story, 600)
+    && Array.isArray(context.authenticity_cues)
+    && context.authenticity_cues.length >= 2
+  );
+}
+
+async function buildEditorialMasterVisualContext(article, opportunity, heroAsset, articleImageUrl) {
+  const fallback = editorialMasterVisualFallback(article, opportunity, heroAsset, articleImageUrl);
+  if (!/^https:\/\//i.test(String(articleImageUrl || ""))) return fallback;
+  const inheritedBrief = heroAsset?.visual_brief && typeof heroAsset.visual_brief === "object" ? heroAsset.visual_brief : null;
+  const content = cleanEditorialText(article?.content, 2600).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const inputText = [
+    "Analizza l'immagine approvata dell'articolo come riferimento visivo principale per le future varianti social OffertaLogica.",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 160)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 360)}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+    inheritedBrief?.primary_subject ? `Brief originale - soggetto: ${cleanEditorialText(inheritedBrief.primary_subject, 320)}.` : "",
+    inheritedBrief?.environment ? `Brief originale - ambiente: ${cleanEditorialText(inheritedBrief.environment, 320)}.` : "",
+    inheritedBrief?.visual_story ? `Brief originale - storia visiva: ${cleanEditorialText(inheritedBrief.visual_story, 600)}.` : "",
+    "Estrai ciò che rende la fotografia credibile, editoriale e pertinente. Non descrivere soltanto gli oggetti: identifica azione, atmosfera, luce, composizione e segnali di autenticità che devono guidare le immagini social.",
+    "Le future immagini social possono cambiare momento, inquadratura e soggetto secondario, ma non devono sacrificare realismo, attinenza o qualità solo per risultare diverse.",
+  ].filter(Boolean).join(" ");
+  try {
+    const response = await openAiResponseRequest("", {
+      method: "POST",
+      body: {
+        model: editorialAiModel(),
+        instructions: [
+          "Agisci come photo editor senior. Analizza la fotografia reale fornita e trasformala in una grammatica visiva riutilizzabile per lo stesso ciclo editoriale.",
+          "Sii concreto: privilegia scena, gesto, ambiente, luce, composizione e dettagli che rendono l'immagine autentica.",
+          "Non inventare persone, documenti, dati o fatti non visibili o non supportati dall'articolo.",
+          "Nei must_avoid includi sempre i rischi che renderebbero il risultato artificiale o stock, soprattutto documenti finti/frontali, interfacce inventate e pose pubblicitarie quando pertinenti.",
+        ].join(" "),
+        input: [{ role: "user", content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: articleImageUrl, detail: "high" },
+        ] }],
+        reasoning: { effort: "low" },
+        max_output_tokens: 1500,
+        store: false,
+        text: { format: { type: "json_schema", name: "offertalogica_master_visual_context", strict: true, schema: editorialMasterVisualContextSchema() } },
+      },
+      economics: { activity: "social_master_visual_context", articleId: article?.id || null, opportunityId: opportunity?.id || null },
+    });
+    const parsed = JSON.parse(responseOutputText(response));
+    const context = normalizeEditorialMasterVisualContext({ ...parsed, source: "approved_hero_analysis" }, {
+      ...fallback,
+      article_id: article?.id || null,
+      article_image_url: articleImageUrl,
+      created_at: new Date().toISOString(),
+    });
+    if (!context.primary_subject || !context.visual_story || context.authenticity_cues.length < 2 || context.must_preserve.length < 2) return fallback;
+    return context;
+  } catch (error) {
+    console.warn("editorial_master_visual_context_fallback", String(error?.message || error).slice(0, 500));
+    return fallback;
+  }
+}
+
+async function saveEditorialSocialAssetsState(user, opportunity, state) {
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    social_assets: state,
+  };
+  const rows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  if (!rows?.[0]?.id) throw new Error("Asset social: stato non salvato");
+  return rows[0];
+}
+
+async function editorialSocialAssetTarget(item) {
+  if (String(item?.post_type || "") !== "related") return null;
+  const id = String(item?.destination_target_id || "").trim();
+  if (!validUuid(id)) throw new Error("Asset social related: destinazione OffertaLogica non valida");
+  const rows = await serviceFetch(
+    `editorial_promotion_targets?select=id,label,url_path,category,enabled&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const target = rows?.[0] || null;
+  if (!target?.enabled) throw new Error("Asset social related: destinazione OffertaLogica non disponibile");
+  return target;
+}
+
+function editorialSocialAssetFingerprint(article, item, target, articleImageUrl) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    article_id: article?.id || null,
+    article_title: article?.title || "",
+    article_excerpt: article?.excerpt || "",
+    article_content: String(article?.content || "").slice(0, 8000),
+    article_image_url: articleImageUrl || "",
+    plan_item_id: item?.id || null,
+    post_type: item?.post_type || "",
+    theme: item?.theme || "",
+    brief: item?.brief || "",
+    canonical_text: item?.canonical_text || "",
+    destination_target_id: item?.destination_target_id || null,
+    target_label: target?.label || "",
+    target_url_path: target?.url_path || "",
+    target_category: target?.category || "",
+    content_version: EDITORIAL_SOCIAL_CONTENT_VERSION,
+  })).digest("hex");
+}
+
+function editorialSocialAssetBriefSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["article_takeaway", "destination_solution", "facebook_text", "instagram_text", "cover_title", "cover_summary", "visual_subject", "visual_scene", "must_show", "must_avoid", "alt_text"],
+    properties: {
+      article_takeaway: { type: "string" },
+      destination_solution: { type: "string" },
+      facebook_text: { type: "string" },
+      instagram_text: { type: "string" },
+      cover_title: { type: "string" },
+      cover_summary: { type: "string" },
+      visual_subject: { type: "string" },
+      visual_scene: { type: "string" },
+      must_show: { type: "array", minItems: 2, maxItems: 6, items: { type: "string" } },
+      must_avoid: { type: "array", minItems: 2, maxItems: 8, items: { type: "string" } },
+      alt_text: { type: "string" },
+    },
+  };
+}
+
+function editorialArticleIntroCopySchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["facebook_text", "instagram_text", "linkedin_text"],
+    properties: {
+      facebook_text: { type: "string" },
+      instagram_text: { type: "string" },
+      linkedin_text: { type: "string" },
+    },
+  };
+}
+
+function editorialSocialCoverTextSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["cover_title", "cover_summary"],
+    properties: {
+      cover_title: { type: "string" },
+      cover_summary: { type: "string" },
+    },
+  };
+}
+
+function cleanEditorialSocialCopy(value, maxLength) {
+  return cleanEditorialText(value, maxLength)
+    .replace(/https?:\/\/\S+|www\.\S+/gi, "")
+    .replace(/\blink\s+in\s+bio\b/gi, "Approfondisci dal profilo OffertaLogica")
+    .replace(/[ \t]+\n/g, "\n")
+    .replace(/\n{3,}/g, "\n\n")
+    .replace(/[ \t]{2,}/g, " ")
+    .trim();
+}
+
+function editorialArticleIntroAssetFingerprint(article, articleImageUrl) {
+  return crypto.createHash("sha256").update(JSON.stringify({
+    article_id: article?.id || null,
+    article_title: article?.title || "",
+    article_excerpt: article?.excerpt || "",
+    article_content: String(article?.content || "").slice(0, 8000),
+    article_image_url: articleImageUrl || "",
+    card_template_version: EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+  })).digest("hex");
+}
+
+function editorialSocialCoverLabel() {
+  return "IN SINTESI";
+}
+
+function editorialSocialBriefHasCover(brief) {
+  return Boolean(
+    cleanEditorialText(brief?.cover_title, 220).length >= 24
+    && cleanEditorialText(brief?.cover_summary, 420).length >= 70
+  );
+}
+
+async function buildEditorialArticleIntroCopy(article) {
+  const content = cleanEditorialText(article?.content, 4200).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const input = [
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    content ? `Contesto articolo: ${content}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il social editor di OffertaLogica.it. Scrivi il testo di lancio di un nuovo articolo usando esclusivamente le informazioni fornite.",
+        "Non duplicare titolo e sommario: apri con il problema o con il punto utile per il lettore e sintetizza in modo naturale perché vale la pena approfondire.",
+        "facebook_text: 220-650 caratteri, 2-4 frasi, tono informativo e concreto, nessun URL perché verrà aggiunto dal sistema.",
+        "instagram_text: 220-800 caratteri, 2-5 frasi, nessun URL e nessun 'link in bio'. Chiudi, se utile, con un invito neutro ad approfondire dal profilo OffertaLogica.",
+        "linkedin_text: 300-900 caratteri, 3-6 frasi. Tono professionale e sostanziale: problema o tesi dell'articolo → elemento concreto utile → perché conta. Nessun URL perché il post LinkedIn userà l'articolo come contenuto collegato.",
+        "Per LinkedIn non usare hashtag-spam, formule motivazionali, linguaggio da vendita o una copia del testo Facebook.",
+        "Non usare emoji, promesse di risparmio, slogan aggressivi o informazioni non presenti nell'articolo.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1200,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_article_intro_social_copy",
+          strict: true,
+          schema: editorialArticleIntroCopySchema(),
+        },
+      },
+    },
+    economics: { activity: "article_intro_social_copy", articleId: article?.id || null },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Asset social articolo: copy AI non interpretabile");
+  }
+  const copy = {
+    facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 850),
+    instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1000),
+    linkedin_text: cleanEditorialSocialCopy(parsed?.linkedin_text, 1200),
+  };
+  if (copy.facebook_text.length < 120 || copy.instagram_text.length < 120 || copy.linkedin_text.length < 180) {
+    throw new Error("Asset social articolo: copy incompleto");
+  }
+  return copy;
+}
+
+async function renderAndUploadEditorialSocialCard({ article, sourceImageUrl, postType, title, summary, label, storageSegment }) {
+  const normalizedSourceImageUrl = String(sourceImageUrl || "").trim();
+  const common = {
+    template_version: EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+    post_type: postType,
+    source_image_url: normalizedSourceImageUrl,
+    label: label || editorialSocialCoverLabel(postType),
+    title: cleanEditorialText(title, 220),
+    summary: cleanEditorialText(summary, 420),
+    alt_text: `Cover OffertaLogica Informa: ${cleanEditorialText(title, 160)}`.slice(0, 180),
+    created_at: new Date().toISOString(),
+  };
+  try {
+    const renderEditorialSocialCard = await editorialSocialCardRenderer();
+    const rendered = await renderEditorialSocialCard({
+      sourceImageUrl: normalizedSourceImageUrl,
+      postType,
+      label: common.label,
+      title,
+      summary,
+    });
+    if (!rendered?.buffer?.length) throw new Error("Cover social: rendering non riuscito");
+    if (rendered.buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("Cover social: file finale oltre 5 MB");
+    const segment = cleanEditorialText(storageSegment, 120).replace(/[^a-zA-Z0-9_-]+/g, "-") || "card";
+    const objectPath = `autopilot/${article.id}/social/${segment}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+    const url = await uploadEditorialImageBuffer(objectPath, rendered.buffer, rendered.mimeType || "image/jpeg");
+    return {
+      ...common,
+      source: "composed",
+      renderer: rendered.renderer || "resvg_wasm",
+      template_version: rendered.templateVersion || EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION,
+      url,
+      object_path: objectPath,
+      mime_type: rendered.mimeType || "image/jpeg",
+      width: rendered.width || 1080,
+      height: rendered.height || 1350,
+    };
+  } catch (error) {
+    const message = String(error?.message || error).slice(0, 500);
+    console.warn("editorial_social_card_renderer_failed", message);
+    throw new Error(`Cover social OL Informa non generata: ${message}`);
+  }
+}
+
+function editorialSocialDestinationContent(html) {
+  const source = String(html || "");
+  const mainMatch = source.match(/<main\b[^>]*>([\s\S]*?)<\/main>/i);
+  const bodyMatch = source.match(/<body\b[^>]*>([\s\S]*?)<\/body>/i);
+  const useful = String(mainMatch?.[1] || bodyMatch?.[1] || source)
+    .replace(/<(script|style|noscript|svg|template|nav|footer|header)\b[^>]*>[\s\S]*?<\/\1>/gi, " ")
+    .replace(/<!--([\s\S]*?)-->/g, " ");
+  return cleanEditorialText(plainHtmlText(useful), 7000);
+}
+
+async function editorialSocialTargetContext(target) {
+  if (!target) return null;
+  const internalUrl = schedulerInternalPageUrl(target.url_path);
+  if (!internalUrl) return {
+    url: null,
+    label: cleanEditorialText(target.label, 180),
+    category: cleanEditorialText(target.category, 80) || null,
+    title: "",
+    h1: "",
+    description: "",
+    content: "",
+  };
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_PAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(internalUrl, {
+      headers: { "User-Agent": "OffertaLogica-Editorial-Social-Asset/1.0" },
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+    const html = (await response.text()).slice(0, TARGET_PAGE_MAX_BYTES);
+    return {
+      url: internalUrl,
+      label: cleanEditorialText(target.label, 180),
+      category: cleanEditorialText(target.category, 80) || null,
+      title: firstTagText(html, "title"),
+      h1: firstTagText(html, "h1"),
+      description: metaDescription(html),
+      content: editorialSocialDestinationContent(html),
+    };
+  } catch {
+    return {
+      url: internalUrl,
+      label: cleanEditorialText(target.label, 180),
+      category: cleanEditorialText(target.category, 80) || null,
+      title: "",
+      h1: "",
+      description: "",
+      content: "",
+    };
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function buildEditorialSocialCoverText(article, item, target, targetContext = null, existingBrief = null) {
+  const destination = target
+    ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
+    : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
+  const input = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    item?.canonical_text ? `Testo canonico del post, solo come contesto: ${cleanEditorialText(item.canonical_text, 1800)}.` : "",
+    existingBrief?.article_takeaway ? `Takeaway editoriale già verificato dell'articolo: ${cleanEditorialText(existingBrief.article_takeaway, 900)}.` : "",
+    existingBrief?.destination_solution ? `Descrizione verificata della funzione OffertaLogica: ${cleanEditorialText(existingBrief.destination_solution, 1000)}.` : "",
+    existingBrief?.facebook_text ? `Copy Facebook già approvato: ${cleanEditorialText(existingBrief.facebook_text, 900)}.` : "",
+    existingBrief?.instagram_text ? `Copy Instagram già approvato: ${cleanEditorialText(existingBrief.instagram_text, 1100)}.` : "",
+    `Destinazione effettiva: ${destination}.`,
+    targetContext?.title ? `Titolo pagina destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 pagina destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione pagina destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+    targetContext?.content ? `Contenuto reale della pagina destinazione: ${cleanEditorialText(targetContext.content, 3500)}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Scrivi solo il titolo e la micro-sintesi per una cover social OffertaLogica. Usa esclusivamente i contenuti forniti.",
+        "La cover deve aggiungere un angolo editoriale, non copiare il titolo dell'articolo e non fare promesse non dimostrate.",
+        "Per article_followup parti dal takeaway editoriale verificato: la micro-sintesi deve dire qualcosa di concreto che il lettore impara o può controllare, non limitarsi a invitare alla lettura.",
+        "Per related parti dal takeaway dell'articolo e dalla descrizione verificata della funzione OffertaLogica: rendi chiaro il passaggio problema → utilità concreta della funzione, senza slogan.",
+        "cover_title: 35-95 caratteri, leggibile anche da solo.",
+        "cover_summary: 90-190 caratteri, una frase autonoma che completa il titolo senza ripeterlo.",
+        "Niente URL, hashtag, emoji o slogan promozionali generici.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 700,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_cover_text",
+          strict: true,
+          schema: editorialSocialCoverTextSchema(),
+        },
+      },
+    },
+    economics: { activity: "social_cover_text", articleId: article?.id || null, socialPlanItemId: item?.id || null },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Cover social: testo AI non interpretabile");
+  }
+  const cover = {
+    cover_title: cleanEditorialText(parsed?.cover_title, 220),
+    cover_summary: cleanEditorialText(parsed?.cover_summary, 420),
+  };
+  if (!editorialSocialBriefHasCover(cover)) throw new Error("Cover social: testo incompleto");
+  return cover;
+}
+
+async function buildEditorialSocialAssetBrief(article, item, target, targetContext = null, qualityGuidance = "", masterVisualContext = null) {
+  const related = String(item?.post_type || "") === "related";
+  const content = cleanEditorialText(article?.content, 7000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const destination = target
+    ? `${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}${target.category ? ` | ${cleanEditorialText(target.category, 80)}` : ""}`
+    : `Articolo OffertaLogica: ${cleanEditorialText(article?.title, 140)}`;
+  const destinationContent = cleanEditorialText(targetContext?.content, 6500);
+  // Previous images are not text references for the FIRST concept; they can anchor the same stock scene.
+  const input = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema piano: ${cleanEditorialText(item?.theme, 240)}.`,
+    item?.brief ? `Brief originale: ${cleanEditorialText(item.brief, 1200)}.` : "",
+    item?.canonical_text ? `Testo canonico esistente, da usare solo come contesto e non da copiare: ${cleanEditorialText(item.canonical_text, 2200)}.` : "",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 320)}.`,
+    content ? `Contenuto completo disponibile dell'articolo: ${content}.` : "",
+    `Destinazione effettiva del post: ${destination}.`,
+    targetContext?.title ? `Titolo reale della pagina di destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 reale della pagina di destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione reale della pagina di destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+    destinationContent ? `Contenuto reale della pagina di destinazione: ${destinationContent}.` : "",
+    // Authenticity requirements are enforced by the photographic standards and the QA.
+    // Do not repeat previous scenes or hero atmosphere here: this is a new visual concept.
+    qualityGuidance ? `Correzione obbligatoria richiesta dalla revisione precedente: ${cleanEditorialText(qualityGuidance, 900)}.` : "",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il social editor senior di OffertaLogica.it. Prepara una base editoriale solida e poi i testi social usando esclusivamente i contenuti forniti.",
+        "Prima costruisci article_takeaway: 220-520 caratteri, 2-4 frasi. Deve spiegare il nucleo utile dell'articolo, includere almeno un elemento concreto che il lettore può riconoscere, verificare o capire meglio e spiegare perché conta. Non deve essere una CTA, un riassunto vago o la copia del titolo/sommario.",
+        related
+          ? "Per destination_solution usa esclusivamente la pagina OffertaLogica fornita: 240-650 caratteri, 2-4 frasi. Descrivi concretamente cosa permette di fare la funzione/pagina, quali dati o azioni dell'utente considera se sono esplicitamente indicati, quale risultato o informazione restituisce e in quale situazione è utile. Se uno di questi elementi non è supportato dalla pagina, omettilo: non inventare funzioni."
+          : "Per article_followup destination_solution deve essere una stringa vuota.",
+        "Il post non deve sembrare il duplicato dell'articolo: sviluppa il takeaway, non ripetere titolo ed excerpt quasi alla lettera.",
+        "Per article_followup il copy deve portare a casa una spiegazione utile anche senza clic: problema o concetto concreto → cosa significa → cosa controllare/capire → invito neutro ad approfondire l'articolo.",
+        "Per related costruisci una connessione esplicita e verificabile: problema concreto emerso nell'articolo → perché conta → funzione reale OffertaLogica pertinente → cosa può fare davvero il lettore con quella funzione. La funzione OffertaLogica deve occupare una parte sostanziale del testo, non una CTA finale generica.",
+        "Per related NON usare formule come 'Soluzione OffertaLogica', 'trovi la soluzione', 'soluzione collegata', 'approfondisci dal profilo', 'scopri come può aiutarti' o equivalenti. Descrivi la funzione reale.",
+        "facebook_text: 320-760 caratteri, 3-5 frasi, apertura concreta, tono informativo, nessun URL perché verrà aggiunto dal sistema.",
+        "instagram_text: 320-900 caratteri, 3-6 frasi, nessun URL e nessun 'link in bio'. Una CTA neutra è ammessa solo dopo aver dato contenuto sostanziale.",
+        "cover_title: 35-95 caratteri. Deve essere naturale, specifico e immediatamente comprensibile anche senza leggere la caption.",
+        "cover_summary: 100-190 caratteri. Deve condensare il takeaway o, per related, il collegamento concreto alla funzione OffertaLogica senza slogan e senza ripetere il titolo.",
+        "Non usare hashtag, emoji, promesse di risparmio, slogan aggressivi, formule promozionali generiche o dettagli non verificabili.",
+        "Il visuale deve essere una nuova fotografia quadrata 1:1 per la cover social OffertaLogica. Condividi con la hero soltanto standard di autenticità, nitidezza e qualità, MA NON ambiente, atmosfera obbligata, gesto, soggetto o composizione.",
+        "Individua un solo soggetto fotografico che renda specifico il post. Per casa e bollette preferisci luce naturale calda e morbida, toni accoglienti e ombre diffuse; per impianti, grandine o maltempo preserva la luce fisicamente plausibile. Non usare persone, tavoli, calcolatrici o lenti come sostituti automatici del tema.",
+        "Prima individua il significato distintivo del post; considera più soluzioni fotografiche pertinenti e scegli quella più comunicativa in una sola immagine. La hero è solo riferimento di qualità, non di regia.",
+        "Rendi il concept fotografico specifico al messaggio di questo post: l'effetto non deve essere intercambiabile con altri post su bollette e risparmio. Non inserire oggetti o persone se non sono necessari al significato.",
+        "visual_subject e visual_scene devono tradurre il significato specifico del post in una situazione reale, non limitarsi a mostrare parole-chiave o oggetti ovvi. Preferisci momenti lifestyle umani ed emotivamente leggibili per scelte domestiche; per grandine, contatori e impianti prevale il soggetto tecnico reale senza persone aggiunte artificialmente.",
+        "Se compaiono documenti, fogli, bollette o contratti devono restare secondari, non leggibili e credibili: mai frontali, mai costruiti come mockup, mai protagonisti se l'articolo non lo richiede davvero.",
+        "Per related il visuale deve rappresentare il problema o l'attività concreta del post; non deve illustrare genericamente una 'soluzione'. Non mostrare loghi, testo, prezzi, bollette leggibili o interfacce inventate.",
+      ].join(" "),
+      input,
+      reasoning: { effort: "low" },
+      max_output_tokens: 2400,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_asset_brief",
+          strict: true,
+          schema: editorialSocialAssetBriefSchema(),
+        },
+      },
+    },
+    economics: { activity: "social_asset_brief", articleId: article?.id || null, socialPlanItemId: item?.id || null },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("Asset social: brief AI non interpretabile");
+  }
+  const brief = {
+    content_version: EDITORIAL_SOCIAL_CONTENT_VERSION,
+    article_takeaway: cleanEditorialText(parsed?.article_takeaway, 900),
+    destination_solution: cleanEditorialText(parsed?.destination_solution, 1000),
+    facebook_text: cleanEditorialSocialCopy(parsed?.facebook_text, 1000),
+    instagram_text: cleanEditorialSocialCopy(parsed?.instagram_text, 1200),
+    cover_title: cleanEditorialText(parsed?.cover_title, 220),
+    cover_summary: cleanEditorialText(parsed?.cover_summary, 420),
+    visual_subject: cleanEditorialText(parsed?.visual_subject, 320),
+    visual_scene: cleanEditorialText(parsed?.visual_scene, 600),
+    must_show: cleanEditorialStringList(parsed?.must_show, 6, 180),
+    must_avoid: cleanEditorialStringList(parsed?.must_avoid, 8, 180),
+    alt_text: cleanEditorialText(parsed?.alt_text, 180),
+    visual_pipeline_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    master_visual_context: masterVisualContext && typeof masterVisualContext === "object" ? masterVisualContext : null,
+  };
+  const foundationReady = brief.article_takeaway.length >= 180
+    && (!related || brief.destination_solution.length >= 180);
+  if (!foundationReady || brief.facebook_text.length < 180 || brief.instagram_text.length < 180 || !editorialSocialBriefHasCover(brief) || !brief.visual_subject || !brief.visual_scene || brief.must_show.length < 2) {
+    throw new Error("Asset social: brief editoriale incompleto");
+  }
+  return brief;
+}
+
+function editorialSocialCopyQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: ["article_takeaway_grounded", "article_takeaway_substantive", "destination_solution_grounded", "destination_solution_specific", "connection_clear", "grounded_in_article", "grounded_in_destination", "specific_not_generic", "natural_professional_language", "cover_clear", "misleading", "reason", "rewrite_guidance"],
+    properties: {
+      article_takeaway_grounded: { type: "boolean" },
+      article_takeaway_substantive: { type: "boolean" },
+      destination_solution_grounded: { type: "boolean" },
+      destination_solution_specific: { type: "boolean" },
+      connection_clear: { type: "boolean" },
+      grounded_in_article: { type: "boolean" },
+      grounded_in_destination: { type: "boolean" },
+      specific_not_generic: { type: "boolean" },
+      natural_professional_language: { type: "boolean" },
+      cover_clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      reason: { type: "string" },
+      rewrite_guidance: { type: "string" },
+    },
+  };
+}
+
+async function evaluateEditorialSocialCopy(article, item, target, targetContext, brief) {
+  const related = String(item?.post_type || "") === "related";
+  const articleContent = cleanEditorialText(article?.content, 7000).replace(/[#*_`>-]+/g, " ").replace(/\s+/g, " ");
+  const destinationContent = cleanEditorialText(targetContext?.content, 6500);
+  const text = [
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Titolo articolo: ${cleanEditorialText(article?.title, 160)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 360)}.`,
+    articleContent ? `Contenuto articolo disponibile al revisore: ${articleContent}.` : "",
+    target ? `Destinazione prevista: ${cleanEditorialText(target.label, 180)} | ${cleanEditorialText(target.url_path, 500)}.` : "Nessuna destinazione diversa dall'articolo.",
+    targetContext?.title ? `Titolo pagina destinazione: ${cleanEditorialText(targetContext.title, 300)}.` : "",
+    targetContext?.h1 ? `H1 pagina destinazione: ${cleanEditorialText(targetContext.h1, 300)}.` : "",
+    targetContext?.description ? `Descrizione pagina destinazione: ${cleanEditorialText(targetContext.description, 500)}.` : "",
+    destinationContent ? `Contenuto reale pagina destinazione: ${destinationContent}.` : "",
+    `Takeaway articolo proposto: ${cleanEditorialText(brief?.article_takeaway, 900)}.`,
+    related ? `Descrizione funzione OffertaLogica proposta: ${cleanEditorialText(brief?.destination_solution, 1000)}.` : "",
+    `Titolo card proposto: ${cleanEditorialText(brief?.cover_title, 220)}.`,
+    `Sintesi card proposta: ${cleanEditorialText(brief?.cover_summary, 420)}.`,
+    `Caption Facebook proposta: ${cleanEditorialText(brief?.facebook_text, 1000)}.`,
+    `Caption Instagram proposta: ${cleanEditorialText(brief?.instagram_text, 1200)}.`,
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei il revisore editoriale finale di OffertaLogica Informa. Sii severo sui fatti ma valuta la qualità editoriale in modo pratico: approva solo testi sostanziosi, chiari e realmente utili.",
+        "article_takeaway_grounded è vero solo se il takeaway è interamente sostenuto dal contenuto dell'articolo e non introduce dettagli plausibili ma non presenti.",
+        "article_takeaway_substantive è vero solo se il takeaway spiega almeno un elemento concreto dell'articolo e perché conta; è falso per riassunti generici, parafrasi del titolo o CTA.",
+        related
+          ? "destination_solution_grounded è vero solo se ogni funzione descritta è sostenuta dal contenuto reale della pagina OffertaLogica fornita. Non inferire funzioni da ciò che il servizio potrebbe fare."
+          : "Per article_followup imposta destination_solution_grounded=true.",
+        related
+          ? "destination_solution_specific è vero solo se il testo spiega concretamente che cosa consente di fare la funzione/pagina e almeno un altro elemento verificabile tra dati/azioni considerate, risultato restituito o situazione d'uso. Un semplice 'confronta/verifica la tua offerta' senza spiegazione non basta."
+          : "Per article_followup imposta destination_solution_specific=true.",
+        related
+          ? "connection_clear è vero solo se il copy collega esplicitamente un problema o punto dell'articolo alla funzione OffertaLogica e spiega perché quella funzione è pertinente."
+          : "Per article_followup connection_clear=true se il copy sviluppa coerentemente il takeaway e rimanda all'articolo.",
+        "grounded_in_article è vero solo se takeaway, titolo, sintesi e caption derivano chiaramente dall'articolo e non introducono affermazioni nuove.",
+        related
+          ? "grounded_in_destination è vero solo se il collegamento e le funzioni OffertaLogica sono verificabili nel contenuto reale della pagina, non soltanto coerenti con il suo nome."
+          : "Per questo post non esiste una destinazione distinta: imposta grounded_in_destination=true se il copy rimanda correttamente all'articolo.",
+        "specific_not_generic è falso se titolo, sintesi o caption potrebbero essere riutilizzati quasi identici per un altro articolo o un'altra funzione OffertaLogica.",
+        "natural_professional_language è falso per formule macchinose, burocratiche, da report o promozionali inserite a forza.",
+        "cover_clear è vero solo se titolo e sintesi della card comunicano già un'informazione utile e specifica, non una CTA travestita da contenuto.",
+        "misleading è vero se il copy promette risultati, risparmi, automatismi o funzioni non dimostrate dalle informazioni fornite.",
+        "Se qualcosa non va, rewrite_guidance deve indicare esattamente quale affermazione togliere, quale parte rendere più concreta e quali elementi verificati usare. Se tutto va bene, rewrite_guidance deve essere vuoto.",
+      ].join(" "),
+      input: text,
+      reasoning: { effort: "low" },
+      max_output_tokens: 1300,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_copy_qa",
+          strict: true,
+          schema: editorialSocialCopyQaSchema(),
+        },
+      },
+    },
+    economics: { activity: "social_copy_qa", articleId: article?.id || null, socialPlanItemId: item?.id || null },
+  });
+  let parsed;
+  try { parsed = JSON.parse(responseOutputText(response)); }
+  catch { throw new Error("QA copy social: risposta AI non interpretabile"); }
+  const passed = parsed?.article_takeaway_grounded === true
+    && parsed?.article_takeaway_substantive === true
+    && parsed?.destination_solution_grounded === true
+    && parsed?.destination_solution_specific === true
+    && parsed?.connection_clear === true
+    && parsed?.grounded_in_article === true
+    && parsed?.grounded_in_destination === true
+    && parsed?.specific_not_generic === true
+    && parsed?.natural_professional_language === true
+    && parsed?.cover_clear === true
+    && parsed?.misleading !== true;
+  return {
+    schema_version: 2,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    article_takeaway_grounded: parsed?.article_takeaway_grounded === true,
+    article_takeaway_substantive: parsed?.article_takeaway_substantive === true,
+    destination_solution_grounded: parsed?.destination_solution_grounded === true,
+    destination_solution_specific: parsed?.destination_solution_specific === true,
+    connection_clear: parsed?.connection_clear === true,
+    grounded_in_article: parsed?.grounded_in_article === true,
+    grounded_in_destination: parsed?.grounded_in_destination === true,
+    specific_not_generic: parsed?.specific_not_generic === true,
+    natural_professional_language: parsed?.natural_professional_language === true,
+    cover_clear: parsed?.cover_clear === true,
+    misleading: parsed?.misleading === true,
+    reason: cleanEditorialText(parsed?.reason, 900),
+    rewrite_guidance: passed ? "" : cleanEditorialText(parsed?.rewrite_guidance, 900),
+  };
+}
+
+function editorialSocialImagePrompt(article, item, target, brief, guidance = "") {
+  const mustShow = cleanEditorialStringList(brief?.must_show, 6, 180).join("; ");
+  const mustAvoid = cleanEditorialStringList(brief?.must_avoid, 8, 180).join("; ");
+  const extra = cleanEditorialText(guidance, 600);
+  return [
+    "Create one entirely new, original high-resolution square editorial photograph from scratch for a static social post by OffertaLogica.it.",
+    "The image must represent the specific post meaning without tracing, copying or inheriting the approved article hero's person, scene, room or props.",
+    `Post type: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Article topic: ${cleanEditorialText(article?.title, 140)}.`,
+    target ? `OffertaLogica destination context: ${cleanEditorialText(target.label, 180)}.` : "",
+    `Post theme: ${cleanEditorialText(item?.theme, 300)}.`,
+    `Post editorial meaning: ${cleanEditorialText(item?.brief, 450)}.`,
+    brief?.article_takeaway ? `Specific article takeaway, for factual meaning only: ${cleanEditorialText(brief.article_takeaway, 500)}.` : "",
+    // A proposed social brief must never impose people, gestures or props as mandatory visible elements.
+    mustAvoid ? `Elements to avoid for this post: ${mustAvoid}.` : "",
+    extra ? `Regeneration guidance: ${extra}.` : "",
+    "Composition: square 1:1 social-feed image with one immediately understandable focal point, a strong but natural crop, believable perspective and natural or practical lighting.",
+    editorialPhotoArtDirection(),
+    editorialAutonomousVisualDirection(),
+    "Translate the meaning of the post into a real situation, action or decision. Do not merely illustrate obvious keywords from the article.",
+    "Preserve professional photographic quality, not the hero's creative concept. Select a new visual story specific to this post; every person, action and prop must have a narrative purpose.",
+    "If people appear, use natural body language and a believable activity; avoid posed stock-advertising expressions, artificial concern gestures or generic lifestyle staging.",
+    "If papers, bills, contracts or structured documents appear, keep them secondary, partially visible and unreadable. Never make a fake-looking document the main subject and never create front-facing mockups full of invented fields.",
+    "Do not add readable text, captions, logos, brand marks, watermarks, prices, fake interfaces or infographic overlays.",
+    "Do not invent a specific real person, company, event, document or measurable result that the supplied context does not establish.",
+    "Do not use thermal-camera or infrared effects, heat-map overlays, glowing energy effects, abstract energy beams, oversized utility meters or generic visual metaphors unless the supplied context explicitly requires them.",
+    "For related posts, visualize the concrete problem or activity from the article, not an abstract 'OffertaLogica solution'; the card text provides the editorial connection.",
+    "The result must look like a credible professional editorial photograph, not an illustration, collage, 3D render, synthetic mockup or interchangeable stock advertisement.",
+  ].filter(Boolean).join(" ");
+}
+
+// La rigenerazione richiesta dall'editor non eredita soggetti, ambientazioni o
+// must_show dalla fotografia precedente: il riferimento e' l'articolo/post.
+function editorialManualSocialImagePrompt(article, item, target, guidance = "") {
+  const editorGuidance = cleanEditorialText(guidance, 600);
+  return [
+    "Create ONE original high-resolution photorealistic square 1:1 editorial photograph for OffertaLogica.it. Think independently as a senior commercial art director, not as an illustrator of keywords.",
+    `Verified article title: ${cleanEditorialText(article?.title, 180)}.`,
+    `Verified article summary: ${cleanEditorialText(article?.excerpt, 420)}.`,
+    `Post theme: ${cleanEditorialText(item?.theme, 300)}.`,
+    `Post message: ${cleanEditorialText(item?.brief, 420)}.`,
+    target ? `Post destination (context only): ${cleanEditorialText(target.label, 140)}.` : "",
+    editorGuidance
+      ? `EDITOR ART DIRECTION — HIGHEST PRIORITY among aesthetic instructions: ${editorGuidance}.`
+      : "Choose autonomously the most emotionally legible, article-specific real-life moment. There is no previous photo to imitate and no default person-at-a-desk preset.",
+    editorialAutonomousVisualDirection(),
+    editorialPhotoArtDirection(),
+    "The article and post constrain factual meaning; visual subject, characters, gesture, room, point of view and composition remain your creative decision except where the editor explicitly specifies them.",
+    "Make the central action understandable even in a small feed thumbnail. No composite, stock-ad clichés, 3D elements, floating text, readable documents or fabricated interfaces.",
+  ].filter(Boolean).join("\n");
+}
+
+async function generateOpenAiSocialImage(article, item, target, brief, guidance = "", options = {}) {
+  // Previous visual scenes are deliberately omitted: negative examples anchor repetitive imagery.
+  const apiKey = env("OPENAI_API_KEY");
+  if (!apiKey) throw new Error("OPENAI_API_KEY non configurata lato server");
+  const model = editorialImageModel();
+  const basePrompt = options?.manualRegeneration === true
+    ? editorialManualSocialImagePrompt(article, item, target, guidance)
+    : editorialSocialImagePrompt(article, item, target, brief, guidance);
+  const prompt = [basePrompt,
+    options?.manualRegeneration && options?.qaCorrection
+      ? `QA CORRECTION — CREATE A FRESH VISUAL CONCEPT, not a cleaned-up copy of the previous photograph. Preserve the verified article meaning and the editor's explicit direction, but choose the subject, action, setting, camera angle and composition independently. The following are failure constraints only, NOT instructions to recreate an earlier scene: ${cleanEditorialText(options.qaCorrection, 900)}.`
+      : "",
+    options?.referenceImage ? "REFERENCE PHOTO: use the uploaded real image as visual guidance for lighting, atmosphere and style, while creating a NEW truthful scene for this post. Do not duplicate or republish the input image. Prioritize the editor's written direction." : "",
+  ].filter(Boolean).join("\n");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_IMAGE_GENERATION_TIMEOUT_MS);
+  let response;
+  try {
+    const reference = options?.referenceImage || null;
+    const form = reference ? new FormData() : null;
+    if (form) {
+      form.append("model", model);
+      form.append("image[]", new Blob([reference.buffer], { type: reference.mime_type }), `reference.${reference.mime_type.split("/")[1] === "jpeg" ? "jpg" : reference.mime_type.split("/")[1]}`);
+      form.append("prompt", prompt);
+      form.append("size", EDITORIAL_SOCIAL_IMAGE_SIZE);
+      form.append("quality", "high");
+      form.append("output_format", "jpeg");
+      form.append("n", "1");
+    }
+    response = await fetch(reference ? "https://api.openai.com/v1/images/edits" : "https://api.openai.com/v1/images/generations", {
+      method: "POST",
+      headers: form ? { Authorization: `Bearer ${apiKey}` } : { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" },
+      body: form || JSON.stringify({ model, prompt, size: EDITORIAL_SOCIAL_IMAGE_SIZE, quality: "high", output_format: "jpeg", n: 1 }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la generazione dell'immagine social: riprova");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+  const payload = await response.json().catch(() => null);
+  await recordEditorialImageAiEconomicEvent({
+    eventId: payload?.id || response.headers?.get?.("x-request-id") || `editorial-social-image:${crypto.randomUUID()}`,
+    response: payload || {},
+    model,
+    outcome: response.ok ? "completed" : "failed",
+    articleId: article?.id || null,
+    socialPlanItemId: item?.id || null,
+    size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+    quality: "high",
+    activity: "social_image",
+  }).catch(() => {});
+  if (!response.ok) throw new Error(payload?.error?.message || `OpenAI Images ${response.status}`);
+  const itemPayload = Array.isArray(payload?.data) ? payload.data[0] : null;
+  let buffer = null;
+  if (itemPayload?.b64_json) buffer = Buffer.from(itemPayload.b64_json, "base64");
+  else if (itemPayload?.url) {
+    const remote = await fetch(itemPayload.url, { cache: "no-store" });
+    if (!remote.ok) throw new Error("Immagine social generata non scaricabile");
+    buffer = Buffer.from(await remote.arrayBuffer());
+  }
+  if (!buffer?.length) throw new Error("OpenAI non ha restituito un'immagine social utilizzabile");
+  if (buffer.length > EDITORIAL_IMAGE_MAX_BYTES) throw new Error("L'immagine social generata supera 5 MB");
+  return { model, prompt, buffer };
+}
+
+function editorialSocialImageQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "relevant_to_article",
+      "relevant_to_destination",
+      "coherent_with_master_visual",
+      "clear",
+      "misleading",
+      "social_quality",
+      "authentic",
+      "clickworthy",
+      "generic_stock",
+      "fake_document_risk",
+      "quality_not_materially_worse_than_article_image",
+      "distinct_from_article_image",
+      "reason",
+      "regeneration_guidance",
+    ],
+    properties: {
+      relevant_to_article: { type: "boolean" },
+      relevant_to_destination: { type: "boolean" },
+      coherent_with_master_visual: { type: "boolean" },
+      clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      social_quality: { type: "boolean" },
+      authentic: { type: "boolean" },
+      clickworthy: { type: "boolean" },
+      generic_stock: { type: "boolean" },
+      fake_document_risk: { type: "boolean" },
+      quality_not_materially_worse_than_article_image: { type: "boolean" },
+      distinct_from_article_image: { type: "boolean" },
+      reason: { type: "string" },
+      regeneration_guidance: { type: "string" },
+    },
+  };
+}
+
+async function evaluateEditorialSocialImage(article, item, target, brief, image, articleImageUrl) {
+  const imageUrl = String(image?.url || "").trim();
+  const heroUrl = String(articleImageUrl || "").trim();
+  if (!/^https:\/\//i.test(imageUrl) || !/^https:\/\//i.test(heroUrl)) throw new Error("QA immagine social: URL non valido");
+  const master = brief?.master_visual_context && typeof brief.master_visual_context === "object" ? brief.master_visual_context : null;
+  const inputText = [
+    "Valuta la prima immagine come visuale quadrato 1:1 di un post social OffertaLogica. La seconda immagine è la hero approvata dell'articolo e rappresenta il benchmark di qualità, autenticità e linguaggio visivo del ciclo.",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 140)}.`,
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema post: ${cleanEditorialText(item?.theme, 240)}.`,
+    target ? `Destinazione OffertaLogica: ${cleanEditorialText(target.label, 180)}.` : "Destinazione: articolo collegato.",
+    "La scena, il protagonista e gli oggetti possono essere scelti liberamente purché comunichino il tema reale del post. Non usare il brief di scena come criterio di somiglianza.",
+    master?.mood ? `Atmosfera master: ${cleanEditorialText(master.mood, 240)}.` : "",
+    master?.lighting ? `Luce master: ${cleanEditorialText(master.lighting, 240)}.` : "",
+    Array.isArray(master?.authenticity_cues) ? `Segnali di autenticità master: ${cleanEditorialStringList(master.authenticity_cues, 6, 180).join("; ")}.` : "",
+    Array.isArray(master?.must_avoid) ? `Rischi visivi da evitare: ${cleanEditorialStringList(master.must_avoid, 8, 180).join("; ")}.` : "",
+    "Criteri obbligatori: pertinenza specifica all'articolo e al post, scena comprensibile a colpo d'occhio, autenticità fotografica, qualità editoriale da feed, capacità di attirare l'attenzione senza sembrare pubblicità, assenza di elementi fuorvianti o palesemente sintetici.",
+    "Per interni domestici verifica luce naturale CALDA e MORBIDA, ombre diffuse, bianchi e incarnati realistici e atmosfera accogliente: un tavolo marrone sotto luce fredda/dura non basta. La luce fredda o tempestosa e' appropriata per maltempo o scena tecnica, se coerente con il tema. Se il visual ignora la regia luminosa valuta social_quality e clickworthy come false e spiega la causa visibile.",
+    "coherent_with_master_visual è vero se la nuova immagine mantiene la qualità fotografica e credibilità della hero: soggetto, gesto, persona, stanza e inquadratura possono essere diversi.",
+    "generic_stock è vero se la scena è intercambiabile con molti altri articoli, troppo posata, pubblicitaria o costruita attorno a cliché generici.",
+    "fake_document_risk è vero se bollette, contratti, moduli o fogli risultano centrali, frontali, artificialmente leggibili o palesemente inventati. Se i documenti sono secondari, parziali e non leggibili, non penalizzarli.",
+    "quality_not_materially_worse_than_article_image è vero solo se la prima immagine non mostra un calo evidente di realismo, composizione, credibilità o forza editoriale rispetto alla seconda.",
+    "distinct_from_article_image è solo informativo: indica se la variante è visivamente diversa, ma NON è un requisito per l'approvazione. Non bocciare mai un'immagine soltanto perché è simile alla hero.",
+    "Se un criterio obbligatorio fallisce, regeneration_guidance deve spiegare concretamente come recuperare qualità e attinenza usando il linguaggio della hero; altrimenti deve essere vuoto.",
+  ].filter(Boolean).join(" ");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Agisci come photo editor social senior e severo. La priorità è qualità editoriale e attinenza, non la novità a tutti i costi.",
+        "Usa la hero approvata esclusivamente come benchmark di qualità fotografica. Non premiare la somiglianza di protagonista, stanza o gesto: giudica pertinenza specifica, chiarezza emotiva, luce credibile e autonomia narrativa del post.",
+        "Non approvare immagini genericamente pertinenti, stock, artificiali o con documenti sintetici protagonisti.",
+      ].join(" "),
+      input: [{
+        role: "user",
+        content: [
+          { type: "input_text", text: inputText },
+          { type: "input_image", image_url: imageUrl, detail: "high" },
+          { type: "input_image", image_url: heroUrl, detail: "high" },
+        ],
+      }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 1600,
+      store: false,
+      text: {
+        format: {
+          type: "json_schema",
+          name: "offertalogica_social_image_qa",
+          strict: true,
+          schema: editorialSocialImageQaSchema(),
+        },
+      },
+    },
+    economics: { activity: "social_image_qa", articleId: article?.id || null, socialPlanItemId: item?.id || null },
+  });
+  let parsed;
+  try {
+    parsed = JSON.parse(responseOutputText(response));
+  } catch {
+    throw new Error("QA immagine social: risposta AI non interpretabile");
+  }
+  const relevantArticle = parsed?.relevant_to_article === true;
+  const relevantDestination = parsed?.relevant_to_destination === true;
+  const coherentWithMaster = parsed?.coherent_with_master_visual === true;
+  const clear = parsed?.clear === true;
+  const misleading = parsed?.misleading === true;
+  const socialQuality = parsed?.social_quality === true;
+  const authentic = parsed?.authentic === true;
+  const clickworthy = parsed?.clickworthy === true;
+  const genericStock = parsed?.generic_stock === true;
+  const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const qualityNotWorse = parsed?.quality_not_materially_worse_than_article_image === true;
+  const distinct = parsed?.distinct_from_article_image === true;
+  const passed = relevantArticle
+    && relevantDestination
+    && coherentWithMaster
+    && clear
+    && !misleading
+    && socialQuality
+    && authentic
+    && clickworthy
+    && !genericStock
+    && !fakeDocumentRisk
+    && qualityNotWorse;
+  return {
+    schema_version: 2,
+    visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    relevant_to_article: relevantArticle,
+    relevant_to_destination: relevantDestination,
+    coherent_with_master_visual: coherentWithMaster,
+    clear,
+    misleading,
+    social_quality: socialQuality,
+    authentic,
+    clickworthy,
+    generic_stock: genericStock,
+    fake_document_risk: fakeDocumentRisk,
+    quality_not_materially_worse_than_article_image: qualityNotWorse,
+    distinct_from_article_image: distinct,
+    reason: cleanEditorialText(parsed?.reason, 700) || (passed ? "Visuale social coerente con la qualità e il linguaggio visivo della hero approvata." : "QA visuale social non superata."),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 700),
+  };
+}
+
+// QA isolata per le candidate rigenerate manualmente: non usa la hero o il
+// vecchio brief di scena come soggetto da replicare. La hero e' irrilevante
+// per approvare una variante che racconta correttamente l'articolo.
+function editorialManualSocialImageQaSchema() {
+  return {
+    type: "object",
+    additionalProperties: false,
+    required: [
+      "relevant_to_article", "relevant_to_post", "editor_guidance_respected",
+      "clear", "misleading", "social_quality", "authentic", "clickworthy",
+      "generic_stock", "fake_document_risk", "distinct_from_previous_candidate", "reason", "regeneration_guidance",
+    ],
+    properties: {
+      relevant_to_article: { type: "boolean" },
+      relevant_to_post: { type: "boolean" },
+      editor_guidance_respected: { type: "boolean" },
+      clear: { type: "boolean" },
+      misleading: { type: "boolean" },
+      social_quality: { type: "boolean" },
+      authentic: { type: "boolean" },
+      clickworthy: { type: "boolean" },
+      generic_stock: { type: "boolean" },
+      fake_document_risk: { type: "boolean" },
+      distinct_from_previous_candidate: { type: "boolean" },
+      reason: { type: "string" },
+      regeneration_guidance: { type: "string" },
+    },
+  };
+}
+
+async function evaluateEditorialManualSocialImage(article, item, target, image, guidance = "", previousCandidateUrl = "") {
+  const imageUrl = String(image?.url || "").trim();
+  if (!/^https:\/\//i.test(imageUrl)) throw new Error("QA immagine social: URL candidato non valido");
+  const comparisonUrl = String(previousCandidateUrl || "").trim();
+  if (comparisonUrl && (!/^https:\/\//i.test(comparisonUrl) || comparisonUrl === imageUrl)) {
+    throw new Error("QA immagine social: riferimento di confronto non valido");
+  }
+  const comparing = Boolean(comparisonUrl);
+  const editorialGuidance = cleanEditorialText(guidance, 600);
+  const articleBody = cleanEditorialText(article?.content, 3600).replace(/<[^>]+>/g, " ").replace(/\s+/g, " ");
+  const inputText = [
+    comparing
+      ? "La PRIMA immagine e' la nuova candidata; la SECONDA e' la candidata precedente bocciata. Valuta prima la nuova foto per pertinenza e autenticita', poi confronta le due per capire se la regia e' cambiata sostanzialmente."
+      : "Valuta la fotografia per il contenuto editoriale dell'articolo e del post: non ci sono immagini precedenti da confrontare.",
+    `Titolo articolo: ${cleanEditorialText(article?.title, 200)}.`,
+    `Sommario articolo: ${cleanEditorialText(article?.excerpt, 600)}.`,
+    articleBody ? `Contesto verificato: ${articleBody}.` : "",
+    `Tipo post: ${cleanEditorialText(item?.post_type, 40)}.`,
+    `Tema post: ${cleanEditorialText(item?.theme, 360)}.`,
+    `Brief editoriale post: ${cleanEditorialText(item?.brief, 800)}.`,
+    `Testo del post: ${cleanEditorialText(item?.canonical_text, 1400)}.`,
+    target ? `Destinazione OffertaLogica: ${cleanEditorialText(target.label, 180)}.` : "",
+    editorialGuidance
+      ? `ISTRUZIONI ATTUALI DELL'EDITOR (prioritarie per le scelte fotografiche): ${editorialGuidance}.`
+      : "Nessuna preferenza visiva nuova: scegli una scena pertinente e specifica.",
+    "relevant_to_article: la fotografia rappresenta un fatto, problema, azione o situazione credibile e specifica dell'articolo.",
+    "relevant_to_post: la scena supporta il messaggio di questo post; non deve rappresentare letteralmente la destinazione commerciale.",
+    "editor_guidance_respected: verifica le preferenze di soggetto, azione, ambientazione, luce, palette e inquadratura indicate dall'editor, purché compatibili con il contenuto. Senza preferenze esplicite imposta true.",
+    "Valuta autenticita' fotografica, leggibilita', qualita' editoriale, interesse visivo, assenza di documenti finti protagonisti o testo inventato e assenza di elementi fuorvianti.",
+    "Per scene domestiche di offerte e bollette verifica morbidezza e temperatura CALDA della luce naturale, ombre dolci, atmosfera vissuta e soggetto dominante. Un legno caldo non compensa luce fredda, dura o piatta; un filtro arancione artificiale non e' autenticita'. Per eventi atmosferici o impianti e per indicazioni esplicite dell'editor sono ammesse luci diverse. Se l'illuminazione richiesta manca, social_quality e clickworthy non devono risultare veri.",
+    "NON richiedere un volto, un'eta', un genere, una posa, un oggetto, una stanza o un'emozione presenti in precedenti fotografie o nelle indicazioni del primo tentativo.",
+    "La diversita' di protagonista e ambientazione e' ammessa e desiderabile quando mantiene coerenza con l'articolo; non e' di per se' causa di bocciatura.",
+    comparing
+      ? "distinct_from_previous_candidate: vero solo se la nuova fotografia propone una regia visiva sostanzialmente differente (azione, situazione, prospettiva o composizione); cambiare soltanto persona, vestiti, luce o piccoli oggetti mantenendo lo stesso schema non basta. Non premiare la diversita' se sacrifica la fedelta' ai fatti o contraddice la regia esplicita dell'editor. Quando una regia dell'editor impone necessariamente la stessa scena, valuta l'effettivo margine di variazione senza bocciarla per l'impossibilita' di cambiare soggetto."
+      : "distinct_from_previous_candidate: imposta true; non e' disponibile una foto precedente da confrontare.",
+    "Se bocci, spiega i DIFETTI EFFETTIVAMENTE VISIBILI e quali criteri sono falliti. regeneration_guidance deve elencare esclusivamente difetti o vincoli di autenticita'/qualita' da rispettare, senza proporre persone, oggetti, luoghi, pose, ambienti o composizioni per la nuova fotografia.",
+  ].filter(Boolean).join("\n");
+  const response = await openAiResponseRequest("", {
+    method: "POST",
+    body: {
+      model: editorialAiModel(),
+      instructions: [
+        "Sei un photo editor senior. Questa e' una rigenerazione richiesta manualmente dall'editor.",
+        "Considera l'articolo, il testo del post e le nuove istruzioni editoriali come uniche fonti dei requisiti di contenuto e scena.",
+        "Il vecchio protagonista, l'ambiente e la hero NON sono vincoli. Non richiedere la loro somiglianza per approvare.",
+        "Se e' fornita una candidata precedente, confronta davvero le due scene, non soltanto la lista di oggetti. Nessuna differenza cosmetica deve essere scambiata per una nuova regia.",
+        "Non approvare foto inventate, fuorvianti, stock generico o con documenti finti in primo piano. Nelle istruzioni di correzione non prescrivere una scena sostitutiva.",
+      ].join(" "),
+      input: [{ role: "user", content: [
+        { type: "input_text", text: inputText },
+        { type: "input_image", image_url: imageUrl, detail: "high" },
+        ...(comparing ? [{ type: "input_image", image_url: comparisonUrl, detail: "high" }] : []),
+      ] }],
+      reasoning: { effort: "low" },
+      max_output_tokens: 1400,
+      store: false,
+      text: { format: { type: "json_schema", name: "offertalogica_manual_social_image_qa", strict: true, schema: editorialManualSocialImageQaSchema() } },
+    },
+    economics: { activity: "social_image_qa", articleId: article?.id || null, socialPlanItemId: item?.id || null },
+  });
+  let parsed;
+  try { parsed = JSON.parse(responseOutputText(response)); }
+  catch { throw new Error("QA immagine social manuale: risposta AI non interpretabile"); }
+  const relevantArticle = parsed?.relevant_to_article === true;
+  const relevantPost = parsed?.relevant_to_post === true;
+  const guidanceRespected = parsed?.editor_guidance_respected === true;
+  const clear = parsed?.clear === true;
+  const misleading = parsed?.misleading === true;
+  const socialQuality = parsed?.social_quality === true;
+  const authentic = parsed?.authentic === true;
+  const clickworthy = parsed?.clickworthy === true;
+  const genericStock = parsed?.generic_stock === true;
+  const fakeDocumentRisk = parsed?.fake_document_risk === true;
+  const distinctFromPrevious = parsed?.distinct_from_previous_candidate === true;
+  const passed = relevantArticle && relevantPost && guidanceRespected && clear && !misleading
+    && socialQuality && authentic && clickworthy && !genericStock && !fakeDocumentRisk
+    && (!comparing || distinctFromPrevious);
+  return {
+    schema_version: 4,
+    visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+    evaluation_basis: comparing ? "article_post_editor_guidance_previous_candidate" : "article_post_editor_guidance",
+    status: passed ? "passed" : "failed",
+    evaluated_at: new Date().toISOString(),
+    model: editorialAiModel(),
+    relevant_to_article: relevantArticle,
+    relevant_to_post: relevantPost,
+    editor_guidance_respected: guidanceRespected,
+    clear, misleading, social_quality: socialQuality, authentic, clickworthy: clickworthy,
+    generic_stock: genericStock, fake_document_risk: fakeDocumentRisk,
+    distinct_from_previous_candidate: comparing ? distinctFromPrevious : null,
+    compared_to_candidate_url: comparing ? comparisonUrl : null,
+    reason: cleanEditorialText([
+      cleanEditorialText(parsed?.reason, 580) || (passed ? "Fotografia pertinente al contenuto editoriale e alle indicazioni correnti." : "QA fotografica non superata."),
+      comparing && !distinctFromPrevious ? "Regia troppo simile alla candidata precedente: non basta cambiare volto, vestiti o accessori." : "",
+    ].filter(Boolean).join(" "), 700),
+    regeneration_guidance: passed ? "" : cleanEditorialText(parsed?.regeneration_guidance, 700),
+  };
+}
+
+function editorialFallbackSourceText(value, maxChars = 12000) {
+  return cleanEditorialText(value, maxChars)
+    .replace(/<script\b[^>]*>[\s\S]*?<\/script>/gi, " ")
+    .replace(/<style\b[^>]*>[\s\S]*?<\/style>/gi, " ")
+    .replace(/<[^>]+>/g, " ")
+    .replace(/!\[[^\]]*\]\([^)]+\)/g, " ")
+    .replace(/\[([^\]\n]+)\]\([^)]+\)/g, "$1")
+    .replace(/[#*_`~>|]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function editorialFallbackSentences(value, maxChars = 520, maxSentences = 3) {
+  const clean = cleanEditorialText(value, Math.max(maxChars * 4, 1600))
+    .replace(/[#*_`>-]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  if (!clean) return "";
+  const sentences = clean.match(/[^.!?]+[.!?]?/g) || [clean];
+  const selected = [];
+  for (const sentence of sentences) {
+    const normalized = String(sentence || "").replace(/\s+/g, " ").trim();
+    if (!normalized) continue;
+    const candidate = [...selected, normalized].join(" ").trim();
+    if (candidate.length > maxChars && selected.length) break;
+    selected.push(normalized);
+    if (selected.length >= maxSentences) break;
+  }
+  let out = selected.join(" ").trim() || clean;
+  if (out.length > maxChars) {
+    const clipped = out.slice(0, maxChars + 1);
+    const boundary = clipped.lastIndexOf(" ");
+    out = clipped.slice(0, boundary >= Math.floor(maxChars * 0.72) ? boundary : maxChars).trim();
+    out = out.replace(/[,:;\-–—]+$/g, "").trim();
+    if (out && !/[.!?]$/.test(out)) out += ".";
+  }
+  return out;
+}
+
+function editorialFallbackCoverText(article, item, target, articleTakeaway, destinationSolution) {
+  const related = String(item?.post_type || "") === "related";
+  const sourceTitle = cleanEditorialText(article?.title, 180) || "Approfondimento OffertaLogica";
+  let coverTitle = sourceTitle;
+  if (coverTitle.length > 95) coverTitle = editorialFallbackSentences(coverTitle, 92, 1).replace(/[.!?]$/g, "");
+  if (coverTitle.length < 35) {
+    const prefix = related && target?.label ? `${cleanEditorialText(target.label, 45)}: ` : "Da sapere: ";
+    coverTitle = cleanEditorialText(`${prefix}${coverTitle}`, 95);
+  }
+  let coverSummary = editorialFallbackSentences(
+    related ? [articleTakeaway, destinationSolution].filter(Boolean).join(" ") : articleTakeaway,
+    188,
+    2,
+  );
+  if (coverSummary.length < 90) {
+    const source = cleanEditorialText(article?.excerpt || article?.content || sourceTitle, 900);
+    coverSummary = editorialFallbackSentences(`${coverSummary} ${source}`.trim(), 188, 2);
+  }
+  if (coverSummary.length < 70) {
+    coverSummary = cleanEditorialText(`${coverSummary} L'articolo spiega il contesto e i controlli utili per interpretare correttamente il tema.`, 188);
+  }
+  return { cover_title: coverTitle, cover_summary: coverSummary };
+}
+
+function buildEditorialGroundedCopyFallback(article, item, target, targetContext, brief = {}) {
+  const related = String(item?.post_type || "") === "related";
+  // Non riutilizzare i campi AI appena bocciati dalla QA: il fallback deve dipendere
+  // soltanto dalle fonti reali per non reintrodurre affermazioni non verificate.
+  const articleSource = editorialFallbackSourceText([article?.content, article?.excerpt, article?.title].filter(Boolean).join(" "));
+  const articleTakeaway = editorialFallbackSentences(articleSource, 520, 3)
+    || cleanEditorialText(article?.title, 180);
+  const solutionSource = editorialFallbackSourceText([
+    targetContext?.content,
+    targetContext?.description,
+    targetContext?.h1,
+    targetContext?.title,
+  ].filter(Boolean).join(" "));
+  const destinationSolution = related
+    ? editorialFallbackSentences(solutionSource, 620, 3)
+    : "";
+  const articleName = cleanEditorialText(article?.title, 180);
+  const destinationName = cleanEditorialText(target?.label || targetContext?.label, 160);
+
+  const followupCore = [
+    articleTakeaway,
+    articleName ? `L'approfondimento «${articleName}» raccoglie il contesto e i controlli descritti nell'articolo.` : "",
+  ].filter(Boolean).join(" ");
+  const relatedCore = [
+    articleTakeaway,
+    destinationName && destinationSolution ? `Nella sezione ${destinationName}, ${destinationSolution}` : destinationSolution,
+  ].filter(Boolean).join(" ");
+  const core = related ? relatedCore : followupCore;
+  const facebookText = cleanEditorialSocialCopy(core, 1000);
+  const instagramText = cleanEditorialSocialCopy(core, 1200);
+  const cover = editorialFallbackCoverText(article, item, target, articleTakeaway, destinationSolution);
+
+  return {
+    ...brief,
+    content_version: EDITORIAL_SOCIAL_CONTENT_VERSION,
+    article_takeaway: articleTakeaway,
+    destination_solution: destinationSolution,
+    facebook_text: facebookText.length >= 180 ? facebookText : cleanEditorialSocialCopy(`${core} Nell'articolo completo trovi il quadro e le verifiche descritte dalla Redazione.`, 1000),
+    instagram_text: instagramText.length >= 180 ? instagramText : cleanEditorialSocialCopy(`${core} L'articolo completo raccoglie il quadro e le verifiche descritte dalla Redazione.`, 1200),
+    ...cover,
+  };
+}
+
+async function schedulerPrepareMissingSocialAsset(user, options = {}) {
+  const targetPlatforms = Array.isArray(options?.targetPlatforms)
+    ? [...new Set(options.targetPlatforms.map((value) => String(value || "")).filter((value) => EDITORIAL_SOCIAL_PLATFORMS.has(value)))]
+    : null;
+  const targetPostType = ["article_intro", "article_followup", "related"].includes(String(options?.targetPostType || ""))
+    ? String(options.targetPostType)
+    : "";
+  const selectedOnly = options?.selectedOnly === true;
+  const statusFilter = selectedOnly ? "eq.selected" : "in.(selected,completed)";
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=${statusFilter}&opportunity_type=eq.new_article&order=updated_at.asc&limit=80`);
+  // Il ciclo editoriale corrente ha priorita' sulle rigenerazioni manuali di cicli gia' chiusi:
+  // un vecchio post non deve mai impedire bozza/pubblicazione/follow-up del nuovo articolo.
+  const orderedRows = [...(rows || [])].sort((left, right) => {
+    const rank = (row) => String(row?.status || "") === "selected" ? 0 : 1;
+    return rank(left) - rank(right);
+  });
+  for (const opportunity of orderedRows) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const regeneration = evidence?.social_regeneration && typeof evidence.social_regeneration === "object" ? evidence.social_regeneration : null;
+    const regenerationItemId = validUuid(String(regeneration?.item_id || "")) && ["requested", "preparing"].includes(String(regeneration?.status || ""))
+      ? String(regeneration.item_id)
+      : "";
+    if (String(opportunity.status || "") === "completed" && !regenerationItemId) continue;
+    if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+
+    // La preparazione social deve seguire lo stato attuale del ciclo, non soltanto
+    // l'origine storica dell'ultimo job di generazione articolo. Una revisione manuale
+    // riconsegnata all'Autopilota, un ciclo legacy gia' pubblicato e riconosciuto oppure
+    // una rigenerazione social richiesta esplicitamente devono continuare a essere
+    // lavorati dagli heartbeat anche se article_generation_job.source non e' "scheduler".
+    const schedulerGenerated = String(evidence?.article_generation_job?.source || "") === "scheduler";
+    const handedBackToAutopilot = articleAutomationHandoffMatches(opportunity, article);
+    const publishedLegacyCycle = Boolean(
+      String(opportunity.status || "") === "selected"
+      && String(article.status || "") === "published"
+      && String(opportunity.target_article_id || "") === String(article.id || "")
+      && String(evidence?.article_generation?.status || "") === "draft_ready_for_review"
+    );
+    const explicitSocialRegeneration = Boolean(regenerationItemId);
+    if (!schedulerGenerated && !handedBackToAutopilot && !publishedLegacyCycle && !explicitSocialRegeneration) continue;
+    const articleImage = articleImageState(opportunity);
+    const heroAsset = articleImage.current?.url
+      ? articleImage.current
+      : (String(articleImage.candidate?.qa?.status || "") === "passed" ? articleImage.candidate : null);
+    const articleImageUrl = String(heroAsset?.url || article.featured_image_url || "").trim();
+    if (!/^https:\/\//i.test(articleImageUrl)) continue;
+
+    const state = editorialSocialAssetsState(opportunity);
+
+    const articleFeaturedImageUrl = String(article.featured_image_url || "").trim();
+    const introImageUrl = /^https:\/\//i.test(articleFeaturedImageUrl) ? articleFeaturedImageUrl : articleImageUrl;
+    const introFingerprint = editorialArticleIntroAssetFingerprint(article, introImageUrl);
+    const introNeedsMetaCard = targetPlatforms === null
+      ? true
+      : targetPlatforms.some((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(platform));
+    const introCopyCurrent = Boolean(
+      state.article_intro?.copy?.facebook_text
+      && state.article_intro?.copy?.instagram_text
+      && state.article_intro?.copy?.linkedin_text
+    );
+    const introCardCurrent = Boolean(
+      /^https:\/\//i.test(String(state.article_intro?.card?.url || ""))
+      && String(state.article_intro?.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+      && String(state.article_intro?.card?.source || "") === "composed"
+      && String(state.article_intro?.card?.renderer || "") === "resvg_wasm"
+    );
+    const introAlreadyCurrent = Boolean(
+      state.article_intro?.fingerprint === introFingerprint
+      && String(state.article_intro?.status || "") === "ready"
+      && introCopyCurrent
+      && (!introNeedsMetaCard || introCardCurrent)
+    );
+
+    // Prepara la stessa cover editoriale anche dopo la pubblicazione se manca o e' stale:
+    // evita che un article_intro resti bloccato in waiting_assets quando articolo e social
+    // vengono schedulati nello stesso ciclo.
+    if ((!targetPostType || targetPostType === "article_intro") && !regenerationItemId && (String(article.status || "") !== "published" || !introAlreadyCurrent)) {
+      let intro = state.article_intro && state.article_intro.fingerprint === introFingerprint
+        ? state.article_intro
+        : {
+            schema_version: 2,
+            article_id: article.id,
+            fingerprint: introFingerprint,
+            source_article: {
+              title: article.title || "",
+              excerpt: article.excerpt || "",
+              featured_image_url: introImageUrl,
+            },
+            copy: null,
+            card: null,
+            card_history: [],
+            status: "pending",
+            updated_at: new Date().toISOString(),
+          };
+
+      if (!intro.copy?.facebook_text || !intro.copy?.instagram_text || !intro.copy?.linkedin_text) {
+        const copy = await buildEditorialArticleIntroCopy(article);
+        intro = { ...intro, copy, status: "copy_ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_copy_generated", opportunity_id: opportunity.id, article_id: article.id };
+      }
+
+      const introCardValid = Boolean(
+        /^https:\/\//i.test(String(intro.card?.url || ""))
+        && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(intro.card?.source || "") === "composed"
+        && String(intro.card?.renderer || "") === "resvg_wasm"
+        && String(intro.card?.source_image_url || "") === introImageUrl
+        && String(intro.card?.title || "") === cleanEditorialText(article.title, 220)
+        && String(intro.card?.summary || "") === cleanEditorialText(article.excerpt, 420)
+      );
+      if (introNeedsMetaCard && !introCardValid) {
+        const card = await renderAndUploadEditorialSocialCard({
+          article,
+          sourceImageUrl: introImageUrl,
+          postType: "article_intro",
+          title: article.title,
+          summary: article.excerpt,
+          label: editorialSocialCoverLabel("article_intro"),
+          storageSegment: "article-intro",
+        });
+        const cardHistory = intro.card?.url
+          ? [...(Array.isArray(intro.card_history) ? intro.card_history : []), { ...intro.card, outcome: "superseded", archived_at: new Date().toISOString() }].slice(-3)
+          : (Array.isArray(intro.card_history) ? intro.card_history : []);
+        intro = { ...intro, card, card_history: cardHistory, status: "ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_card_generated", opportunity_id: opportunity.id, article_id: article.id, template_version: card.template_version };
+      }
+
+      if (String(intro.status || "") !== "ready") {
+        intro = { ...intro, status: "ready", updated_at: new Date().toISOString() };
+        state.article_intro = intro;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "article_intro_social_ready", opportunity_id: opportunity.id, article_id: article.id };
+      }
+    }
+
+    if (targetPostType === "article_intro") continue;
+
+    const items = await serviceFetch(
+      `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&status=in.(draft,approved,failed)&order=created_at.asc&limit=20`,
+    );
+    let masterVisualContext = editorialMasterVisualContextCurrent(state, article, articleImageUrl)
+      ? state.master_visual_context
+      : null;
+    if ((items || []).some((item) => ["article_followup", "related"].includes(String(item?.post_type || ""))) && !masterVisualContext) {
+      masterVisualContext = await buildEditorialMasterVisualContext(article, opportunity, heroAsset, articleImageUrl);
+      state.master_visual_context = masterVisualContext;
+      await saveEditorialSocialAssetsState(user, opportunity, state);
+      return {
+        action: "social_master_visual_context_ready",
+        opportunity_id: opportunity.id,
+        article_id: article.id,
+        visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+        source: masterVisualContext.source || null,
+      };
+    }
+    for (const item of items || []) {
+      if (!["article_followup", "related"].includes(String(item.post_type || ""))) continue;
+      if (targetPostType && String(item.post_type || "") !== targetPostType) continue;
+      if (regenerationItemId && String(item.id || "") !== regenerationItemId) continue;
+      const target = await editorialSocialAssetTarget(item);
+      const fingerprint = editorialSocialAssetFingerprint(article, item, target, articleImageUrl);
+      let asset = state.items[item.id] && state.items[item.id].fingerprint === fingerprint
+        ? state.items[item.id]
+        : {
+            ...(state.items[item.id]?.manual_image_candidate?.source === "manual_upload"
+              ? { manual_image_candidate: state.items[item.id].manual_image_candidate } : {}),
+            schema_version: 2,
+            plan_item_id: item.id,
+            post_type: item.post_type,
+            fingerprint,
+            source_item: {
+              post_type: item.post_type || null,
+              destination_target_id: item.destination_target_id || null,
+              theme: item.theme || "",
+              brief: item.brief || "",
+              canonical_text: item.canonical_text || "",
+            },
+            target: target ? { id: target.id, label: target.label, url_path: target.url_path, category: target.category || null } : null,
+            brief: null,
+            image: null,
+            card: null,
+            history: [],
+            card_history: [],
+            status: "pending",
+            updated_at: new Date().toISOString(),
+          };
+
+      if (!asset.brief) {
+        const targetContext = await editorialSocialTargetContext(target);
+        if (String(item.post_type || "") === "related" && !cleanEditorialText([targetContext?.title, targetContext?.h1, targetContext?.description, targetContext?.content].filter(Boolean).join(" "), 1200)) {
+          throw new Error("Asset social related: pagina OffertaLogica di destinazione non verificabile; pubblicazione bloccata");
+        }
+        let brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, "", masterVisualContext);
+        let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        let copyRewriteAttempts = 0;
+        if (copyQa.status !== "passed") {
+          const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi con un angolo più concreto, naturale e specifico.";
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance, masterVisualContext);
+          copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+          copyRewriteAttempts = 1;
+        }
+        brief = { ...brief, copy_qa: copyQa };
+        const copyReady = copyQa.status === "passed";
+        asset = { ...asset, schema_version: 2, brief, target_context: targetContext, copy_rewrite_attempts: copyRewriteAttempts, status: copyReady ? "brief_ready" : "human_review_required", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return {
+          action: copyReady ? "social_asset_brief_generated" : "social_asset_copy_human_review_required",
+          opportunity_id: opportunity.id,
+          article_id: article.id,
+          social_plan_item_id: item.id,
+          post_type: item.post_type,
+          copy_qa: copyQa,
+        };
+      }
+
+      if (asset.brief?.copy_qa && String(asset.brief.copy_qa.status || "") !== "passed") {
+        // Un copy gia' bocciato non deve restare bloccato per sempre.
+        // Le versioni precedenti facevano un solo rewrite immediato e poi lasciavano
+        // l'asset in human_review_required a ogni heartbeat successivo.
+        // Prima rivalutiamo il copy con il contenuto completo dell'articolo; se serve,
+        // applichiamo ancora la rewrite_guidance, con un limite complessivo di 3 rewrite.
+        const targetContext = asset.target_context || await editorialSocialTargetContext(target);
+        let brief = { ...asset.brief };
+        let copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+        let copyRewriteAttempts = Number.isFinite(Number(asset.copy_rewrite_attempts))
+          ? Math.max(0, Number(asset.copy_rewrite_attempts))
+          : 1;
+        if (copyQa.status !== "passed" && copyRewriteAttempts < 3) {
+          const guidance = copyQa.rewrite_guidance || copyQa.reason || "Riscrivi eliminando ogni affermazione non esplicitamente supportata dall'articolo.";
+          brief = await buildEditorialSocialAssetBrief(article, item, target, targetContext, guidance, masterVisualContext);
+          copyQa = await evaluateEditorialSocialCopy(article, item, target, targetContext, brief);
+          copyRewriteAttempts += 1;
+        }
+        let copyFallbackApplied = false;
+        if (copyQa.status !== "passed" && copyRewriteAttempts >= 3) {
+          brief = buildEditorialGroundedCopyFallback(article, item, target, targetContext, brief);
+          copyQa = {
+            ...copyQa,
+            schema_version: 2,
+            status: "passed",
+            evaluated_at: new Date().toISOString(),
+            model: null,
+            reason: "Fallback deterministico: copy ricostruito esclusivamente da articolo e contenuto reale della destinazione dopo tre revisioni AI non concluse.",
+            rewrite_guidance: "",
+            fallback_mode: "deterministic_grounded",
+          };
+          copyFallbackApplied = true;
+        }
+        brief = { ...brief, copy_qa: copyQa };
+        const copyReady = copyQa.status === "passed";
+        asset = {
+          ...asset,
+          schema_version: 2,
+          brief,
+          target_context: targetContext,
+          copy_rewrite_attempts: copyRewriteAttempts,
+          copy_fallback_applied: copyFallbackApplied || asset.copy_fallback_applied === true,
+          status: copyReady ? "brief_ready" : "human_review_required",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return {
+          action: copyReady ? "social_asset_copy_recovered" : "social_asset_copy_human_review_required",
+          opportunity_id: opportunity.id,
+          article_id: article.id,
+          social_plan_item_id: item.id,
+          post_type: item.post_type,
+          copy_qa: copyQa,
+          copy_rewrite_attempts: copyRewriteAttempts,
+        };
+      }
+
+      if (!editorialSocialBriefHasCover(asset.brief)) {
+        const targetContext = asset.target_context || await editorialSocialTargetContext(target);
+        const cover = await buildEditorialSocialCoverText(article, item, target, targetContext, asset.brief);
+        asset = {
+          ...asset,
+          schema_version: 2,
+          brief: { ...asset.brief, ...cover },
+          target_context: targetContext,
+          card: null,
+          status: String(asset.image?.qa?.status || "") === "passed" ? "card_pending" : "brief_ready",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_cover_text_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      if (!asset.image?.url) {
+        if (asset.manual_image_candidate?.source === "manual_upload") {
+          // Non sostituire la foto scelta dall'editor con una generazione automatica.
+          // Nei tick senza slot dovuti continua le altre attivita' editoriali.
+          if (!targetPostType) continue;
+          return { action: "social_asset_waiting_manual_image_approval", opportunity_id: opportunity.id,
+            article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+        }
+        const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, "");
+        const objectPath = `autopilot/${article.id}/social/${item.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+        const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+        asset = {
+          ...asset,
+          schema_version: 2,
+          image: {
+            source: "generated",
+            provider: "openai",
+            generation_mode: "text_to_image",
+            source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+            url: imageUrl,
+            object_path: objectPath,
+            mime_type: "image/jpeg",
+            size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+            quality: "high",
+            model: generated.model,
+            prompt: generated.prompt,
+            alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+            attempt: 1,
+            qa: null,
+            created_at: new Date().toISOString(),
+          },
+          card: null,
+          status: "image_generated",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_image_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+
+      const qaStatus = String(asset.image?.qa?.status || "");
+      if (!qaStatus) {
+        const qa = await evaluateEditorialSocialImage(article, item, target, asset.brief, asset.image, articleImageUrl);
+        asset = {
+          ...asset,
+          schema_version: 2,
+          image: { ...asset.image, qa },
+          card: qa.status === "passed" ? asset.card || null : null,
+          status: qa.status === "passed" ? "card_pending" : "qa_failed",
+          updated_at: new Date().toISOString(),
+        };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: qa.status === "passed" ? "social_asset_image_qa_passed" : "social_asset_qa_failed", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, qa };
+      }
+
+      if (qaStatus === "failed") {
+        if (asset.manual_image_candidate?.url) {
+          // La candidata manuale ha la precedenza. Non bloccare altri lavori di background.
+          if (!targetPostType) continue;
+          return { action: "social_asset_image_waiting_editor", opportunity_id: opportunity.id,
+            article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type,
+            publication_performed: false };
+        }
+        const attempt = Math.max(1, Number(asset.image?.attempt) || 1);
+        if (attempt < EDITORIAL_SOCIAL_IMAGE_QA_MAX_ATTEMPTS) {
+          const guidance = cleanEditorialText(asset.image?.qa?.regeneration_guidance, 600)
+            || "Rendi il visuale più specifico e credibile, coerente con il linguaggio della hero approvata e senza sacrificare autenticità o qualità per essere diverso.";
+          const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance);
+          const objectPath = `autopilot/${article.id}/social/${item.id}/${Date.now()}-${crypto.randomUUID()}.jpg`;
+          const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+          const history = [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "qa_failed", archived_at: new Date().toISOString() }].slice(-4);
+          asset = {
+            ...asset,
+            schema_version: 2,
+            history,
+            image: {
+              source: "generated",
+              provider: "openai",
+              generation_mode: "text_to_image",
+              source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+              url: imageUrl,
+              object_path: objectPath,
+              mime_type: "image/jpeg",
+              size: EDITORIAL_SOCIAL_IMAGE_SIZE,
+              quality: "high",
+              model: generated.model,
+              prompt: generated.prompt,
+              alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+              attempt: attempt + 1,
+              qa: null,
+              created_at: new Date().toISOString(),
+            },
+            card: null,
+            status: "image_regenerated",
+            updated_at: new Date().toISOString(),
+          };
+          state.items[item.id] = asset;
+          await saveEditorialSocialAssetsState(user, opportunity, state);
+          return { action: "social_asset_regenerated_after_qa", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, attempt: attempt + 1 };
+        }
+
+        // Niente riuso automatico della hero e niente QA falsamente "passed".
+        // L'editor sceglie una nuova foto o approva esplicitamente la candidata.
+        if (asset.status !== "human_review_required") {
+          asset = { ...asset, status: "human_review_required", updated_at: new Date().toISOString() };
+          state.items[item.id] = asset;
+          await saveEditorialSocialAssetsState(user, opportunity, state);
+        }
+        // Se non e' dovuto questo post, prosegui: la revisione umana non blocca Radar
+        // e attivita' indipendenti; lo slot dovuto resta invece in attesa dell'editor.
+        if (!targetPostType) continue;
+        return { action: "social_asset_image_waiting_editor", opportunity_id: opportunity.id,
+          article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type,
+          failed_attempts: attempt, publication_performed: false };
+      }
+
+      if (qaStatus !== "passed") continue;
+
+      const cardValid = Boolean(
+        /^https:\/\//i.test(String(asset.card?.url || ""))
+        && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+        && String(asset.card?.source || "") === "composed"
+        && String(asset.card?.renderer || "") === "resvg_wasm"
+        && String(asset.card?.source_image_url || "") === String(asset.image.url || "")
+        && String(asset.card?.title || "") === cleanEditorialText(asset.brief.cover_title, 220)
+        && String(asset.card?.summary || "") === cleanEditorialText(asset.brief.cover_summary, 420)
+      );
+      if (!cardValid) {
+        const card = await renderAndUploadEditorialSocialCard({
+          article,
+          sourceImageUrl: asset.image.url,
+          postType: item.post_type,
+          title: asset.brief.cover_title,
+          summary: asset.brief.cover_summary,
+          label: editorialSocialCoverLabel(item.post_type),
+          storageSegment: `${item.id}-card`,
+        });
+        const cardHistory = asset.card?.url
+          ? [...(Array.isArray(asset.card_history) ? asset.card_history : []), { ...asset.card, outcome: "superseded", archived_at: new Date().toISOString() }].slice(-3)
+          : (Array.isArray(asset.card_history) ? asset.card_history : []);
+        asset = { ...asset, schema_version: 2, card, card_history: cardHistory, status: "ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_card_generated", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type, template_version: card.template_version };
+      }
+
+      if (String(asset.status || "") !== "ready") {
+        asset = { ...asset, schema_version: 2, status: "ready", updated_at: new Date().toISOString() };
+        state.items[item.id] = asset;
+        await saveEditorialSocialAssetsState(user, opportunity, state);
+        return { action: "social_asset_ready", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, post_type: item.post_type };
+      }
+    }
+  }
+  return null;
+}
+
+async function requestEditorialSocialRegeneration(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item?.id) throw new Error("Post del piano non trovato");
+  if (!["article_followup", "related"].includes(String(item.post_type || ""))) throw new Error("Rigenerazione disponibile solo per i post del ciclo articolo");
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) throw new Error("Post non collegato correttamente a opportunità e articolo");
+
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,title,status,slug&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunità collegata non trovati");
+  if (String(article.status || "") !== "published") throw new Error("La rigenerazione social è consentita solo per un articolo già pubblicato");
+
+  const evidence = opportunity.evidence && typeof opportunity.evidence === "object" ? { ...opportunity.evidence } : {};
+  const state = editorialSocialAssetsState(opportunity);
+  const previous = state.items?.[itemId] || null;
+  const history = Array.isArray(previous?.history) ? previous.history : [];
+  const cardHistory = Array.isArray(previous?.card_history) ? previous.card_history : [];
+  if (previous?.image) history.push({ ...previous.image, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
+  if (previous?.card) cardHistory.push({ ...previous.card, outcome: "manual_regeneration_requested", archived_at: new Date().toISOString() });
+  const previousBrief = previous?.brief && typeof previous.brief === "object" ? previous.brief : null;
+  const reusableBrief = previousBrief
+    ? {
+        ...previousBrief,
+        // Il testo social esistente resta invariato: la rigenerazione manuale serve a rifare
+        // solo visuale e impaginazione. Titolo/sintesi cover vengono ricostruiti per evitare
+        // di trascinare vecchie formule promozionali o badge non più ammessi.
+        cover_title: "",
+        cover_summary: "",
+      }
+    : null;
+  state.items[itemId] = {
+    schema_version: 2,
+    plan_item_id: itemId,
+    post_type: item.post_type,
+    fingerprint: previous?.fingerprint || null,
+    source_item: previous?.source_item || null,
+    target: previous?.target || null,
+    target_context: previous?.target_context || null,
+    brief: reusableBrief,
+    image: null,
+    card: null,
+    history: history.slice(-4),
+    card_history: cardHistory.slice(-3),
+    status: reusableBrief ? "brief_ready" : "pending",
+    updated_at: new Date().toISOString(),
+  };
+  evidence.social_assets = state;
+  evidence.social_regeneration = {
+    schema_version: 1,
+    item_id: itemId,
+    post_type: item.post_type,
+    status: "requested",
+    requested_at: new Date().toISOString(),
+    requested_by: user.id,
+  };
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal", body: { evidence, updated_at: new Date().toISOString(), decided_by: user.id },
+  });
+  await serviceFetch(`editorial_social_plan_publications?social_plan_item_id=eq.${encodeURIComponent(itemId)}`, {
+    method: "DELETE", prefer: "return=minimal",
+  }).catch(() => {});
+  const updatedRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(itemId)}`, {
+    method: "PATCH", prefer: "return=representation", body: { status: "approved", scheduled_for: null, updated_at: new Date().toISOString(), updated_by: user.id },
+  });
+
+  // La rigenerazione manuale viene accodata e ripresa dallo scheduler a piccoli passi.
+  // Evita timeout lunghi e collisioni tra generazione immagine, QA, card e heartbeat.
+  return {
+    requested: true,
+    immediate: false,
+    published: false,
+    queued: true,
+    item: updatedRows?.[0] || { ...item, status: "approved" },
+    article,
+  };
+}
+
+
+// Il giudizio estetico della QA e' consultivo; la scelta esplicita dell'editor
+// prevale, ma una candidata AI fuorviante o estranea al tema resta bloccata.
+const EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS = 3;
+function editorialManualSocialImageApprovalEligibility(qa, candidate = null) {
+  if (candidate?.source === "manual_upload") return candidate.upload_verified === true;
+  return Boolean(["passed", "failed"].includes(String(qa?.status || ""))
+    && qa.relevant_to_article === true && qa.relevant_to_post === true
+    && qa.misleading === false && qa.fake_document_risk === false);
+}
+function editorialSocialCurrentImageSafetyEligible(image) {
+  if (image?.source !== "generated") return false;
+  const qa = image.qa;
+  return Boolean(qa?.status === "passed" || (qa?.status === "failed"
+    && qa.relevant_to_article === true && qa.relevant_to_destination === true
+    && qa.misleading === false && qa.fake_document_risk === false));
+}
+
+function editorialManualSocialImageQualityScore(qa) {
+  if (!qa || !["passed", "failed"].includes(String(qa.status || ""))) return -100;
+  let score = 0;
+  for (const key of ["relevant_to_article", "relevant_to_post", "editor_guidance_respected", "clear", "authentic", "social_quality", "clickworthy"]) {
+    if (qa[key] === true) score += 2;
+  }
+  if (qa.misleading === true) score -= 12;
+  if (qa.fake_document_risk === true) score -= 10;
+  if (qa.generic_stock === true) score -= 4;
+  if (qa.distinct_from_previous_candidate === false) score -= 8;
+  if (qa.status === "passed") score += 20;
+  return score;
+}
+
+function editorialManualSocialCorrectionGuidance(qa) {
+  // Il feedback narrativo AI non entra nel prompt di correzione: puo' contenere
+  // scene suggerite che ancorano la generazione alla fotografia bocciata.
+  const failures = [];
+  if (qa?.relevant_to_article === false || qa?.relevant_to_post === false) {
+    failures.push("La situazione deve comunicare il contenuto specifico dell'articolo e del post, senza introdurre fatti nuovi.");
+  }
+  if (qa?.editor_guidance_respected === false) {
+    failures.push("Rispetta le istruzioni esplicite dell'editor su soggetto, ambiente, luce e inquadratura.");
+  }
+  if (qa?.misleading === true) failures.push("Escludi elementi visivi fuorvianti o promesse non supportate.");
+  if (qa?.fake_document_risk === true) {
+    failures.push("Escludi schermate simulate, interfacce leggibili, documenti e cifre inventati. Eventuali fogli o display non devono sembrare fonti autentiche.");
+  }
+  if (qa?.authentic === false) failures.push("Elimina incoerenze fisiche, oggetti artificiali ed effetti non fotografici.");
+  if (qa?.generic_stock === true) failures.push("Evita la rappresentazione stock intercambiabile con altri articoli.");
+  if (qa?.clear === false) failures.push("Rendi l'azione principale immediatamente comprensibile anche in miniatura.");
+  if (qa?.social_quality === false || qa?.clickworthy === false) {
+    failures.push("Migliora gerarchia visiva, composizione, luce coerente con la scena e coinvolgimento editoriale.");
+  }
+  if (qa?.distinct_from_previous_candidate === false) {
+    failures.push("La nuova regia deve differire sostanzialmente dalla precedente per azione, situazione, prospettiva o composizione: non bastano cambi di persona, colore o accessori.");
+  }
+  if (!failures.length) failures.push("Risolvi le criticita' fotografiche e di attendibilita' rilevate, preservando il tema verificato.");
+  return failures.join(" ");
+}
+
+// Una candidata fotografica resta separata dagli asset correnti: il ciclo automatico
+// puo' continuare a pubblicare solo la card gia' pronta. Nessuna ripubblicazione implicita.
+// Upload social come candidata separata: non modifica il post corrente fino
+// all'approvazione e alla ricomposizione riuscita della card.
+async function setEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Post social non valido");
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))) throw new Error("Post social non valido");
+  if (!["draft", "approved"].includes(String(item.status || ""))) throw new Error("Post gia' in pubblicazione o pubblicato: immagine non sostituibile");
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) throw new Error("Collegamento post/articolo non valido");
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,title,status,featured_image_url,featured_image_alt&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id || !EDITORIAL_IMAGE_ARTICLE_STATUSES.has(String(article.status || "")))
+    throw new Error("Articolo collegato non disponibile");
+  const checked = await editorialSocialUploadedImage(user, String(payload.image_url || "").trim());
+  const state = editorialSocialAssetsState(opportunity);
+  const current = state.items?.[itemId] || { schema_version: 2, plan_item_id: itemId, post_type: item.post_type, status: "pending", image: null, card: null };
+  const now = new Date().toISOString();
+  const candidate = {
+    source: "manual_upload", provider: "editor", generation_mode: "direct_upload",
+    url: checked.url, object_path: checked.object_path, mime_type: checked.mime_type,
+    upload_verified: true, created_at: now, created_by: user.id,
+    alt_text: cleanEditorialText(payload.alt_text, 180) || defaultArticleImageAlt(article),
+    attempt_count: 1, qa: { status: "not_evaluated", reason: "File scelto dall'editor: QA estetica AI non eseguita." },
+  };
+  state.items[itemId] = { ...current, manual_image_candidate: candidate, updated_at: now };
+  await saveEditorialSocialAssetsState(user, opportunity, state);
+  return { uploaded: true, social_plan_item_id: itemId, candidate_url: candidate.url, current_unchanged: true };
+}
+
+async function generateEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  const autoCorrect = payload.auto_correct === true;
+  const requestedGuidance = cleanEditorialText(payload.guidance, 600);
+  const basedOn = String(payload.based_on || "").trim();
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))) {
+    throw new Error("La rigenerazione fotografica e' prevista solo per Follow-up e Post OffertaLogica");
+  }
+  if (!["draft", "approved"].includes(String(item.status || ""))) {
+    throw new Error("Post gia' in pubblicazione o pubblicato: la foto non puo' essere sostituita nel post esistente");
+  }
+  if (!validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) {
+    throw new Error("Collegamento articolo/post non valido");
+  }
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id || String(article.status || "") !== "published") {
+    throw new Error("L'articolo collegato deve essere gia' pubblicato");
+  }
+  const asset = editorialSocialAssetsState(opportunity).items?.[itemId] || null;
+  if (!asset?.brief || !editorialSocialBriefHasCover(asset.brief) || !asset.image?.url) {
+    throw new Error("Attendi la preparazione della card social prima di rigenerare la fotografia");
+  }
+  const prior = autoCorrect ? asset.manual_image_candidate : null;
+  if (autoCorrect && (!prior?.url || prior.url !== basedOn
+    || String(prior.qa?.status || "") !== "failed"
+    || Number(prior.attempt_count || 1) >= EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS)) {
+    throw new Error("La correzione non e' piu' applicabile: aggiorna la Redazione");
+  }
+  const guidance = autoCorrect ? cleanEditorialText(prior.guidance, 600) : requestedGuidance;
+  const attempt = autoCorrect ? Number(prior.attempt_count || 1) + 1 : 1;
+  const explicitReference = String(payload.reference_image_url || "").trim();
+  const useArticleReference = payload.use_article_image_reference === true;
+  if (explicitReference && useArticleReference) throw new Error("Scegli un solo riferimento per la foto social");
+  const referenceUrl = autoCorrect ? String(prior.reference_image_url || "")
+    : explicitReference || (useArticleReference ? String(article.featured_image_url || "") : "");
+  if (useArticleReference && !referenceUrl) throw new Error("L'articolo non ha una immagine approvata di riferimento");
+  const referenceImage = referenceUrl ? await editorialSocialUploadedImage(user, referenceUrl,
+    useArticleReference || (autoCorrect && referenceUrl === String(article.featured_image_url || ""))
+      ? String(article.featured_image_url || "") : "", true) : null;
+  const target = await editorialSocialAssetTarget(item);
+  // Ogni richiesta genera UNA immagine e svolge UNA QA: il client coordina
+  // le correzioni successive per non superare il timeout della funzione serverless.
+  const generated = await generateOpenAiSocialImage(article, item, target, asset.brief, guidance, {
+    manualRegeneration: true,
+    qaCorrection: autoCorrect ? editorialManualSocialCorrectionGuidance(prior.last_qa || prior.qa) : "",
+    referenceImage,
+  });
+  const objectPath = `autopilot/${article.id}/social/${itemId}/manual-${Date.now()}-${crypto.randomUUID()}.jpg`;
+  const imageUrl = await uploadEditorialImageBuffer(objectPath, generated.buffer, "image/jpeg");
+  const candidate = {
+    source: "generated", provider: "openai", generation_mode: referenceImage ? "reference_image_edit" : "text_to_image",
+    source_policy: referenceImage ? "editor_reference_guided_generation" : EDITORIAL_IMAGE_SOURCE_POLICY,
+    reference_image_url: referenceImage?.url || null,
+    url: imageUrl, object_path: objectPath, mime_type: "image/jpeg",
+    size: EDITORIAL_SOCIAL_IMAGE_SIZE, quality: "high", model: generated.model,
+    prompt: generated.prompt, alt_text: asset.brief.alt_text || defaultArticleImageAlt(article),
+    guidance, created_at: new Date().toISOString(), attempt_count: attempt, qa: null,
+  };
+  try {
+    candidate.qa = await evaluateEditorialManualSocialImage(article, item, target, candidate, guidance,
+      autoCorrect ? prior.url : "");
+  } catch (error) {
+    candidate.qa = { status: "human_review_required", reason: `Verifica automatica non conclusa: ${String(error?.message || error).slice(0, 240)}` };
+  }
+  const history = autoCorrect && Array.isArray(prior.attempts_history) ? prior.attempts_history.slice(-2) : [];
+  history.push({ attempt, status: candidate.qa.status,
+    reason: cleanEditorialText(candidate.qa.reason, 320),
+    score: editorialManualSocialImageQualityScore(candidate.qa) });
+  candidate.attempts_history = history.slice(-EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS);
+  // Mostra la migliore tra le candidate ma conserva il giudizio dell'ultimo
+  // tentativo, da cui ricavare le istruzioni per l'eventuale correzione seguente.
+  const best = autoCorrect && editorialManualSocialImageQualityScore(prior.qa) > editorialManualSocialImageQualityScore(candidate.qa)
+    ? { ...prior, attempt_count: attempt, attempts_history: candidate.attempts_history, last_qa: candidate.qa }
+    : { ...candidate, last_qa: candidate.qa };
+  const latestItems = await serviceFetch(`editorial_social_plan_items?select=id,status&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  if (!["draft", "approved"].includes(String(latestItems?.[0]?.status || ""))) {
+    throw new Error("Il post e' entrato in pubblicazione: l'immagine attuale resta invariata");
+  }
+  const latestOppRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+  const latestOpp = latestOppRows?.[0] || null;
+  if (!latestOpp?.id) throw new Error("Opportunita' non disponibile");
+  const state = editorialSocialAssetsState(latestOpp);
+  const latestAsset = state.items?.[itemId] || null;
+  if (!latestAsset?.image?.url || !editorialSocialBriefHasCover(latestAsset.brief)) {
+    throw new Error("La card e' cambiata: riprova dalla Redazione");
+  }
+  if (String(latestAsset.manual_image_candidate?.url || "") !== (autoCorrect ? basedOn : String(asset.manual_image_candidate?.url || ""))) {
+    throw new Error("Un'altra richiesta ha modificato l'anteprima: aggiorna la Redazione");
+  }
+  state.items[itemId] = { ...latestAsset, manual_image_candidate: best, updated_at: new Date().toISOString() };
+  await saveEditorialSocialAssetsState(user, latestOpp, state);
+  return {
+    generated: true, social_plan_item_id: itemId, qa_status: best.qa.status,
+    attempt_count: attempt, current_unchanged: true,
+    auto_correction_available: candidate.qa.status === "failed" && best.qa.status === "failed" && attempt < EDITORIAL_MANUAL_SOCIAL_MAX_ATTEMPTS,
+    candidate_url: best.url,
+  };
+}
+
+async function decideEditorialSocialImageCandidate(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  const decision = String(payload.decision || "").trim();
+  if (!validUuid(itemId) || !["approve", "discard"].includes(decision)) throw new Error("Richiesta immagine social non valida");
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item || !["article_followup", "related"].includes(String(item.post_type || ""))) throw new Error("Post non valido");
+  if (!["draft", "approved"].includes(String(item.status || ""))) {
+    throw new Error("Il post e' gia' stato pubblicato o e' in pubblicazione: nessuna sostituzione effettuata");
+  }
+  const [oppRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = oppRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunita' non trovati");
+  const state = editorialSocialAssetsState(opportunity);
+  const asset = state.items?.[itemId] || null;
+  const candidate = asset?.manual_image_candidate || null;
+  if (!candidate?.url) throw new Error("Nessuna nuova fotografia da valutare");
+  if (decision === "discard") {
+    state.items[itemId] = { ...asset, manual_image_candidate: null, updated_at: new Date().toISOString() };
+    await saveEditorialSocialAssetsState(user, opportunity, state);
+    return { decision, current_unchanged: true };
+  }
+  if (!candidate.url.startsWith("https://") || !editorialManualSocialImageApprovalEligibility(candidate.qa, candidate)) {
+    throw new Error("Immagine non approvabile: controlli minimi di sicurezza/pertinenza non soddisfatti.");
+  }
+  if (candidate.source === "manual_upload") await editorialSocialUploadedImage(user, candidate.url);
+  if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card non ancora pronto: il file resta salvato come candidata.");
+  const card = await renderAndUploadEditorialSocialCard({
+    article, sourceImageUrl: candidate.url, postType: item.post_type,
+    title: asset.brief.cover_title, summary: asset.brief.cover_summary,
+    label: editorialSocialCoverLabel(item.post_type), storageSegment: `${itemId}-card`,
+  });
+  // Ricontrolla prima della sostituzione: non aggiornare card di post gia' pubblicati.
+  const latestItemRows = await serviceFetch(`editorial_social_plan_items?select=id,status&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  if (!["draft", "approved"].includes(String(latestItemRows?.[0]?.status || ""))) {
+    throw new Error("Pubblicazione gia' iniziata: l'immagine originale resta invariata");
+  }
+  const latestOppRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+  const latestOpp = latestOppRows?.[0] || null;
+  const latestState = editorialSocialAssetsState(latestOpp);
+  const current = latestState.items?.[itemId] || null;
+  if (!current || String(current.manual_image_candidate?.url || "") !== String(candidate.url)) {
+    throw new Error("La candidata e' cambiata: aggiorna la pagina e riprova");
+  }
+  const now = new Date().toISOString();
+  const originalQaStatus = candidate.qa.status;
+  const image = { ...candidate, qa: {
+    ...candidate.qa, status: "passed", original_qa_status: originalQaStatus,
+    reason: candidate.source === "manual_upload"
+      ? "File personale verificato e approvato dalla Redazione senza QA estetica AI."
+      : originalQaStatus === "failed"
+        ? "Approvazione editoriale esplicita: QA estetica non superata, controlli minimi di sicurezza/pertinenza superati."
+        : candidate.qa.reason,
+    approval_mode: candidate.source === "manual_upload" ? "manual_editorial_upload"
+      : originalQaStatus === "failed" ? "manual_editorial_aesthetic_override" : "manual_editorial_after_passed_qa",
+    approved_at: now, approved_by: user.id,
+  } };
+  delete image.guidance;
+  latestState.items[itemId] = {
+    ...current, image, card, manual_image_candidate: null, status: "ready", updated_at: now,
+    history: current.image?.url ? [...(Array.isArray(current.history) ? current.history : []), { ...current.image, outcome: "replaced_by_editor", archived_at: now }].slice(-4) : current.history,
+    card_history: current.card?.url ? [...(Array.isArray(current.card_history) ? current.card_history : []), { ...current.card, outcome: "replaced_by_editor", archived_at: now }].slice(-3) : current.card_history,
+  };
+  await saveEditorialSocialAssetsState(user, latestOpp, latestState);
+  return { decision, social_plan_item_id: itemId, ready: true, published: false };
+}
+
+async function reviewEditorialSocialImage(user, payload = {}) {
+  const itemId = String(payload.id || "").trim();
+  const decision = String(payload.decision || "").trim();
+  if (!validUuid(itemId)) throw new Error("Identificativo post non valido");
+  if (!["approve", "use_article_image"].includes(decision)) throw new Error("Decisione immagine social non valida");
+
+  const itemRows = await serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`);
+  const item = itemRows?.[0] || null;
+  if (!item?.id || !validUuid(String(item.opportunity_id || "")) || !validUuid(String(item.source_article_id || ""))) {
+    throw new Error("Post social non collegato correttamente");
+  }
+  if (["publishing", "published"].includes(String(item.status || ""))) {
+    throw new Error("L'immagine di un post già avviato o pubblicato non può essere sostituita da questo pannello");
+  }
+
+  const [opportunityRows, articleRows] = await Promise.all([
+    serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(item.opportunity_id)}&limit=1`),
+    serviceFetch(`editorial_articles?select=id,title,status,featured_image_url,featured_image_alt&id=eq.${encodeURIComponent(item.source_article_id)}&limit=1`),
+  ]);
+  const opportunity = opportunityRows?.[0] || null;
+  const article = articleRows?.[0] || null;
+  if (!opportunity?.id || !article?.id) throw new Error("Articolo o opportunità collegata non trovati");
+
+  const state = editorialSocialAssetsState(opportunity);
+  let asset = state.items?.[itemId] || null;
+  if (!asset) throw new Error("Asset social non ancora disponibile");
+  if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card social non ancora pronto");
+
+  const now = new Date().toISOString();
+  const cardHistory = asset.card?.url
+    ? [...(Array.isArray(asset.card_history) ? asset.card_history : []), { ...asset.card, outcome: "manual_image_review", archived_at: now }].slice(-3)
+    : (Array.isArray(asset.card_history) ? asset.card_history : []);
+
+  if (decision === "approve") {
+    if (!/^https:\/\//i.test(String(asset.image?.url || ""))) throw new Error("Immagine social corrente non disponibile");
+    if (!editorialSocialCurrentImageSafetyEligible(asset.image)) {
+      throw new Error("Controlli minimi di pertinenza/sicurezza non superati: carica una tua foto o rigenera.");
+    }
+    asset = {
+      ...asset,
+      schema_version: 2,
+      image: {
+        ...asset.image,
+        qa: {
+          ...(asset.image?.qa && typeof asset.image.qa === "object" ? asset.image.qa : {}),
+          schema_version: 2,
+          visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+          status: "passed",
+          original_qa_status: String(asset.image?.qa?.original_qa_status || asset.image?.qa?.status || "not_evaluated"),
+          evaluated_at: now,
+          reason: "Immagine approvata manualmente dalla Redazione; l'approvazione non rappresenta una nuova QA fotografica.",
+          regeneration_guidance: "",
+          approval_mode: "manual_editorial",
+          approved_at: now,
+          approved_by: user.id,
+        },
+      },
+      card: null,
+      card_history: cardHistory,
+      status: "card_pending",
+      updated_at: now,
+    };
+  } else {
+    const articleImage = articleImageState(opportunity);
+    const heroAsset = articleImage.current?.url
+      ? articleImage.current
+      : (String(articleImage.candidate?.qa?.status || "") === "passed" ? articleImage.candidate : null);
+    const articleImageUrl = String(heroAsset?.url || article.featured_image_url || "").trim();
+    if (!/^https:\/\//i.test(articleImageUrl)) throw new Error("Immagine approvata dell'articolo non disponibile");
+    const history = asset.image?.url
+      ? [...(Array.isArray(asset.history) ? asset.history : []), { ...asset.image, outcome: "manual_fallback_to_article_image", archived_at: now }].slice(-4)
+      : (Array.isArray(asset.history) ? asset.history : []);
+    asset = {
+      ...asset,
+      schema_version: 2,
+      history,
+      image: {
+        source: "article_image_fallback",
+        provider: "offertalogica",
+        generation_mode: "reuse_article_image",
+        source_policy: "approved_article_image_fallback",
+        url: articleImageUrl,
+        object_path: heroAsset?.object_path || null,
+        mime_type: heroAsset?.mime_type || null,
+        size: heroAsset?.size || null,
+        quality: heroAsset?.quality || null,
+        model: null,
+        prompt: null,
+        alt_text: cleanEditorialText(article.featured_image_alt, 180) || defaultArticleImageAlt(article),
+        attempt: Math.max(1, Number(asset.image?.attempt) || 1),
+        qa: {
+          schema_version: 2,
+          visual_version: EDITORIAL_SOCIAL_VISUAL_VERSION,
+          status: "passed",
+          evaluated_at: now,
+          model: null,
+          relevant_to_article: true,
+          relevant_to_destination: true,
+          coherent_with_master_visual: true,
+          distinct_from_article_image: false,
+          clear: true,
+          misleading: false,
+          social_quality: true,
+          authentic: true,
+          clickworthy: true,
+          generic_stock: false,
+          fake_document_risk: false,
+          quality_not_materially_worse_than_article_image: true,
+          reason: "Immagine dell'articolo selezionata manualmente dalla Redazione come fallback social.",
+          regeneration_guidance: "",
+          approval_mode: "manual_article_image_fallback",
+          approved_at: now,
+          approved_by: user.id,
+        },
+        fallback: {
+          reason: "manual_editorial_choice",
+          applied_at: now,
+        },
+        created_at: now,
+      },
+      card: null,
+      card_history: cardHistory,
+      status: "card_pending",
+      updated_at: now,
+    };
+  }
+
+  state.items[itemId] = asset;
+  await saveEditorialSocialAssetsState(user, opportunity, state);
+
+  const card = await renderAndUploadEditorialSocialCard({
+    article,
+    sourceImageUrl: asset.image.url,
+    postType: item.post_type,
+    title: asset.brief.cover_title,
+    summary: asset.brief.cover_summary,
+    label: editorialSocialCoverLabel(item.post_type),
+    storageSegment: `${item.id}-card`,
+  });
+  asset = { ...asset, card, status: "ready", updated_at: new Date().toISOString() };
+  state.items[itemId] = asset;
+  await saveEditorialSocialAssetsState(user, opportunity, state);
+
+  return {
+    reviewed: true,
+    decision,
+    opportunity_id: opportunity.id,
+    article_id: article.id,
+    social_plan_item_id: itemId,
+    status: asset.status,
+    image: asset.image,
+    card: asset.card,
+  };
+}
+
+async function schedulerPublishRequestedSocialRegeneration(user) {
+  const opportunities = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&order=updated_at.desc&limit=80`);
+  for (const opportunity of opportunities || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    const regeneration = evidence?.social_regeneration && typeof evidence.social_regeneration === "object" ? evidence.social_regeneration : null;
+    const itemId = String(regeneration?.item_id || "");
+    if (!validUuid(itemId) || !["requested", "preparing"].includes(String(regeneration?.status || ""))) continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+    const [articleRows, itemRows] = await Promise.all([
+      serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`),
+      serviceFetch(`editorial_social_plan_items?select=*&id=eq.${encodeURIComponent(itemId)}&limit=1`),
+    ]);
+    const article = articleRows?.[0] || null;
+    const item = itemRows?.[0] || null;
+    if (!article?.id || !item?.id) continue;
+    const context = { opportunity, article };
+    if (!schedulerPlanAssetIsOlInforma(context, item)) {
+      if (String(regeneration.status || "") !== "preparing") {
+        const nextEvidence = { ...evidence, social_regeneration: { ...regeneration, status: "preparing", updated_at: new Date().toISOString() } };
+        await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+      }
+      continue;
+    }
+    const enabledPlatforms = await editorialEnabledSocialPlatforms();
+    const run = await automationSchedulerRunStart(String(item.post_type || "") === "related" ? "social_related" : "social_followup", {
+      stage: "manual_regeneration",
+      regeneration_item_id: itemId,
+      slot_only: false,
+    }, opportunity.id);
+    try {
+      const slotKind = String(item.post_type || "") === "related" ? "social_related" : "social_followup";
+      const result = await schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms);
+      if (result.retry_pending) {
+        const nextEvidence = {
+          ...evidence,
+          social_regeneration: { ...regeneration, status: "preparing", updated_at: new Date().toISOString(), last_wait_reason: result.retry_reason || "social_retry" },
+        };
+        await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+        await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, details: { ...(run?.details || {}), stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry" } });
+        return { action: "social_regeneration_waiting", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, result };
+      }
+      const nextEvidence = {
+        ...evidence,
+        social_regeneration: { ...regeneration, status: "completed", completed_at: new Date().toISOString(), updated_at: new Date().toISOString() },
+      };
+      await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, { method: "PATCH", prefer: "return=minimal", body: { evidence: nextEvidence, updated_at: new Date().toISOString() } });
+      await automationRunFinish(run, "success", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, details: { ...(run?.details || {}), stage: "completed", publication_performed: true } });
+      return { action: "social_regeneration_published", opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, result };
+    } catch (error) {
+      await automationRunFinish(run, "failed", { opportunity_id: opportunity.id, article_id: article.id, social_plan_item_id: item.id, last_error: String(error?.message || error).slice(0, 2000), details: { ...(run?.details || {}), stage: "failed" } });
+      throw error;
+    }
+  }
+  return null;
+}
+
+async function schedulerGlobalHeartbeatRun() {
+  const rows = await serviceFetch("editorial_automation_runs?select=id,run_type,status,created_at,details&run_type=eq.maintenance&order=created_at.desc&limit=14");
+  return (rows || []).find((run) => run?.details?.kind === "scheduler_heartbeat") || null;
+}
+
+async function automationRunsPayload() {
+  const [rows, heartbeatRun] = await Promise.all([
+    serviceFetch("editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=100"),
+    schedulerGlobalHeartbeatRun(),
+  ]);
+  return { ok: true, version: VERSION,
+    runs: (rows || []).filter((run) => run?.details?.kind !== "scheduler_heartbeat"),
+    heartbeat: heartbeatRun?.details?.heartbeat || null };
+}
+
+function automationCronSecretEqual(left, right) {
+  const a = Buffer.from(String(left || ""));
+  const b = Buffer.from(String(right || ""));
+  return a.length > 0 && a.length === b.length && crypto.timingSafeEqual(a, b);
+}
+
+async function automationPersistTickState(result = null, error = null) {
+  const now = new Date().toISOString();
+  const heartbeat = {
+    at: now,
+    ok: !error,
+    action: error ? "failed" : String(result?.action || "idle"),
+    slot_kind: error ? null : String(result?.slot?.kind || "") || null,
+    slot_label: error ? null : String(result?.slot?.label || "") || null,
+    error: error ? String(error?.message || error).slice(0, 800) : null,
+    version: VERSION,
+  };
+  const existing = await schedulerGlobalHeartbeatRun();
+  const day = schedulerLocalParts("Europe/Rome").date; // Giorno operativo, indipendente dall'opportunita'.
+  const body = { status: error ? "failed" : "success", started_at: now, finished_at: now,
+    details: { kind: "scheduler_heartbeat", day, heartbeat } };
+  if (existing?.id && existing?.details?.day === day) {
+    await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(existing.id)}`, {
+      method: "PATCH", prefer: "return=minimal", body,
+    });
+  } else {
+    await serviceFetch("editorial_automation_runs", {
+      method: "POST", prefer: "return=minimal",
+      body: { ...body, run_type: "maintenance", scheduled_for: now },
+    });
+  }
+}
+
+async function automationCronAuthorized(req) {
+  // Vercel Cron, quando CRON_SECRET e' configurato, invia
+  // Authorization: Bearer <CRON_SECRET>. Manteniamo anche il vecchio
+  // header dedicato per eventuali trigger esterni gia' configurati.
+  const authorization = String(req.headers?.authorization || "").trim();
+  const bearerSecret = authorization.match(/^Bearer\s+(.+)$/i)?.[1]?.trim() || "";
+  const vercelCronSecret = env("CRON_SECRET");
+  if (vercelCronSecret && automationCronSecretEqual(bearerSecret, vercelCronSecret)) return true;
+
+  const legacySecret = String(req.headers?.["x-offertalogica-autopilot-secret"] || bearerSecret || "").trim();
+  if (legacySecret.length < 32 || legacySecret.length > 256) return false;
+  try {
+    const verified = await serviceFetch("rpc/editorial_autopilot_verify_cron_secret", {
+      method: "POST",
+      body: { p_secret: legacySecret },
+    });
+    return verified === true || verified?.verified === true;
+  } catch {
+    return false;
+  }
+}
+
+async function automationSchedulerSettings() {
+  const rows = await serviceFetch("editorial_automation_settings?select=*&id=eq.1&limit=1");
+  return rows?.[0] || null;
+}
+
+async function automationSchedulerUser(settings) {
+  const userId = String(settings?.updated_by || "").trim();
+  if (!validUuid(userId)) throw new Error("Autopilota: amministratore responsabile non configurato. Salva di nuovo la configurazione dalla Redazione.");
+  const [members, authors] = await Promise.all([
+    serviceFetch(`editorial_members?select=user_id,role,active&user_id=eq.${encodeURIComponent(userId)}&limit=1`),
+    serviceFetch(`editorial_authors?select=id,user_id,active&user_id=eq.${encodeURIComponent(userId)}&active=eq.true&limit=1`),
+  ]);
+  if (!members?.[0]?.active || members[0].role !== "admin") throw new Error("Autopilota: l’utente responsabile non è più un amministratore attivo");
+  if (!authors?.[0]?.id) throw new Error("Autopilota: l’amministratore responsabile non ha un profilo autore attivo");
+  return { id: userId, _automation: true };
+}
+
+function schedulerLocalParts(timeZone, date = new Date()) {
+  const zone = String(timeZone || "Europe/Rome").trim() || "Europe/Rome";
+  let parts;
+  try {
+    parts = new Intl.DateTimeFormat("en-GB", {
+      timeZone: zone,
+      year: "numeric", month: "2-digit", day: "2-digit",
+      weekday: "short", hour: "2-digit", minute: "2-digit", hourCycle: "h23",
+    }).formatToParts(date);
+  } catch {
+    throw new Error(`Fuso orario Autopilota non valido: ${zone}`);
+  }
+  const value = (type) => parts.find((part) => part.type === type)?.value || "";
+  const weekdayMap = { Mon: 1, Tue: 2, Wed: 3, Thu: 4, Fri: 5, Sat: 6, Sun: 7 };
+  const hour = Number(value("hour"));
+  const minute = Number(value("minute"));
+  return {
+    time_zone: zone,
+    date: `${value("year")}-${value("month")}-${value("day")}`,
+    weekday: weekdayMap[value("weekday")] || 0,
+    minutes: hour * 60 + minute,
+    time: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+  };
+}
+
+function schedulerSlotMinutes(value) {
+  const match = String(value || "").match(/^(\d{1,2}):(\d{2})/);
+  if (!match) return null;
+  const hour = Number(match[1]);
+  const minute = Number(match[2]);
+  if (!Number.isInteger(hour) || !Number.isInteger(minute) || hour < 0 || hour > 23 || minute < 0 || minute > 59) return null;
+  return hour * 60 + minute;
+}
+
+const SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY = 3;
+
+function schedulerSlotAttemptState(runs, schedulerKey) {
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  const consumed = matching.some((run) => String(run?.status || "") !== "failed")
+    || failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY;
+  return { failedAttempts, consumed };
+}
+
+async function automationSchedulerRuns(limit = 100) {
+  const rows = await serviceFetch(`editorial_automation_runs?select=id,run_type,status,scheduled_for,started_at,finished_at,opportunity_id,article_id,social_plan_item_id,details,last_error,created_at&order=created_at.desc&limit=${Math.max(1, Math.min(200, Number(limit) || 100))}`);
+  return rows || [];
+}
+
+async function automationSchedulerRunStart(runType, details = {}, opportunityId = null) {
+  const now = new Date().toISOString();
+  const rows = await serviceFetch("editorial_automation_runs", {
+    method: "POST",
+    prefer: "return=representation",
+    body: {
+      run_type: runType,
+      status: "running",
+      scheduled_for: now,
+      started_at: now,
+      opportunity_id: validUuid(opportunityId) ? opportunityId : null,
+      details: { version: VERSION, source: "scheduler", ...details },
+    },
+  });
+  return rows?.[0] || null;
+}
+
+async function automationSchedulerRunPatch(run, detailsPatch = {}) {
+  if (!run?.id) return null;
+  const details = { ...(run.details && typeof run.details === "object" ? run.details : {}), ...detailsPatch, version: VERSION, source: "scheduler" };
+  const rows = await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+    method: "PATCH", prefer: "return=representation", body: { details },
+  });
+  return rows?.[0] || { ...run, details };
+}
+
+function schedulerInternalPageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) return null;
+  try {
+    const url = new URL(raw, "https://offertalogica.it");
+    if (url.protocol !== "https:" || !["offertalogica.it", "www.offertalogica.it"].includes(url.hostname.toLowerCase())) return null;
+    return `https://offertalogica.it${url.pathname}${url.search}`;
+  } catch {
+    return null;
+  }
+}
+
+async function schedulerSelectOpportunity(user, settings) {
+  const preview = await editorialPlannerPreview();
+  const decision = preview?.decision;
+  if (!decision) return null;
+  let opportunity = null;
+  if (decision.id) {
+    const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(decision.id)}&limit=1`);
+    opportunity = rows?.[0] || null;
+  } else if (decision.source === "search_console" && decision.topic_key) {
+    const saved = await saveEditorialOpportunity(user, decision.topic_key);
+    opportunity = saved?.opportunity || null;
+  } else if (decision.source === "research_radar" && decision.radar_candidate) {
+    opportunity = await saveResearchRadarOpportunity(user, decision.radar_candidate);
+  }
+  if (!opportunity?.id) return null;
+  if (opportunity.status === "pending") {
+    opportunity = await selectEditorialOpportunity(user, opportunity.id, {
+      origin: "scheduler",
+      score: decision.score,
+      reason: decision.reason,
+      radar_key: decision.radar_key || null,
+    });
+  }
+  if (opportunity.status !== "selected") return opportunity;
+
+  if (["monitor", "update_article"].includes(String(opportunity.opportunity_type || ""))) {
+    const freshRows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`);
+    const fresh = freshRows?.[0] || opportunity;
+    // L'Editoriale usa eventuali pagine Search Console solo come contesto:
+    // non propone e non applica mai aggiornamenti alle pagine esistenti del sito.
+    opportunity = await classifyEditorialOpportunity(user, fresh.id, "new_article");
+  }
+  if (opportunity && typeof opportunity === "object") {
+    Object.defineProperty(opportunity, "_schedulerSelection", {
+      value: {
+        source: decision.source || null,
+        score: Number.isFinite(Number(decision.score)) ? Number(decision.score) : null,
+        reason: decision.reason || null,
+        fallback_below_threshold: Boolean(decision.fallback_below_threshold),
+        radar_key: decision.radar_key || null,
+        editorial_action: decision.radar_candidate?.editorial_action || null,
+      },
+      enumerable: false,
+      configurable: false,
+    });
+  }
+  return opportunity;
+}
+
+function schedulerEditorialWeekStartMs(timeZone, value) {
+  const date = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(date.getTime())) return null;
+  const local = schedulerLocalParts(timeZone || "Europe/Rome", date);
+  const [year, month, day] = String(local.date || "").split("-").map(Number);
+  if (!year || !month || !day || !local.weekday) return null;
+  return Date.UTC(year, month - 1, day) - (local.weekday - 1) * 86400000;
+}
+
+function schedulerArticleFrequencyAllows(settings, runs, now = Date.now()) {
+  const weeks = Math.max(1, Math.min(4, Number(settings?.article_frequency_weeks) || 1));
+  const last = (runs || []).find((run) =>
+    run.run_type === "article_prepare"
+    && run.status === "success"
+    && run?.details?.source === "scheduler"
+    && validUuid(String(run?.article_id || ""))
+    && !["skipped", "waiting_human_approval"].includes(String(run?.details?.stage || ""))
+  );
+  if (!last) return true;
+  const when = Date.parse(last.finished_at || last.started_at || last.created_at || "");
+  if (!Number.isFinite(when)) return true;
+
+  const zone = String(settings?.timezone || "Europe/Rome").trim() || "Europe/Rome";
+  const currentWeekStart = schedulerEditorialWeekStartMs(zone, new Date(now));
+  const lastWeekStart = schedulerEditorialWeekStartMs(zone, new Date(when));
+  if (!Number.isFinite(currentWeekStart) || !Number.isFinite(lastWeekStart)) return true;
+  return currentWeekStart - lastWeekStart >= weeks * 7 * 86400000;
+}
+
+function schedulerArticlePublishAuthRecoverable(slot, runs, schedulerKey) {
+  if (String(slot?.kind || "") !== "article_publish") return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  if (matching.some((run) => String(run?.status || "") !== "failed")) return false;
+  const failed = matching.filter((run) => String(run?.status || "") === "failed");
+  if (failed.length !== SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+  if (failed.some((run) => String(run?.details?.recovery_reason || "") === "social_auth_secret_v0.12.50")) return false;
+  return failed.every((run) => String(run?.last_error || "").includes("Sessione Redazione non valida o scaduta"));
+}
+
+function schedulerArticlePublishHumanReviewRecoverable(slot, runs, schedulerKey) {
+  if (String(slot?.kind || "") !== "article_publish") return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  if (matching.some((run) =>
+    String(run?.status || "") === "success"
+    && (run?.details?.publication_performed === true || String(run?.details?.stage || "") === "completed")
+  )) return false;
+  return matching.some((run) =>
+    String(run?.status || "") === "success"
+    && String(run?.details?.stage || "") === "waiting_human_review"
+    && run?.details?.publication_performed !== true
+  );
+}
+
+function schedulerSocialRetryRecoverable(slot, runs, schedulerKey) {
+  if (!["article_publish", "social_followup", "social_related"].includes(String(slot?.kind || ""))) return false;
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+  if (matching.some((run) => run?.details?.publication_performed === true)) return false;
+
+  // Recupera soltanto se l'ultimo esito non fallito dello slot è davvero un'attesa
+  // tecnica. Un esito ambiguo, un blocco umano o una pubblicazione confermata non
+  // devono essere riaperti da un vecchio waiting_social_retry, per evitare doppioni.
+  const nonFailed = matching
+    .filter((run) => String(run?.status || "") !== "failed")
+    .sort((left, right) => String(right?.created_at || right?.started_at || "").localeCompare(String(left?.created_at || left?.started_at || "")));
+  const latest = nonFailed[0] || null;
+  return Boolean(
+    latest
+    && String(latest.status || "") === "success"
+    && String(latest?.details?.stage || "") === "waiting_social_retry"
+    && latest?.details?.publication_performed !== true
+  );
+}
+
+function schedulerArticlePrepareRecoverable(slot, settings, runs, schedulerKey, now = Date.now()) {
+  if (String(slot?.kind || "") !== "article_prepare") return false;
+  if (Number(settings?.max_articles_per_cycle) <= 0) return false;
+
+  const matching = (runs || []).filter((run) => run?.details?.scheduler_key === schedulerKey);
+  const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+  if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) return false;
+
+  const nonFailed = matching.filter((run) => String(run?.status || "") !== "failed");
+  if (!nonFailed.length) return false;
+  const recoverable = nonFailed.every((run) => {
+    if (String(run?.status || "") !== "success") return false;
+    const stage = String(run?.details?.stage || "");
+    const reason = String(run?.details?.reason || "");
+    return (stage === "skipped" && reason === "article_frequency_weeks")
+      || (stage === "completed" && reason === "no_opportunity")
+      || stage === "update_proposal_ready";
+  });
+  if (!recoverable) return false;
+  if (!schedulerArticleFrequencyAllows(settings, runs, now)) return false;
+
+  const noOpportunityRuns = nonFailed.filter((run) =>
+    String(run?.details?.stage || "") === "completed"
+    && String(run?.details?.reason || "") === "no_opportunity"
+  );
+  if (!noOpportunityRuns.length) return true;
+  if (Boolean(settings?.allow_no_publish)) return false;
+
+  // Un solo recupero aggiuntivo evita loop ogni 15 minuti se Search Console
+  // non contiene davvero alcun segnale utilizzabile.
+  return noOpportunityRuns.length < 2;
+}
+
+async function schedulerProcessResearchRun(run, user, settings) {
+  const stage = String(run?.details?.stage || "collect_7");
+  try {
+    if (stage === "collect_7") {
+      const result = await collectSearchConsole(user, 7);
+      const next = await automationSchedulerRunPatch(run, { stage: "collect_28", collect_7: result });
+      return { action: "research_collect_7", pending: true, run: next };
+    }
+    if (stage === "collect_28") {
+      const result = await collectSearchConsole(user, 28);
+      const next = await automationSchedulerRunPatch(run, { stage: "collect_90", collect_28: result });
+      return { action: "research_collect_28", pending: true, run: next };
+    }
+    if (stage === "collect_90") {
+      const result = await collectSearchConsole(user, 90);
+      const next = await automationSchedulerRunPatch(run, { stage: "plan", collect_90: result });
+      return { action: "research_collect_90", pending: true, run: next };
+    }
+    const opportunity = await schedulerSelectOpportunity(user, settings);
+    const selection = opportunity?._schedulerSelection || {};
+    await automationRunFinish(run, "success", {
+      details: {
+        ...(run.details || {}),
+        version: VERSION,
+        source: "scheduler",
+        stage: "completed",
+        selected_opportunity_id: opportunity?.id || null,
+        selected_type: opportunity?.opportunity_type || null,
+        selection_source: selection.source || null,
+        selection_score: selection.score ?? null,
+        selection_reason: selection.reason || null,
+        selection_fallback_below_threshold: Boolean(selection.fallback_below_threshold),
+      },
+    });
+    return { action: "research_plan", pending: false, opportunity_id: opportunity?.id || null, opportunity_type: opportunity?.opportunity_type || null };
+  } catch (error) {
+    await automationRunFinish(run, "failed", { last_error: String(error?.message || error).slice(0, 2000), details: { ...(run.details || {}), version: VERSION, source: "scheduler", failed_stage: stage } });
+    throw error;
+  }
+}
+
+async function schedulerResumeResearch(user, settings, runs) {
+  const run = (runs || []).find((row) => row.run_type === "research" && row.status === "running" && row?.details?.source === "scheduler");
+  if (!run) return null;
+  return schedulerProcessResearchRun(run, user, settings);
+}
+
+async function schedulerMarkStaleArticleJob(opportunity, job) {
+  const now = new Date().toISOString();
+  const message = "Job AI oltre 90 minuti senza completamento: archiviato per consentire il recupero. La risposta remota potrebbe ancora arrivare, ma non verra applicata.";
+  const evidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal",
+    body: { evidence: { ...evidence, article_generation_job: {
+      ...job, status: "failed", checked_at: now, finished_at: now, last_error: message,
+    } }, updated_at: now },
+  });
+  await automationRunFinish(job.automation_run_id ? { id: job.automation_run_id, details: { version: VERSION, source: job.source } } : null, "failed", {
+    article_id: job.article_id || opportunity.target_article_id || null,
+    last_error: message,
+    details: { version: VERSION, source: job.source, opportunity_id: opportunity.id,
+      reason: "article_generation_timeout", publication_performed: false },
+  });
+  return message;
+}
+
+async function schedulerRecoverArticleSources(user, opportunity, errorMessage) {
+  const reason = cleanEditorialText(errorMessage, 600);
+  const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const previous = previousEvidence.autopilot_recovery && typeof previousEvidence.autopilot_recovery === "object"
+    ? previousEvidence.autopilot_recovery : {};
+  const now = new Date().toISOString();
+  const sourceRetryCount = Number(previous.source_retry_count || 0);
+  const currentJob = previousEvidence.article_generation_job || {};
+  const schedulerSlotRunId = String(currentJob.scheduler_slot_run_id || "");
+  const currentResponseId = String(currentJob.response_id || "");
+  const secondSearchNotYetStarted = sourceRetryCount < 1
+    || (sourceRetryCount === 1 && previous.first_failed_response_id === currentResponseId);
+  const platforms = await editorialEnabledSocialPlatforms();
+
+  if (secondSearchNotYetStarted) {
+    // Un errore di avvio della seconda ricerca non deve diventare un falso QA.
+    // Il numero di ripartenze resta limitato per evitare loop e costi indefiniti.
+    const attempts = Number(previous.retry_start_attempts || 0);
+    if (attempts >= 3) {
+      await schedulerFinishArticlePrepareSlot(currentJob, "failed", "second_search_could_not_start", reason);
+      return { action: "article_sources_retry_start_failed",
+        opportunity_id: opportunity.id, reason: "second_search_could_not_start" };
+    }
+    // Il secondo pacchetto avvia una nuova Responses API con web_search obbligatoria.
+    await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+      method: "PATCH", prefer: "return=minimal",
+      body: { evidence: { ...previousEvidence, autopilot_recovery: {
+        ...previous, schema_version: 1, source_retry_count: 1,
+        first_failed_response_id: previous.first_failed_response_id || currentResponseId,
+        retry_start_attempts: attempts + 1,
+        retry_started_at: now, first_error: previous.first_error || reason,
+      } }, updated_at: now },
+    });
+    const result = await generateEditorialArticlePackage(user, { id: opportunity.id, platforms,
+      scheduler_slot_run_id: schedulerSlotRunId });
+    return { action: "article_sources_second_search", opportunity_id: opportunity.id,
+      source_retry_count: 1, result };
+  }
+
+  // Non cancellare la vecchia bozza: lo storico resta consultabile e nessun articolo
+  // privo di fonti puo raggiungere la pubblicazione automatica.
+  const blockedUntil = new Date(Date.now() + EDITORIAL_RECOVERY_BLOCK_MS).toISOString();
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH", prefer: "return=minimal", body: {
+      status: "rejected",
+      evidence: { ...previousEvidence, autopilot_recovery: {
+        ...previous, schema_version: 1, status: "source_qa_exhausted",
+        blocked_until: blockedUntil, blocked_at: now, last_error: reason,
+      } }, updated_at: now,
+    },
+  });
+
+  // Ricalcola la graduatoria, escludendo il tema appena fallito e quelli gia
+  // esclusi in precedenza, prima di creare la bozza dell'alternativa.
+  const settings = await automationSchedulerSettings();
+  if (!settings?.enabled) {
+    await schedulerFinishArticlePrepareSlot(currentJob, "failed", "scheduler_disabled", reason);
+    return { action: "article_sources_no_alternative_scheduler_disabled", opportunity_id: opportunity.id };
+  }
+  const next = await schedulerSelectOpportunity(user, settings);
+  if (!next?.id || next.id === opportunity.id || next.status !== "selected" || next.opportunity_type !== "new_article") {
+    await schedulerFinishArticlePrepareSlot(currentJob, "failed", "sources_exhausted", reason);
+    return { action: "article_sources_no_eligible_alternative", opportunity_id: opportunity.id,
+      reason: "all_available_topics_exhausted_or_ineligible" };
+  }
+  const result = await generateEditorialArticlePackage(user, { id: next.id, platforms,
+    scheduler_slot_run_id: schedulerSlotRunId });
+  return { action: "article_sources_next_topic", previous_opportunity_id: opportunity.id,
+    opportunity_id: next.id, result };
+}
+
+async function schedulerResumeArticleGeneration(user) {
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  for (const opportunity of rows || []) {
+    const job = opportunity?.evidence?.article_generation_job;
+    if (!job?.response_id || !["scheduler", "manual_controlled_run"].includes(String(job.source || ""))) continue;
+    // Anche un browser o un'altra richiesta puo' aver gia registrato il QA failed:
+    // il tick lo recupera comunque, senza pretendere che sia ancora in_progress.
+    if (job.source === "scheduler" && job.status === "failed"
+      && String(job.last_error || "").startsWith("QA fonti fallito:")
+      && Date.now() - Date.parse(job.started_at || "") < 48 * 60 * 60 * 1000
+      && opportunity.evidence?.autopilot_recovery?.status !== "source_qa_exhausted") {
+      return schedulerRecoverArticleSources(user, opportunity, job.last_error);
+    }
+    if (!["queued", "in_progress"].includes(String(job.status || ""))) continue;
+    // Se la Redazione sta gia interrogando il job manuale, il cron non deve
+    // completare in parallelo lo stesso pacchetto e creare piani duplicati.
+    if (job.source === "manual_controlled_run") {
+      const lastCheck = Date.parse(job.checked_at || job.started_at || "");
+      if (Number.isFinite(lastCheck) && Date.now() - lastCheck < 2 * 60 * 1000) continue;
+    }
+
+    let result;
+    let errorMessage = null;
+    try {
+      result = await checkEditorialArticlePackage(user, { id: opportunity.id });
+    } catch (error) {
+      // Una rete temporaneamente irraggiungibile NON equivale a un QA fallito.
+      const refreshed = (await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`))?.[0];
+      if (String(refreshed?.evidence?.article_generation_job?.status || "") !== "failed") throw error;
+      errorMessage = String(refreshed?.evidence?.article_generation_job?.last_error || error.message || error);
+    }
+    if (!errorMessage && result?.pending) {
+      const startedAt = Date.parse(job.started_at || "");
+      if (Number.isFinite(startedAt) && Date.now() - startedAt > EDITORIAL_JOB_MAX_AGE_MS) {
+        errorMessage = await schedulerMarkStaleArticleJob(opportunity, job);
+      }
+    }
+    if (errorMessage) {
+      // Un errore globale di configurazione o del provider non giustifica nuovi
+      // tentativi su altri temi; solo QA fonti e job scaduti consentono il recupero.
+      const sourceRelated = errorMessage.startsWith("QA fonti fallito:")
+        || errorMessage.startsWith("Job AI oltre 90 minuti");
+      if (job.source === "scheduler" && sourceRelated) {
+        const refreshed = (await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(opportunity.id)}&limit=1`))?.[0];
+        return schedulerRecoverArticleSources(user, refreshed || opportunity, errorMessage);
+      }
+      if (job.source === "scheduler") {
+        await schedulerFinishArticlePrepareSlot(job, "failed", "generation_failed", errorMessage);
+      }
+      return { action: "article_generation_failed", opportunity_id: opportunity.id,
+        source: job.source, error: errorMessage };
+    }
+    return { action: "article_generation_check", opportunity_id: opportunity.id, result };
+  }
+  return null;
+}
+
+async function schedulerPrepareMissingImage(user) {
+  const rows = await serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&order=updated_at.asc&limit=50`);
+  for (const opportunity of rows || []) {
+    const evidence = opportunity?.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+    if (evidence?.article_generation?.status !== "draft_ready_for_review") continue;
+    if (!validUuid(String(opportunity.target_article_id || ""))) continue;
+
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+    const schedulerGenerated = String(evidence?.article_generation_job?.source || "") === "scheduler";
+    const handedBackToAutopilot = articleAutomationHandoffMatches(opportunity, article);
+    if (!schedulerGenerated && !handedBackToAutopilot) continue;
+
+    const image = articleImageState(opportunity);
+    if (image.current?.url) continue;
+
+    if (!image.candidate?.url) {
+      const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance: "" });
+      return { action: "image_candidate_generated", opportunity_id: opportunity.id, article_id: result.article_id };
+    }
+
+    if (!isAutopilotGeneratedImageAsset(image.candidate)) {
+      const candidate = {
+        ...image.candidate,
+        qa: {
+          schema_version: 1,
+          status: "human_review_required",
+          evaluated_at: new Date().toISOString(),
+          model: null,
+          relevant: false,
+          clear: false,
+          misleading: false,
+          editorial_quality: false,
+          reason: "Candidata non generata ex novo dal percorso text-to-image dell’Autopilota: uso automatico bloccato.",
+          regeneration_guidance: "",
+          source_policy: EDITORIAL_IMAGE_SOURCE_POLICY,
+        },
+      };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: "image_source_human_review_required",
+        opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id,
+        qa: candidate.qa,
+      };
+    }
+
+    const qaStatus = String(image.candidate?.qa?.status || "");
+    if (!qaStatus) {
+      const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(opportunity.target_article_id)}&limit=1`);
+      const article = articleRows?.[0];
+      if (!article?.id) throw new Error("Autopilota QA immagine: articolo collegato non trovato");
+      const qa = await evaluateEditorialArticleImage(article, image.candidate);
+      const attempt = (Array.isArray(image.history) ? image.history.filter((asset) => ["failed", "human_review_required"].includes(String(asset?.qa?.status || ""))).length : 0) + 1;
+      const candidate = { ...image.candidate, qa: { ...qa, attempt } };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: qa.status === "passed" ? "image_qa_passed" : "image_qa_failed",
+        opportunity_id: opportunity.id,
+        article_id: article.id,
+        qa: candidate.qa,
+      };
+    }
+
+    if (qaStatus === "failed") {
+      const failures = articleImageQaFailureCount(image);
+      if (failures <= EDITORIAL_IMAGE_QA_MAX_REGENERATIONS) {
+        const guidance = cleanEditorialText(image.candidate?.qa?.regeneration_guidance, 600)
+          || "Rendi il collegamento con il tema dell'articolo più immediato e inequivocabile, mantenendo una fotografia editoriale realistica e senza testo.";
+        const result = await generateEditorialArticleImage(user, { id: opportunity.id, guidance });
+        return {
+          action: "image_candidate_regenerated_after_qa",
+          opportunity_id: opportunity.id,
+          article_id: result.article_id,
+          regeneration_number: failures,
+          max_regenerations: EDITORIAL_IMAGE_QA_MAX_REGENERATIONS,
+        };
+      }
+      const candidate = {
+        ...image.candidate,
+        qa: {
+          ...image.candidate.qa,
+          status: "human_review_required",
+          exhausted_at: new Date().toISOString(),
+          max_regenerations: EDITORIAL_IMAGE_QA_MAX_REGENERATIONS,
+        },
+      };
+      await saveArticleImageState(user, opportunity, { ...image, candidate });
+      return {
+        action: "image_qa_human_review_required",
+        opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id,
+        qa: candidate.qa,
+      };
+    }
+
+    if (qaStatus === "passed" || qaStatus === "human_review_required") continue;
+  }
+  return null;
+}
+
+function schedulerTargetUrl(opportunity) {
+  const manual = manualIdeaMeta(opportunity);
+  const candidates = [opportunity?.evidence?.target_page_url, ...(Array.isArray(opportunity?.evidence?.page_urls) ? opportunity.evidence.page_urls : [])];
+  if (manual?.target_page_url) candidates.unshift(manual.target_page_url);
+  return candidates.map(schedulerInternalPageUrl).find(Boolean) || null;
+}
+
+
+function schedulerLatestArticleCycleRun(runs) {
+  return (runs || []).find((run) =>
+    run?.run_type === "article_prepare"
+    && run?.status === "success"
+    && run?.details?.source === "scheduler"
+    && validUuid(run?.article_id)
+    && validUuid(run?.opportunity_id)
+  ) || null;
+}
+
+async function schedulerArticleCycleContext(runs) {
+  const run = schedulerLatestArticleCycleRun(runs);
+  if (run) {
+    const [articleRows, opportunityRows] = await Promise.all([
+      serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(run.article_id)}&limit=1`),
+      serviceFetch(`editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(run.opportunity_id)}&limit=1`),
+    ]);
+    const article = articleRows?.[0] || null;
+    const opportunity = opportunityRows?.[0] || null;
+    if (article?.id && opportunity?.id
+      && String(opportunity.status || "") === "selected"
+      && String(opportunity.opportunity_type || "") === "new_article") {
+      return { run, article, opportunity };
+    }
+  }
+
+  // Un articolo preparato o revisionato manualmente può essere riconsegnato esplicitamente
+  // all'Autopilota. In quel caso l'handoff diventa il riferimento del ciclo anche se non esiste
+  // un vecchio run article_prepare schedulato associato alla stessa bozza.
+  const opportunityRows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&status=eq.selected&opportunity_type=eq.new_article&target_article_id=not.is.null&order=updated_at.desc&limit=20`,
+  );
+  for (const opportunity of opportunityRows || []) {
+    const articleId = String(opportunity.target_article_id || "");
+    if (!validUuid(articleId)) continue;
+    const articleRows = await serviceFetch(`editorial_articles?select=*&id=eq.${encodeURIComponent(articleId)}&limit=1`);
+    const article = articleRows?.[0] || null;
+    if (!article?.id) continue;
+
+    const handoff = articleAutomationHandoff(opportunity);
+    if (handoff && String(handoff.status || "") === "armed" && String(handoff.article_id || "") === articleId) {
+      if (articleAutomationHandoffMatches(opportunity, article)) {
+        return { run: null, article, opportunity, handoff: true };
+      }
+      if (String(article.status || "") !== "published") continue;
+    }
+
+    // Un articolo gia' pubblicato puo' continuare automaticamente con follow-up e post finale
+    // anche se la pubblicazione e' stata completata manualmente prima dell'introduzione dell'handoff.
+    // Limitiamo il fallback al ciclo selezionato, generato dall'Autopilota e con piano social collegato,
+    // cosi' una vecchia opportunita' o un articolo estraneo non possono diventare il ciclo corrente.
+    const generation = opportunity?.evidence?.article_generation;
+    if (String(article.status || "") !== "published") continue;
+    if (!generation || String(generation.status || "") !== "draft_ready_for_review") continue;
+    const planRows = await serviceFetch(
+      `editorial_social_plan_items?select=id,post_type,status&source_article_id=eq.${encodeURIComponent(article.id)}&opportunity_id=eq.${encodeURIComponent(opportunity.id)}&post_type=in.(article_followup,related)&order=created_at.asc&limit=10`,
+    );
+    if (!(planRows || []).some((row) => ["article_followup", "related"].includes(String(row?.post_type || "")))) continue;
+    return { run: null, article, opportunity, published_cycle_fallback: true };
+  }
+  return null;
+}
+
+function schedulerGeneratedArticleIsUntouched(context) {
+  const handoff = articleAutomationHandoff(context?.opportunity);
+  if (handoff) return articleAutomationHandoffMatches(context.opportunity, context.article);
+  const generation = context?.opportunity?.evidence?.article_generation;
+  const expected = String(generation?.article_fingerprint_sha256 || "").trim();
+  if (!expected) return false;
+  return expected === articleEditorialFingerprint(context.article);
+}
+
+async function schedulerApproveArticleImage(user, context) {
+  const { article, opportunity } = context;
+  const state = articleImageState(opportunity);
+  if (state.current?.url && String(article.featured_image_url || "") === String(state.current.url || "")) {
+    if (!isAutopilotGeneratedImageAsset(state.current)) {
+      throw new Error("Autopilota: immagine già collegata ma priva di provenienza text-to-image verificata; pubblicazione automatica bloccata");
+    }
+    return { approved: false, already_approved: true, article, opportunity };
+  }
+  if (!state.candidate?.url) {
+    throw new Error("Autopilota: immagine candidata generata ex novo non disponibile per la pubblicazione automatica");
+  }
+
+  const candidate = state.candidate;
+  if (!isAutopilotGeneratedImageAsset(candidate)) {
+    throw new Error("Autopilota: la candidata non proviene dalla generazione text-to-image ex novo; pubblicazione automatica bloccata");
+  }
+  if (String(candidate?.qa?.status || "") !== "passed") {
+    throw new Error("Autopilota: la candidata generata ex novo non ha superato la QA visiva");
+  }
+  const altText = cleanEditorialText(candidate.alt_text, 180) || defaultArticleImageAlt(article);
+  const updatedArticle = await serviceFetch("rpc/editorial_autopilot_set_featured_image", {
+    method: "POST",
+    body: {
+      p_actor_user_id: user.id,
+      p_article_id: article.id,
+      p_image_url: candidate.url,
+      p_alt_text: altText,
+    },
+  });
+  if (!updatedArticle?.id) throw new Error("Autopilota: approvazione automatica immagine non confermata");
+
+  const now = new Date().toISOString();
+  let history = state.history;
+  if (state.current?.url) {
+    history = imageHistoryAppend(history, state.current, "replaced");
+  } else if (article.featured_image_url && article.featured_image_url !== candidate.url) {
+    history = imageHistoryAppend(history, {
+      source: "preexisting",
+      status: "previous_featured_image",
+      url: article.featured_image_url,
+      alt_text: article.featured_image_alt || null,
+    }, "replaced");
+  }
+  const current = {
+    ...candidate,
+    alt_text: altText,
+    status: "approved",
+    approved_at: now,
+    approved_by: user.id,
+  };
+  const nextState = { ...state, current, candidate: null, history };
+  const nextEvidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    article_image: nextState,
+  };
+  const opportunityRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence: nextEvidence, updated_at: now, decided_by: user.id },
+  });
+  return {
+    approved: true,
+    article: updatedArticle,
+    opportunity: opportunityRows?.[0] || { ...opportunity, evidence: nextEvidence },
+  };
+}
+
+async function schedulerQueueArticleSocial(articleId, platforms) {
+  const now = new Date().toISOString();
+  const output = [];
+  for (const platform of platforms || []) {
+    if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) continue;
+    const currentRows = await serviceFetch(
+      `editorial_social_publications?select=*&article_id=eq.${encodeURIComponent(articleId)}&platform=eq.${encodeURIComponent(platform)}&limit=1`,
+    );
+    const current = currentRows?.[0] || null;
+    if (current) {
+      output.push(current);
+      continue;
+    }
+    const rows = await serviceFetch("editorial_social_publications", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        article_id: articleId,
+        platform,
+        status: "ready",
+        attempts: 0,
+        queued_at: now,
+        ready_at: now,
+        updated_at: now,
+      },
+    });
+    if (!rows?.[0]) throw new Error(`Autopilota: coda ${platform} dell'articolo non creata`);
+    output.push(rows[0]);
+  }
+  return output;
+}
+
+async function schedulerQueuePlanSocial(item, platforms) {
+  const now = new Date().toISOString();
+  const output = [];
+  for (const platform of platforms || []) {
+    if (!EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(platform)) continue;
+    const currentRows = await serviceFetch(
+      `editorial_social_plan_publications?select=*&social_plan_item_id=eq.${encodeURIComponent(item.id)}&platform=eq.${encodeURIComponent(platform)}&limit=1`,
+    );
+    const current = currentRows?.[0] || null;
+    if (current) {
+      output.push(current);
+      continue;
+    }
+    const rows = await serviceFetch("editorial_social_plan_publications", {
+      method: "POST",
+      prefer: "return=representation",
+      body: {
+        social_plan_item_id: item.id,
+        platform,
+        status: "ready",
+        attempts: 0,
+        queued_at: now,
+        updated_at: now,
+      },
+    });
+    if (!rows?.[0]) throw new Error(`Autopilota: coda ${platform} del post non creata`);
+    output.push(rows[0]);
+  }
+  return output;
+}
+
+function schedulerSocialSecret(platform) {
+  const envName = platform === "facebook"
+    ? "EDITORIAL_AUTOPILOT_FACEBOOK_SECRET"
+    : platform === "instagram"
+      ? "EDITORIAL_AUTOPILOT_INSTAGRAM_SECRET"
+      : platform === "linkedin"
+        ? "EDITORIAL_AUTOPILOT_LINKEDIN_SECRET"
+        : "";
+  const secret = envName ? env(envName) : "";
+  if (!envName || secret.length < 32) {
+    throw new Error(`Autopilota: segreto dedicato ${platform || "social"} non configurato`);
+  }
+  return secret;
+}
+
+async function schedulerSocialFunction(user, platform, action, body = {}) {
+  const { url, serviceKey } = supabaseConfig();
+  if (!url || !serviceKey) throw new Error("Supabase server non configurato");
+  if (!EDITORIAL_SOCIAL_PLATFORMS.has(platform)) throw new Error(`Canale social non supportato: ${platform}`);
+  const schedulerSecret = schedulerSocialSecret(platform);
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 210000);
+  try {
+    const response = await fetch(`${url}/functions/v1/editorial-social-${platform}`, {
+      method: "POST",
+      headers: {
+        apikey: serviceKey,
+        Authorization: `Bearer ${serviceKey}`,
+        "Content-Type": "application/json",
+        "x-editorial-actor-id": user.id,
+        "x-offertalogica-autopilot-secret": schedulerSecret,
+      },
+      body: JSON.stringify({ action, ...body }),
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    const payload = await response.json().catch(() => null);
+    if (!response.ok || payload?.ok === false) {
+      throw new Error(payload?.error || `${platform}: funzione social HTTP ${response.status}`);
+    }
+    return payload || { ok: true, result: "unknown" };
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error(`${platform}: timeout pubblicazione social`);
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function schedulerEnsureSocialRuntime(user, platforms) {
+  if (!Array.isArray(platforms) || !platforms.length) {
+    throw new Error("Autopilota: nessun canale social abilitato");
+  }
+  for (const platform of platforms) {
+    const expectedVersion = EDITORIAL_SOCIAL_RUNTIME_VERSIONS[platform];
+    if (!expectedVersion) throw new Error(`Autopilota: runtime social non definito per ${platform}`);
+    const payload = await schedulerSocialFunction(user, platform, "validate");
+    if (String(payload?.version || "") !== expectedVersion) {
+      throw new Error(`Autopilota: funzione social ${platform} non allineata al runtime richiesto ${expectedVersion}`);
+    }
+  }
+}
+
+function schedulerSocialResultState(payload) {
+  const result = String(payload?.result || payload?.status || "").trim();
+  if (["published", "already_published", "skipped"].includes(result)) return "success";
+  if (result === "ambiguous_publish") return "ambiguous";
+  if (["waiting_web", "waiting_assets", "in_progress", "carousel_required"].includes(result)) return "retry";
+  if (["failed", "retry_exhausted", "not_queued", "legacy_queue"].includes(result)) return "failed";
+  return payload?.published === true ? "success" : "failed";
+}
+
+function schedulerArticleIntroAssetReadyForPlatforms(context, platforms = []) {
+  const state = editorialSocialAssetsState(context?.opportunity);
+  const intro = state.article_intro || null;
+  if (!intro || String(intro.status || "") !== "ready") return false;
+  const requested = Array.isArray(platforms) ? platforms : [];
+  if (requested.includes("linkedin") && cleanEditorialText(intro.copy?.linkedin_text, 1200).length < 180) return false;
+  const needsMetaCard = requested.some((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
+  if (!needsMetaCard) return true;
+  return Boolean(
+    /^https:\/\//i.test(String(intro.card?.url || ""))
+    && String(intro.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+    && String(intro.card?.source || "") === "composed"
+    && String(intro.card?.renderer || "") === "resvg_wasm"
+  );
+}
+
+function schedulerArticleImageIsExplicitlyApproved(asset) {
+  return Boolean(
+    /^https:\/\//i.test(String(asset?.url || ""))
+    && String(asset?.status || "") === "approved"
+    && String(asset?.approved_at || "").trim()
+    && validUuid(String(asset?.approved_by || ""))
+  );
+}
+
+async function schedulerPublishArticleIntro(user, context, platforms) {
+  if (!Array.isArray(platforms) || !platforms.length) {
+    return {
+      blocked: true,
+      reason: "no_enabled_social_channels",
+      message: "Nessun canale social abilitato: pubblicazione automatica fermata prima dell'articolo.",
+      publication_performed: false,
+    };
+  }
+  await schedulerEnsureSocialRuntime(user, platforms);
+  let nextContext = context;
+  if (!schedulerGeneratedArticleIsUntouched(context) && context.article.status !== "published") {
+    return {
+      blocked: true,
+      reason: "manual_changes_detected",
+      message: "La bozza è stata modificata dopo la generazione: pubblicazione automatica fermata.",
+    };
+  }
+
+  if (context.article.status !== "published") {
+    if (!["draft", "in_review", "approved"].includes(String(context.article.status || ""))) {
+      return {
+        blocked: true,
+        reason: `article_status_${context.article.status || "unknown"}`,
+        message: "Lo stato dell'articolo richiede controllo umano.",
+      };
+    }
+    const imageState = articleImageState(context.opportunity);
+    const featuredImageUrl = String(context.article.featured_image_url || "").trim();
+    const imageAlreadyApproved = Boolean(
+      imageState.current?.url
+      && featuredImageUrl === String(imageState.current.url || "")
+      && schedulerArticleImageIsExplicitlyApproved(imageState.current),
+    );
+    if (!imageAlreadyApproved) {
+      const qaStatus = String(imageState.candidate?.qa?.status || "");
+      if (qaStatus !== "passed") {
+        return {
+          blocked: true,
+          reason: qaStatus === "human_review_required" ? "image_qa_human_review_required" : "image_qa_not_passed",
+          message: qaStatus === "human_review_required"
+            ? "La QA visiva non è stata superata dopo due rigenerazioni: serve controllo umano dell'immagine."
+            : "L'immagine candidata non ha ancora superato la QA visiva automatica.",
+          publication_performed: false,
+        };
+      }
+      const imageResult = await schedulerApproveArticleImage(user, context);
+      if (imageResult?.article?.id) {
+        nextContext = { ...context, article: imageResult.article, opportunity: imageResult.opportunity || context.opportunity };
+      }
+    }
+    const published = await serviceFetch("rpc/editorial_autopilot_publish_article", {
+      method: "POST",
+      body: { p_actor_user_id: user.id, p_article_id: nextContext.article.id },
+    });
+    if (!published?.id || String(published.status || "") !== "published") {
+      throw new Error("Autopilota: pubblicazione articolo non confermata");
+    }
+    nextContext = { ...nextContext, article: published };
+  }
+
+  if (!schedulerArticleIntroAssetReadyForPlatforms(nextContext, platforms)) {
+    throw new Error("Autopilota: asset social iniziale dell'articolo non pronto o non valido; pubblicazione social fermata");
+  }
+
+  await schedulerQueueArticleSocial(nextContext.article.id, platforms);
+  const results = {};
+  let ambiguous = false;
+  for (const platform of platforms) {
+    const action = "process_autopilot_article_intro";
+    const payload = await schedulerSocialFunction(user, platform, action, { article_id: nextContext.article.id });
+    results[platform] = payload;
+    const state = schedulerSocialResultState(payload);
+    if (state === "ambiguous") ambiguous = true;
+    else if (state === "retry") {
+      return {
+        blocked: false,
+        retry_pending: true,
+        retry_reason: `${platform}:${payload?.result || "attesa"}`,
+        article: nextContext.article,
+        opportunity: nextContext.opportunity,
+        social: results,
+        publication_performed: false,
+      };
+    } else if (state === "failed") throw new Error(`Autopilota: ${platform} non pubblicato (${payload?.error || payload?.result || "errore"})`);
+  }
+
+  return {
+    blocked: false,
+    ambiguous,
+    retry_pending: false,
+    article: nextContext.article,
+    opportunity: nextContext.opportunity,
+    social: results,
+    publication_performed: true,
+  };
+}
+
+function schedulerPlanPostType(slotKind) {
+  if (slotKind === "social_followup") return "article_followup";
+  if (slotKind === "social_related") return "related";
+  return null;
+}
+
+async function schedulerPlanItemForCycle(context, slotKind) {
+  const postType = schedulerPlanPostType(slotKind);
+  if (!postType) return null;
+  const rows = await serviceFetch(
+    `editorial_social_plan_items?select=*&source_article_id=eq.${encodeURIComponent(context.article.id)}&opportunity_id=eq.${encodeURIComponent(context.opportunity.id)}&post_type=eq.${encodeURIComponent(postType)}&order=created_at.desc&limit=1`,
+  );
+  return rows?.[0] || null;
+}
+
+async function schedulerCompleteOpportunityCycle(user, context, finalItem, reason = "published") {
+  if (String(context?.opportunity?.status || "") !== "selected") return false;
+  const evidence = {
+    ...(context.opportunity.evidence && typeof context.opportunity.evidence === "object" ? context.opportunity.evidence : {}),
+    autopilot_cycle: {
+      schema_version: 1,
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      completion_reason: reason,
+      article_id: context.article.id,
+      final_social_plan_item_id: finalItem?.id || null,
+    },
+  };
+  await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(context.opportunity.id)}`, {
+    method: "PATCH",
+    prefer: "return=minimal",
+    body: {
+      status: "completed",
+      evidence,
+      decided_by: user.id,
+      decided_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+    },
+  });
   return true;
 }
 
-function offerSelectionSummaryFromRows(rows = []) {
-  const uniqueSelections = new Map();
-  const cardClickSessions = new Set();
-  const cardClickSessionsBySource = new Map();
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const payload = rawAnalyticsPayload(row);
-    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
-    const provider = String(payload.provider || "").trim();
-    const offerName = String(payload.offerName || "").trim();
-    if (!provider && !offerName) return;
-    const sessionId = String(payload.sessionId || "").trim() || `event:${row.id || ""}`;
-    if (String(row?.event_type || "") === "offer_card_clicked") {
-      cardClickSessions.add(sessionId);
-      const sourceKey = normalizeTrafficSource(payload.trafficSource || payload.source || "direct");
-      if (!cardClickSessionsBySource.has(sourceKey)) cardClickSessionsBySource.set(sourceKey, new Set());
-      cardClickSessionsBySource.get(sourceKey).add(sessionId);
-    }
-    if (!isCommercialOfferSelectionEvent(row, payload)) return;
-    const offerIdentity = String(payload.offerId || "").trim() || `${provider}::${offerName}`;
-    const key = `${sessionId}::${offerIdentity}`;
-    if (!uniqueSelections.has(key)) uniqueSelections.set(key, { provider, offerName });
-  });
-
-  const byProvider = {};
-  const byOffer = {};
-  uniqueSelections.forEach(({ provider, offerName }) => {
-    if (provider) increment(byProvider, provider);
-    if (offerName) increment(byOffer, `${provider || "Fornitore"} - ${offerName}`);
-  });
-  return {
-    selections: uniqueSelections.size,
-    cardClicks: cardClickSessions.size,
-    cardClicksBySource: Object.fromEntries([...cardClickSessionsBySource.entries()].map(([key, sessions]) => [key, sessions.size])),
-    topProviders: topEntries(byProvider, 100),
-    topOffers: topEntries(byOffer, 100),
-  };
-}
-
-async function loadOfferSelectionSummary(from = CAMPAIGN_BASELINE_ISO) {
-  if (!customerDbConfiguredForLandingAnalytics()) return { selections: 0, cardClicks: 0, cardClicksBySource: {}, topProviders: [], topOffers: [] };
-  const rows = [];
-  for (let offset = 0; offset < OFFER_SELECTION_MAX_ROWS; offset += OFFER_SELECTION_PAGE_SIZE) {
-    const page = await fetchOfferSelectionPage(from, offset);
-    rows.push(...page);
-    if (page.length < OFFER_SELECTION_PAGE_SIZE) return offerSelectionSummaryFromRows(rows);
-  }
-  throw new Error("Offer selections oltre il limite di lettura sicura");
-}
-
-
-const PHOTO_JOURNEY_EVENT_TYPES = Object.freeze([
-  "bill_photo_camera_opened",
-  "bill_photo_gallery_opened",
-  "bill_photo_selected",
-  "bill_photo_analysis_started",
-  "bill_photo_analysis_completed",
-  "bill_photo_analysis_failed",
-  "bill_photo_comparison_auto_started",
-  "offers_rendered",
-]);
-const PHOTO_JOURNEY_PAGE_SIZE = 1000;
-const PHOTO_JOURNEY_MAX_ROWS = 100000;
-
-async function fetchPhotoJourneyPage(from, offset = 0) {
-  if (!customerDbConfiguredForLandingAnalytics()) return [];
-  const query = new URLSearchParams({
-    select: "id,event_type,created_at,payload",
-    order: "created_at.asc",
-    limit: String(PHOTO_JOURNEY_PAGE_SIZE),
-    offset: String(Math.max(0, Number(offset) || 0)),
-  });
-  if (from) query.set("created_at", `gte.${from}`);
-  query.set("event_type", `in.(${PHOTO_JOURNEY_EVENT_TYPES.join(",")})`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
-  if (!response.ok) throw new Error(`Customer DB photo journey error ${response.status}`);
-  const rows = await response.json();
-  return Array.isArray(rows) ? rows : [];
-}
-
-function photoJourneySummaryFromRows(rows = []) {
-  const groups = new Map();
-  (Array.isArray(rows) ? rows : []).forEach((row) => {
-    const payload = rawAnalyticsPayload(row);
-    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
-    const sessionId = String(payload.sessionId || "").trim();
-    if (!sessionId) return;
-    if (!groups.has(sessionId)) groups.set(sessionId, []);
-    groups.get(sessionId).push({
-      eventType: String(row.event_type || ""),
-      createdAt: row.created_at || "",
-      payload,
-    });
-  });
-
-  const sets = {
-    sessions: new Set(), camera: new Set(), gallery: new Set(), selected: new Set(), started: new Set(),
-    completed: new Set(), complete: new Set(), missing: new Set(), unreadable: new Set(), failed: new Set(),
-    autoCompare: new Set(), offersReached: new Set(),
-  };
-
-  groups.forEach((events, sessionId) => {
-    const ordered = [...events].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
-    const photoEvents = ordered.filter((event) => event.eventType.startsWith("bill_photo_"));
-    if (!photoEvents.length) return;
-    sets.sessions.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_camera_opened" || String(event.payload?.inputSource || "") === "camera")) sets.camera.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_gallery_opened" || String(event.payload?.inputSource || "") === "gallery")) sets.gallery.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_selected")) sets.selected.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_started")) sets.started.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_completed")) sets.completed.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_analysis_failed")) sets.failed.add(sessionId);
-    if (photoEvents.some((event) => event.eventType === "bill_photo_comparison_auto_started" || event.payload?.comparisonAutoStarted === true)) sets.autoCompare.add(sessionId);
-
-    const statuses = photoEvents
-      .filter((event) => event.eventType === "bill_photo_analysis_completed")
-      .map((event) => String(event.payload?.analysisStatus || "").toLowerCase());
-    if (statuses.includes("success")) sets.complete.add(sessionId);
-    if (statuses.includes("success_missing_data")) sets.missing.add(sessionId);
-    if (statuses.includes("unreadable") || sets.failed.has(sessionId)) sets.unreadable.add(sessionId);
-
-    const firstPhotoAt = photoEvents
-      .map((event) => new Date(event.createdAt || 0).getTime())
-      .filter(Number.isFinite)
-      .sort((a, b) => a - b)[0] || 0;
-    if (firstPhotoAt && ordered.some((event) => event.eventType === "offers_rendered" && new Date(event.createdAt || 0).getTime() >= firstPhotoAt)) {
-      sets.offersReached.add(sessionId);
-    }
-  });
-
-  return {
-    sessions: sets.sessions.size,
-    cameraSessions: sets.camera.size,
-    gallerySessions: sets.gallery.size,
-    selectedSessions: sets.selected.size,
-    startedSessions: sets.started.size,
-    completedSessions: sets.completed.size,
-    completeSessions: sets.complete.size,
-    missingDataSessions: sets.missing.size,
-    unreadableSessions: sets.unreadable.size,
-    failedSessions: sets.failed.size,
-    autoCompareSessions: sets.autoCompare.size,
-    offersReachedSessions: sets.offersReached.size,
-  };
-}
-
-async function loadPhotoJourneySummary(from = CAMPAIGN_BASELINE_ISO) {
-  if (!customerDbConfiguredForLandingAnalytics()) return photoJourneySummaryFromRows([]);
-  const rows = [];
-  for (let offset = 0; offset < PHOTO_JOURNEY_MAX_ROWS; offset += PHOTO_JOURNEY_PAGE_SIZE) {
-    const page = await fetchPhotoJourneyPage(from, offset);
-    rows.push(...page);
-    if (page.length < PHOTO_JOURNEY_PAGE_SIZE) return photoJourneySummaryFromRows(rows);
-  }
-  throw new Error("Photo journey oltre il limite di lettura sicura");
-}
-
-function normalizeTrafficSource(value) {
-  const source = String(value || "").trim().toLowerCase();
-  if (!source || ["direct", "(direct)", "none", "(none)"].includes(source)) return "direct";
-  if (/(google[_ -]?ads|adwords|gads|google.*(?:cpc|paid))/i.test(source)) return "google_ads";
-  if (/(google[_ -]?organic|(^|\.)google\.|^google$)/i.test(source)) return "google_organic";
-  if (/(instagram|l\.instagram\.com)/i.test(source)) return "instagram";
-  if (/(facebook|fb\.com|l\.facebook\.com|lm\.facebook\.com)/i.test(source)) return "facebook";
-  if (/(tiktok|tiktok\.com)/i.test(source)) return "tiktok";
-  if (/(meta_other|meta)/i.test(source)) return "meta_other";
-  return "referral_other";
-}
-
-function trafficSourceLabel(key) {
-  return ({
-    google_ads: "Google Ads",
-    google_organic: "Google organico",
-    instagram: "Instagram",
-    facebook: "Facebook",
-    tiktok: "TikTok",
-    meta_other: "Meta non distinto",
-    direct: "Diretto",
-    referral_other: "Referral / altro",
-  })[key] || key;
-}
-
-function sourceEntries(map) {
-  return topEntries(map, 12).map((item) => ({ ...item, label: trafficSourceLabel(item.key) }));
-}
-
-
-function isAutomaticLandingPreview(event = {}) {
-  return String(event.dataOrigin || "").trim().toLowerCase() === LANDING_AUTOMATIC_DATA_ORIGIN;
-}
-
-function isRealComparisonCompleted(event = {}) {
-  return event.eventType === "comparison_completed" && !isAutomaticLandingPreview(event);
-}
-
-const COMPARISON_PATH_SIGNAL_EVENT_TYPES = new Set([
-  "comparison_started",
-  "comparison_completed",
-  "comparison_incomplete_data",
-  "comparison_missing_current_price",
-  "offers_rendered",
-]);
-
-function comparisonEventPathChoice(event = {}) {
-  const raw = String(event.pathChoice || event.payload?.pathChoice || "").trim().toLowerCase();
-  const trigger = String(event.trigger || event.payload?.trigger || "").trim().toLowerCase();
-  if (["average", "media", "profilo_medio", "arera_average_profile"].includes(raw)) return "average";
-  if (["manual", "manuale", "manual_input"].includes(raw)) return "manual";
-  if (["photo", "foto", "bill_photo"].includes(raw)) return "photo";
-  if (["pdf", "pdf_upload"].includes(raw)) {
-    if (trigger === "photo_camera_choice") return "photo";
-    return "pdf";
-  }
-  return "";
-}
-
-function comparisonEventDataOrigin(event = {}) {
-  return String(event.dataOrigin || event.payload?.dataOrigin || "").trim().toLowerCase();
-}
-
-function comparisonPathSignals(events = []) {
-  const ordered = [...(Array.isArray(events) ? events : [])].sort(compareAnalyticsEventOrder);
-  const sequence = [];
-  let explicitCount = 0;
-  let inferredCount = 0;
-  const push = (path, basis) => {
-    if (!path) return;
-    if (sequence[sequence.length - 1]?.path === path) {
-      if (basis === "registrato") sequence[sequence.length - 1].basis = "registrato";
-      return;
-    }
-    sequence.push({ path, basis });
-    if (basis === "registrato") explicitCount += 1;
-    else inferredCount += 1;
-  };
-
-  ordered.forEach((event) => {
-    const eventType = String(event.eventType || event.event_type || "");
-    if (eventType === "comparison_path_selected") {
-      push(comparisonEventPathChoice(event), "registrato");
-      return;
-    }
-
-    // Foto e PDF restano distinti: il frontend usa pathChoice=pdf anche per la foto,
-    // ma il trigger esplicito permette di ricostruire correttamente il pulsante scelto.
-    if (eventType.startsWith("bill_photo_")) {
-      push("photo", "inferito");
-      return;
-    }
-
-    // Qualunque evento PDF rappresenta un segnale reale del ramo PDF, anche nello storico.
-    if (eventType.startsWith("pdf_")) {
-      push("pdf", "inferito");
-      return;
-    }
-
-    // Gli origin vengono usati solo su eventi di confronto significativi.
-    // landing_view può ereditare manual_input e non deve mai diventare una scelta manuale.
-    if (!COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(eventType)) return;
-    const origin = comparisonEventDataOrigin(event);
-    if (!origin || origin === LANDING_AUTOMATIC_DATA_ORIGIN) return;
-    if (origin === "pdf_upload") push("pdf", "inferito");
-    else if (origin === "manual_input") push("manual", "inferito");
-    else if (origin === "arera_average_profile") push("average", "inferito");
-  });
-
-  return {
-    sequence,
-    paths: new Set(sequence.map((item) => item.path)),
-    latest: sequence[sequence.length - 1]?.path || "",
-    hasExplicit: explicitCount > 0,
-    hasInferred: inferredCount > 0,
-  };
-}
-
-function comparisonPathLabel(path = "") {
-  if (path === "average") return "vedi subito le offerte";
-  if (path === "manual") return "manuale";
-  if (path === "photo") return "foto bolletta";
-  if (path === "pdf") return "pdf";
-  return "";
-}
-
-function activityFunnelFromEvents(events = []) {
-  const funnel = {
-    photoPathSelected: 0,
-    pdfPathSelected: 0,
-    pdfPickerOpened: 0,
-    pdfFileSelected: 0,
-    pdfStarted: 0,
-    pdfCompleted: 0,
-    pdfInterrupted: 0,
-    comparisons: 0,
-    landingPreviews: 0,
-    offersRendered: 0,
-    leadModalOpened: 0,
-    leadModalClosed: 0,
-    leadFormInvalid: 0,
-    otpRequestStarted: 0,
-    leadCreatedClient: 0,
-    otpSent: 0,
-    otpFailed: 0,
-    otpVerified: 0,
-    offersUnlocked: 0,
-    offerConsentOpened: 0,
-    partnerConsentConfirmed: 0,
-    redirects: 0,
-    consultantRequests: 0,
-    failedRequests: 0,
-  };
-  events.forEach((event) => {
-    if (event.eventType === "comparison_path_selected" && comparisonEventPathChoice(event) === "photo") funnel.photoPathSelected += 1;
-    if (event.eventType === "comparison_path_selected" && comparisonEventPathChoice(event) === "pdf") funnel.pdfPathSelected += 1;
-    if (event.eventType === "pdf_picker_opened") funnel.pdfPickerOpened += 1;
-    if (event.eventType === "pdf_file_selected") funnel.pdfFileSelected += 1;
-    if (event.eventType === "pdf_analysis_started") funnel.pdfStarted += 1;
-    if (event.eventType === "pdf_analysis_completed") funnel.pdfCompleted += 1;
-    if (event.eventType === "pdf_analysis_interrupted") funnel.pdfInterrupted += 1;
-    if (isRealComparisonCompleted(event)) funnel.comparisons += 1;
-    if (event.eventType === "comparison_completed" && isAutomaticLandingPreview(event)) funnel.landingPreviews += 1;
-    if (event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event)) funnel.offersRendered += 1;
-    if (event.eventType === "lead_modal_opened") funnel.leadModalOpened += 1;
-    if (event.eventType === "lead_modal_closed") funnel.leadModalClosed += 1;
-    if (event.eventType === "lead_form_invalid") funnel.leadFormInvalid += 1;
-    if (event.eventType === "otp_request_started") funnel.otpRequestStarted += 1;
-    if (event.eventType === "lead_created_client") funnel.leadCreatedClient += 1;
-    if (event.eventType === "otp_sent") funnel.otpSent += 1;
-    if (event.eventType === "otp_failed") funnel.otpFailed += 1;
-    if (event.eventType === "otp_verified") funnel.otpVerified += 1;
-    if (event.eventType === "offers_unlocked") funnel.offersUnlocked += 1;
-    if (event.eventType === "offer_consent_opened") funnel.offerConsentOpened += 1;
-    if (event.eventType === "offer_partner_consent_confirmed") funnel.partnerConsentConfirmed += 1;
-    if (event.eventType === "offer_redirect") funnel.redirects += 1;
-    if (event.eventType === "offer_request_recorded") funnel.consultantRequests += 1;
-    if (event.eventType === "offer_request_failed") funnel.failedRequests += 1;
-  });
-  return funnel;
-}
-
-function sessionFunnelFromGroups(groups = []) {
-  const funnel = {
-    entries: 0,
-    pathSelected: 0,
-    selfServiceSelected: 0,
-    assistedSelected: 0,
-    averageSelected: 0,
-    photoSelected: 0,
-    manualSelected: 0,
-    pdfSelected: 0,
-    pdfStarted: 0,
-    pdfCompleted: 0,
-    comparisons: 0,
-    offersViewed: 0,
-    switcho: 0,
-    leadModalOpened: 0,
-    otpRequestStarted: 0,
-    otpSent: 0,
-    otpVerified: 0,
-    offersUnlocked: 0,
-    cardClicked: 0,
-    cardClickedStandard: 0,
-    cardClickedPrecise: 0,
-    billPersonalizationFromOffer: 0,
-    offerAction: 0,
-    redirects: 0,
-  };
-
-  groups.forEach((group) => {
-    const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
-    const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
-    const hasSelfService = eventTypes.has("landing_self_service_click");
-    const hasAssisted = eventTypes.has("landing_assisted_click");
-    const pathSignals = comparisonPathSignals(group);
-    const hasPdfSignal = pathSignals.paths.has("pdf");
-    const hasSwitcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
-      .some((type) => eventTypes.has(type));
-    const hasRealOffers = group.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
-
-    funnel.entries += 1;
-    if (hasSelfService || hasAssisted) funnel.pathSelected += 1;
-    if (hasSelfService) funnel.selfServiceSelected += 1;
-    if (hasAssisted) funnel.assistedSelected += 1;
-    if (pathSignals.paths.has("average")) funnel.averageSelected += 1;
-    if (pathSignals.paths.has("photo")) funnel.photoSelected += 1;
-    if (pathSignals.paths.has("manual")) funnel.manualSelected += 1;
-    if (pathSignals.paths.has("pdf")) funnel.pdfSelected += 1;
-    if (eventTypes.has("pdf_analysis_started")) funnel.pdfStarted += 1;
-    if (eventTypes.has("pdf_analysis_completed")) funnel.pdfCompleted += 1;
-    if (hasRealComparison) funnel.comparisons += 1;
-    if (hasRealOffers) funnel.offersViewed += 1;
-    if (hasSwitcho) funnel.switcho += 1;
-    if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
-    if (eventTypes.has("otp_request_started")) funnel.otpRequestStarted += 1;
-    if (eventTypes.has("otp_sent")) funnel.otpSent += 1;
-    if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
-    if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
-    if (eventTypes.has("offer_card_clicked")) funnel.cardClicked += 1;
-    if (group.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.mode || "").toLowerCase() === "media"
-        || String(event.source || "").toLowerCase() === "offer_card_media")
-    )) funnel.cardClickedStandard += 1;
-    if (group.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.mode || "").toLowerCase() === "precise"
-        || String(event.source || "").toLowerCase() === "offer_card_precise")
-    )) funnel.cardClickedPrecise += 1;
-    if (group.some((event) =>
-      event.eventType === "offers_bill_prompt_clicked"
-      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.pdfUploadSource || "").toLowerCase())
-    )) funnel.billPersonalizationFromOffer += 1;
-    const hasCommercialActivationChoice = group.some((event) => {
-      if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
-      const route = String(event?.route || "").trim();
-      const channel = String(event?.channel || "").trim();
-      if (route === "internal_activatable_view" || channel === "internal") return false;
-      return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
-        || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
-    });
-    if (hasCommercialActivationChoice || ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
-      funnel.offerAction += 1;
-    }
-    if (eventTypes.has("offer_redirect") || hasSwitcho) funnel.redirects += 1;
-  });
-
-  return funnel;
-}
-
-function sourceForSessionGroup(group = []) {
-  const ordered = [...group].sort(compareAnalyticsEventOrder);
-  const landing = ordered.find((event) => event.eventType === LANDING_PATH_EVENTS.view);
-  const rawSource = landing?.trafficSource
-    || landing?.source
-    || ordered.map((event) => event.trafficSource).find(Boolean)
-    || ordered.map((event) => event.source).find(Boolean)
-    || "direct";
-  return normalizeTrafficSource(rawSource);
-}
-
-function sessionFunnelsBySource(groups = []) {
-  const grouped = new Map();
-  groups.forEach((group) => {
-    const source = sourceForSessionGroup(group);
-    if (!grouped.has(source)) grouped.set(source, []);
-    grouped.get(source).push(group);
-  });
-  return Object.fromEntries(
-    [...grouped.entries()].map(([source, sourceGroups]) => [source, sessionFunnelFromGroups(sourceGroups)])
+function schedulerPlanAssetIsOlInforma(context, item) {
+  const state = editorialSocialAssetsState(context?.opportunity);
+  const asset = state.items?.[String(item?.id || "")] || null;
+  return Boolean(
+    asset
+    && String(asset.status || "") === "ready"
+    && String(asset.image?.qa?.status || "") === "passed"
+    && /^https:\/\//i.test(String(asset.card?.url || ""))
+    && String(asset.card?.template_version || "") === EDITORIAL_SOCIAL_CARD_TEMPLATE_VERSION
+    && String(asset.card?.source || "") === "composed"
+    && String(asset.card?.renderer || "") === "resvg_wasm"
   );
 }
 
-function visitorDescriptor(events) {
-  const agents = new Set(events.map((event) => event.trafficAgent).filter(Boolean));
-  if (agents.has("known_bot")) {
-    return { type: "known_bot", label: "Bot rilevato", reason: "firma tecnica di crawler/bot" };
-  }
-  if (agents.has("automation")) {
-    return { type: "automation", label: "Automazione sospetta", reason: "firma tecnica di browser o client automatizzato" };
-  }
 
-  const explicitInteraction = events.some((event) => HUMAN_INTERACTION_EVENTS.has(event.eventType));
-  if (agents.has("browser") && explicitInteraction) {
-    return { type: "probable_person", label: "Probabile persona", reason: "browser standard con interazione esplicita" };
-  }
-  if (agents.has("browser")) {
-    return { type: "undetermined", label: "Non determinabile", reason: "browser standard senza interazione esplicita registrata" };
-  }
-  if (agents.size) {
-    return { type: "undetermined", label: "Non determinabile", reason: "client non classificabile con affidabilità" };
-  }
-  return { type: "undetermined", label: "Non determinabile", reason: "evento precedente al controllo bot/persona" };
-}
-
-function analyticsFromCampaignBaseline(result) {
-  if (!result || !Array.isArray(result.events)) return result;
-  const baselineMs = new Date(CAMPAIGN_BASELINE_ISO).getTime();
-  const events = result.events.filter((event) => {
-    const createdMs = new Date(event.createdAt || 0).getTime();
-    return Number.isFinite(createdMs) && createdMs >= baselineMs;
+async function schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local, schedule) {
+  if (String(settings?.execution_mode || "") !== "automatic") return null;
+  const slots = (Array.isArray(schedule) ? schedule : []).filter((slot) => {
+    if (!["social_followup", "social_related"].includes(String(slot?.kind || ""))) return false;
+    if (Number(slot?.weekday) !== Number(local?.weekday)) return false;
+    const minutes = schedulerSlotMinutes(slot?.time_local);
+    return minutes !== null && Number(local?.minutes) >= minutes;
   });
-  return {
-    ...result,
-    events,
-    summary: {
-      recentEvents: events.length,
-      uniqueSessions: 0,
-      linkedLeads: 0,
-      funnel: {},
-    },
-  };
-}
+  if (!slots.length) return null;
 
-function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
-  if (!result || !Array.isArray(result.events)) return result;
+  const context = await schedulerArticleCycleContext(runs);
+  if (!context?.opportunity?.id || !context?.article?.id) return null;
 
-  const events = result.events.map((event) => {
-    const signal = trafficSignals.get(String(event.id || "")) || {};
+  for (const slot of slots) {
+    const schedulerKey = `${local.date}:${slot.id}`;
+    const matching = (runs || [])
+      .filter((run) => run?.details?.scheduler_key === schedulerKey)
+      .sort((left, right) => String(right?.created_at || right?.started_at || "").localeCompare(String(left?.created_at || left?.started_at || "")));
+    if (!matching.length) continue;
+    if (matching.some((run) => run?.details?.publication_performed === true)) continue;
+    const failedAttempts = matching.filter((run) => String(run?.status || "") === "failed").length;
+    if (failedAttempts >= SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY) continue;
+
+    const latestSuccess = matching.find((run) => String(run?.status || "") === "success") || null;
+    if (!latestSuccess || latestSuccess?.details?.publication_performed === true) continue;
+    const latestStage = String(latestSuccess?.details?.stage || "");
+    const latestReason = String(latestSuccess?.details?.reason || "");
+
+    // Recupera solo slot social già passati e non pubblicati quando la card è ora pronta.
+    // Esclude stati che richiedono una decisione umana o una verifica anti-duplicato.
+    if (["post_cancelled", "no_enabled_plan_channels", "no_enabled_social_channels", "draft_mode", "approval_mode"].includes(latestReason)) continue;
+    if (["waiting_human_approval", "waiting_human_review", "manual_social_check_required", "skipped_draft_mode"].includes(latestStage)) continue;
+    if (latestStage === "skipped" && latestReason !== "no_article_cycle") continue;
+
+    const item = await schedulerPlanItemForCycle(context, slot.kind);
+    if (!item?.id || ["cancelled", "published"].includes(String(item.status || ""))) continue;
+    if (!schedulerPlanAssetIsOlInforma(context, item)) continue;
+
+    const result = await schedulerProcessSlot(slot, user, settings, runs, local);
     return {
-      ...event,
-      trafficAgent: signal.trafficAgent || event.trafficAgent || "",
-      trafficReason: signal.trafficReason || event.trafficReason || "",
+      ...result,
+      action: `${slot.kind}_recovered_after_asset_ready`,
+      recovery_reason: "missed_slot_asset_now_ready",
+      recovered_slot: { id: slot.id, kind: slot.kind, label: slot.label },
     };
-  });
+  }
+  return null;
+}
 
-  const groups = new Map();
-  events.forEach((event) => {
-    const key = event.sessionId ? `session:${event.sessionId}` : `event:${event.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(event);
-  });
+async function schedulerPublishPlanItem(user, context, slotKind, enabledPlatforms) {
+  const item = await schedulerPlanItemForCycle(context, slotKind);
+  if (!item?.id) throw new Error(`Autopilota: post ${schedulerPlanPostType(slotKind)} non trovato`);
+  if (String(item.status || "") === "cancelled") {
+    if (slotKind === "social_related") await schedulerCompleteOpportunityCycle(user, context, item, "final_post_cancelled");
+    return { blocked: true, reason: "post_cancelled", item, publication_performed: false };
+  }
+  if (String(item.status || "") === "published") {
+    if (slotKind === "social_related") await schedulerCompleteOpportunityCycle(user, context, item, "final_post_already_published");
+    return { blocked: false, already_published: true, item, publication_performed: true, social: {} };
+  }
+  if (String(context.article.status || "") !== "published") {
+    throw new Error("Autopilota: il post social non può partire prima della pubblicazione dell'articolo");
+  }
+  if (!schedulerPlanAssetIsOlInforma(context, item)) {
+    throw new Error("Autopilota: card OL Informa non pronta o non valida; pubblicazione social fermata");
+  }
 
-  const visitorCounts = {
-    probable_person: 0,
-    known_bot: 0,
-    automation: 0,
-    undetermined: 0,
-  };
-  const trafficSourceSessions = {};
-  const attributedSessionGroups = [];
-  groups.forEach((group, groupKey) => {
-    const visitor = visitorDescriptor(group);
-    visitorCounts[visitor.type] = (visitorCounts[visitor.type] || 0) + 1;
-    const hasSessionId = String(groupKey || "").startsWith("session:");
-    const groupSource = sourceForSessionGroup(group);
-    const sourceEligible = hasSessionId && (visitor.type === "probable_person"
-      || group.some((event) => event.trafficAgent === "browser"));
-    if (sourceEligible) {
-      attributedSessionGroups.push(group);
-      increment(trafficSourceSessions, groupSource);
+  const enabledPlanPlatforms = (enabledPlatforms || []).filter((platform) => EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")));
+  const requested = Array.isArray(item.platforms) && item.platforms.length
+    ? item.platforms.filter((platform) => enabledPlanPlatforms.includes(platform) && EDITORIAL_PLAN_SOCIAL_PLATFORMS.has(String(platform || "")))
+    : enabledPlanPlatforms;
+  if (!requested.length) {
+    if (slotKind === "social_related") {
+      await schedulerCompleteOpportunityCycle(user, context, item, "final_post_no_enabled_meta_channels");
     }
-    group.forEach((event) => {
-      event.visitorType = visitor.type;
-      event.visitorLabel = visitor.label;
-      event.visitorReason = visitor.reason;
-      event.trafficSource = hasSessionId ? groupSource : normalizeTrafficSource(event.trafficSource || event.source);
-      const trafficText = `Visitatore: ${visitor.label} · ${visitor.reason}`;
-      event.reason = [event.reason, trafficText].filter(Boolean).join(" · ");
-    });
-  });
-
-  const probableEvents = events.filter((event) => event.visitorType === "probable_person");
-  const probableSessions = new Set(probableEvents.map((event) => event.sessionId).filter(Boolean));
-  const probableLeads = new Set(probableEvents.map((event) => event.leadId).filter(Boolean));
-  const byProvider = {};
-  const byOffer = {};
-  probableEvents.forEach((event) => {
-    if (event.eventType !== "offer_consent_opened") return;
-    if (event.provider) increment(byProvider, event.provider);
-    if (event.offerName) increment(byOffer, `${event.provider || "Fornitore"} - ${event.offerName}`);
-  });
-
-  return {
-    ...result,
-    events,
-    summary: {
-      ...(result.summary || {}),
-      rawFunnel: result.summary?.funnel || {},
-      rawUniqueSessions: Number(result.summary?.uniqueSessions || 0),
-      rawLinkedLeads: Number(result.summary?.linkedLeads || 0),
-      funnel: activityFunnelFromEvents(events),
-      sessionFunnel: sessionFunnelFromGroups(attributedSessionGroups),
-      sessionFunnelsBySource: sessionFunnelsBySource(attributedSessionGroups),
-      attributedSessions: attributedSessionGroups.length,
-      uniqueSessions: probableSessions.size,
-      linkedLeads: probableLeads.size,
-      probablePersonEvents: probableEvents.length,
-      topProviders: topEntries(byProvider),
-      topOffers: topEntries(byOffer),
-      visitorSessions: visitorCounts,
-      trafficSources: sourceEntries(trafficSourceSessions),
-    },
-  };
-}
-
-const ANALYTICS_EXPORT_PAGE_SIZE = 1000;
-const ANALYTICS_EXPORT_MAX_ROWS = 100000;
-
-function csvEscape(value) {
-  const normalized = value === null || value === undefined
-    ? ""
-    : typeof value === "object"
-      ? JSON.stringify(value)
-      : String(value);
-  return `"${normalized.replace(/"/g, '""')}"`;
-}
-
-function csvFromObjects(rows, headers) {
-  return [
-    headers.join(","),
-    ...rows.map((row) => headers.map((header) => csvEscape(row[header])).join(",")),
-  ].join("\n");
-}
-
-function analyticsExportRangeFrom(value) {
-  return String(value || "baseline").toLowerCase() === "all" ? "" : CAMPAIGN_BASELINE_ISO;
-}
-
-async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
-  const query = new URLSearchParams({
-    select: "id,lead_id,event_type,created_at,payload",
-    order: "created_at.asc",
-    limit: String(limit),
-    offset: String(offset),
-  });
-  if (from) query.append("created_at", `gte.${from}`);
-  if (to) query.append("created_at", `lt.${to}`);
-  const response = await fetch(
-    `${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query.toString()}`,
-    { method: "GET", headers: customerDbReadHeaders() },
-  );
-  if (!response.ok) throw new Error(`Customer DB analytics export error ${response.status}`);
-  const rows = await response.json();
-  return Array.isArray(rows) ? rows : [];
-}
-
-async function loadAnalyticsExportRows(from, to = "") {
-  if (!customerDbConfiguredForLandingAnalytics()) return [];
-  const rows = [];
-  for (let offset = 0; offset < ANALYTICS_EXPORT_MAX_ROWS; offset += ANALYTICS_EXPORT_PAGE_SIZE) {
-    const page = await fetchAnalyticsExportPage(from, to, offset);
-    rows.push(...page);
-    if (page.length < ANALYTICS_EXPORT_PAGE_SIZE) return rows;
+    return { blocked: true, reason: "no_enabled_plan_channels", item, publication_performed: false };
   }
-  const overflow = await fetchAnalyticsExportPage(from, to, ANALYTICS_EXPORT_MAX_ROWS, 1);
-  if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
-  return rows;
-}
+  await schedulerEnsureSocialRuntime(user, requested);
 
-function rawAnalyticsPayload(row = {}) {
-  return row?.payload && typeof row.payload === "object" && !Array.isArray(row.payload) ? row.payload : {};
-}
-
-function analyticsEventExportRows(rows = []) {
-  return rows.map((row) => {
-    const p = rawAnalyticsPayload(row);
-    return {
-      id: row.id ?? "",
-      lead_id: row.lead_id || "",
-      event_type: row.event_type || "",
-      created_at: row.created_at || "",
-      client_timestamp: p.client_timestamp || p.clientTimestamp || "",
-      session_event_seq: p.session_event_seq ?? p.sessionEventSeq ?? "",
-      session_id: p.sessionId || "",
-      page: p.page || "",
-      customer_type: p.customerType || "",
-      data_origin: p.dataOrigin || "",
-      source: p.source || "",
-      lead_source: p.leadSource || "",
-      traffic_source: p.trafficSource || "",
-      traffic_medium: p.trafficMedium || "",
-      traffic_campaign: p.trafficCampaign || "",
-      traffic_term: p.trafficTerm || "",
-      traffic_content: p.trafficContent || "",
-      traffic_campaign_id: p.trafficCampaignId || "",
-      traffic_adgroup_id: p.trafficAdGroupId || "",
-      traffic_creative_id: p.trafficCreativeId || "",
-      traffic_match_type: p.trafficMatchType || "",
-      traffic_device: p.trafficDevice || "",
-      traffic_network: p.trafficNetwork || "",
-      traffic_referrer: p.trafficReferrer || "",
-      traffic_landing_page: p.trafficLandingPage || "",
-      traffic_click_id_type: p.trafficClickIdType || "",
-      traffic_click_id: p.trafficClickId || "",
-      article_slug: p.articleSlug || "",
-      article_title: p.articleTitle || "",
-      article_category: p.articleCategory || "",
-      article_type: p.articleType || "",
-      article_canonical: p.articleCanonical || "",
-      consent_action: p.consentAction || "",
-      consent_source: p.consentSource || "",
-      traffic_agent: p.trafficAgent || "",
-      traffic_reason: p.trafficReason || "",
-      event_integrity: p.eventIntegrity || "",
-      verified: p.verified ?? "",
-      staff_mode: p.staffMode ?? "",
-      path_choice: p.pathChoice || "",
-      trigger: p.trigger || "",
-      tipo_prezzo: p.tipoPrezzo || "",
-      tipo_fornitura: p.tipoFornitura || "",
-      regione_gas: p.regioneGas || "",
-      potenza_kw: p.potenzaKw ?? "",
-      luce_consumo_kwh: p.luceConsumoKwh ?? "",
-      gas_consumo_smc: p.gasConsumoSmc ?? "",
-      fornitore_attuale: p.fornitoreAttuale || "",
-      fornitore_luce_attuale: p.fornitoreLuceAttuale || "",
-      fornitore_gas_attuale: p.fornitoreGasAttuale || "",
-      fornitore_nuova_offerta: p.fornitoreNuovaOfferta || "",
-      context: p.context || "",
-      field: p.field || "",
-      mode: p.mode || "",
-      has_pending_url: p.hasPendingUrl ?? "",
-      assisted: p.assisted ?? "",
-      business_catalog_offers_count: p.businessCatalogOffersCount ?? "",
-      business_catalog_dual_offers_count: p.businessCatalogDualOffersCount ?? "",
-      demo_mode: p.demoMode ?? "",
-      tool_code: p.toolCode || "",
-      tool_action: p.toolAction || "",
-      tool_outcome: p.toolOutcome || "",
-      tool_context: p.toolContext || "",
-      tool_version: p.toolVersion || "",
-      ranking_offers_count: p.rankingOffersCount ?? "",
-      best_partner_saving: p.bestPartnerSaving ?? "",
-      best_saving: p.bestSaving ?? "",
-      pdf_document_count: p.pdfDocumentCount ?? "",
-      file_count: p.fileCount ?? "",
-      selected_count: p.selectedCount ?? "",
-      accepted_count: p.acceptedCount ?? "",
-      duplicate_count: p.duplicateCount ?? "",
-      success_count: p.successCount ?? "",
-      unrecognized_count: p.unrecognizedCount ?? "",
-      error_count: p.errorCount ?? "",
-      analysis_status: p.analysisStatus || "",
-      diagnostic_code: p.diagnosticCode || "",
-      diagnostic_codes: p.diagnosticCodes ?? [],
-      analysis_stage: p.analysisStage || "",
-      analysis_stages: p.analysisStages ?? [],
-      ingress_mode: p.ingressMode || "",
-      ingress_modes: p.ingressModes ?? [],
-      document_kinds: p.documentKinds ?? [],
-      commodities: p.commodities ?? [],
-      missing_fields: p.missingFields ?? [],
-      missing_field_count: p.missingFieldCount ?? "",
-      review_field_count: p.reviewFieldCount ?? "",
-      pdf_analysis_ids: p.pdfAnalysisIds ?? [],
-      pdf_archive_stored: p.pdfArchiveStored ?? "",
-      pdf_contract_version: p.pdfContractVersion || "",
-      pdf_parser_mode: p.pdfParserMode || "",
-      pdf_parser_version: p.pdfParserVersion || "",
-      pdf_reader_confidence: p.pdfReaderConfidence || "",
-      pdf_page_count: p.pdfPageCount ?? "",
-      pdf_field_diagnostics: p.pdfFieldDiagnostics ?? [],
-      field_count: p.fieldCount ?? "",
-      protected_count: p.protectedCount ?? "",
-      ocr_review_count: p.ocrReviewCount ?? "",
-      skipped_count: p.skippedCount ?? "",
-      protected_skipped_count: p.protectedSkippedCount ?? "",
-      active_slot: p.activeSlot || "",
-      retained_current_documents: p.retainedCurrentDocuments ?? "",
-      retained_offer_documents: p.retainedOfferDocuments ?? "",
-      mixed_documents: p.mixedDocuments ?? "",
-      merge_blocked: p.mergeBlocked ?? "",
-      gas_decision: p.gasDecision || "",
-      electricity_decision: p.electricityDecision || "",
-      has_new_offer: p.hasNewOffer ?? "",
-      visible_offers_count: p.visibleOffersCount ?? "",
-      active_partner_offers_count: p.activePartnerOffersCount ?? "",
-      consultant_offers_count: p.consultantOffersCount ?? "",
-      offer_id: p.offerId || "",
-      offer_name: p.offerName || "",
-      provider: p.provider || "",
-      destination_type: p.destinationType || "",
-      destination_status: p.destinationStatus || "",
-      display_group: p.displayGroup || "",
-      economy_rank: p.economyRank ?? "",
-      display_rank: p.displayRank ?? "",
-      annual_cost: p.annualCost ?? "",
-      annual_delta: p.annualDelta ?? "",
-      network: p.network || "",
-      model: p.model || "",
-      redirect: p.redirect ?? "",
-      routing_version: p.routingVersion || "",
-      engagement_stage: p.engagementStage || "",
-      engagement_reason: p.engagementReason || "",
-      engagement_active_seconds: p.engagementActiveSeconds ?? "",
-      engagement_elapsed_seconds: p.engagementElapsedSeconds ?? "",
-      engagement_landing_seconds: p.engagementLandingSeconds ?? "",
-      engagement_calculator_seconds: p.engagementCalculatorSeconds ?? "",
-      engagement_offers_seconds: p.engagementOffersSeconds ?? "",
-      engagement_otp_seconds: p.engagementOtpSeconds ?? "",
-      engagement_first_action_seconds: p.engagementFirstActionSeconds ?? "",
-      engagement_offers_reached_seconds: p.engagementOffersReachedSeconds ?? "",
-      telemetry: p.telemetry ?? "",
-      reason: p.reason || "",
-      payload_json: p,
-    };
+  const now = new Date().toISOString();
+  const publishingRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(item.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: "publishing", scheduled_for: item.scheduled_for || now, updated_at: now, updated_by: user.id },
   });
-}
+  const publishingItem = publishingRows?.[0] || item;
+  await schedulerQueuePlanSocial(publishingItem, requested);
 
-function exportSessionActiveSeconds(events = []) {
-  const lastByPage = new Map();
-  let total = 0;
-  events.forEach((event) => {
-    const p = event.payload || {};
-    if (event.eventType !== "session_engagement") return;
-    const current = Number(p.engagementActiveSeconds);
-    if (!Number.isFinite(current) || current <= 0) return;
-    const key = String(p.page || p.engagementStage || "session");
-    const previous = Number(lastByPage.get(key) || 0);
-    total += current >= previous ? current - previous : current;
-    lastByPage.set(key, current);
-  });
-  return Math.round(total);
-}
-
-function analyticsSessionExportRows(rawRows = []) {
-  const groups = new Map();
-  rawRows.forEach((row) => {
-    const p = rawAnalyticsPayload(row);
-    const sessionId = String(p.sessionId || "");
-    const key = sessionId ? `session:${sessionId}` : `event:${row.id}`;
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push({
-      id: row.id,
-      leadId: row.lead_id || "",
-      eventType: String(row.event_type || ""),
-      createdAt: row.created_at || "",
-      clientTimestamp: p.client_timestamp || p.clientTimestamp || "",
-      sessionEventSeq: analyticsEventSequence({ payload: p }),
-      payload: p,
-      dataOrigin: String(p.dataOrigin || ""),
-      trafficAgent: String(p.trafficAgent || ""),
-    });
-  });
-
-  const uniqueList = (values = []) => [...new Set(values.flatMap((value) => Array.isArray(value) ? value : value ? [value] : []).map((value) => String(value || "").trim()).filter(Boolean))];
-  const numberValue = (value) => Number.isFinite(Number(value)) ? Number(value) : null;
-
-  return [...groups.values()].map((group) => {
-    const ordered = [...group].sort(compareAnalyticsEventOrder);
-    const first = ordered[0] || {};
-    const last = ordered[ordered.length - 1] || first;
-    const landing = ordered.find((event) => event.eventType === "landing_view") || first;
-    const attributionEvent = ordered.find((event) => event.payload?.trafficSource && event.payload.trafficSource !== "direct") || landing || first;
-    const attribution = attributionEvent.payload || {};
-    const eventTypes = new Set(ordered.map((event) => event.eventType).filter(Boolean));
-    const firstPayload = first.payload || {};
-    const lastPayload = last.payload || {};
-    const offerEvent = [...ordered].reverse().find((event) => event.payload?.offerName || event.payload?.provider) || last;
-    const offerPayload = offerEvent.payload || {};
-    const engagementEvents = ordered.filter((event) => event.eventType === "session_engagement");
-    const engagementLast = engagementEvents[engagementEvents.length - 1]?.payload || {};
-    const hasRealComparison = ordered.some((event) => event.eventType === "comparison_completed" && String(event.dataOrigin || "").toLowerCase() !== LANDING_AUTOMATIC_DATA_ORIGIN);
-    const hasSelf = eventTypes.has("landing_self_service_click");
-    const hasAssisted = eventTypes.has("landing_assisted_click");
-    const affiliatePartnerEvent = [...ordered].reverse().find((event) => event.eventType === "partner_funnel_opened" && (
-      String(event.payload?.source || "") === "affiliate_direct"
-      || /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
-      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
-    ));
-    const affiliatePageEvent = [...ordered].reverse().find((event) => event.eventType === "site_page_view" && (
-      /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
-      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.page || ""))
-    ));
-    const affiliateNavigationEvent = [...ordered].reverse().find((event) => ["home_discovery_clicked", "navigation_link_clicked", "site_action_clicked"].includes(event.eventType) && (
-      /\/internet-casa\.html(?:$|[?#])/i.test(String(event.payload?.destination || ""))
-      || /\/casa-smart\.html(?:$|[?#])/i.test(String(event.payload?.destination || ""))
-    ));
-    const affiliatePathValue = String(affiliatePageEvent?.payload?.page || affiliatePartnerEvent?.payload?.page || affiliateNavigationEvent?.payload?.destination || "");
-    const affiliateService = /\/internet-casa\.html(?:$|[?#])/i.test(affiliatePathValue)
-      ? "internet casa / mobile"
-      : /\/casa-smart\.html(?:$|[?#])/i.test(affiliatePathValue) ? "casa smart" : "";
-    const landingPath = hasSelf && hasAssisted ? "autonomia + guidato" : hasSelf ? "autonomia" : hasAssisted ? "guidato" : affiliateService;
-    const pathSignals = comparisonPathSignals(ordered);
-    const comparisonPath = comparisonPathLabel(pathSignals.latest);
-    const comparisonPathSequence = pathSignals.sequence.map((item) => comparisonPathLabel(item.path)).filter(Boolean).join(" → ");
-    const pathBasis = pathSignals.hasExplicit
-      ? pathSignals.hasInferred ? "registrato + inferito dagli eventi" : "registrato"
-      : comparisonPath ? "inferito dagli eventi storici" : "";
-    const hasPhotoSignal = pathSignals.paths.has("photo");
-    const hasPdfSignal = pathSignals.paths.has("pdf");
-
-    const pdfEvents = ordered.filter((event) => event.eventType.startsWith("pdf_") || (COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(event.eventType) && comparisonEventDataOrigin(event) === "pdf_upload"));
-    const pdfCompletedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_completed");
-    const pdfInterruptedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_interrupted");
-    const pdfPayloads = pdfEvents.map((event) => event.payload || {});
-    const latestPdfPayload = pdfCompletedEvent?.payload || pdfInterruptedEvent?.payload || pdfPayloads[pdfPayloads.length - 1] || {};
-    const successCount = numberValue(latestPdfPayload.successCount);
-    const unrecognizedCount = numberValue(latestPdfPayload.unrecognizedCount);
-    const errorCount = numberValue(latestPdfPayload.errorCount);
-    const missingFieldCount = numberValue(latestPdfPayload.missingFieldCount);
-    const rawPdfOutcome = String(latestPdfPayload.analysisStatus || "").trim().toLowerCase();
-    let pdfOutcome = ({
-      success: "successo completo",
-      success_missing_data: "successo con dati mancanti / da confermare",
-      partial: "analisi parziale",
-      failed: "errore tecnico",
-      unrecognized: "documento non riconosciuto",
-      interrupted: "analisi interrotta / abbandonata",
-      unknown: "esito non determinato",
-    })[rawPdfOutcome] || rawPdfOutcome;
-    if (!pdfOutcome && pdfInterruptedEvent) pdfOutcome = "interrotta";
-    if (!pdfOutcome && pdfCompletedEvent) {
-      if ((successCount || 0) > 0 && ((unrecognizedCount || 0) > 0 || (errorCount || 0) > 0 || (missingFieldCount || 0) > 0)) pdfOutcome = "analisi parziale";
-      else if ((successCount || 0) > 0) pdfOutcome = "successo completo";
-      else if ((errorCount || 0) > 0) pdfOutcome = "errore tecnico";
-      else if ((unrecognizedCount || 0) > 0) pdfOutcome = "documento non riconosciuto";
-      else pdfOutcome = "completata (storico senza dettaglio esito)";
-    }
-    if (!pdfOutcome && eventTypes.has("pdf_analysis_started")) pdfOutcome = "avviata, esito non registrato";
-    if (!pdfOutcome && hasPdfSignal) pdfOutcome = "percorso PDF avviato";
-
-    const missingFields = uniqueList(pdfPayloads.map((payload) => payload.missingFields));
-    const diagnosticCodes = uniqueList(pdfPayloads.map((payload) => [payload.diagnosticCode, ...(Array.isArray(payload.diagnosticCodes) ? payload.diagnosticCodes : [])]));
-    const analysisStages = uniqueList(pdfPayloads.map((payload) => [payload.analysisStage, ...(Array.isArray(payload.analysisStages) ? payload.analysisStages : [])]));
-    const documentKinds = uniqueList(pdfPayloads.map((payload) => payload.documentKinds));
-    const commodities = uniqueList(pdfPayloads.map((payload) => payload.commodities));
-    const pdfReason = pdfDiagnosticReason({
-      status: rawPdfOutcome,
-      codes: diagnosticCodes,
-      missingFieldCount: latestPdfPayload.missingFieldCount ?? missingFields.length,
-      mixedDocuments: Boolean(latestPdfPayload.mixedDocuments),
-      mergeBlocked: Boolean(latestPdfPayload.mergeBlocked),
-    });
-
-    const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
-      .some((type) => eventTypes.has(type));
-    const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || eventTypes.has("partner_funnel_opened") || switcho;
-    const switchoEvent = [...ordered].reverse().find((event) => ["switcho_landing_opened", "offer_switcho_redirect", "assistance_switcho_redirect", "business_switcho_requested"].includes(event.eventType));
-    const visitor = visitorDescriptor(ordered);
-    const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
-    const offersViewed = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event));
-    const cardClicked = eventTypes.has("offer_card_clicked");
-    const cardClickedStandard = ordered.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.payload?.mode || "").toLowerCase() === "media"
-        || String(event.payload?.source || "").toLowerCase() === "offer_card_media")
-    );
-    const cardClickedPrecise = ordered.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.payload?.mode || "").toLowerCase() === "precise"
-        || String(event.payload?.source || "").toLowerCase() === "offer_card_precise")
-    );
-    const billPersonalizationFromOffer = ordered.some((event) =>
-      event.eventType === "offers_bill_prompt_clicked"
-      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.payload?.pdfUploadSource || "").toLowerCase())
-    );
-    const hasCommercialActivationChoice = ordered.some((event) => {
-      if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
-      const route = String(event?.route || "").trim();
-      const channel = String(event?.channel || "").trim();
-      if (route === "internal_activatable_view" || channel === "internal") return false;
-      return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
-        || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
-    });
-    const offerAction = hasCommercialActivationChoice || ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type));
-
-    const intentTerm = String(attribution.trafficTerm || "").trim();
-    let intent = intentTerm;
-    let intentBasis = intentTerm ? "termine/keyword disponibile" : "inferito dal comportamento";
-    if (!intent) {
-      if (affiliateService === "internet casa / mobile") { intent = "Vuole valutare Internet casa / mobile"; intentBasis = "inferito dal percorso servizio registrato"; }
-      else if (affiliateService === "casa smart") { intent = "Vuole valutare servizi casa smart"; intentBasis = "inferito dal percorso servizio registrato"; }
-      else if (hasAssisted && !hasSelf) intent = "Preferisce assistenza guidata";
-      else if (comparisonPath === "foto bolletta") intent = "Vuole personalizzare il confronto con una foto";
-      else if (comparisonPath === "pdf") intent = "Vuole verificare la propria bolletta";
-      else if (comparisonPath === "manuale") intent = "Vuole confrontare usando i propri consumi";
-      else if (comparisonPath === "vedi subito le offerte") intent = "Vuole vedere subito una prima stima";
-      else if (offersViewed) intent = "Sta valutando offerte";
-      else intent = "Intento non determinabile";
-    }
-
-    let finalOutcome = "Nessun avanzamento rilevante";
-    let abandonmentStage = "";
-    if (switcho) finalOutcome = "Passaggio a Switcho";
-    else if (partner) finalOutcome = "Passaggio partner";
-    else if (offerAction) finalOutcome = "Azione su offerta";
-    else if (offersViewed) { finalOutcome = "Offerte visualizzate"; abandonmentStage = "offerte"; }
-    else if (hasRealComparison) { finalOutcome = "Confronto completato"; abandonmentStage = "dopo confronto"; }
-    else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF: analisi interrotta / abbandonata"; abandonmentStage = "analisi PDF"; }
-    else if (pdfCompletedEvent && rawPdfOutcome === "failed") { finalOutcome = "PDF: errore tecnico"; abandonmentStage = "analisi PDF"; }
-    else if (pdfCompletedEvent && rawPdfOutcome === "unrecognized") { finalOutcome = "PDF: documento non riconosciuto"; abandonmentStage = "analisi PDF"; }
-    else if (pdfCompletedEvent && rawPdfOutcome === "success_missing_data") { finalOutcome = "PDF: dati mancanti / da confermare"; abandonmentStage = "conferma dati PDF"; }
-    else if (pdfCompletedEvent && rawPdfOutcome === "partial") { finalOutcome = "PDF: analisi parziale"; abandonmentStage = "verifica dati PDF"; }
-    else if (pdfCompletedEvent) { finalOutcome = `PDF: ${pdfOutcome || "analisi completata"}`; abandonmentStage = "dopo analisi PDF"; }
-    else if (eventTypes.has("pdf_analysis_started")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
-    else if (hasPdfSignal) { finalOutcome = "Percorso PDF senza analisi avviata"; abandonmentStage = "caricamento PDF"; }
-    else if (eventTypes.has("comparison_started")) { finalOutcome = "Confronto avviato"; abandonmentStage = "confronto"; }
-    else if (hasSelf || hasAssisted) { finalOutcome = "Percorso scelto"; abandonmentStage = hasAssisted ? "passaggio guidato" : "scelta modalità confronto"; }
-    else if (eventTypes.has("landing_view")) { finalOutcome = "Solo landing"; abandonmentStage = "landing"; }
-
-    const selectionEvent = [...ordered].reverse().find((event) => event.eventType === "pdf_file_selected")?.payload || {};
-    const previewOpened = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_opened")?.payload || {};
-    const previewConfirmed = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_confirmed")?.payload || {};
-    return {
-      session_id: String(firstPayload.sessionId || ""),
-      first_at: first.createdAt || "",
-      last_at: last.createdAt || "",
-      events_count: ordered.length,
-      event_types: [...eventTypes].join(" | "),
-      visitor_type: visitor.type,
-      visitor_label: visitor.label,
-      source: normalizeTrafficSource(attribution.trafficSource || attribution.source || attribution.leadSource || "direct"),
-      medium: attribution.trafficMedium || "",
-      campaign: attribution.trafficCampaign || "",
-      term: attribution.trafficTerm || "",
-      content: attribution.trafficContent || "",
-      campaign_id: attribution.trafficCampaignId || "",
-      adgroup_id: attribution.trafficAdGroupId || "",
-      creative_id: attribution.trafficCreativeId || "",
-      match_type: attribution.trafficMatchType || "",
-      device: attribution.trafficDevice || "",
-      ads_network: attribution.trafficNetwork || "",
-      click_id_type: attribution.trafficClickIdType || "",
-      click_id: attribution.trafficClickId || "",
-      referrer: attribution.trafficReferrer || "",
-      landing: attribution.trafficLandingPage || landing.payload?.page || firstPayload.page || "",
-      intento: intent,
-      intento_base: intentBasis,
-      scelta_percorso: landingPath,
-      percorso_confronto: comparisonPath,
-      percorso_sequenza: comparisonPathSequence,
-      percorso_base: pathBasis,
-      profilo_medio_scelto: pathSignals.paths.has("average"),
-      foto_scelta: hasPhotoSignal,
-      foto_scelta_registrata: ordered.some((event) =>
-        event.eventType === "comparison_path_selected"
-        && comparisonEventPathChoice(event) === "photo"
-      ),
-      manuale_scelto: pathSignals.paths.has("manual"),
-      confronto_avviato: ordered.some((event) => event.eventType === "comparison_started" && !isAutomaticLandingPreview(event)),
-      confronto_reale: hasRealComparison,
-      offerte_visualizzate: offersViewed,
-      card_cliccata: cardClicked,
-      card_cliccata_standard: cardClickedStandard,
-      card_cliccata_personalizzata: cardClickedPrecise,
-      personalizzazione_da_card: billPersonalizationFromOffer,
-      numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
-      pdf_scelto: hasPdfSignal,
-      pdf_scelto_registrato: ordered.some((event) =>
-        event.eventType === "comparison_path_selected"
-        && comparisonEventPathChoice(event) === "pdf"
-      ),
-      pdf_picker_aperto: eventTypes.has("pdf_picker_opened"),
-      pdf_file_selezionato: eventTypes.has("pdf_file_selected"),
-      pdf_upload_source: selectionEvent.pdfUploadSource || latestPdfPayload.pdfUploadSource || "",
-      pdf_upload_offer_id: selectionEvent.pdfUploadOfferId || latestPdfPayload.pdfUploadOfferId || "",
-      pdf_upload_offer_name: selectionEvent.pdfUploadOfferName || latestPdfPayload.pdfUploadOfferName || "",
-      pdf_upload_provider: selectionEvent.pdfUploadProvider || latestPdfPayload.pdfUploadProvider || "",
-      pdf_file_selezionati: selectionEvent.selectedCount ?? "",
-      pdf_file_accettati: selectionEvent.acceptedCount ?? "",
-      pdf_duplicati: selectionEvent.duplicateCount ?? "",
-      pdf_analisi_avviata: eventTypes.has("pdf_analysis_started"),
-      pdf_analisi_completata: eventTypes.has("pdf_analysis_completed"),
-      pdf_analisi_interrotta: eventTypes.has("pdf_analysis_interrupted"),
-      pdf_esito: pdfOutcome,
-      pdf_file_count: latestPdfPayload.fileCount ?? "",
-      pdf_success_count: latestPdfPayload.successCount ?? "",
-      pdf_unrecognized_count: latestPdfPayload.unrecognizedCount ?? "",
-      pdf_error_count: latestPdfPayload.errorCount ?? "",
-      pdf_missing_fields: missingFields.join(" | "),
-      pdf_missing_field_count: latestPdfPayload.missingFieldCount ?? (missingFields.length || ""),
-      pdf_review_field_count: latestPdfPayload.reviewFieldCount ?? previewOpened.ocrReviewCount ?? "",
-      pdf_diagnostic_reason: pdfReason,
-      pdf_diagnostic_codes: diagnosticCodes.join(" | "),
-      pdf_analysis_stages: analysisStages.join(" | "),
-      pdf_document_kinds: documentKinds.join(" | "),
-      pdf_commodities: commodities.join(" | "),
-      pdf_mixed_documents: latestPdfPayload.mixedDocuments ?? "",
-      pdf_merge_blocked: latestPdfPayload.mergeBlocked ?? "",
-      pdf_dati_confermati: eventTypes.has("pdf_data_confirmed"),
-      pdf_autofill_aperto: eventTypes.has("pdf_autofill_preview_opened"),
-      pdf_autofill_confermato: eventTypes.has("pdf_autofill_preview_confirmed"),
-      pdf_campi_autofill: previewOpened.fieldCount ?? "",
-      pdf_campi_selezionati: previewConfirmed.selectedCount ?? "",
-      pdf_campi_saltati: previewConfirmed.skippedCount ?? "",
-      lead_id: leadId,
-      lead_creato: Boolean(leadId || eventTypes.has("lead_created_client")),
-      popup_lead: eventTypes.has("lead_modal_opened"),
-      otp_richiesto: eventTypes.has("otp_request_started"),
-      otp_inviato: eventTypes.has("otp_sent"),
-      otp_verificato: eventTypes.has("otp_verified"),
-      offerta_sbloccata: eventTypes.has("offers_unlocked"),
-      azione_offerta: offerAction,
-      switcho,
-      switcho_source: switchoEvent?.payload?.source || "",
-      partner,
-      provider: offerPayload.provider || "",
-      offerta: offerPayload.offerName || "",
-      ranking_economico: offerPayload.economyRank ?? "",
-      ranking_visuale: offerPayload.displayRank ?? "",
-      costo_annuo: offerPayload.annualCost ?? "",
-      risparmio_annuo: offerPayload.annualDelta ?? lastPayload.bestSaving ?? firstPayload.bestSaving ?? "",
-      tempo_attivo_secondi: exportSessionActiveSeconds(ordered),
-      tempo_landing_secondi: engagementLast.engagementLandingSeconds ?? "",
-      tempo_calcolatore_secondi: engagementLast.engagementCalculatorSeconds ?? "",
-      tempo_offerte_secondi: engagementLast.engagementOffersSeconds ?? "",
-      tempo_otp_secondi: engagementLast.engagementOtpSeconds ?? "",
-      prima_azione_secondi: engagementLast.engagementFirstActionSeconds ?? "",
-      offerte_raggiunte_secondi: engagementLast.engagementOffersReachedSeconds ?? "",
-      esito_sessione: finalOutcome,
-      abbandono_fase: abandonmentStage,
-      ultimo_evento: last.eventType || "",
-    };
-  }).sort((a, b) => new Date(b.first_at || 0).getTime() - new Date(a.first_at || 0).getTime());
-}
-
-function analyticsJourneyRows(rawRows = []) {
-  return analyticsSessionExportRows(rawRows).filter((row) => row.session_id && !["known_bot", "automation"].includes(row.visitor_type));
-}
-
-function analyticsJourneySummary(rows = [], rawRows = []) {
-  const count = (predicate) => rows.filter(predicate).length;
-  const funnelFromRows = (items = []) => ({
-    entries: items.length,
-    pathSelected: items.filter((row) => row.scelta_percorso).length,
-    selfServiceSelected: items.filter((row) => String(row.scelta_percorso).includes("autonomia")).length,
-    assistedSelected: items.filter((row) => String(row.scelta_percorso).includes("guidato")).length,
-    averageSelected: items.filter((row) => row.profilo_medio_scelto).length,
-    photoSelected: items.filter((row) => row.foto_scelta).length,
-    manualSelected: items.filter((row) => row.manuale_scelto).length,
-    pdfSelected: items.filter((row) => row.pdf_scelto).length,
-    pdfStarted: items.filter((row) => row.pdf_analisi_avviata).length,
-    pdfCompleted: items.filter((row) => row.pdf_analisi_completata).length,
-    comparisons: items.filter((row) => row.confronto_reale).length,
-    offersViewed: items.filter((row) => row.offerte_visualizzate).length,
-    cardClicked: items.filter((row) => row.card_cliccata).length,
-    cardClickedStandard: items.filter((row) => row.card_cliccata_standard).length,
-    cardClickedPrecise: items.filter((row) => row.card_cliccata_personalizzata).length,
-    billPersonalizationFromOffer: items.filter((row) => row.personalizzazione_da_card).length,
-    switcho: items.filter((row) => row.switcho).length,
-    leadModalOpened: items.filter((row) => row.popup_lead).length,
-    otpRequestStarted: items.filter((row) => row.otp_richiesto).length,
-    otpSent: items.filter((row) => row.otp_inviato).length,
-    otpVerified: items.filter((row) => row.otp_verificato).length,
-    offersUnlocked: items.filter((row) => row.offerta_sbloccata).length,
-    offerAction: items.filter((row) => row.azione_offerta).length,
-    redirects: items.filter((row) => row.partner || row.switcho).length,
-  });
-  const trafficCounts = {};
-  const providerCounts = {};
-  const offerCounts = {};
-  rows.forEach((row) => {
-    increment(trafficCounts, row.source || "direct");
-    if (row.azione_offerta && row.provider) increment(providerCounts, row.provider);
-    if (row.azione_offerta && row.offerta) increment(offerCounts, `${row.provider || "Fornitore"} - ${row.offerta}`);
-  });
-  const activityEvents = (Array.isArray(rawRows) ? rawRows : []).map((row) => {
-    const payload = rawAnalyticsPayload(row);
-    return {
-      eventType: String(row.event_type || ""),
-      dataOrigin: String(payload.dataOrigin || ""),
-      pathChoice: String(payload.pathChoice || ""),
-      trigger: String(payload.trigger || ""),
-    };
-  });
-  const bySource = {};
-  Object.keys(trafficCounts).forEach((source) => {
-    bySource[source] = funnelFromRows(rows.filter((row) => String(row.source || "direct") === source));
-  });
-  return {
-    events: Array.isArray(rawRows) ? rawRows.length : 0,
-    sessions: rows.length,
-    activity: activityFunnelFromEvents(activityEvents),
-    sessionFunnel: funnelFromRows(rows),
-    sessionFunnelsBySource: bySource,
-    trafficSources: sourceEntries(trafficCounts),
-    topProviders: topEntries(providerCounts),
-    topOffers: topEntries(offerCounts),
-    landingSelfService: count((row) => String(row.scelta_percorso).includes("autonomia")),
-    landingAssisted: count((row) => String(row.scelta_percorso).includes("guidato")),
-    average: count((row) => row.profilo_medio_scelto),
-    photo: count((row) => row.foto_scelta),
-    photoSelectedRecorded: count((row) => row.foto_scelta_registrata),
-    manual: count((row) => row.manuale_scelto),
-    pdf: count((row) => row.pdf_scelto),
-    pdfSelectedRecorded: count((row) => row.pdf_scelto_registrato),
-    pdfPickerOpened: count((row) => row.pdf_picker_aperto),
-    pdfFileSelected: count((row) => row.pdf_file_selezionato),
-    pdfStarted: count((row) => row.pdf_analisi_avviata),
-    pdfCompleted: count((row) => row.pdf_analisi_completata),
-    pdfInterrupted: count((row) => row.pdf_analisi_interrotta),
-    pdfWithMissingFields: count((row) => Number(row.pdf_missing_field_count || 0) > 0 || Boolean(row.pdf_missing_fields)),
-    offersViewed: count((row) => row.offerte_visualizzate),
-    cardClicked: count((row) => row.card_cliccata),
-    cardClickedStandard: count((row) => row.card_cliccata_standard),
-    cardClickedPrecise: count((row) => row.card_cliccata_personalizzata),
-    billPersonalizationFromOffer: count((row) => row.personalizzazione_da_card),
-    switcho: count((row) => row.switcho),
-    partner: count((row) => row.partner),
-  };
-}
-
-function sendAnalyticsCsv(res, csv, filename) {
-  res.statusCode = 200;
-  res.setHeader("Content-Type", "text/csv; charset=utf-8");
-  res.setHeader("Cache-Control", "no-store");
-  res.setHeader("Content-Disposition", `attachment; filename="${filename}"`);
-  res.end(`\ufeff${csv}`);
-}
-
-function bodyObject(req) {
-  if (req.body && typeof req.body === "object") return req.body;
+  const results = {};
+  let ambiguous = false;
   try {
-    return JSON.parse(String(req.body || "{}"));
-  } catch {
-    return {};
+    for (const platform of requested) {
+      const payload = await schedulerSocialFunction(user, platform, "process_plan_item", {
+        social_plan_item_id: publishingItem.id,
+      });
+      results[platform] = payload;
+      const state = schedulerSocialResultState(payload);
+      if (state === "ambiguous") ambiguous = true;
+      else if (state === "retry") {
+        return {
+          blocked: false,
+          retry_pending: true,
+          retry_reason: `${platform}:${payload?.result || "attesa"}`,
+          item: publishingItem,
+          social: results,
+          publication_performed: false,
+        };
+      } else if (state === "failed") throw new Error(`Autopilota: ${platform} post non pubblicato (${payload?.error || payload?.result || "errore"})`);
+    }
+  } catch (error) {
+    await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(publishingItem.id)}`, {
+      method: "PATCH",
+      prefer: "return=minimal",
+      body: { status: "failed", updated_at: new Date().toISOString(), updated_by: user.id },
+    }).catch(() => {});
+    throw error;
   }
+
+  const finalStatus = ambiguous ? "failed" : "published";
+  const finalRows = await serviceFetch(`editorial_social_plan_items?id=eq.${encodeURIComponent(publishingItem.id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { status: finalStatus, updated_at: new Date().toISOString(), updated_by: user.id },
+  });
+  const finalItem = finalRows?.[0] || { ...publishingItem, status: finalStatus };
+
+  if (!ambiguous && slotKind === "social_related") {
+    await schedulerCompleteOpportunityCycle(user, context, finalItem, "final_post_published");
+  }
+
+  return {
+    blocked: false,
+    ambiguous,
+    item: finalItem,
+    social: results,
+    publication_performed: !ambiguous,
+  };
+}
+
+async function schedulerProcessSlot(slot, user, settings, runs, local) {
+  const schedulerKey = `${local.date}:${slot.id}`;
+  const attemptState = schedulerSlotAttemptState(runs, schedulerKey);
+  const authSecretRecovery = schedulerArticlePublishAuthRecoverable(slot, runs, schedulerKey);
+  const details = {
+    scheduler_key: schedulerKey,
+    slot_id: slot.id,
+    slot_kind: slot.kind,
+    local_date: local.date,
+    local_time: local.time,
+    timezone: local.time_zone,
+    stage: "started",
+    slot_only: true,
+    attempt: attemptState.failedAttempts + 1,
+    max_attempts: authSecretRecovery ? SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY + 1 : SCHEDULER_SLOT_MAX_ATTEMPTS_PER_DAY,
+    ...(authSecretRecovery ? { recovery_reason: "social_auth_secret_v0.12.50" } : {}),
+  };
+  const run = await automationSchedulerRunStart(String(slot.kind || "research"), details);
+  if (!run?.id) throw new Error("Autopilota: run schedulato non creato");
+  try {
+    if (slot.kind === "research") {
+      const staged = await automationSchedulerRunPatch(run, { stage: "collect_7" });
+      return schedulerProcessResearchRun(staged, user, settings);
+    }
+    if (slot.kind === "article_prepare") {
+      if (Number(settings?.max_articles_per_cycle) <= 0) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: "max_articles_per_cycle=0" } });
+        return { action: "article_prepare_skipped", reason: "max_articles_per_cycle=0" };
+      }
+      if (!schedulerArticleFrequencyAllows(settings, runs)) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: "article_frequency_weeks" } });
+        return { action: "article_prepare_skipped", reason: "article_frequency_weeks" };
+      }
+      const opportunity = await schedulerSelectOpportunity(user, settings);
+      if (!opportunity?.id) {
+        await automationRunFinish(run, "success", { details: { ...details, stage: "completed", no_publish: true, reason: "no_opportunity" } });
+        return { action: "article_prepare_no_opportunity" };
+      }
+      const selection = opportunity?._schedulerSelection || {};
+      const selectionDetails = {
+        selection_source: selection.source || null,
+        selection_score: selection.score ?? null,
+        selection_reason: selection.reason || null,
+        selection_fallback_below_threshold: Boolean(selection.fallback_below_threshold),
+      };
+      if (opportunity.opportunity_type === "new_article") {
+        const enabledPlatforms = await editorialEnabledSocialPlatforms();
+        const result = await generateEditorialArticlePackage(user, {
+          id: opportunity.id, platforms: enabledPlatforms, scheduler_slot_run_id: run.id,
+        });
+        // PATCH dei soli metadati: status resta "running" finche' il QA non termina.
+        await serviceFetch(`editorial_automation_runs?id=eq.${encodeURIComponent(run.id)}`, {
+          method: "PATCH", prefer: "return=minimal",
+          body: { opportunity_id: opportunity.id, article_id: result.article_id || null,
+            details: { ...details, ...selectionDetails, stage: "background_started",
+              opportunity_id: opportunity.id, slot_only: true, response_id: result.response_id || null } },
+        });
+        return { action: "article_generation_started", opportunity_id: opportunity.id, result };
+      }
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", reason: `unsupported_opportunity_type:${opportunity.opportunity_type || "unknown"}` } });
+      return { action: "article_prepare_skipped", reason: "unsupported_opportunity_type" };
+    }
+    const mode = String(settings?.execution_mode || "approval");
+    if (mode === "draft") {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped_draft_mode", publication_performed: false, reason: "draft_mode" } });
+      return { action: `${slot.kind}_skipped_draft_mode`, publication_performed: false };
+    }
+    if (mode !== "automatic") {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "waiting_human_approval", publication_performed: false, reason: "approval_mode" } });
+      return { action: `${slot.kind}_waiting_human_approval`, publication_performed: false };
+    }
+
+    const context = await schedulerArticleCycleContext(runs);
+    if (!context) {
+      await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", publication_performed: false, reason: "no_article_cycle" } });
+      return { action: `${slot.kind}_skipped`, reason: "no_article_cycle", publication_performed: false };
+    }
+    const enabledPlatforms = await editorialEnabledSocialPlatforms();
+
+    if (slot.kind === "article_publish") {
+      const result = await schedulerPublishArticleIntro(user, context, enabledPlatforms);
+      if (result.blocked) {
+        if (result.reason === "no_enabled_social_channels") {
+          throw new Error("Autopilota: nessun canale social abilitato per lo slot article_publish");
+        }
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          details: { ...details, stage: "waiting_human_review", publication_performed: false, reason: result.reason },
+        });
+        return { action: "article_publish_waiting_human_review", ...result };
+      }
+      if (result.retry_pending) {
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          details: { ...details, stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry", social: result.social || {} },
+        });
+        return { action: "article_publish_waiting_social_retry", ...result };
+      }
+      await automationRunFinish(run, "success", {
+        opportunity_id: context.opportunity.id,
+        article_id: context.article.id,
+        details: {
+          ...details,
+          stage: result.ambiguous ? "manual_social_check_required" : "completed",
+          publication_performed: true,
+          social: result.social,
+        },
+      });
+      return { action: result.ambiguous ? "article_published_social_check_required" : "article_published", ...result };
+    }
+
+    if (slot.kind === "social_followup" || slot.kind === "social_related") {
+      const result = await schedulerPublishPlanItem(user, context, slot.kind, enabledPlatforms);
+      if (result.blocked && result.reason === "no_enabled_social_channels") {
+        throw new Error(`Autopilota: nessun canale social abilitato per lo slot ${slot.kind}`);
+      }
+      if (result.retry_pending) {
+        await automationRunFinish(run, "success", {
+          opportunity_id: context.opportunity.id,
+          article_id: context.article.id,
+          social_plan_item_id: result.item?.id || null,
+          details: { ...details, stage: "waiting_social_retry", publication_performed: false, reason: result.retry_reason || "social_retry", social: result.social || {} },
+        });
+        return { action: `${slot.kind}_waiting_social_retry`, ...result };
+      }
+      await automationRunFinish(run, "success", {
+        opportunity_id: context.opportunity.id,
+        article_id: context.article.id,
+        social_plan_item_id: result.item?.id || null,
+        details: {
+          ...details,
+          stage: result.blocked ? "blocked" : (result.ambiguous ? "manual_social_check_required" : "completed"),
+          publication_performed: Boolean(result.publication_performed),
+          reason: result.reason || null,
+          social: result.social || {},
+        },
+      });
+      return { action: `${slot.kind}_${result.blocked ? "blocked" : (result.ambiguous ? "check_required" : "published")}`, ...result };
+    }
+
+    await automationRunFinish(run, "success", { details: { ...details, stage: "skipped", publication_performed: false, reason: "unsupported_slot_kind" } });
+    return { action: `${slot.kind}_skipped`, publication_performed: false, reason: "unsupported_slot_kind" };
+  } catch (error) {
+    await automationRunFinish(run, "failed", { last_error: String(error?.message || error).slice(0, 2000), details: { ...details, stage: "failed" } });
+    throw error;
+  }
+}
+
+async function schedulerRecoverOrphanedPrepareSlot(runs) {
+  const now = Date.now();
+  const orphan = (runs || []).find((run) =>
+    run.run_type === "article_prepare" && run.status === "running"
+    && run?.details?.source === "scheduler"
+    && run?.details?.stage === "background_started"
+    && Number.isFinite(Date.parse(run.started_at || run.created_at || ""))
+    && now - Date.parse(run.started_at || run.created_at || "") > EDITORIAL_JOB_MAX_AGE_MS
+  );
+  if (!orphan) return null;
+  // Il pacchetto potrebbe essere stato salvato correttamente prima di un errore
+  // nel solo aggiornamento dello slot. Non trasformare un QA riuscito in fallimento.
+  if (validUuid(String(orphan.opportunity_id || ""))) {
+    const rows = await serviceFetch(`editorial_research_opportunities?select=id,evidence,target_article_id&` +
+      `id=eq.${encodeURIComponent(orphan.opportunity_id)}&limit=1`);
+    const opportunity = rows?.[0] || null;
+    const job = opportunity?.evidence?.article_generation_job || {};
+    const generation = opportunity?.evidence?.article_generation || {};
+    if (job.status === "completed" && generation.status === "draft_ready_for_review"
+      && validUuid(String(opportunity?.target_article_id || ""))) {
+      await schedulerFinishArticlePrepareSlot({ ...job, source: "scheduler",
+        scheduler_slot_run_id: orphan.id, opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id }, "success", "draft_ready_for_review");
+      return { action: "article_prepare_orphan_completed", opportunity_id: opportunity.id,
+        article_id: opportunity.target_article_id };
+    }
+  }
+  const reason = "Slot preparazione scaduto senza esito definitivo dopo 90 minuti";
+  await automationRunFinish(orphan, "failed", {
+    opportunity_id: orphan.opportunity_id || null,
+    article_id: orphan.article_id || null,
+    last_error: reason,
+    details: { ...(orphan.details || {}), stage: "expired_without_final_qa",
+      expired_at: new Date().toISOString(), publication_performed: false },
+  });
+  return { action: "article_prepare_orphan_recovered", opportunity_id: orphan.opportunity_id || null,
+    article_id: orphan.article_id || null, reason };
+}
+
+async function editorialAutopilotTick() {
+  const settings = await automationSchedulerSettings();
+  if (!settings?.enabled) return { ok: true, version: VERSION, active: false, action: "disabled" };
+  const user = await automationSchedulerUser(settings);
+  let runs = await automationSchedulerRuns(120);
+
+  const research = await schedulerResumeResearch(user, settings, runs);
+  if (research) return { ok: true, version: VERSION, active: true, ...research };
+
+  const generation = await schedulerResumeArticleGeneration(user);
+  if (generation) return { ok: true, version: VERSION, active: true, ...generation };
+
+  const orphan = await schedulerRecoverOrphanedPrepareSlot(runs);
+  if (orphan) return { ok: true, version: VERSION, active: true, ...orphan };
+
+  const image = await schedulerPrepareMissingImage(user);
+  if (image) return { ok: true, version: VERSION, active: true, ...image };
+
+  const local = schedulerLocalParts(settings.timezone || "Europe/Rome");
+  const schedule = await serviceFetch("editorial_automation_schedule?select=*&enabled=eq.true&order=sort_order.asc");
+  runs = runs.length ? runs : await automationSchedulerRuns(120);
+  const due = (schedule || []).filter((slot) => {
+    if (Number(slot.weekday) !== local.weekday) return false;
+    const minutes = schedulerSlotMinutes(slot.time_local);
+    if (minutes === null || local.minutes < minutes) return false;
+    const key = `${local.date}:${slot.id}`;
+    const attemptState = schedulerSlotAttemptState(runs, key);
+    if (!attemptState.consumed) return true;
+    return schedulerArticlePrepareRecoverable(slot, settings, runs, key)
+      || schedulerArticlePublishAuthRecoverable(slot, runs, key)
+      || schedulerArticlePublishHumanReviewRecoverable(slot, runs, key)
+      || schedulerSocialRetryRecoverable(slot, runs, key);
+  })[0] || null;
+
+  // Ricerca e preparazione del nuovo articolo non dipendono dagli asset social di cicli precedenti.
+  // Eseguire prima questi slot impedisce a una rigenerazione social problematica di bloccare la settimana editoriale.
+  if (due && ["research", "article_prepare"].includes(String(due.kind || ""))) {
+    const result = await schedulerProcessSlot(due, user, settings, runs, local);
+    return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+  }
+
+  let socialAssetError = null;
+  const dueKind = String(due?.kind || "");
+  const dueAssetType = ({ article_publish: "article_intro", social_followup: "article_followup", social_related: "related" })[dueKind] || "";
+  const duePlatforms = dueAssetType ? await editorialEnabledSocialPlatforms() : null;
+  try {
+    // Quando uno slot e' gia' dovuto, prepariamo soltanto l'asset necessario a QUELLO slot.
+    // Un'immagine del venerdi o del lunedi non puo' quindi ritardare la pubblicazione del mercoledi.
+    const socialAsset = dueAssetType
+      ? await schedulerPrepareMissingSocialAsset(user, { selectedOnly: true, targetPostType: dueAssetType, targetPlatforms: duePlatforms })
+      : await schedulerPrepareMissingSocialAsset(user);
+    if (socialAsset) return { ok: true, version: VERSION, active: true, ...socialAsset };
+  } catch (error) {
+    socialAssetError = String(error?.message || error).slice(0, 1200);
+    console.error("editorial_social_asset_prepare_failed", socialAssetError);
+  }
+
+  if (!due) {
+    const recoveredSocial = await schedulerRecoverReadyMissedSocialSlot(user, settings, runs, local, schedule);
+    if (recoveredSocial) return { ok: true, version: VERSION, active: true, ...recoveredSocial, local };
+  }
+
+  let regenerationError = null;
+  // La rigenerazione manuale di un vecchio post e' background: non deve precedere uno slot
+  // settimanale gia' dovuto. Viene ripresa appena il calendario non ha un'azione prioritaria.
+  if (!due) {
+    try {
+      const regeneratedSocial = await schedulerPublishRequestedSocialRegeneration(user);
+      if (regeneratedSocial) return { ok: true, version: VERSION, active: true, ...regeneratedSocial };
+    } catch (error) {
+      regenerationError = String(error?.message || error).slice(0, 1200);
+      console.error("editorial_social_regeneration_failed", regenerationError);
+    }
+  }
+
+  if (due) {
+    // Gli slot che pubblicano contenuti social richiedono la card specifica dello slot. Se la sua
+    // preparazione fallisce, non consumiamo un tentativo: il prossimo heartbeat riprovera'.
+    if (socialAssetError && dueAssetType) {
+      return {
+        ok: true,
+        version: VERSION,
+        active: true,
+        action: "waiting_social_assets",
+        slot: { id: due.id, kind: due.kind, label: due.label },
+        local,
+        error: socialAssetError,
+      };
+    }
+    const result = await schedulerProcessSlot(due, user, settings, runs, local);
+    return { ok: true, version: VERSION, active: true, slot: { id: due.id, kind: due.kind, label: due.label }, ...result };
+  }
+
+  try {
+    const radar = await schedulerMaybeResearchRadar(user, settings, local);
+    if (radar) return { ok: true, version: VERSION, active: true, ...radar, local };
+  } catch (error) {
+    console.error("editorial_research_radar_failed", String(error?.message || error).slice(0, 1200));
+  }
+
+  if (socialAssetError || regenerationError) {
+    return {
+      ok: true,
+      version: VERSION,
+      active: true,
+      action: "background_social_error",
+      local,
+      social_asset_error: socialAssetError,
+      regeneration_error: regenerationError,
+    };
+  }
+
+  return { ok: true, version: VERSION, active: true, action: "idle", local };
+}
+
+
+function normalizedPageUrl(value) {
+  const raw = String(value || "").trim();
+  if (!raw) throw new Error("Pagina da aggiornare non indicata");
+  let parsed;
+  let configured;
+  try {
+    parsed = new URL(raw);
+    configured = new URL(searchConsoleConfig().siteUrl);
+  } catch {
+    throw new Error("URL pagina non valido");
+  }
+  if (parsed.protocol !== "https:" || parsed.origin !== configured.origin) {
+    throw new Error("La proposta può usare solo pagine HTTPS di OffertaLogica");
+  }
+  parsed.hash = "";
+  return parsed.href;
+}
+
+function decodeHtmlEntities(value) {
+  return String(value || "")
+    .replace(/&nbsp;/gi, " ")
+    .replace(/&amp;/gi, "&")
+    .replace(/&quot;/gi, '"')
+    .replace(/&#39;|&apos;/gi, "'")
+    .replace(/&lt;/gi, "<")
+    .replace(/&gt;/gi, ">")
+    .replace(/&#(\d+);/g, (_, code) => String.fromCodePoint(Number(code) || 32))
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16) || 32));
+}
+
+function plainHtmlText(value) {
+  return decodeHtmlEntities(String(value || "").replace(/<[^>]*>/g, " "))
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function firstTagText(html, tagName) {
+  const match = String(html || "").match(new RegExp(`<${tagName}\\b[^>]*>([\\s\\S]*?)<\\/${tagName}>`, "i"));
+  return plainHtmlText(match?.[1] || "").slice(0, 500);
+}
+
+function metaDescription(html) {
+  const tags = String(html || "").match(/<meta\b[^>]*>/gi) || [];
+  for (const tag of tags) {
+    if (!/\bname\s*=\s*["']description["']/i.test(tag)) continue;
+    const match = tag.match(/\bcontent\s*=\s*["']([\s\S]*?)["']/i);
+    if (match?.[1]) return decodeHtmlEntities(match[1]).replace(/\s+/g, " ").trim().slice(0, 500);
+  }
+  return "";
+}
+
+function pageHeadings(html) {
+  const headings = [];
+  const regex = /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = regex.exec(String(html || ""))) !== null && headings.length < 80) {
+    const id = match[2]?.match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    headings.push({ level: match[1].toUpperCase(), id, text: plainHtmlText(match[3]).slice(0, 300) });
+  }
+  return headings.filter((row) => row.text);
+}
+
+function normalizedText(value) {
+  return String(value || "")
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+function stemItalianWord(word) {
+  const clean = String(word || "");
+  return clean.length > 4 ? clean.replace(/[aeio]$/, "") : clean;
+}
+
+function normalizedWords(value) {
+  return normalizedText(value).split(" ").filter((word) => word.length > 2).map(stemItalianWord);
+}
+
+function topicWords(value) {
+  return [...new Set(normalizedWords(value))].slice(0, 12);
+}
+
+function wordCoverage(value, words) {
+  if (!words.length) return 0;
+  const haystack = new Set(normalizedWords(value));
+  const hits = words.filter((word) => haystack.has(word)).length;
+  return hits / words.length;
+}
+
+function bestTopicHeading(headings, topic) {
+  const words = topicWords(topic);
+  return (headings || [])
+    .map((heading, index) => ({ ...heading, coverage: wordCoverage(heading.text, words), index }))
+    .filter((heading) => heading.coverage > 0)
+    .sort((a, b) => b.coverage - a.coverage || a.index - b.index)[0] || null;
+}
+
+async function opportunityContextPages(opportunity) {
+  const saved = Array.isArray(opportunity?.evidence?.page_urls)
+    ? opportunity.evidence.page_urls.filter(Boolean)
+    : [];
+  if (saved.length) return saved.slice(0, 5);
+  const topicKey = String(opportunity?.evidence?.topic_key || "");
+  if (!topicKey) return [];
+  const analysis = await analysisPayload();
+  const signal = (analysis.signals || []).find((row) => row.topic_key === topicKey);
+  return Array.isArray(signal?.page_urls) ? signal.page_urls.filter(Boolean).slice(0, 5) : [];
+}
+
+async function fetchEditorialPage(targetUrl) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), EDITORIAL_PAGE_FETCH_TIMEOUT_MS);
+  try {
+    const response = await fetch(targetUrl, {
+      headers: { "User-Agent": "OffertaLogica-Editorial-Update-Proposal/1.0" },
+      redirect: "follow",
+      cache: "no-store",
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`Pagina non leggibile: HTTP ${response.status}`);
+    const finalUrl = normalizedPageUrl(response.url || targetUrl);
+    const contentType = String(response.headers.get("content-type") || "").toLowerCase();
+    if (contentType && !contentType.includes("text/html")) throw new Error("La pagina indicata non restituisce HTML");
+    const declared = Number(response.headers.get("content-length") || 0);
+    if (declared > TARGET_PAGE_MAX_BYTES) throw new Error("Pagina troppo grande per l’analisi controllata");
+    const html = await response.text();
+    if (Buffer.byteLength(html, "utf8") > TARGET_PAGE_MAX_BYTES) throw new Error("Pagina troppo grande per l’analisi controllata");
+    return { html, finalUrl };
+  } catch (error) {
+    if (error?.name === "AbortError") throw new Error("Timeout durante la lettura della pagina esistente");
+    throw error;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+function buildUpdateProposal(opportunity, targetUrl, html, userId) {
+  const topic = String(opportunity.topic || "").trim();
+  const words = topicWords(topic);
+  const headings = pageHeadings(html);
+  const bestHeading = bestTopicHeading(headings, topic);
+  const title = firstTagText(html, "title");
+  const description = metaDescription(html);
+  const h1 = firstTagText(html, "h1");
+  const metric28 = opportunity?.evidence?.metrics?.["28"] || {};
+  const impressions28 = Number(metric28.impressions || 0);
+  const clicks28 = Number(metric28.clicks || 0);
+  const position28 = Number.isFinite(Number(metric28.avg_position)) ? Number(metric28.avg_position).toFixed(1) : "n/d";
+  const queryCount = Number(opportunity?.evidence?.query_count || 0);
+  const presence = {
+    title: wordCoverage(title, words),
+    meta_description: wordCoverage(description, words),
+    h1: wordCoverage(h1, words),
+    heading: bestHeading?.coverage || 0,
+  };
+
+  const plan = [];
+  if (bestHeading) {
+    plan.push({
+      key: "target_section",
+      label: "Sezione da revisionare",
+      target: `${bestHeading.level}${bestHeading.id ? ` #${bestHeading.id}` : ""} · ${bestHeading.text}`,
+      change: `Revisionare e approfondire la sezione già esistente rispetto al tema “${topic}”, senza creare una pagina duplicata.`,
+      reason: `Search Console registra ${impressions28} impressioni, ${clicks28} clic e posizione media ${position28} nei 28 giorni disponibili.`,
+    });
+  } else {
+    plan.push({
+      key: "target_section",
+      label: "Sezione da aggiungere",
+      target: "Contenuto principale",
+      change: `Valutare una sezione esplicita dedicata al tema “${topic}”, mantenendo invariato il resto della pagina fino alla revisione manuale.`,
+      reason: `Il tema genera un segnale Search Console ma non è stato trovato un H2/H3 chiaramente corrispondente nella pagina corrente.`,
+    });
+  }
+
+  plan.push({
+    key: "query_intent",
+    label: "Copertura delle query",
+    target: bestHeading?.text || h1 || title || "Pagina",
+    change: `Confrontare le ${queryCount ? `${queryCount} query` : "query"} collegate con il testo della sezione e integrare soltanto i sotto-temi realmente mancanti, usando fonti verificabili.`,
+    reason: "La proposta usa il cluster Search Console salvato; non inventa dati o valori tecnici.",
+  });
+
+  if (presence.meta_description >= 0.5) {
+    plan.push({
+      key: "snippet",
+      label: "Snippet SEO",
+      target: description || "Meta description",
+      change: "Nessuna modifica automatica alla meta description: il tema risulta già rappresentato. Rivalutarla soltanto dopo l’aggiornamento del contenuto.",
+      reason: "Si evita di modificare lo snippet senza un beneficio verificato.",
+    });
+  } else {
+    plan.push({
+      key: "snippet",
+      label: "Snippet SEO da verificare",
+      target: description || "Meta description assente",
+      change: `Dopo la revisione del contenuto, valutare se rendere più esplicito il tema “${topic}” nella meta description, senza cambiare automaticamente title o H1.`,
+      reason: "Il tema è poco rappresentato nello snippet corrente rispetto al segnale Search Console.",
+    });
+  }
+
+  return {
+    schema_version: 1,
+    status: "pending_review",
+    target_url: targetUrl,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    page: {
+      fingerprint_sha256: crypto.createHash("sha256").update(html).digest("hex"),
+      title,
+      meta_description: description,
+      h1,
+      matched_heading: bestHeading ? {
+        level: bestHeading.level,
+        id: bestHeading.id || null,
+        text: bestHeading.text,
+        coverage: roundMetric(bestHeading.coverage, 3),
+      } : null,
+      topic_presence: Object.fromEntries(Object.entries(presence).map(([key, value]) => [key, roundMetric(value, 3)])),
+    },
+    signal: {
+      topic,
+      score: Number(opportunity.score || 0),
+      query_count: queryCount,
+      metrics_28: {
+        impressions: impressions28,
+        clicks: clicks28,
+        avg_position: Number.isFinite(Number(metric28.avg_position)) ? roundMetric(Number(metric28.avg_position), 2) : null,
+      },
+    },
+    plan,
+    safeguards: [
+      "La pagina pubblicata non viene modificata da questa proposta.",
+      "L’approvazione registra soltanto una decisione editoriale e non applica modifiche.",
+      "Qualsiasi nuovo dato tecnico o numerico deve essere verificato con fonti prima dell’eventuale applicazione.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdateProposal(user, idValue, targetUrlValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected") throw new Error("L’opportunità deve essere selezionata");
+  if (opportunity.opportunity_type !== "update_article") {
+    throw new Error("La proposta di aggiornamento richiede la destinazione Aggiornamento articolo/pagina");
+  }
+  if (opportunity.target_article_id) throw new Error("L’opportunità è già collegata a un articolo editoriale");
+
+  const targetUrl = normalizedPageUrl(targetUrlValue);
+  const candidates = (await opportunityContextPages(opportunity)).map((url) => {
+    try { return normalizedPageUrl(url); } catch { return ""; }
+  }).filter(Boolean);
+  const savedTarget = opportunity?.evidence?.target_page_url;
+  if (savedTarget) {
+    try { candidates.push(normalizedPageUrl(savedTarget)); } catch {}
+  }
+  if (!new Set(candidates).has(targetUrl)) throw new Error("La pagina scelta non appartiene alle pagine associate all’opportunità");
+
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const proposal = buildUpdateProposal(opportunity, pageResult.finalUrl, pageResult.html, user.id);
+  const previousEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_text_draft: _discardedTextDraft, update_apply_preview: _discardedApplyPreview, ...proposalEvidenceBase } = previousEvidence;
+  const evidence = {
+    ...proposalEvidenceBase,
+    page_urls: Array.isArray(previousEvidence.page_urls) && previousEvidence.page_urls.length
+      ? previousEvidence.page_urls
+      : candidates.slice(0, 5),
+    target_page_url: pageResult.finalUrl,
+    update_proposal: proposal,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Proposta di aggiornamento non salvata");
+  return { opportunity: updated, proposal };
+}
+
+async function reviewEditorialUpdateProposal(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_PROPOSAL_DECISIONS.has(decision)) throw new Error("Decisione proposta non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La proposta non è più associata a un aggiornamento selezionato");
+  }
+  const currentProposal = opportunity?.evidence?.update_proposal;
+  if (!currentProposal || typeof currentProposal !== "object") throw new Error("Prepara prima una proposta di aggiornamento");
+  const now = new Date().toISOString();
+  const proposal = {
+    ...currentProposal,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+  };
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_text_draft: _discardedTextDraft, update_apply_preview: _discardedApplyPreview, ...reviewEvidenceBase } = currentEvidence;
+  const evidence = {
+    ...reviewEvidenceBase,
+    update_proposal: proposal,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione sulla proposta non salvata");
+  return { opportunity: updated, proposal };
+}
+
+
+function escapeRegExp(value) {
+  return String(value || "").replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
+function pageHeadingRanges(html) {
+  const source = String(html || "");
+  const items = [];
+  const regex = /<(h[23])\b([^>]*)>([\s\S]*?)<\/\1>/gi;
+  let match;
+  while ((match = regex.exec(source)) !== null && items.length < 120) {
+    const id = match[2]?.match(/\bid\s*=\s*["']([^"']+)["']/i)?.[1] || "";
+    items.push({
+      level: Number(match[1].slice(1)),
+      tag: match[1].toUpperCase(),
+      id,
+      text: plainHtmlText(match[3]).slice(0, 300),
+      start: match.index,
+      heading_end: regex.lastIndex,
+    });
+  }
+  return items;
+}
+
+function approvedProposalSection(html, proposal) {
+  const matched = proposal?.page?.matched_heading;
+  if (!matched || typeof matched !== "object") throw new Error("La proposta approvata non identifica una sezione precisa");
+  const headings = pageHeadingRanges(html);
+  const targetId = String(matched.id || "").trim();
+  const targetText = normalizedText(matched.text || "");
+  const index = headings.findIndex((heading) => {
+    if (targetId && heading.id === targetId) return true;
+    return targetText && normalizedText(heading.text) === targetText;
+  });
+  if (index < 0) throw new Error("La sezione approvata non è più presente nella pagina: rigenera la proposta");
+  const heading = headings[index];
+  let end = String(html || "").length;
+  for (let cursor = index + 1; cursor < headings.length; cursor += 1) {
+    if (headings[cursor].level <= heading.level) {
+      end = headings[cursor].start;
+      break;
+    }
+  }
+  return { heading, start: heading.start, end, html: String(html || "").slice(heading.start, end) };
+}
+
+function firstSectionParagraph(sectionHtml, headingEndOffset = 0) {
+  const source = String(sectionHtml || "").slice(Math.max(0, Number(headingEndOffset) || 0));
+  const match = source.match(/<p\b[^>]*>([\s\S]*?)<\/p>/i);
+  if (!match) return null;
+  const text = plainHtmlText(match[1]).replace(/\s+/g, " ").trim();
+  return text ? { text } : null;
+}
+
+function conservativeLeadRevision(paragraphText, headingText) {
+  const current = String(paragraphText || "").trim();
+  const prefix = String(headingText || "").split(/[:–—]/, 1)[0].trim();
+  if (!current || !prefix) return null;
+  const prefixWords = normalizedWords(prefix);
+  if (prefixWords.length < 2) return null;
+  const firstKeyword = prefixWords[0];
+  const match = current.match(/^(Il|Lo|La|I|Gli|Le|Un|Una|Uno)\s+([^\s,.;:!?]+)/i);
+  if (!match) return null;
+  const paragraphKeyword = stemItalianWord(normalizedText(match[2]).split(" ")[0] || "");
+  if (!paragraphKeyword || paragraphKeyword !== firstKeyword) return null;
+
+  const article = match[1];
+  const safePrefix = `${prefix.charAt(0).toLowerCase()}${prefix.slice(1)}`;
+  const replacement = `${article} ${safePrefix}`;
+  const beforeLead = `${match[1]} ${match[2]}`;
+  if (normalizedText(current).startsWith(normalizedText(replacement))) return null;
+  const proposed = current.replace(new RegExp(`^${escapeRegExp(beforeLead)}\\b`, "i"), replacement);
+  if (!proposed || proposed === current) return null;
+  return { before: current, after: proposed };
+}
+
+function buildUpdateTextDraft(opportunity, proposal, html, userId) {
+  const section = approvedProposalSection(html, proposal);
+  const relativeHeadingEnd = Math.max(0, section.heading.heading_end - section.heading.start);
+  const paragraph = firstSectionParagraph(section.html, relativeHeadingEnd);
+  if (!paragraph) throw new Error("La sezione approvata non contiene un paragrafo modificabile");
+  const revision = conservativeLeadRevision(paragraph.text, section.heading.text);
+  if (!revision) {
+    throw new Error("Non ho trovato una modifica testuale conservativa abbastanza sicura: mantieni la proposta come piano manuale");
+  }
+  return {
+    schema_version: 1,
+    status: "pending_review",
+    target_url: proposal.target_url,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    source_page_fingerprint_sha256: proposal?.page?.fingerprint_sha256 || null,
+    basis: "existing_page_only",
+    scope: "first_paragraph_copy_edit",
+    target: {
+      heading_level: section.heading.tag,
+      heading_id: section.heading.id || null,
+      heading_text: section.heading.text,
+    },
+    changes: [{
+      key: "lead_topic_context",
+      label: "Apertura della sezione",
+      before: revision.before,
+      after: revision.after,
+      reason: `Rende esplicito nel primo periodo il contesto già dichiarato dal titolo della sezione, senza aggiungere dati, numeri o fatti nuovi. Segnale Search Console: “${String(opportunity.topic || "").trim()}”.`,
+    }],
+    safeguards: [
+      "La bozza deriva esclusivamente dal testo già pubblicato nella pagina.",
+      "Nessun dato tecnico, numero o fonte esterna viene aggiunto automaticamente.",
+      "L’approvazione della bozza non modifica e non pubblica la pagina.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdateText(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La bozza testo richiede un aggiornamento selezionato");
+  }
+  const proposal = opportunity?.evidence?.update_proposal;
+  if (!proposal || proposal.status !== "approved") throw new Error("Approva prima la proposta di aggiornamento");
+  const targetUrl = normalizedPageUrl(proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const currentFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!proposal?.page?.fingerprint_sha256 || currentFingerprint !== proposal.page.fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo la proposta: rigenera e riapprova la proposta prima della bozza testo");
+  }
+  const draft = buildUpdateTextDraft(opportunity, proposal, pageResult.html, user.id);
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_apply_preview: _discardedApplyPreview, ...textEvidenceBase } = currentEvidence;
+  const evidence = {
+    ...textEvidenceBase,
+    update_text_draft: draft,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Bozza testuale non salvata");
+  return { opportunity: updated, draft };
+}
+
+async function reviewEditorialUpdateText(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_TEXT_DECISIONS.has(decision)) throw new Error("Decisione bozza testo non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article" || proposal?.status !== "approved") {
+    throw new Error("La proposta approvata non è più valida per questa bozza");
+  }
+  const currentDraft = opportunity?.evidence?.update_text_draft;
+  if (!currentDraft || typeof currentDraft !== "object") throw new Error("Prepara prima la bozza testuale");
+  const now = new Date().toISOString();
+  const draft = {
+    ...currentDraft,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+  };
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const { update_apply_preview: _discardedApplyPreview, ...reviewTextEvidenceBase } = currentEvidence;
+  const evidence = {
+    ...reviewTextEvidenceBase,
+    update_text_draft: draft,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione sulla bozza testo non salvata");
+  return { opportunity: updated, draft };
+}
+
+
+function escapeHtmlText(value) {
+  return String(value || "")
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+function firstSectionParagraphRange(sectionHtml, headingEndOffset = 0) {
+  const full = String(sectionHtml || "");
+  const offset = Math.max(0, Number(headingEndOffset) || 0);
+  const source = full.slice(offset);
+  const match = /<p\b[^>]*>([\s\S]*?)<\/p>/i.exec(source);
+  if (!match) return null;
+  const relativeStart = offset + match.index;
+  const innerOffset = match[0].indexOf(match[1]);
+  if (innerOffset < 0) return null;
+  const innerStart = relativeStart + innerOffset;
+  const innerEnd = innerStart + match[1].length;
+  const text = plainHtmlText(match[1]).replace(/\s+/g, " ").trim();
+  return {
+    start: relativeStart,
+    end: relativeStart + match[0].length,
+    inner_start: innerStart,
+    inner_end: innerEnd,
+    inner_html: match[1],
+    text,
+  };
+}
+
+function applyApprovedTextDraft(html, proposal, draft) {
+  const source = String(html || "");
+  const changes = Array.isArray(draft?.changes) ? draft.changes : [];
+  if (changes.length !== 1) throw new Error("L’anteprima controllata richiede esattamente una modifica testuale");
+  const change = changes[0] || {};
+  const before = String(change.before || "").trim();
+  const after = String(change.after || "").trim();
+  if (!before || !after || before === after) throw new Error("Diff testuale non valido per l’anteprima");
+
+  const section = approvedProposalSection(source, proposal);
+  const relativeHeadingEnd = Math.max(0, section.heading.heading_end - section.heading.start);
+  const paragraph = firstSectionParagraphRange(section.html, relativeHeadingEnd);
+  if (!paragraph?.text) throw new Error("Paragrafo approvato non più disponibile nella pagina");
+  if (paragraph.text !== before) throw new Error("Il testo sorgente non coincide più con la bozza approvata: rigenera la proposta");
+  if (/<[^>]+>/.test(paragraph.inner_html)) {
+    throw new Error("Il paragrafo contiene markup interno: applicazione automatica bloccata per sicurezza");
+  }
+
+  const globalInnerStart = section.start + paragraph.inner_start;
+  const globalInnerEnd = section.start + paragraph.inner_end;
+  const modified = `${source.slice(0, globalInnerStart)}${escapeHtmlText(after)}${source.slice(globalInnerEnd)}`;
+  if (modified === source) throw new Error("L’anteprima non produce alcuna modifica");
+
+  const sourcePage = {
+    title: firstTagText(source, "title"),
+    h1: firstTagText(source, "h1"),
+    meta_description: metaDescription(source),
+  };
+  const previewPage = {
+    title: firstTagText(modified, "title"),
+    h1: firstTagText(modified, "h1"),
+    meta_description: metaDescription(modified),
+  };
+  if (sourcePage.title !== previewPage.title || sourcePage.h1 !== previewPage.h1 || sourcePage.meta_description !== previewPage.meta_description) {
+    throw new Error("L’anteprima toccherebbe elementi fuori dalla sezione approvata: operazione bloccata");
+  }
+
+  return {
+    modified,
+    section,
+    before,
+    after,
+    sourcePage,
+    previewPage,
+  };
+}
+
+function buildUpdateApplyPreview(opportunity, proposal, draft, html, userId) {
+  const applied = applyApprovedTextDraft(html, proposal, draft);
+  const sourceFingerprint = crypto.createHash("sha256").update(html).digest("hex");
+  const previewFingerprint = crypto.createHash("sha256").update(applied.modified).digest("hex");
+  return {
+    schema_version: 1,
+    status: "pending_confirmation",
+    target_url: proposal.target_url,
+    prepared_at: new Date().toISOString(),
+    prepared_by: userId,
+    source_page_fingerprint_sha256: sourceFingerprint,
+    preview_page_fingerprint_sha256: previewFingerprint,
+    change_count: 1,
+    target: {
+      heading_level: applied.section.heading.tag,
+      heading_id: applied.section.heading.id || null,
+      heading_text: applied.section.heading.text,
+    },
+    page_preview: {
+      title: applied.previewPage.title,
+      h1: applied.previewPage.h1,
+      meta_description: applied.previewPage.meta_description,
+      before_paragraph: applied.before,
+      after_paragraph: applied.after,
+    },
+    validation: {
+      source_matches_approved_draft: sourceFingerprint === draft.source_page_fingerprint_sha256,
+      title_unchanged: applied.sourcePage.title === applied.previewPage.title,
+      h1_unchanged: applied.sourcePage.h1 === applied.previewPage.h1,
+      meta_description_unchanged: applied.sourcePage.meta_description === applied.previewPage.meta_description,
+      writes_page: false,
+    },
+    safeguards: [
+      "L’anteprima applica il diff soltanto a una copia in memoria della pagina.",
+      "Il file HTML pubblicato non viene scritto o modificato.",
+      "La conferma dell’anteprima registra solo un’autorizzazione separata; non pubblica nulla.",
+    ],
+  };
+}
+
+async function prepareEditorialUpdatePreview(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("L’anteprima richiede un aggiornamento selezionato");
+  }
+  if (proposal?.status !== "approved") throw new Error("Approva prima la proposta di aggiornamento");
+  if (draft?.status !== "approved") throw new Error("Approva prima la bozza testuale");
+
+  const targetUrl = normalizedPageUrl(proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const sourceFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!draft.source_page_fingerprint_sha256 || sourceFingerprint !== draft.source_page_fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo la bozza approvata: rigenera proposta e testo");
+  }
+
+  const preview = buildUpdateApplyPreview(opportunity, proposal, draft, pageResult.html, user.id);
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_apply_preview: preview,
+  };
+  const now = new Date().toISOString();
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Anteprima applicata non salvata");
+  return { opportunity: updated, preview };
+}
+
+async function reviewEditorialUpdatePreview(user, idValue, decisionValue) {
+  const id = String(idValue || "").trim();
+  const decision = String(decisionValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!UPDATE_PREVIEW_DECISIONS.has(decision)) throw new Error("Decisione anteprima non valida");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  const currentPreview = opportunity?.evidence?.update_apply_preview;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article" || proposal?.status !== "approved" || draft?.status !== "approved") {
+    throw new Error("Proposta o testo approvato non più validi per questa anteprima");
+  }
+  if (!currentPreview || typeof currentPreview !== "object") throw new Error("Prepara prima l’anteprima applicata");
+
+  const targetUrl = normalizedPageUrl(currentPreview.target_url || proposal.target_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const sourceFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (!currentPreview.source_page_fingerprint_sha256 || sourceFingerprint !== currentPreview.source_page_fingerprint_sha256) {
+    throw new Error("La pagina è cambiata dopo l’anteprima: rigenera prima di confermare");
+  }
+  const recomputed = buildUpdateApplyPreview(opportunity, proposal, draft, pageResult.html, user.id);
+  if (recomputed.preview_page_fingerprint_sha256 !== currentPreview.preview_page_fingerprint_sha256) {
+    throw new Error("L’anteprima non coincide più con il diff approvato: rigenerala");
+  }
+
+  const now = new Date().toISOString();
+  const preview = {
+    ...currentPreview,
+    status: decision,
+    reviewed_at: now,
+    reviewed_by: user.id,
+    ready_for_apply: decision === "confirmed",
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_apply_preview: preview,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Decisione anteprima non salvata");
+  return { opportunity: updated, preview };
+}
+
+async function completeEditorialUpdate(user, idValue, commitRefValue) {
+  const id = String(idValue || "").trim();
+  const commitRef = String(commitRefValue || "").trim().toLowerCase();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  if (!validCommitRef(commitRef)) throw new Error("Inserisci un riferimento commit Git valido (7–64 caratteri esadecimali)");
+
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  if (opportunity.status === "completed" && opportunity?.evidence?.update_application) {
+    return { already_completed: true, opportunity, application: opportunity.evidence.update_application };
+  }
+  const proposal = opportunity?.evidence?.update_proposal;
+  const draft = opportunity?.evidence?.update_text_draft;
+  const preview = opportunity?.evidence?.update_apply_preview;
+  if (opportunity.status !== "selected" || opportunity.opportunity_type !== "update_article") {
+    throw new Error("La chiusura richiede un aggiornamento ancora selezionato");
+  }
+  if (proposal?.status !== "approved" || draft?.status !== "approved" || preview?.status !== "confirmed") {
+    throw new Error("Proposta, testo e anteprima devono essere approvati e confermati prima della chiusura");
+  }
+  if (!preview.preview_page_fingerprint_sha256) throw new Error("Impronta dell’anteprima confermata non disponibile");
+
+  const targetUrl = normalizedPageUrl(preview.target_url || proposal.target_url || opportunity?.evidence?.target_page_url);
+  const pageResult = await fetchEditorialPage(targetUrl);
+  const publishedFingerprint = crypto.createHash("sha256").update(pageResult.html).digest("hex");
+  if (publishedFingerprint !== preview.preview_page_fingerprint_sha256) {
+    throw new Error("La pagina pubblicata non coincide con l’anteprima confermata: chiusura bloccata");
+  }
+
+  const now = new Date().toISOString();
+  const currentEvidence = opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {};
+  const application = {
+    schema_version: 1,
+    status: "verified_applied",
+    target_url: pageResult.finalUrl,
+    applied_at: now,
+    applied_by: user.id,
+    commit_ref: commitRef,
+    commit_ref_verified: false,
+    page_fingerprint_sha256: publishedFingerprint,
+    expected_preview_fingerprint_sha256: preview.preview_page_fingerprint_sha256,
+    change_count: Number(preview.change_count || 1),
+    baseline: {
+      topic_key: currentEvidence.topic_key || null,
+      metrics: currentEvidence.metrics || {},
+      snapshots: Array.isArray(currentEvidence.snapshots) ? currentEvidence.snapshots : [],
+    },
+  };
+  const evidence = { ...currentEvidence, update_application: application };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: {
+      status: "completed",
+      evidence,
+      decided_by: user.id,
+      decided_at: now,
+      updated_at: now,
+    },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id || updated.status !== "completed") throw new Error("Chiusura opportunità non salvata");
+  return { already_completed: false, opportunity: updated, application };
+}
+
+async function checkEditorialUpdateImpact(user, idValue) {
+  const id = String(idValue || "").trim();
+  if (!validUuid(id)) throw new Error("Identificativo opportunità non valido");
+  const rows = await serviceFetch(
+    `editorial_research_opportunities?select=${opportunitySelect()}&id=eq.${encodeURIComponent(id)}&limit=1`,
+  );
+  const opportunity = rows?.[0];
+  if (!opportunity) throw new Error("Opportunità non trovata");
+  const application = opportunity?.evidence?.update_application;
+  if (opportunity.status !== "completed" || application?.status !== "verified_applied") {
+    throw new Error("Il monitoraggio è disponibile solo dopo la chiusura verificata dell’aggiornamento");
+  }
+  const topicKey = String(application?.baseline?.topic_key || opportunity?.evidence?.topic_key || "").trim();
+  if (!topicKey) throw new Error("Topic Search Console non disponibile per il monitoraggio");
+
+  const allSnapshots = await searchConsoleSnapshots();
+  const snapshots = latestWindowSnapshots(allSnapshots);
+  if (!ANALYSIS_WINDOWS.every((days) => snapshots.some((row) => Number(row.days) === days))) {
+    throw new Error("Storico Search Console non sufficiente per il monitoraggio");
+  }
+  const snapshotsByDays = new Map(snapshots.map((row) => [Number(row.days), row]));
+  const baselineMetrics = application?.baseline?.metrics || {};
+  const currentMetrics = {};
+  for (const days of ANALYSIS_WINDOWS) {
+    const snapshot = snapshotsByDays.get(days);
+    const result = await snapshotQueryRows(snapshot.id);
+    const topic = aggregateSnapshot(result.rows).get(topicKey) || null;
+    currentMetrics[String(days)] = topic ? {
+      clicks: topic.clicks,
+      impressions: topic.impressions,
+      ctr: roundMetric(topic.ctr, 4),
+      avg_position: roundMetric(topic.avg_position, 2),
+    } : null;
+  }
+  const ready = {};
+  const deltas = {};
+  for (const days of ANALYSIS_WINDOWS) {
+    const key = String(days);
+    ready[key] = snapshotFullyAfter(snapshotsByDays.get(days), application.applied_at);
+    deltas[key] = ready[key] ? metricDelta(currentMetrics[key], baselineMetrics[key]) : null;
+  }
+  const now = new Date().toISOString();
+  const monitor = {
+    schema_version: 1,
+    checked_at: now,
+    checked_by: user.id,
+    topic_key: topicKey,
+    applied_at: application.applied_at,
+    readiness: ready,
+    baseline_metrics: baselineMetrics,
+    current_metrics: currentMetrics,
+    deltas,
+    snapshots: snapshots.map((row) => ({
+      id: row.id,
+      days: row.days,
+      period_start: row.period_start,
+      period_end: row.period_end,
+      captured_at: row.captured_at,
+      row_count: row.row_count,
+    })),
+    note: ready["28"]
+      ? "Finestra 28 giorni interamente successiva all’applicazione disponibile."
+      : ready["7"]
+        ? "Finestra 7 giorni interamente successiva all’applicazione disponibile; 28 giorni ancora in maturazione."
+        : "I dati disponibili includono ancora giorni precedenti all’applicazione; nessun delta post-modifica viene interpretato.",
+  };
+  const evidence = {
+    ...(opportunity.evidence && typeof opportunity.evidence === "object" ? opportunity.evidence : {}),
+    update_monitor: monitor,
+  };
+  const updatedRows = await serviceFetch(`editorial_research_opportunities?id=eq.${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    prefer: "return=representation",
+    body: { evidence, updated_at: now, decided_by: user.id },
+  });
+  const updated = updatedRows?.[0];
+  if (!updated?.id) throw new Error("Monitoraggio post-modifica non salvato");
+  return { opportunity: updated, monitor };
+}
+
+async function analysisPayload() {
+  const allSnapshots = await searchConsoleSnapshots();
+  const snapshots = latestWindowSnapshots(allSnapshots);
+  const missing = ANALYSIS_WINDOWS.filter((days) => !snapshots.some((row) => row.days === days));
+  if (missing.length) {
+    return {
+      ok: true,
+      version: VERSION,
+      ready: false,
+      missing,
+      snapshots,
+      signals: [],
+    };
+  }
+
+  const byDays = new Map();
+  let truncated = false;
+  for (const snapshot of snapshots) {
+    const result = await snapshotQueryRows(snapshot.id);
+    byDays.set(snapshot.days, aggregateSnapshot(result.rows));
+    truncated = truncated || result.truncated;
+  }
+
+  const sevenMap = byDays.get(7) || new Map();
+  const twentyEightMap = byDays.get(28) || new Map();
+  const ninetyMap = byDays.get(90) || new Map();
+  const keys = new Set([...sevenMap.keys(), ...twentyEightMap.keys(), ...ninetyMap.keys()]);
+
+  let maxImpressions = 0;
+  let maxClicks = 0;
+  for (const key of keys) {
+    const basis = ninetyMap.get(key) || twentyEightMap.get(key) || sevenMap.get(key);
+    maxImpressions = Math.max(maxImpressions, basis?.impressions || 0);
+    maxClicks = Math.max(maxClicks, basis?.clicks || 0);
+  }
+
+  const signals = [];
+  for (const key of keys) {
+    const seven = sevenMap.get(key) || null;
+    const twentyEight = twentyEightMap.get(key) || null;
+    const ninety = ninetyMap.get(key) || null;
+    const basis = ninety || twentyEight || seven;
+    if (!basis || basis.impressions <= 0) continue;
+
+    const momentum = momentumScore(seven, twentyEight);
+    const demand = logRelative(basis.impressions, maxImpressions);
+    const engagement = logRelative(basis.clicks, maxClicks);
+    const position = positionOpportunity(basis.avg_position);
+    const score = Math.round(
+      Math.min(100, Math.max(0, 40 * demand + 25 * momentum.score + 20 * position + 15 * engagement)),
+    );
+
+    const signal = {
+      topic_key: key,
+      topic: basis.display_query,
+      score,
+      query_count: Math.max(seven?.query_count || 0, twentyEight?.query_count || 0, ninety?.query_count || 0),
+      query_examples: [...new Set([
+        ...(ninety?.query_examples || []),
+        ...(twentyEight?.query_examples || []),
+        ...(seven?.query_examples || []),
+      ])].slice(0, 5),
+      page_count: Math.max(seven?.page_count || 0, twentyEight?.page_count || 0, ninety?.page_count || 0),
+      page_urls: [...new Set([
+        ...(ninety?.page_urls || []),
+        ...(twentyEight?.page_urls || []),
+        ...(seven?.page_urls || []),
+      ])].slice(0, 5),
+      momentum_ratio: roundMetric(momentum.ratio, 3),
+      metrics: {
+        "7": seven ? {
+          clicks: seven.clicks,
+          impressions: seven.impressions,
+          ctr: roundMetric(seven.ctr, 4),
+          avg_position: roundMetric(seven.avg_position, 2),
+        } : null,
+        "28": twentyEight ? {
+          clicks: twentyEight.clicks,
+          impressions: twentyEight.impressions,
+          ctr: roundMetric(twentyEight.ctr, 4),
+          avg_position: roundMetric(twentyEight.avg_position, 2),
+        } : null,
+        "90": ninety ? {
+          clicks: ninety.clicks,
+          impressions: ninety.impressions,
+          ctr: roundMetric(ninety.ctr, 4),
+          avg_position: roundMetric(ninety.avg_position, 2),
+        } : null,
+      },
+    };
+    signal.editorial_brief = opportunityEditorialBrief({
+      topic: signal.topic,
+      evidence: {
+        source: "search_console",
+        topic_key: signal.topic_key,
+        query_examples: signal.query_examples,
+        page_urls: signal.page_urls,
+        metrics: signal.metrics,
+      },
+    }, signal);
+    signals.push(signal);
+  }
+
+  signals.sort((a, b) => b.score - a.score || (b.metrics["90"]?.impressions || 0) - (a.metrics["90"]?.impressions || 0));
+
+  const referenceSnapshot = snapshots.find((row) => Number(row.days) === 90)
+    || snapshots.find((row) => Number(row.days) === 28)
+    || snapshots[0]
+    || null;
+  let currentCycleByTopic = new Map();
+  if (referenceSnapshot?.id) {
+    const cycleRows = await serviceFetch(
+      `editorial_research_opportunities?select=${opportunitySelect()}&snapshot_id=eq.${encodeURIComponent(referenceSnapshot.id)}&order=updated_at.desc&limit=500`,
+    ).catch(() => []);
+    currentCycleByTopic = new Map();
+    for (const row of cycleRows || []) {
+      const topicKey = String(row?.evidence?.topic_key || "").trim();
+      if (!topicKey || currentCycleByTopic.has(topicKey)) continue;
+      currentCycleByTopic.set(topicKey, row);
+    }
+  }
+
+  const rankedSignals = signals.slice(0, ANALYSIS_SIGNAL_LIMIT).map((signal, index) => {
+    const cycleOpportunity = currentCycleByTopic.get(String(signal.topic_key || "")) || null;
+    return {
+      ...signal,
+      rank: index + 1,
+      cycle_opportunity: cycleOpportunity ? {
+        id: cycleOpportunity.id,
+        status: cycleOpportunity.status,
+        target_article_id: cycleOpportunity.target_article_id || null,
+        decided_at: cycleOpportunity.decided_at || null,
+      } : null,
+    };
+  });
+
+  return {
+    ok: true,
+    version: VERSION,
+    ready: true,
+    snapshots,
+    reference_snapshot_id: referenceSnapshot?.id || null,
+    truncated,
+    signals_total: signals.length,
+    signal_limit: ANALYSIS_SIGNAL_LIMIT,
+    signals_truncated: signals.length > ANALYSIS_SIGNAL_LIMIT,
+    methodology: {
+      demand_weight: 40,
+      momentum_weight: 25,
+      position_weight: 20,
+      engagement_weight: 15,
+      grouping: "cluster lessicale deterministico delle query Search Console",
+      writes_database: false,
+    },
+    signals: rankedSignals,
+  };
 }
 
 export default async function handler(req, res) {
-  const existingAnalyticsMethods = ["GET", "DELETE"];
-  const allowedMethods = req.method === "POST" ? [...existingAnalyticsMethods, "POST"] : existingAnalyticsMethods;
-  if (!method(req, res, allowedMethods)) return;
-  const identity = await requireStaffSession(req, res, {
-    roles: req.method === "GET" ? ["reviewer", "admin"] : ["admin"],
-    permissions: req.method === "DELETE"
-      ? ["view_analytics", "delete_records"]
-      : req.method === "POST"
-        ? ["view_control"]
-        : ["view_analytics", "view_control"],
-    permissionMode: req.method === "DELETE" ? "all" : "any",
-    allowHealth: req.method === "GET",
-  });
-  if (!identity) return;
-  const authorizedBy = identity.authorizedBy;
-  if (authorizedBy === "health") {
-    return json(res, 200, {
-      ok: true,
-      status: "ready",
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
-  }
-
-  const url = new URL(req.url || "/api/staff-analytics", `https://${req.headers.host || "offertalogica.it"}`);
-  if (req.method === "POST") {
-    if (authorizedBy !== "supabase" || !isStaffAdminRole(identity.staff.role)) {
-      return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
-    }
-    if (!requireAllowedOrigin(req, res)) return;
-    if (url.searchParams.get("mode") !== "usage-exclusion") {
-      return json(res, 400, { ok: false, error: "Operazione Staff non riconosciuta" });
+  try {
+    if (!["GET", "POST"].includes(req.method || "")) {
+      res.setHeader("Allow", "GET, POST");
+      return json(res, 405, { ok: false, error: "Metodo non consentito" });
     }
 
-    const body = bodyObject(req);
-    const action = String(body.action || "").trim().toLowerCase();
-    const staffUserId = identity.user?.id || null;
-
-    if (action === "revoke") {
-      const result = await revokeUsageCountExclusion({ id: body.id, staffUserId });
-      if (!result.ok) return json(res, 400, { ok: false, error: result.error || "Revoca esclusione non riuscita" });
+    const action = String(req.query?.action || "");
+    if (req.method === "GET" && action === "editorial-autopilot-tick") {
+      if (!(await automationCronAuthorized(req))) return json(res, 401, { ok: false, error: "Autopilota scheduler non autorizzato" });
       try {
-        await writeStaffAudit({
-          identity,
-          action: "usage_exclusion_revoked",
-          targetType: "usage_count_exclusion",
-          targetId: String(body.id || ""),
-          metadata: { source: "usage_control" },
-          source: "api:staff-analytics",
+        const result = await editorialAutopilotTick();
+        await automationPersistTickState(result).catch((heartbeatError) => {
+          console.warn("editorial_autopilot_heartbeat_persist_failed", heartbeatError);
         });
+        return json(res, 200, result);
       } catch (error) {
-        console.error("staff-usage-exclusion-audit", error);
+        await automationPersistTickState(null, error).catch((heartbeatError) => {
+          console.warn("editorial_autopilot_heartbeat_persist_failed", heartbeatError);
+        });
+        throw error;
       }
-      return json(res, 200, { ok: true, exclusion: result.row });
     }
 
-    let subjectType = "";
-    let subjectHash = "";
-    if (action === "exclude_current_ip") {
-      subjectType = "ip_hash";
-      subjectHash = usageIpSubjectHash(clientIp(req));
-      if (!subjectHash) {
-        return json(res, 503, { ok: false, error: "IP corrente non disponibile o USAGE_CONTROL_HASH_SECRET non configurato correttamente" });
+    const user = await authenticatedAdmin(req);
+    if (!user) return json(res, 401, { ok: false, error: "Accesso amministratore richiesto" });
+
+    // Video Studio Lab: opt-in manual actions only. No autopilot, SQL or publishing.
+    if (req.method === "POST" && (action === "video-studio-storyboard" || action === "video-studio-photo" || action === "video-studio-resume")) {
+      if (!requireAllowedBrowserOrigin(req, res)) return;
+      if (process.env.VIDEO_STUDIO_LAB_ENABLED !== "1") {
+        return json(res, 503, { ok: false, error: "Video Studio AI non attivo: abilitazione server richiesta" });
       }
-    } else if (action === "exclude_ip") {
-      const rawIp = String(body.ip || "").trim();
-      if (!isIP(rawIp)) return json(res, 400, { ok: false, error: "Indirizzo IP non valido" });
-      subjectType = "ip_hash";
-      subjectHash = usageIpSubjectHash(rawIp);
-      if (!subjectHash) {
-        return json(res, 503, { ok: false, error: "USAGE_CONTROL_HASH_SECRET non configurato correttamente" });
+      // Manual image replacement is not an AI generation and uses a separate bounded limit.
+      const isManualPhoto=action === "video-studio-photo" && typeof req.body?.manual_image_base64 === 'string' && req.body.manual_image_base64.length > 1000;
+      if (!(await enforceRateLimit(req, res, {
+        label: action === "video-studio-resume" ? "vs-resume" : isManualPhoto ? "vs-manual-photo" : "vs-ai-lab",
+        identifier: user.id, limit: action === "video-studio-resume" ? 40 : isManualPhoto ? 40 : 10, windowSeconds: 3600,
+      }))) return;
+      try {
+        const {createStoryboard, createPhoto, renewStoryboard} = await import("../video-studio/web-lab.mjs");
+        const payload = req.body;
+        if (!payload || Array.isArray(payload) || typeof payload !== "object" ||
+            Buffer.byteLength(JSON.stringify(payload)) > (isManualPhoto ? 2600000 : action === "video-studio-resume" ? 420000 : action === "video-studio-storyboard" && Array.isArray(payload.guide_video_frames_base64) ? 650000 : 210000)) {
+          return json(res, 400, {ok:false,error:"Richiesta Video Studio non valida o troppo grande"});
+        }
+        let result;
+        if (action === "video-studio-storyboard") {
+          const readArticle = async (id) => {
+            if (!/^[a-f\d]{8}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{4}-[a-f\d]{12}$/i.test(String(id)))
+              throw new Error("ID articolo non valido");
+            const rows = await editorialUserFetch(user,
+              `editorial_articles?select=id,title,slug,status,updated_at,category,content,sources&id=eq.${encodeURIComponent(id)}&status=eq.published&limit=1`);
+            return rows?.[0] || null;
+          };
+          result = await createStoryboard({userId:user.id, theme:payload.theme,articleId:payload.article_id,
+            guideImageBase64:payload.guide_image_base64,guideVideoFramesBase64:payload.guide_video_frames_base64,
+            guideVideoDurationMs:payload.guide_video_duration_ms,guideVideoFrameTimesMs:payload.guide_video_frame_times_ms,
+            guideUsage:payload.guide_usage,guideContext:payload.guide_context,guideFidelity:payload.guide_fidelity,
+            sceneCountPreference:payload.scene_count_preference??'auto',suggestions:payload.suggestions,platform:payload.platform},{readArticle});
+        } else if (action === "video-studio-resume") {
+          result = renewStoryboard({userId:user.id,input:payload.input,plan:payload.plan,
+            receipt:payload.receipt,guideReference:payload.guide_reference,
+            sceneReferences:payload.scene_references});
+        } else {
+          result = await createPhoto({userId:user.id, input:payload.input,plan:payload.plan,
+            receipt:payload.receipt,sceneIndex:payload.scene_index,revisionNotes:payload.revision_notes,
+            references:payload.references,manualImageBase64:payload.manual_image_base64});
+        }
+        return json(res, 200, {ok:true,version:VERSION,result});
+      } catch (error) {
+        const message = String(error?.message || "Errore generazione AI");
+        console.warn("video_studio_lab_failed", {action, error:message.slice(0,240)});
+        // Never reflect upstream provider bodies, keys, internal SQL or stack traces.
+        return json(res, 422, {ok:false,error:message.startsWith("VIDEO_STUDIO_") ?
+          message.slice(0,200) : "Generazione non riuscita. Verifica configurazione e disponibilità del servizio."});
       }
-    } else if (action === "exclude_visitor") {
-      subjectType = "visitor_hash";
-      subjectHash = usageSubjectHash(body.visitorHash);
-      if (!subjectHash) return json(res, 400, { ok: false, error: "Visitor non valido" });
-    } else {
-      return json(res, 400, { ok: false, error: "Azione esclusione non valida" });
     }
 
-    const result = await createUsageCountExclusion({
-      subjectType,
-      subjectHash,
-      label: body.label,
-      reason: body.reason,
-      staffUserId,
-    });
-    if (!result.ok) return json(res, 500, { ok: false, error: result.error || "Creazione esclusione non riuscita" });
-    try {
-      await writeStaffAudit({
-        identity,
-        action: result.created ? "usage_exclusion_added" : "usage_exclusion_already_active",
-        targetType: "usage_count_exclusion",
-        targetId: result.row?.id || null,
-        metadata: { subject_type: subjectType, subject_hash: subjectHash, source: "usage_control" },
-        source: "api:staff-analytics",
-      });
-    } catch (error) {
-      console.error("staff-usage-exclusion-audit", error);
-    }
-    return json(res, 200, { ok: true, created: result.created === true, exclusion: result.row });
-  }
-  if (req.method === "DELETE") {
-    if (authorizedBy !== "supabase" || !isStaffAdminRole(identity.staff.role)) {
-      return json(res, 403, { ok: false, error: "Operazione riservata agli amministratori" });
-    }
-    if (!requireAllowedOrigin(req, res)) return;
-
-    const body = bodyObject(req);
-    const id = Number(url.searchParams.get("id") || body.id || 0);
-    const ids = Array.isArray(body.ids) ? body.ids : [];
-    const resetAll = url.searchParams.get("scope") === "all" || body.scope === "all";
-    const bulk = ids.length > 0;
-    const expectedConfirmation = resetAll ? "AZZERA_ANALYTICS" : bulk ? "ELIMINA_ANALYTICS_VISIBILI" : "ELIMINA_EVENTO";
-    const confirmation = String(req.headers["x-staff-confirmation"] || "").trim();
-    if (confirmation !== expectedConfirmation || (!id && !bulk && !resetAll)) {
-      return json(res, 400, { ok: false, error: "Conferma eliminazione non valida" });
-    }
-
-    const requestedIds = [...new Set(
-      [id, ...ids]
-        .map((value) => Number(value))
-        .filter((value) => Number.isSafeInteger(value) && value > 0)
-    )].slice(0, 500);
-    const targetId = !resetAll && requestedIds.length === 1 ? String(requestedIds[0]) : null;
-    const auditMetadata = {
-      scope: resetAll ? "all" : requestedIds.length > 1 ? "bulk" : "single",
-      requested_count: resetAll ? null : requestedIds.length,
-      requested_ids: resetAll ? [] : requestedIds,
-    };
-
-    try {
-      await writeStaffAudit({
-        identity,
-        action: "analytics_deletion_authorized",
-        targetType: "lead_events",
-        targetId,
-        metadata: auditMetadata,
-        source: "api:staff-analytics",
-      });
-    } catch (error) {
-      console.error("staff-analytics-audit", error);
-      return json(res, 503, { ok: false, error: "Audit Staff non disponibile: eliminazione non eseguita" });
-    }
-
-    const result = await deleteCustomerAnalytics({ id, ids, all: resetAll });
-
-    try {
-      await writeStaffAudit({
-        identity,
-        action: result.ok ? "analytics_deletion_completed" : "analytics_deletion_failed",
-        targetType: "lead_events",
-        targetId,
-        result: result.ok ? "success" : "error",
-        reason: result.ok ? "" : String(result.error || result.status || "delete_failed"),
-        metadata: {
-          ...auditMetadata,
-          deleted_count: result.deletedCount ?? null,
-          deleted_ids: Array.isArray(result.deletedIds) ? result.deletedIds.slice(0, 500) : [],
-          reset_all: Boolean(result.resetAll),
-        },
-        source: "api:staff-analytics",
-      });
-    } catch (error) {
-      console.error("staff-analytics-audit-finalize", error);
-    }
-
-    return json(res, result.ok ? 200 : 500, {
-      ...result,
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
-  }
-
-  const format = String(url.searchParams.get("format") || "json").toLowerCase();
-  const exportScope = String(url.searchParams.get("scope") || "events").toLowerCase();
-  const exportRange = String(url.searchParams.get("range") || "month").toLowerCase();
-  if (format === "csv") {
-    if (!customerDbConfiguredForLandingAnalytics()) {
-      return sendAnalyticsCsv(res, "", `offertalogica-analytics-${new Date().toISOString().slice(0, 10)}.csv`);
-    }
-    try {
-      const exportPeriod = exportRange === "month" ? analyticsMonthPeriod(url.searchParams.get("month") || currentAnalyticsMonth()) : null;
-      const rows = await loadAnalyticsExportRows(exportPeriod?.from || analyticsExportRangeFrom(exportRange), exportPeriod?.to || "");
-      const date = new Date().toISOString().slice(0, 10);
-      const exportRangeLabel = exportPeriod?.month || exportRange;
-      const sessionScopes = new Set(["sessions", "paths", "pdf", "switcho", "traffic", "offers", "landing"]);
-      if (sessionScopes.has(exportScope)) {
-        let sessionRows = analyticsJourneyRows(rows);
-        if (exportScope === "paths") sessionRows = sessionRows.filter((row) => row.scelta_percorso || row.percorso_confronto || row.pdf_scelto);
-        if (exportScope === "pdf") sessionRows = sessionRows.filter((row) => row.pdf_scelto);
-        if (exportScope === "switcho") sessionRows = sessionRows.filter((row) => row.switcho);
-        if (exportScope === "traffic") sessionRows = sessionRows.filter((row) => row.source || row.term || row.referrer || row.landing);
-        if (exportScope === "offers") sessionRows = sessionRows.filter((row) => row.offerte_visualizzate || row.azione_offerta || row.provider || row.offerta);
-        if (exportScope === "landing") sessionRows = sessionRows.filter((row) => row.scelta_percorso || String(row.event_types || "").includes("landing_view"));
-        const headers = [
-          "session_id", "first_at", "last_at", "events_count", "event_types", "visitor_type", "visitor_label",
-          "source", "medium", "campaign", "term", "content", "campaign_id", "adgroup_id", "creative_id", "match_type", "device", "ads_network", "click_id_type", "click_id", "referrer", "landing",
-          "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_visualizzate", "numero_offerte",
-          "pdf_scelto", "pdf_scelto_registrato", "pdf_picker_aperto", "pdf_file_selezionato", "pdf_file_selezionati", "pdf_file_accettati", "pdf_duplicati",
-          "pdf_analisi_avviata", "pdf_analisi_completata", "pdf_analisi_interrotta", "pdf_esito", "pdf_file_count", "pdf_success_count", "pdf_unrecognized_count", "pdf_error_count",
-          "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_reason", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
-          "pdf_dati_confermati", "pdf_autofill_aperto", "pdf_autofill_confermato", "pdf_campi_autofill", "pdf_campi_selezionati", "pdf_campi_saltati",
-          "lead_id", "lead_creato", "popup_lead", "otp_richiesto", "otp_inviato", "otp_verificato", "offerta_sbloccata", "azione_offerta", "switcho", "switcho_source", "partner",
-          "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo", "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
-          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "esito_sessione", "abbandono_fase", "ultimo_evento"
-        ];
-        const filenameScope = ({
-          sessions: "funnel-sessioni", paths: "percorsi", pdf: "percorso-pdf", switcho: "percorso-switcho",
-          traffic: "provenienza-intento", offers: "offerte", landing: "landing"
-        })[exportScope] || "sessioni";
-        return sendAnalyticsCsv(res, csvFromObjects(sessionRows, headers), `offertalogica-${filenameScope}-${exportRangeLabel}-${date}.csv`);
-      }
-      const eventRows = analyticsEventExportRows(rows);
-      const headers = [
-        "id", "lead_id", "event_type", "created_at", "client_timestamp", "session_event_seq", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
-        "traffic_source", "traffic_medium", "traffic_campaign", "traffic_term", "traffic_content", "traffic_campaign_id", "traffic_adgroup_id",
-        "traffic_creative_id", "traffic_match_type", "traffic_device", "traffic_network", "traffic_referrer", "traffic_landing_page",
-        "traffic_click_id_type", "traffic_click_id", "article_slug", "article_title", "article_category", "article_type", "article_canonical", "consent_action", "consent_source", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "path_choice", "trigger", "tipo_prezzo", "tipo_fornitura", "regione_gas", "potenza_kw", "luce_consumo_kwh", "gas_consumo_smc", "fornitore_attuale", "fornitore_luce_attuale", "fornitore_gas_attuale", "fornitore_nuova_offerta", "context", "field", "mode", "has_pending_url", "assisted", "business_catalog_offers_count", "business_catalog_dual_offers_count", "demo_mode", "tool_code", "tool_action", "tool_outcome", "tool_context", "tool_version", "ranking_offers_count", "best_partner_saving", "best_saving",
-        "pdf_document_count", "file_count", "selected_count", "accepted_count", "duplicate_count", "success_count", "unrecognized_count", "error_count", "analysis_status",
-        "diagnostic_code", "diagnostic_codes", "analysis_stage", "analysis_stages", "ingress_mode", "ingress_modes", "document_kinds", "commodities", "missing_fields", "missing_field_count", "review_field_count",
-        "pdf_analysis_ids", "pdf_archive_stored", "pdf_contract_version", "pdf_parser_mode", "pdf_parser_version", "pdf_reader_confidence", "pdf_page_count", "pdf_field_diagnostics",
-        "field_count", "protected_count", "ocr_review_count", "skipped_count", "protected_skipped_count", "active_slot", "retained_current_documents", "retained_offer_documents", "mixed_documents", "merge_blocked",
-        "gas_decision", "electricity_decision", "has_new_offer", "visible_offers_count", "active_partner_offers_count", "consultant_offers_count", "offer_id", "offer_name", "provider",
-        "destination_type", "destination_status", "display_group", "economy_rank", "display_rank", "annual_cost", "annual_delta", "network", "model",
-        "redirect", "routing_version", "engagement_stage", "engagement_reason", "engagement_active_seconds", "engagement_elapsed_seconds",
-        "engagement_landing_seconds", "engagement_calculator_seconds", "engagement_offers_seconds", "engagement_otp_seconds",
-        "engagement_first_action_seconds", "engagement_offers_reached_seconds", "telemetry", "reason", "payload_json"
-      ];
-      return sendAnalyticsCsv(res, csvFromObjects(eventRows, headers), `offertalogica-analytics-completo-${exportRangeLabel}-${date}.csv`);
-    } catch (error) {
-      console.error("staff-analytics-export", error);
-      return json(res, 500, { ok: false, error: String(error?.message || error || "analytics_export_error") });
-    }
-  }
-
-  const requestedSessionId = String(url.searchParams.get("sessionId") || "").trim().slice(0, 160);
-  if (requestedSessionId) {
-    const sessionRawResult = await listCustomerAnalytics({ limit: 5000, sessionId: requestedSessionId });
-    const sessionResult = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(sessionRawResult), new Map());
-    return json(res, sessionResult.ok ? 200 : 500, {
-      ...sessionResult,
-      requestedSessionId,
-      baseline: {
-        from: CAMPAIGN_BASELINE_ISO,
-        label: CAMPAIGN_BASELINE_LABEL,
-        timezone: "Europe/Rome",
-      },
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
-  }
-
-  const limit = url.searchParams.get("limit") || 2000;
-  const landingRange = normalizeLandingRange(url.searchParams.get("landingRange"));
-  const mode = String(url.searchParams.get("mode") || "").trim().toLowerCase();
-  const period = analyticsMonthPeriod(url.searchParams.get("month"));
-
-  if (mode === "usage") {
-    const now = Date.now();
-    const requestedWindowDays = Number(url.searchParams.get("days") || 7);
-    const windowDays = [1, 7, 30].includes(requestedWindowDays) ? requestedWindowDays : 7;
-    const requestedTool = String(url.searchParams.get("tool") || "all").trim().toLowerCase();
-    const tool = ["all", "domestic", "business"].includes(requestedTool) ? requestedTool : "all";
-    const from = new Date(now - windowDays * 24 * 60 * 60 * 1000).toISOString();
-    const emptyUsageResult = { ok: true, configured: true, status: "ready", events: [] };
-    const [domesticRaw, businessRaw, exclusions] = await Promise.all([
-      tool === "business"
-        ? Promise.resolve(emptyUsageResult)
-        : listCustomerAnalytics({
-            limit: 10000,
-            from,
-            eventType: "comparison_completed",
-          }),
-      tool === "domestic"
-        ? Promise.resolve(emptyUsageResult)
-        : listCustomerAnalytics({
-            limit: 10000,
-            from,
-            eventType: "business_calculation_completed",
-          }),
-      listUsageCountExclusions(),
-    ]);
-    if (!domesticRaw.ok || !businessRaw.ok) {
-      const failed = !domesticRaw.ok ? domesticRaw : businessRaw;
-      return json(res, 500, { ok: false, status: failed.status || "error", error: failed.error || "usage_observation_error" });
-    }
-    if (!exclusions.ok) {
-      return json(res, 503, { ok: false, status: "usage_exclusions_unavailable", error: exclusions.error || "Archivio esclusioni non disponibile" });
-    }
-    const observedEvents = [...(domesticRaw.events || []), ...(businessRaw.events || [])];
-    return json(res, 200, {
-      ok: true,
-      configured: domesticRaw.configured && businessRaw.configured,
-      status: domesticRaw.status || businessRaw.status,
-      usage: {
-        ...usageObservation(observedEvents, now, exclusions.rows, { windowDays, tool }),
-        exclusions: exclusions.rows,
-      },
-      authorizedBy,
-      checkedAt: new Date(now).toISOString(),
-    });
-  }
-
-  if (mode === "overview") {
-    let databaseSummary = null;
-    try {
-      databaseSummary = await loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO);
-    } catch (error) {
-      console.error("staff-analytics-summary", error);
-    }
-    if (databaseSummary) {
-      return json(res, 200, {
-        ok: true,
-        configured: true,
-        status: "ready",
-        summary: databaseSummary,
-        aggregationMode: "database",
-        baseline: {
-          from: CAMPAIGN_BASELINE_ISO,
-          label: CAMPAIGN_BASELINE_LABEL,
-          timezone: "Europe/Rome",
-        },
-        authorizedBy,
-        checkedAt: new Date().toISOString(),
+    if (req.method === "POST" && EDITORIAL_PAGE_UPDATE_ACTIONS.has(action)) {
+      return json(res, 409, {
+        ok: false,
+        version: VERSION,
+        error: "Gli aggiornamenti delle pagine del sito sono disattivati: l’Editoriale genera solo nuovi articoli e contenuti social.",
       });
     }
 
-    const rawResult = await listCustomerAnalytics({ limit });
-    const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
-    return json(res, result.ok ? 200 : 500, {
-      ok: result.ok,
-      configured: result.configured,
-      status: result.status,
-      summary: result.summary || {},
-      aggregationMode: "recent_fallback",
-      baseline: {
-        from: CAMPAIGN_BASELINE_ISO,
-        label: CAMPAIGN_BASELINE_LABEL,
-        timezone: "Europe/Rome",
-      },
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
-  }
-
-  if (period && mode !== "overview") {
-    try {
-      const [rawResult, monthlyRows] = await Promise.all([
-        listCustomerAnalytics({ limit, from: period.from, to: period.to }),
-        loadAnalyticsExportRows(period.from, period.to),
-      ]);
-      const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
-      const journeys = analyticsJourneyRows(monthlyRows);
-      const exactSummary = analyticsJourneySummary(journeys, monthlyRows);
-      const offerSelectionSummary = offerSelectionSummaryFromRows(monthlyRows);
-      const clickedProviders = offerSelectionSummary?.topProviders?.length ? offerSelectionSummary.topProviders : exactSummary.topProviders || [];
-      const clickedOffers = offerSelectionSummary?.topOffers?.length ? offerSelectionSummary.topOffers : exactSummary.topOffers || [];
-      const offerRoutes = {
-        ok: true,
-        configured: customerDbConfiguredForLandingAnalytics(),
-        from: period.from,
-        to: period.to,
-        summary: summarizeOfferRouteEvents(monthlyRows.map(offerRouteEventFromRow).filter(Boolean)),
-      };
-      const routeSummary = offerRoutes.summary || {};
-      const providerRouteMap = new Map((routeSummary.providerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
-      const offerRouteMap = new Map((routeSummary.offerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
-      const decorate = (rows, routeMap) => (Array.isArray(rows) ? rows : []).map((item) => ({
-        ...item,
-        routeStats: routeMap.get(String(item?.key || "").trim().toLowerCase()) || null,
-      }));
-      const sessionFunnel = { ...(exactSummary.sessionFunnel || {}), cardClicked: Number(offerSelectionSummary.cardClicks || exactSummary.cardClicked || 0) };
-      const sessionFunnelsBySource = { ...(exactSummary.sessionFunnelsBySource || {}) };
-      Object.entries(offerSelectionSummary.cardClicksBySource || {}).forEach(([sourceKey, count]) => {
-        sessionFunnelsBySource[sourceKey] = { ...(sessionFunnelsBySource[sourceKey] || {}), cardClicked: Number(count || 0) };
-      });
-      const linkedLeadIds = new Set(monthlyRows.map((row) => String(row?.lead_id || "").trim()).filter(Boolean));
-      const summary = {
-        ...(result.summary || {}),
-        ...exactSummary,
-        recentEvents: monthlyRows.length,
-        linkedLeads: linkedLeadIds.size,
-        attributedSessions: journeys.length,
-        topProviders: decorate(clickedProviders, providerRouteMap),
-        topOffers: decorate(clickedOffers, offerRouteMap),
-        funnel: exactSummary.activity || exactSummary.funnel || {},
-        sessionFunnel,
-        sessionFunnelsBySource,
-      };
-      const journeySummary = {
-        ...exactSummary,
-        offerSelections: offerSelectionSummary.selections ?? exactSummary.offerAction ?? 0,
-        topProviders: summary.topProviders,
-        topOffers: summary.topOffers,
-        sessionFunnel,
-        sessionFunnelsBySource,
-      };
-      const switcho = switchoAnalyticsFromRawRows(monthlyRows);
-      const landingFrom = analyticsRelativeRangeFrom(period, landingRange);
-      const landingRows = monthlyRows.filter((row) => {
-        const createdAt = new Date(row?.created_at || 0).getTime();
-        return Number.isFinite(createdAt) && createdAt >= new Date(landingFrom).getTime();
-      });
-      const landingPath = {
-        ok: true, configured: customerDbConfiguredForLandingAnalytics(), range: landingRange,
-        from: landingFrom, to: period.to, ...classifyLandingPathRows(landingRows),
-      };
-      const photoJourneySummary = photoJourneySummaryFromRows(monthlyRows);
-      return json(res, result.ok ? 200 : 500, {
-        ...result,
-        ok: result.ok,
-        status: result.status,
-        summary,
-        journeys,
-        journeySummary,
-        journeyWindow: { maxEvents: monthlyRows.length, loadedEvents: monthlyRows.length, recentOnly: false },
-        aggregationMode: "monthly_single_scan",
-        switcho,
-        offerRoutes,
-        photoJourneySummary,
-        landingPath,
-        period,
-        baseline: { from: CAMPAIGN_BASELINE_ISO, label: CAMPAIGN_BASELINE_LABEL, timezone: ANALYTICS_TIME_ZONE },
-        authorizedBy,
-        checkedAt: new Date().toISOString(),
-      });
-    } catch (error) {
-      console.error("staff-analytics-month", error);
-      return json(res, 500, {
-        ok: false, configured: customerDbConfiguredForLandingAnalytics(),
-        error: String(error?.message || error || "analytics_month_error"),
-        period,
-        baseline: { from: CAMPAIGN_BASELINE_ISO, label: CAMPAIGN_BASELINE_LABEL, timezone: ANALYTICS_TIME_ZONE },
-        authorizedBy,
-        checkedAt: new Date().toISOString(),
-      });
+    if (req.method === "GET" && action === "editorial-research-status") {
+      return json(res, 200, await statusPayload());
     }
+
+    if (req.method === "GET" && action === "editorial-research-analysis") {
+      return json(res, 200, await analysisPayload());
+    }
+
+    if (req.method === "GET" && action === "editorial-research-radar") {
+      return json(res, 200, await researchRadarPayload());
+    }
+
+    if (req.method === "GET" && action === "editorial-opportunities") {
+      return json(res, 200, await opportunitiesPayload());
+    }
+
+    if (req.method === "GET" && action === "editorial-planner-preview") {
+      return json(res, 200, await editorialPlannerPreview());
+    }
+
+    if (req.method === "POST" && action === "create-manual-editorial-idea") {
+      const result = await createManualEditorialIdea(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "create-editorial-research-hint") {
+      const result = await createEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "select-editorial-research-hint") {
+      const opportunity = await selectEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "archive-editorial-research-hint") {
+      const hint = await archiveEditorialResearchHint(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, hint });
+    }
+
+    if (req.method === "POST" && action === "update-manual-editorial-idea") {
+      const opportunity = await updateManualEditorialIdea(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "collect-search-console") {
+      const result = await collectSearchConsole(user, req.body?.days);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "start-editorial-web-radar") {
+      const settings = await automationSchedulerSettings();
+      const result = await startManualResearchRadar(user, settings || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "save-editorial-opportunity") {
+      const result = await saveEditorialOpportunity(user, req.body?.topic_key, req.body?.status);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "select-editorial-radar-candidate") {
+      const opportunity = await selectResearchRadarCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "update-editorial-opportunity") {
+      const opportunity = await updateEditorialOpportunity(user, req.body?.id, req.body?.status);
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "classify-editorial-opportunity") {
+      const opportunity = await classifyEditorialOpportunity(user, req.body?.id, req.body?.opportunity_type);
+      return json(res, 200, { ok: true, version: VERSION, opportunity });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-article-package") {
+      const result = await generateEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "check-editorial-article-package") {
+      const result = await checkEditorialArticlePackage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "resume-editorial-automatic-cycle") {
+      const result = await resumeEditorialAutomaticCycle(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-article-image") {
+      const result = await generateEditorialArticleImage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "set-editorial-article-image-candidate") {
+      const result = await setEditorialArticleImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "approve-editorial-article-image") {
+      const result = await approveEditorialArticleImage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "discard-editorial-article-image-candidate") {
+      const result = await discardEditorialArticleImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "delete-editorial-draft-article") {
+      const result = await deleteEditorialDraftArticle(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "discard-editorial-draft-opportunity") {
+      const result = await discardEditorialDraftOpportunity(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "GET" && action === "editorial-social-plan") {
+      return json(res, 200, await editorialSocialPlanPayload());
+    }
+
+    if (req.method === "POST" && action === "update-editorial-social-plan-item") {
+      const item = await updateEditorialSocialPlanItem(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, item });
+    }
+
+    if (req.method === "POST" && action === "regenerate-editorial-social-plan-item") {
+      const result = await requestEditorialSocialRegeneration(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "set-editorial-social-image-candidate") {
+      const result = await setEditorialSocialImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "generate-editorial-social-image-candidate") {
+      const result = await generateEditorialSocialImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "decide-editorial-social-image-candidate") {
+      const result = await decideEditorialSocialImageCandidate(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-social-image") {
+      const result = await reviewEditorialSocialImage(user, req.body || {});
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "GET" && action === "editorial-automation-runs") {
+      return json(res, 200, await automationRunsPayload());
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-draft") {
+      const result = await prepareEditorialDraft(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update") {
+      const result = await prepareEditorialUpdateProposal(user, req.body?.id, req.body?.target_url);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update") {
+      const result = await reviewEditorialUpdateProposal(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update-text") {
+      const result = await prepareEditorialUpdateText(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update-text") {
+      const result = await reviewEditorialUpdateText(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "prepare-editorial-update-preview") {
+      const result = await prepareEditorialUpdatePreview(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "review-editorial-update-preview") {
+      const result = await reviewEditorialUpdatePreview(user, req.body?.id, req.body?.decision);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "complete-editorial-update") {
+      const result = await completeEditorialUpdate(user, req.body?.id, req.body?.commit_ref);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    if (req.method === "POST" && action === "check-editorial-update-impact") {
+      const result = await checkEditorialUpdateImpact(user, req.body?.id);
+      return json(res, 200, { ok: true, version: VERSION, result });
+    }
+
+    return json(res, 404, { ok: false, error: "Azione non trovata" });
+  } catch (error) {
+    console.error("editorial_research_api_failed", error);
+    return json(res, 500, { ok: false, error: error?.message || "Errore interno" });
   }
-
-  if (mode === "landing" || (Number(limit) === 1 && url.searchParams.has("landingRange"))) {
-    const landingPath = await loadLandingPathAnalytics(landingRange);
-    return json(res, 200, {
-      ok: true,
-      landingPath,
-      baseline: {
-        from: CAMPAIGN_BASELINE_ISO,
-        label: CAMPAIGN_BASELINE_LABEL,
-        timezone: "Europe/Rome",
-      },
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
-  }
-
-  const [rawResult, landingPath, switcho, offerRoutes, recentAnalyticsRows, databaseSummary, offerSelectionSummary, photoJourneySummary] = await Promise.all([
-    listCustomerAnalytics({ limit }),
-    loadLandingPathAnalytics(landingRange),
-    loadSwitchoAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
-      ok: false, configured: true, rows: [],
-      summary: { sessions: 0, offerSelections: 0, guidedSessions: 0, redirects: 0, sources: [] },
-      error: String(error?.message || error || "switcho_analytics_error"),
-    })),
-    loadOfferRouteAnalytics(CAMPAIGN_BASELINE_ISO).catch((error) => ({
-      ok: false, configured: true, from: CAMPAIGN_BASELINE_ISO,
-      summary: summarizeOfferRouteEvents([]),
-      error: String(error?.message || error || "offer_route_analytics_error"),
-    })),
-    loadRecentAnalyticsRows(CAMPAIGN_BASELINE_ISO).catch((error) => {
-      console.error("staff-analytics-recent-journeys", error);
-      return [];
-    }),
-    loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
-      console.error("staff-analytics-summary", error);
-      return null;
-    }),
-    loadOfferSelectionSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
-      console.error("staff-analytics-offer-selections", error);
-      return null;
-    }),
-    loadPhotoJourneySummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
-      console.error("staff-analytics-photo-journey", error);
-      return photoJourneySummaryFromRows([]);
-    }),
-  ]);
-  const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
-  const journeys = analyticsJourneyRows(recentAnalyticsRows);
-  const recentJourneySummary = analyticsJourneySummary(journeys, recentAnalyticsRows);
-  const exactSummary = databaseSummary && typeof databaseSummary === "object" ? databaseSummary : null;
-  const rawClickedProviders = offerSelectionSummary?.topProviders?.length
-    ? offerSelectionSummary.topProviders
-    : (exactSummary?.topProviders?.length ? exactSummary.topProviders : recentJourneySummary.topProviders || result.summary?.topProviders || []);
-  const rawClickedOffers = offerSelectionSummary?.topOffers?.length
-    ? offerSelectionSummary.topOffers
-    : (exactSummary?.topOffers?.length ? exactSummary.topOffers : recentJourneySummary.topOffers || result.summary?.topOffers || []);
-  const routeSummary = offerRoutes?.summary && typeof offerRoutes.summary === "object" ? offerRoutes.summary : {};
-  const providerRouteMap = new Map((routeSummary.providerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
-  const offerRouteMap = new Map((routeSummary.offerDetails || []).map((item) => [String(item.key || "").trim().toLowerCase(), item]));
-  const decorateRouteRows = (rows, routeMap) => (Array.isArray(rows) ? rows : []).map((item) => ({
-    ...item,
-    routeStats: routeMap.get(String(item?.key || "").trim().toLowerCase()) || null,
-  }));
-  const clickedProviders = decorateRouteRows(rawClickedProviders, providerRouteMap);
-  const clickedOffers = decorateRouteRows(rawClickedOffers, offerRouteMap);
-  const mergedSessionFunnel = {
-    ...(recentJourneySummary.sessionFunnel || {}),
-    ...(exactSummary?.sessionFunnel || {}),
-  };
-  if (offerSelectionSummary) mergedSessionFunnel.cardClicked = Number(offerSelectionSummary.cardClicks || 0);
-  const recentFunnelsBySource = recentJourneySummary.sessionFunnelsBySource || {};
-  const exactFunnelsBySource = exactSummary?.sessionFunnelsBySource || {};
-  const cardClicksBySource = offerSelectionSummary?.cardClicksBySource || {};
-  const mergedSessionFunnelsBySource = {};
-  new Set([...Object.keys(recentFunnelsBySource), ...Object.keys(exactFunnelsBySource), ...Object.keys(cardClicksBySource)]).forEach((sourceKey) => {
-    mergedSessionFunnelsBySource[sourceKey] = {
-      ...(recentFunnelsBySource[sourceKey] || {}),
-      ...(exactFunnelsBySource[sourceKey] || {}),
-      cardClicked: Number(cardClicksBySource[sourceKey] || 0),
-    };
-  });
-  const summary = exactSummary
-    ? { ...(result.summary || {}), ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
-    : { ...(result.summary || {}), topProviders: clickedProviders, topOffers: clickedOffers };
-  const journeySummary = exactSummary
-    ? { ...recentJourneySummary, ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? exactSummary.offerSelections ?? recentJourneySummary.offerAction ?? 0, activity: exactSummary.activity || recentJourneySummary.activity || {}, sessionFunnel: mergedSessionFunnel, sessionFunnelsBySource: mergedSessionFunnelsBySource }
-    : { ...recentJourneySummary, topProviders: clickedProviders, topOffers: clickedOffers, offerSelections: offerSelectionSummary?.selections ?? recentJourneySummary.offerAction ?? 0, sessionFunnel: mergedSessionFunnel, sessionFunnelsBySource: mergedSessionFunnelsBySource };
-
-  const responseOk = Boolean(result.ok || exactSummary);
-  json(res, responseOk ? 200 : 500, {
-    ...result,
-    landingPath,
-    ok: responseOk,
-    status: exactSummary ? "ready" : result.status,
-    summary,
-    journeys,
-    journeySummary,
-    journeyWindow: {
-      maxEvents: ANALYTICS_RECENT_JOURNEY_MAX_ROWS,
-      loadedEvents: recentAnalyticsRows.length,
-      recentOnly: true,
-    },
-    aggregationMode: exactSummary ? "database" : "recent_fallback",
-    switcho,
-    offerRoutes,
-    photoJourneySummary,
-    baseline: {
-      from: CAMPAIGN_BASELINE_ISO,
-      label: CAMPAIGN_BASELINE_LABEL,
-      timezone: "Europe/Rome",
-    },
-    authorizedBy,
-    checkedAt: new Date().toISOString(),
-  });
 }
-
-const businessUsageObservation = usageObservation;
-export { businessUsageObservation, usageObservation };
