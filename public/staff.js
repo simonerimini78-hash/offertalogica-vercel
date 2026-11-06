@@ -198,6 +198,7 @@
     bill_photo_analysis_started: "Lettura foto avviata",
     bill_photo_analysis_completed: "Foto bolletta letta",
     bill_photo_analysis_failed: "Lettura foto fallita",
+    bill_photo_server_diagnostic: "Diagnostica IA foto salvata",
     bill_photo_comparison_auto_started: "Confronto automatico da foto",
     pdf_data_confirmed: "Dati bolletta confermati",
     pdf_autofill_preview_opened: "Anteprima dati bolletta aperta",
@@ -2953,6 +2954,301 @@
     setMessage("success", `CSV generato: ${safeRows.length} eventi.`);
   }
 
+  // Letture foto del calcolatore pubblico: esclusivamente eventi bill_photo_*,
+  // separati dagli archivi PDF e da tutti i flussi Premium.
+  const PUBLIC_PHOTO_MISSING_LABELS = Object.freeze({
+    "in-gas-cons-att": "Consumo gas della tariffa attuale",
+    "in-gas-prezzo-att": "Prezzo gas della tariffa attuale",
+    "in-gas-fisso-att": "Quota fissa gas della tariffa attuale",
+    "in-luce-cons-att": "Consumo luce della tariffa attuale",
+    "in-luce-prezzo-att": "Prezzo luce della tariffa attuale",
+    "in-luce-fisso-att": "Quota fissa luce della tariffa attuale",
+  });
+
+  function publicPhotoMissingFields(value) {
+    let values = value;
+    if (typeof value === "string") {
+      try { values = JSON.parse(value); } catch { values = []; }
+    }
+    if (!Array.isArray(values)) return [];
+    return [...new Set(values.filter(item => typeof item === "string").map(item => item.trim()).filter(item =>
+      /^in-(?:gas|luce)-[a-z0-9-]{1,60}$/.test(item)
+      && !/(?:pod|pdr|indirizz|codice|fiscale|intestatario|cliente|nome|cognome|iban|telefono|email)/i.test(item)
+    ))].slice(0, 80);
+  }
+
+  function publicPhotoStatusLabel(value) {
+    const key = String(value || "").toLowerCase();
+    return ({
+      success: "Lettura riuscita: nessun campo essenziale mancante segnalato",
+      success_missing_data: "Lettura parziale: dati essenziali mancanti",
+      unreadable: "Foto non leggibile",
+      failed: "Lettura non riuscita",
+    })[key] || "Esito non registrato";
+  }
+
+  function publicPhotoSourceLabel(source) {
+    return source === "camera" ? "Fotocamera" : source === "gallery" ? "Galleria" : "Origine non registrata";
+  }
+
+  // I nomi fornitore possono arrivare da campi liberi; usare solo valori
+  // riconosciuti per non riportare nominativi personali nella diagnostica.
+  function publicPhotoSupplierLabel(value) {
+    const key = String(value || "").trim().toLowerCase();
+    const known = {
+      hera: "Hera", enel: "Enel", "enel energia": "Enel Energia",
+      eon: "E.ON", "e.on": "E.ON", "e.on energia": "E.ON Energia",
+      a2a: "A2A", plenitude: "Plenitude", eni: "Eni",
+      edison: "Edison", iren: "Iren", engie: "Engie",
+      sorgenia: "Sorgenia", pulsee: "Pulsee", acea: "Acea",
+      illumia: "Illumia", nen: "NeN", octopus: "Octopus Energy",
+      "octopus energy": "Octopus Energy", wekiwi: "Wekiwi",
+      "servizio elettrico nazionale": "Servizio Elettrico Nazionale",
+    };
+    return known[key] || (key ? "Fornitore non riconosciuto (testo libero omesso)" : "");
+  }
+
+  function analyticsPublicPhotoSessionModel(rows = []) {
+    const ordered = [...rows].sort(compareAnalyticsEventOrder);
+    const photo = ordered.filter(item => String(item.eventType || "").startsWith("bill_photo_"));
+    if (!photo.length) return null;
+    const serverDiagnostics = photo.filter(item => item.eventType === "bill_photo_server_diagnostic");
+    const attemptIdOf = item => String(item?.photoAttemptId || item?.payload?.photoAttemptId || "").trim();
+    const counts = { camera: 0, gallery: 0, selected: 0, started: 0, completed: 0, failed: 0 };
+    const attempts = [];
+    for (const item of photo) {
+      switch (item.eventType) {
+        case "bill_photo_camera_opened": counts.camera++; break;
+        case "bill_photo_gallery_opened": counts.gallery++; break;
+        case "bill_photo_selected": counts.selected++; break;
+        case "bill_photo_analysis_started":
+          counts.started++;
+          attempts.push({ started: item, ended: null, source: item.inputSource || "", attemptId: attemptIdOf(item) });
+          break;
+        case "bill_photo_analysis_completed":
+        case "bill_photo_analysis_failed": {
+          if (item.eventType === "bill_photo_analysis_completed") counts.completed++;
+          else counts.failed++;
+          const id = attemptIdOf(item);
+          const pending = id
+            ? attempts.find(attempt => !attempt.ended && attempt.attemptId === id)
+            : attempts.find(attempt => !attempt.ended);
+          if (pending) {
+            pending.ended = item;
+            if (id) pending.attemptId = id;
+            if (!pending.source) pending.source = item.inputSource || "";
+          } else attempts.push({ started: null, ended: item, source: item.inputSource || "", attemptId: id });
+          break;
+        }
+        default: break;
+      }
+    }
+    for (const diagnostic of serverDiagnostics) {
+      const id = attemptIdOf(diagnostic);
+      const matching = id ? attempts.find(attempt => attempt.attemptId === id) : null;
+      if (matching) matching.server = diagnostic;
+      else attempts.push({ started: null, ended: null, server: diagnostic, source: diagnostic.payload?.inputSource || "", attemptId: id });
+    }
+    // Un confronto può partire dopo una lettura incompleta anche con dati manuali
+    // o stimati: non attribuire automaticamente alla foto i valori registrati dopo.
+    const comparisons = ordered.filter(item => item.eventType === "comparison_started" && compareAnalyticsEventOrder(item, photo[0]) > 0);
+    const completed = ordered.filter(item => item.eventType === "comparison_completed" && compareAnalyticsEventOrder(item, photo[0]) > 0);
+    const offers = ordered.filter(item => item.eventType === "offers_rendered" && compareAnalyticsEventOrder(item, photo[0]) > 0);
+    const latestInputs = comparisons[comparisons.length - 1] || null;
+    const mostOffers = offers.reduce((max, item) => {
+      const value = Number(item.visibleOffersCount ?? item.rankingOffersCount);
+      return Number.isFinite(value) && value > max ? value : max;
+    }, 0);
+    return { attempts, counts, comparisons: comparisons.length, completed: completed.length,
+      offerViews: offers.length, mostOffers, latestInputs, economicRows: [...offers, ...completed] };
+  }
+
+  function renderAnalyticsSessionPhotoDiagnostics(rows = []) {
+    const target = byId("analyticsSessionPhotoDiagnostics");
+    if (!target) return;
+    clear(target);
+    const model = analyticsPublicPhotoSessionModel(rows);
+    if (!model) { target.hidden = true; return; }
+    target.hidden = false;
+    const details = node("details", { className: "analytics-pdf-diagnostics-details" });
+    const summary = node("summary", { className: "analytics-pdf-diagnostics-head" }, [
+      node("span", {}, [
+        node("strong", { text: `Letture foto bolletta · calcolatore pubblico — ${model.attempts.length} tentativ${model.attempts.length === 1 ? "o" : "i"}` }),
+        node("small", { text: "Diagnostica separata da Premium e dagli archivi PDF; ogni tentativo compare una sola volta." }),
+      ]),
+    ]);
+    const content = node("div", { className: "analytics-pdf-diagnostics-content" });
+    details.append(summary, content);
+    const fillDetails = () => {
+      if (details.dataset.loaded === "1") return;
+      details.dataset.loaded = "1";
+      content.append(node("p", { text: `Fotocamera aperta ${model.counts.camera} volte · Galleria aperta ${model.counts.gallery} volte · Foto selezionate ${model.counts.selected} · Letture avviate ${model.counts.started} · Terminate ${model.counts.completed} · Fallite ${model.counts.failed}.` }));
+      if (!model.attempts.length) content.append(node("p", { text: "Sono registrate aperture o selezioni, ma nessuna lettura avviata o terminata." }));
+      model.attempts.forEach((attempt, index) => {
+        const item = attempt.ended || attempt.started || attempt.server || {};
+        const status = attempt.ended?.analysisStatus || attempt.server?.analysisStatus || (attempt.ended?.eventType === "bill_photo_analysis_failed" ? "failed" : "");
+        const missing = publicPhotoMissingFields(attempt.ended?.missingFields);
+        const reportedCount = Number(attempt.ended?.missingFieldCount);
+        const missingCount = Number.isFinite(reportedCount) && reportedCount >= 0 ? reportedCount : missing.length;
+        const startAt = Date.parse(attempt.started?.clientTimestamp || attempt.started?.createdAt || "");
+        const endAt = Date.parse(attempt.ended?.clientTimestamp || attempt.ended?.createdAt || "");
+        const seconds = Number.isFinite(startAt) && Number.isFinite(endAt) && endAt >= startAt ? (endAt - startAt) / 1000 : null;
+        const block = node("div", { className: "analytics-session-event readable" }, [
+          node("strong", { text: `Tentativo ${index + 1} · ${publicPhotoSourceLabel(attempt.source)}` }),
+          node("small", { text: `Inizio: ${attempt.started ? formatDate(attempt.started.clientTimestamp || attempt.started.createdAt) : "non registrato"} · Fine: ${attempt.ended ? formatDate(attempt.ended.clientTimestamp || attempt.ended.createdAt) : "non registrata"}${seconds !== null ? ` · Durata lettura: ${Math.round(seconds)} s` : ""}` }),
+          node("strong", { text: attempt.ended || attempt.server ? publicPhotoStatusLabel(status) : "Esito assente: lettura avviata senza evento di conclusione" }),
+          node("small", { text: attempt.ended ? `Campi essenziali mancanti segnalati: ${missingCount}` : "Nessun dato sull'esito disponibile" }),
+        ]);
+        if (missing.length) {
+          block.append(node("div", {}, [
+            node("small", { text: "Campi mancanti:" }),
+            ...missing.map(field => node("div", { text: `• ${PUBLIC_PHOTO_MISSING_LABELS[field] || field}` })),
+          ]));
+        } else if (missingCount > 0) {
+          block.append(node("small", { text: "Campi mancanti non specificati nell'evento." }));
+        }
+        // Snapshot tecnico creato dal server senza OCR, immagini, POD/PDR o identità.
+        const snapshot = attempt.server?.payload?.photoReader;
+        const numericLabels = {
+          total_amount_eur: ["Totale bolletta", "€"], consumo_luce_kwh: ["Consumo annuo luce", "kWh"],
+          consumo_periodo_luce_kwh: ["Consumo periodo luce", "kWh"],
+          consumo_luce_f1_kwh: ["F1", "kWh"], consumo_luce_f2_kwh: ["F2", "kWh"],
+          consumo_luce_f3_kwh: ["F3", "kWh"], consumo_luce_f23_kwh: ["F23", "kWh"],
+          consumo_gas_smc: ["Consumo annuo gas", "Smc"], consumo_periodo_gas_smc: ["Consumo periodo gas", "Smc"],
+          consumo_gas_mc: ["Consumo gas", "mc"], consumo_periodo_gas_mc: ["Consumo periodo gas", "mc"],
+          coefficiente_conversione_gas_c: ["Coefficiente C gas", ""], potenza_impegnata_kw: ["Potenza impegnata", "kW"],
+          prezzo_luce_eur_kwh: ["Prezzo vendita luce", "€/kWh"], prezzo_gas_eur_smc: ["Prezzo vendita gas", "€/Smc"],
+          quota_fissa_vendita_luce_eur_anno: ["Quota fissa vendita luce", "€/anno"],
+          quota_fissa_vendita_gas_eur_anno: ["Quota fissa vendita gas", "€/anno"],
+          prezzo_vendita_bolletta_luce_eur_kwh: ["Prezzo storico luce", "€/kWh"],
+          prezzo_vendita_bolletta_gas_eur_smc: ["Prezzo storico gas", "€/Smc"],
+        };
+        const reasonLabels = {
+          scontrino_vendita_non_estratto: "Scontrino non estratto: manca una riga di vendita verificabile",
+          scontrino_vendita_non_riconciliato: "Scontrino estratto, ma la vendita non supera i controlli di riconciliazione",
+          dato_assente_o_non_validato: "Dato assente oppure non validato",
+        };
+        const validNumber = value => typeof value === "number" && Number.isFinite(value);
+        if (snapshot && typeof snapshot === "object") {
+          const technical = node("div", { className: "analytics-session-event readable" }, [
+            node("strong", { text: "Risultato tecnico originale della lettura IA (anonimizzato)" }),
+            node("small", { text: `Documento: ${["bolletta", "offerta"].includes(snapshot.documentKind) ? snapshot.documentKind : "non determinato"} · Tentativi IA: ${Math.min(2, Math.max(0, Number(snapshot.openaiAttempts) || 0))} · Recupero: ${snapshot.recoveryAttempted === true ? "tentato" : "non tentato"} · Esito recupero: ${snapshot.recoveryAccepted === true ? "accettato" : "non confermato"}` }),
+          ]);
+          const table = node("table");
+          const head = node("thead", {}, [node("tr", {}, ["Dato", "Valore letto"].map(label => node("th", { text: label })))]);
+          const body = node("tbody");
+          Object.entries(numericLabels).forEach(([field, [label, unit]]) => {
+            const value = snapshot.numbers?.[field];
+            body.append(node("tr", {}, [
+              node("td", { text: label }),
+              node("td", { text: validNumber(value) ? `${value} ${unit}`.trim() : "Non estratto" }),
+            ]));
+          });
+          table.append(head, body);
+          technical.append(node("div", { className: "table-wrap" }, [table]));
+          const dateLabels = { billing_period_start: "Inizio periodo", billing_period_end: "Fine periodo", issue_date: "Emissione", due_date: "Scadenza" };
+          Object.entries(dateLabels).forEach(([key, label]) => {
+            const value = snapshot.dates?.[key];
+            if (/^\d{4}-\d{2}-\d{2}$/.test(String(value || ""))) technical.append(node("small", { text: `${label}: ${value}` }));
+          });
+          for (const item of (Array.isArray(snapshot.missingReasons) ? snapshot.missingReasons : []).slice(0, 6)) {
+            const field = { annual_consumption: "Consumo annuo", unit_price: "Prezzo unitario", fixed_fee: "Quota fissa vendita" }[item.field] || "Campo essenziale";
+            const supply = item.commodity === "gas" ? "gas" : item.commodity === "electricity" ? "luce" : "";
+            if (!supply) continue;
+            technical.append(node("div", { text: `${field} ${supply}: ${reasonLabels[item.reason] || "Non verificato"}` }));
+          }
+          for (const [commodity, note] of Object.entries(snapshot.comparisonReasons || {})) {
+            if (!["gas", "luce"].includes(commodity) || !note || typeof note !== "object") continue;
+            const codes = (Array.isArray(note.reasonCodes) ? note.reasonCodes : []).filter(code => /^[a-z0-9_:-]{1,65}$/i.test(code));
+            if (codes.length) technical.append(node("small", { text: `Precisione ${commodity}: ${codes.join(", ")}` }));
+          }
+          const formatMissing = groups => (Array.isArray(groups) ? groups : [])
+            .filter(group => ["gas", "electricity"].includes(group?.commodity))
+            .flatMap(group => (Array.isArray(group.fields) ? group.fields : [])
+              .filter(field => ["annual_consumption", "unit_price", "fixed_fee"].includes(field))
+              .map(field => `${group.commodity === "gas" ? "gas" : "luce"}/${field}`));
+          technical.append(node("small", { text: `Prima del recupero IA: ${formatMissing(snapshot.missingBefore).join(", ") || "nessun campo segnalato"}` }));
+          technical.append(node("small", { text: `Dopo il recupero IA: ${formatMissing(snapshot.missingAfter).join(", ") || "nessun campo segnalato"}` }));
+          if (snapshot.recoveryError && /^[a-z0-9_:-]{1,90}$/.test(snapshot.recoveryError))
+            technical.append(node("small", { text: `Codice errore recupero: ${snapshot.recoveryError}` }));
+          if (Array.isArray(snapshot.receiptRows) && snapshot.receiptRows.length) {
+            const receiptTable = node("table");
+            const receiptHeader = node("thead", {}, [node("tr", {}, ["Voce scontrino", "Vendita?", "Quantità", "Prezzo", "Importo", "Pagina"].map(label => node("th", { text: label })))]);
+            const receiptBody = node("tbody");
+            snapshot.receiptRows.slice(0, 32).forEach(row => receiptBody.append(node("tr", {}, [
+              node("td", { text: `${["gas", "luce"].includes(row.commodity) ? row.commodity : "?"} / ${["consumi", "fissa_potenza", "altre_partite", "accise_iva", "totale_bolletta", "canone_tv", "totale_pagare"].includes(row.section) ? row.section : "altro"}` }),
+              node("td", { text: row.salesSubitemDetected === true ? "Riconosciuta" : "No" }),
+              node("td", { text: validNumber(row.quantityNumber) ? String(row.quantityNumber) : "—" }),
+              node("td", { text: validNumber(row.unitPriceNumber) ? `${row.unitPriceNumber} (${["eur_month", "eur_year", "eur_kwh", "eur_volume", "eur_kw"].includes(row.priceUnit) ? row.priceUnit : "unità ignota"})` : "—" }),
+              node("td", { text: validNumber(row.amountEur) ? `${row.amountEur} €` : "—" }),
+              node("td", { text: validNumber(row.page) ? String(row.page) : "—" }),
+            ])));
+            receiptTable.append(receiptHeader, receiptBody);
+            technical.append(node("strong", { text: "Scontrino: voci strutturate (senza testo sensibile)" }));
+            technical.append(node("div", { className: "table-wrap" }, [receiptTable]));
+          } else technical.append(node("small", { text: "Nessuna riga strutturata dello Scontrino acquisita." }));
+          if (Array.isArray(snapshot.charges) && snapshot.charges.length) {
+            technical.append(node("strong", { text: "Componenti economiche riconosciute" }));
+            snapshot.charges.filter(row => ["gas", "luce"].includes(row.commodity) && validNumber(row.amount_eur)).slice(0, 64).forEach(row => {
+              const category = /^[a-z0-9_:-]{1,50}$/.test(String(row.category || "")) ? row.category : "categoria";
+              technical.append(node("small", { text: `${row.commodity} · ${category}: ${row.amount_eur} €` }));
+            });
+          }
+          block.append(technical);
+        } else {
+          block.append(node("small", { text: "Dettaglio IA server non presente nei dati storici: non ricostruibile retroattivamente." }));
+        }
+        const corrected = attempt.ended?.payload?.photoComparisonFields;
+        if (Array.isArray(corrected) && corrected.length) {
+          block.append(node("strong", { text: "Valori presenti nel modulo dopo l'analisi (non equivalgono ai valori IA)" }));
+          corrected.filter(item => PUBLIC_PHOTO_MISSING_LABELS[item.field]).slice(0, 6).forEach(item => {
+            const number = validNumber(item.value) ? String(item.value) : "mancante";
+            const source = { photo_ai: "foto IA", profile_estimate: "stima media", manual_or_previous: "manuale o precedente", missing: "mancante" }[item.source] || "da verificare";
+            block.append(node("small", { text: `${PUBLIC_PHOTO_MISSING_LABELS[item.field]}: ${number} (${source})` }));
+          });
+        }
+        if (attempt.ended) {
+          const autoStarted = attempt.ended.comparisonAutoStarted === true || attempt.ended.comparisonAutoStarted === "true";
+          block.append(node("small", { text: `Confronto automatico dalla foto: ${autoStarted ? "sì" : "no"}` }));
+          const code = String(attempt.ended.diagnosticCode || "");
+          if (/^[a-z0-9_-]{1,80}$/i.test(code)) block.append(node("small", { text: `Codice diagnostico: ${code}` }));
+        }
+        content.append(block);
+      });
+      content.append(node("h4", { text: "Cosa è successo dopo le letture" }));
+      content.append(node("p", { text: `Confronti avviati: ${model.comparisons} · Confronti terminati negli eventi: ${model.completed} · Visualizzazioni del gruppo offerte: ${model.offerViews} · Massimo offerte mostrate in una visualizzazione: ${model.mostOffers}.` }));
+      const inputs = model.latestInputs;
+      if (inputs) {
+        const available = [
+          publicPhotoSupplierLabel(inputs.fornitoreAttuale || inputs.fornitoreGasAttuale || inputs.fornitoreLuceAttuale)
+            ? `Fornitore attuale: ${publicPhotoSupplierLabel(inputs.fornitoreAttuale || inputs.fornitoreGasAttuale || inputs.fornitoreLuceAttuale)}` : "",
+          Number(inputs.gasConsumoSmc) > 0 ? `Consumo gas usato: ${Number(inputs.gasConsumoSmc)} Smc/anno` : "",
+          Number(inputs.luceConsumoKwh) > 0 ? `Consumo luce usato: ${Number(inputs.luceConsumoKwh)} kWh/anno` : "",
+          ["fisso", "variabile", "indicizzato", "index"].includes(String(inputs.tipoPrezzo || "").toLowerCase())
+            ? `Tipo prezzo dichiarato: ${String(inputs.tipoPrezzo).toLowerCase()}` : "",
+        ].filter(Boolean);
+        content.append(node("small", { text: "Ultimi dati disponibili all'avvio del confronto (non necessariamente estratti dalla foto):" }));
+        if (available.length) available.forEach(textValue => content.append(node("div", { text: textValue })));
+        else content.append(node("p", { text: "I valori usati nel confronto non sono registrati in dettaglio." }));
+      }
+      const economicRows = model.economicRows.filter(item => {
+        const cost = Number(item.annualCost);
+        const delta = Number(item.annualDelta);
+        return item.annualCost !== null && item.annualCost !== undefined
+          && item.annualDelta !== null && item.annualDelta !== undefined
+          && Number.isFinite(cost) && cost > 0 && Number.isFinite(delta);
+      });
+      content.append(node("p", { className: "warn", text: economicRows.length
+        ? `Risultati economici con costo e differenza annuale registrati: ${economicRows.length}. Consultare gli eventi per i singoli valori; il confronto con il contratto attuale richiede comunque il costo base.`
+        : "Risparmio personalizzato non verificabile: gli eventi non contengono un risultato economico valido. Un valore 0 o assente non dimostra un risparmio nullo." }));
+      content.append(node("small", { text: "Le letture più vecchie potrebbero non contenere la diagnostica dettagliata. Le fotografie non vengono archiviate; il nuovo evento server salva soltanto valori tecnici anonimizzati, il modulo registra i valori dopo la lettura e l'evento confronto fotografa i campi usati. Premium resta separato." }));
+    };
+    details.addEventListener("toggle", () => { if (details.open) fillDetails(); });
+    details.open = true;
+    fillDetails();
+    target.append(details);
+  }
+
   function renderAnalyticsSessionPdfDiagnostics(rows = []) {
     const target = byId("analyticsSessionPdfDiagnostics");
     if (!target) return;
@@ -3064,6 +3360,8 @@
     }
     clear(byId("analyticsSessionPdfDiagnostics"));
     if (byId("analyticsSessionPdfDiagnostics")) byId("analyticsSessionPdfDiagnostics").hidden = true;
+    clear(byId("analyticsSessionPhotoDiagnostics"));
+    if (byId("analyticsSessionPhotoDiagnostics")) byId("analyticsSessionPhotoDiagnostics").hidden = true;
     text(byId("analyticsSessionTitle"), "Percorso sessione");
     text(byId("analyticsSessionMeta"), "");
   }
@@ -3269,6 +3567,7 @@
     }
 
     renderAnalyticsSessionPdfDiagnostics(rows);
+    renderAnalyticsSessionPhotoDiagnostics(rows);
     clear(technicalList);
     text(byId("analyticsSessionTechnicalSummary"), `Telemetria completa 1:1 — ${rows.length} eventi`);
     const technical = panel.querySelector("details.analytics-session-technical");
