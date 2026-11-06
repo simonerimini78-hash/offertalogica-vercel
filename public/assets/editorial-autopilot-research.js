@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.120";
+  const VERSION = "0.12.121";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -769,6 +769,18 @@
       productionBox.innerHTML = '<span class="ol-decision-state">Nessuna bozza identificata</span><p>Non risulta un articolo attivo nelle informazioni di produzione caricate. Controlla lo storico per gli articoli precedenti.</p>';
     }
 
+    if (socialPlanLoaded) {
+      const pendingPhotoItems = socialPlanItems.filter((row) => ["article_followup", "related"].includes(String(row.post_type || ""))
+        && ["draft", "approved"].includes(String(row.status || ""))).slice(0, 4);
+      if (pendingPhotoItems.length) {
+        productionBox.insertAdjacentHTML("beforeend", `<div class="ol-decision-image-controls" style="margin-top:12px">
+          <strong>Fotografie dei prossimi post social</strong>
+          <p>Apri il post per caricare o approvare una tua fotografia, senza passare dalla generazione AI.</p>
+          <div class="ol-decision-image-buttons">${pendingPhotoItems.map((row) => `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-open-social-photo="${esc(row.id)}">Foto ${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}${row.social_asset?.manual_image_candidate?.url ? " · da approvare" : ""}</button>`).join("")}</div>
+        </div>`);
+      }
+    }
+
     const selected = opportunitiesLoaded ? opportunityRows.filter((row) => row?.status === "selected" && !row?.target_article_id) : [];
     const confirmedFromPlanner = plannerLoaded && plannerDecision?.status === "selected"
       && plannerDecision?.id && ["manual_idea", "saved_opportunity"].includes(String(plannerDecision.source || ""))
@@ -1258,7 +1270,23 @@
   async function uploadReferenceImageFile(file, id) {
     if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type))
       throw new Error("Come immagine guida o file social usa JPG, PNG o WebP.");
-    return uploadArticleImageFile(file, id);
+    // La card resvg supporta JPEG e PNG; convertiamo WebP nel browser,
+    // mantenendo gli altri asset e il renderer del progetto invariati.
+    if (file.type !== "image/webp") return uploadArticleImageFile(file, id);
+    const bitmap = await createImageBitmap(file);
+    try {
+      const canvas = document.createElement("canvas");
+      canvas.width = bitmap.width; canvas.height = bitmap.height;
+      if (!canvas.width || !canvas.height || canvas.width * canvas.height > 25000000)
+        throw new Error("Immagine WebP troppo grande per la conversione: usa JPG o PNG");
+      const ctx = canvas.getContext("2d");
+      if (!ctx) throw new Error("Conversione WebP non disponibile nel browser");
+      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
+      ctx.drawImage(bitmap, 0, 0);
+      const converted = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
+      if (!converted) throw new Error("Conversione WebP non riuscita");
+      return uploadArticleImageFile(new File([converted], `${file.name.replace(/\.webp$/i, "")}.jpg`, { type: "image/jpeg" }), id);
+    } finally { bitmap.close(); }
   }
 
   function articleAutomationMarkup(row) {
@@ -1618,29 +1646,30 @@
     const candidateQa = String(candidate?.qa?.status || "");
     const candidateAttempts = Number(candidate?.attempt_count || 1);
     const candidateManualFile = candidate?.source === "manual_upload";
-    const canApproveCandidate = candidate?.manual_approval_allowed === true && (candidateQa === "passed" || candidateManualFile);
+    const canApproveCandidate = candidate?.manual_approval_allowed === true && socialAsset?.brief?.cover_ready === true;
     const canCorrectCandidate = candidateQa === "failed" && candidateAttempts < 3;
     const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
-    const imageMarkup = (socialImageUrl || articleImageUrl) ? `
+    const imageMarkup = (socialImageUrl || articleImageUrl || canRegeneratePhoto) ? `
       <div class="ol-autopilot-archive-item" style="margin-top:10px">
         <strong>Immagine del post ${esc(row.post_type === "related" ? "OffertaLogica" : "follow-up")}</strong>
         <small>Stato: ${esc(imageState)}${imageAttempt ? ` · tentativo ${imageAttempt}` : ""}${imageSource ? ` · sorgente ${esc(imageSource)}` : ""}</small>
         ${imageReason ? `<small>${esc(imageReason)}</small>` : ""}
-        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: puoi usare direttamente quella dell’articolo.</small>'}
+        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: carica una tua foto; non verrà riutilizzata automaticamente quella dell’articolo.</small>'}
         ${canReview ? `<div class="ol-toolbar-group" style="margin-top:8px">
-          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Approva questa immagine</button>` : ""}
+          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Valuta e approva questa immagine</button>` : ""}
           ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
         </div>` : ""}
-        ${canRegeneratePhoto && (socialImageUrl || articleImageUrl) ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
+        ${canRegeneratePhoto ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
           <strong>Alternativa fotografica (senza ripubblicare)</strong>
-          <small>Una generazione e una QA per clic. Dopo una bocciatura puoi scegliere se eseguire una correzione: la foto corrente rimane invariata.</small>
+          <small>La tua fotografia può essere caricata e approvata senza QA estetica AI. La generazione AI è facoltativa; la foto corrente resta invariata fino alla conferma.</small>
           <div class="ol-field" style="margin-top:8px"><label>Indicazioni per la nuova foto (facoltative)</label><textarea data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. non ripetere la donna anziana seduta in cucina; preferisci un altro gesto o una scena credibile diversa"></textarea></div>
           <div class="ol-field" style="margin-top:8px"><label>Foto di riferimento per generazione AI (facoltativa)</label><input data-social-reference-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB. La foto guida la nuova generazione, ma non viene pubblicata automaticamente.</small></div>
           ${articleImageUrl ? `<div class="ol-field" style="margin-top:8px"><label><input data-social-article-reference="${esc(id)}" type="checkbox"> Usa l'immagine approvata dell'articolo come riferimento AI</label><small>Alternativa al file guida: la foto dell'articolo orienta la nuova generazione, senza essere semplicemente riutilizzata.</small></div>` : ""}
           <div class="ol-field" style="margin-top:8px"><label>Foto da usare direttamente (senza generazione AI)</label><input data-social-manual-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB; l'immagine viene prima mostrata come candidata.</small></div>
-          <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}">Rigenera immagine fotografica HD</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-upload="${esc(id)}">Carica foto personale</button></div>
-          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateManualFile ? "File caricato, verifica dell'editor" : candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA non superata" : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
-          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">${candidateManualFile ? "Approva file e componi card (senza QA AI)" : "Approva nuova foto e card"}</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate && candidateQa !== "passed" ? `<small>Non approvabile: la fotografia non supera tutti i criteri QA. Puoi correggerla (un tentativo per clic) oppure scartarla.</small>` : ""}` : ""}
+          <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}" ${socialImageUrl && socialAsset?.brief?.cover_ready === true ? "" : "disabled title=\"Generazione AI disponibile dopo la preparazione dell’asset social\""}>Genera alternativa con AI</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-upload="${esc(id)}">Carica foto personale</button></div>
+          ${candidateUrl && socialAsset?.brief?.cover_ready !== true ? '<small>Foto acquisita. Il testo della card non è ancora pronto: l’approvazione sarà disponibile appena completata la preparazione del post.</small>' : ""}
+          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateManualFile ? "File personale pronto da approvare" : candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA estetica non superata: puoi decidere se approvare, se i controlli di sicurezza sono superati" : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
+          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">${candidateManualFile ? "Approva file e componi card (senza QA AI)" : "Approva nuova foto e card"}</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate ? `<small>Approvazione non disponibile: il file non e' validato oppure la fotografia generata non supera i controlli minimi di pertinenza e sicurezza. Correggi o scarta l'anteprima.</small>` : ""}` : ""}
           <small data-social-image-message="${esc(id)}">La fotografia corrente resta invariata fino all'approvazione. Non cambia l'orario di pubblicazione.</small>
         </div>` : ""}
         ${!canReview ? '<small>Post già avviato o pubblicato: non è possibile sostituire la fotografia su Instagram/Facebook. Una nuova pubblicazione richiede una procedura separata per evitare duplicati.</small>' : ""}
@@ -1755,7 +1784,8 @@
       social_asset_cover_text_generated: "testo della card preparato",
       social_asset_image_generated: "immagine social generata",
       social_asset_image_qa_passed: "QA immagine social superata",
-      social_asset_article_image_fallback_ready: "fallback sull’immagine articolo e card pronta",
+      social_asset_waiting_manual_image_approval: "foto personale caricata: attende approvazione prima della card social",
+      social_asset_image_waiting_editor: "QA fotografica non superata: attende una scelta manuale, senza riutilizzare la copertina",
       social_asset_card_generated: "card OL Informa generata",
       social_asset_ready: "asset social pronto",
       article_publish_waiting_social_retry: "social iniziale in attesa tecnica: riprova automatica",
@@ -2197,6 +2227,7 @@
     const updateImpactButton = event.target.closest("[data-update-impact-check]");
     const message = section.querySelector("[data-opportunity-message]");
     const decisionTarget = event.target.closest("[data-decision-target]");
+    const decisionOpenSocialPhoto = event.target.closest("[data-decision-open-social-photo]");
     const decisionOpenOpportunity = event.target.closest("[data-decision-open-opportunity]");
     const decisionImageUploadButton = event.target.closest("[data-decision-image-upload]");
     const decisionImageApproveButton = event.target.closest("[data-decision-image-approve]");
@@ -2263,6 +2294,21 @@
       }
       const stage = section.querySelector(target === "research" ? "[data-research-stage]" : target === "ideas" ? "[data-ideas-stage]" : "[data-opportunity-stage]");
       if (stage) { stage.open = true; stage.scrollIntoView({ behavior: "smooth", block: "start" }); }
+      return;
+    }
+    if (decisionOpenSocialPhoto) {
+      const id = String(decisionOpenSocialPhoto.dataset.decisionOpenSocialPhoto || "");
+      const post = [...section.querySelectorAll("[data-social-plan-item]")].find((node) => node.dataset.socialPlanItem === id);
+      const archive = post?.closest("[data-article-history]");
+      if (archive) archive.open = true;
+      if (post) {
+        post.open = true;
+        post.scrollIntoView({ behavior: "smooth", block: "center" });
+        post.querySelector(`[data-social-manual-file="${id}"]`)?.focus({ preventScroll: true });
+      } else {
+        const note = section.querySelector("[data-social-plan-message]");
+        if (note) note.textContent = "Il post non è presente nello storico caricato: aggiorna il piano social.";
+      }
       return;
     }
     if (decisionOpenOpportunity) {
