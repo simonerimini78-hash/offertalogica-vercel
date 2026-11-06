@@ -16,6 +16,7 @@ import {
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { classifyPdfAnalysisError, pdfAnalysisDiagnosticLog } from "../lib/pdfAnalysisDiagnostics.js";
 import { createSitePdfUsageMeter, recordSitePdfAiEconomicEvent } from "../lib/sitePdfAiEconomics.js";
+import { persistAnalyticsEvent } from "../lib/customerDb.js";
 
 export const config = {
   api: { bodyParser: false },
@@ -121,6 +122,145 @@ function parseArchiveContext(fields = {}) {
 function normalizedPhotoSource(value) {
   const source = String(fieldValue(value) || "").trim().toLowerCase();
   return ["camera", "gallery"].includes(source) ? source : "upload";
+}
+
+// Diagnostica del lettore FOTO del CALCOLATORE PUBBLICO. Nessun flusso Premium.
+// Allowlist: soltanto quantità/costi tecnici e codici chiusi; niente OCR, etichette
+// originali, evidenze libere, documenti, nominativi, POD/PDR o indirizzi.
+const PHOTO_TECHNICAL_NUMBERS = Object.freeze([
+  "total_amount_eur", "consumo_luce_kwh", "consumo_periodo_luce_kwh",
+  "consumo_luce_f1_kwh", "consumo_luce_f2_kwh", "consumo_luce_f3_kwh", "consumo_luce_f23_kwh",
+  "consumo_gas_smc", "consumo_periodo_gas_smc", "consumo_gas_mc",
+  "consumo_periodo_gas_mc", "coefficiente_conversione_gas_c", "potenza_impegnata_kw",
+  "prezzo_luce_eur_kwh", "prezzo_gas_eur_smc",
+  "quota_fissa_vendita_luce_eur_anno", "quota_fissa_vendita_gas_eur_anno",
+  "prezzo_vendita_bolletta_luce_eur_kwh", "prezzo_vendita_bolletta_gas_eur_smc",
+]);
+const PHOTO_TECHNICAL_DATES = Object.freeze([
+  "billing_period_start", "billing_period_end", "issue_date", "due_date",
+]);
+const PHOTO_SAFE_STAGES = new Set(["request_received", "json_body", "validate_photo", "openai_photo_analysis", "archive_success"]);
+function photoFinite(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const number = Number(value);
+  return Number.isFinite(number) && Math.abs(number) <= 100_000_000 ? number : null;
+}
+function photoSlug(value, max = 90) {
+  const candidate = String(value || "").trim().toLowerCase();
+  return /^[a-z0-9_:-]{1,90}$/.test(candidate) ? candidate.slice(0, max) : "";
+}
+function photoMissingEssentials(normalized = {}) {
+  const groups = [];
+  for (const [commodity, suffix] of [["electricity", "luce"], ["gas", "gas"]]) {
+    if (![commodity, suffix, "dual"].includes(normalized?.commodity)) continue;
+    const fields = [
+      ["annual_consumption", suffix === "luce" ? "consumo_luce_kwh" : "consumo_gas_smc"],
+      ["unit_price", suffix === "luce" ? "prezzo_luce_eur_kwh" : "prezzo_gas_eur_smc"],
+      ["fixed_fee", `quota_fissa_vendita_${suffix}_eur_anno`],
+    ].filter(([,field]) => photoFinite(normalized?.[field]) === null).map(([key]) => key);
+    if (fields.length) groups.push({ commodity, fields });
+  }
+  return groups;
+}
+function photoMissingCode(normalized, suffix, field) {
+  const value = photoFinite(normalized?.[field]);
+  if (value !== null) return "present";
+  // Vedere lib/pdfPureAiReader.js: in bolletta prezzo/quota fissa vengono
+  // eliminati se la sottovoce VENDITA dello Scontrino non è riconciliata.
+  if (normalized?.kind === "bolletta" && /^(?:prezzo_|quota_fissa_vendita_)/.test(field)) {
+    const receiptRows = Array.isArray(normalized?.receipt_rows) ? normalized.receipt_rows : [];
+    const count = receiptRows.filter(row => row?.commodity === suffix).length;
+    return count ? "scontrino_vendita_non_riconciliato" : "scontrino_vendita_non_estratto";
+  }
+  return "dato_assente_o_non_validato";
+}
+function publicPhotoDiagnosticPayload(normalized = null, { attemptId, inputSource, elapsedMs, stage, diagnosticCode } = {}) {
+  const data = normalized && typeof normalized === "object" ? normalized : {};
+  const ai = data.ai && typeof data.ai === "object" ? data.ai : {};
+  const numbers = {};
+  for (const key of PHOTO_TECHNICAL_NUMBERS) numbers[key] = photoFinite(data[key]);
+  const dates = {};
+  for (const key of PHOTO_TECHNICAL_DATES) {
+    const value = String(data[key] || "");
+    dates[key] = /^\d{4}-\d{2}-\d{2}$/.test(value) ? value : null;
+  }
+  const missing = photoMissingEssentials(data);
+  const missingReasons = missing.flatMap(group => group.fields.map(field => {
+    const suffix = group.commodity === "electricity" ? "luce" : "gas";
+    const key = field === "annual_consumption"
+      ? (suffix === "luce" ? "consumo_luce_kwh" : "consumo_gas_smc")
+      : field === "unit_price" ? `prezzo_${suffix}_eur_${suffix === "luce" ? "kwh" : "smc"}`
+        : `quota_fissa_vendita_${suffix}_eur_anno`;
+    return { commodity: group.commodity, field, reason: photoMissingCode(data, suffix, key) };
+  }));
+  const normalizeMissing = value => (Array.isArray(value) ? value : []).slice(0,2).map(group => ({
+    commodity: ["gas", "electricity"].includes(group?.commodity) ? group.commodity : "unknown",
+    fields: (Array.isArray(group?.fields) ? group.fields : []).filter(field => ["annual_consumption", "unit_price", "fixed_fee"].includes(field)),
+  }));
+  const charges = ["luce", "gas"].flatMap(suffix =>
+    (Array.isArray(data[`bill_breakdown_${suffix}`]) ? data[`bill_breakdown_${suffix}`] : []).slice(0, 32)
+      .map(row => ({ commodity: suffix, category: photoSlug(row?.category, 50), amount_eur: photoFinite(row?.amount_eur), page: photoFinite(row?.page) }))
+      .filter(row => row.category && row.amount_eur !== null)
+  );
+  const receiptRows = (Array.isArray(data.receipt_rows) ? data.receipt_rows : []).slice(0, 32).map(row => {
+    const label = String(row?.label || "").toLowerCase(); // Used only on server, NEVER persisted.
+    const unitText = String(row?.unit_price || "").toLowerCase();
+    const quantityText = String(row?.quantity || "").trim();
+    const numberPrefix = value => {
+      const matched = String(value || "").trim().match(/^(-?\d{1,8}(?:[.,]\d{1,8})?)/);
+      return matched ? photoFinite(matched[1].replace(",", ".")) : null;
+    };
+    const safeSection = ["consumi", "fissa_potenza", "altre_partite", "accise_iva", "totale_bolletta", "canone_tv", "totale_pagare"].includes(row?.section) ? row.section : "other";
+    const priceUnit = /(?:\/\s*(?:mese|mes|month)|€\s*\/\s*mes)/i.test(unitText) ? "eur_month"
+      : /\/\s*(?:anno|year)/i.test(unitText) ? "eur_year"
+      : /\/\s*kwh/i.test(unitText) ? "eur_kwh"
+      : /\/\s*(?:smc|mc)/i.test(unitText) ? "eur_volume"
+      : /\/\s*kw/i.test(unitText) ? "eur_kw" : "unknown";
+    return {
+      commodity: row?.commodity === "luce" ? "luce" : row?.commodity === "gas" ? "gas" : "unknown",
+      section: safeSection,
+      kind: ["section", "subtotal", "detail", "total"].includes(row?.kind) ? row.kind : "unknown",
+      salesSubitemDetected: /di cui.*(?:spes[ae].*vendita|vendita.*energi|commercializzazion)/i.test(label),
+      quantityNumber: numberPrefix(quantityText), unitPriceNumber: numberPrefix(unitText), priceUnit,
+      amountEur: photoFinite(row?.amount_eur), page: photoFinite(row?.page),
+    };
+  });
+  const comparisonReasons = Object.fromEntries(["luce", "gas"].map(suffix => [suffix, {
+    precision: ["alta", "limitata", "nessuna", "unknown"].includes(data[`precisione_confronto_${suffix}`]) ? data[`precisione_confronto_${suffix}`] : "unknown",
+    reasonCodes: (Array.isArray(data[`motivi_precisione_confronto_${suffix}`]) ? data[`motivi_precisione_confronto_${suffix}`] : []).filter(code => /^[a-z0-9_:-]{1,65}$/i.test(String(code))).slice(0, 8),
+    source: ["prezzo_storico_scontrino_vendita", "unavailable"].includes(data[`normalizzazione_prezzo_${suffix}`]?.source)
+      ? data[`normalizzazione_prezzo_${suffix}`].source : "unknown",
+  }]));
+  const safeEnums = (value, allowed) => allowed.includes(String(value || "")) ? String(value) : "unknown";
+  return {
+    photoDiagnosticVersion: "public-photo-v1",
+    photoAttemptId: /^[a-f0-9-]{36}$/i.test(String(attemptId || "")) ? String(attemptId).toLowerCase() : "",
+    inputSource: ["camera", "gallery"].includes(inputSource) ? inputSource : "upload",
+    analysisStatus: normalized ? (data.recognized ? (missing.length ? "success_missing_data" : "success") : "unreadable") : "failed",
+    analysisStage: PHOTO_SAFE_STAGES.has(stage) ? stage : "photo_analysis_failed",
+    diagnosticCode: photoSlug(diagnosticCode),
+    photoReader: {
+      parserVersion: photoSlug(data.parser_version),
+      documentKind: safeEnums(data.kind, ["bolletta", "offerta", "unknown"]),
+      commodity: safeEnums(data.commodity, ["luce", "gas", "dual", "unknown"]),
+      readerConfidence: safeEnums(data.confidence, ["high", "medium", "low"]),
+      openaiAttempts: Math.min(2, Math.max(0, Number(ai.openai_attempts || 0))),
+      recoveryAttempted: ai.recovery_attempted === true,
+      recoveryAccepted: Boolean(ai.recovered_from),
+      recoveryError: ["photo_recovery_no_improvement", "photo_recovery_failed", "essential_recovery_no_improvement", "essential_recovery_failed", "essential_recovery_insufficient_time_budget"].includes(String(ai.recovery_error || ""))
+        ? String(ai.recovery_error) : ai.recovery_error ? /timeout|deadline/i.test(String(ai.recovery_error)) ? "recovery_timeout" : "recovery_error" : "",
+      missingBefore: normalizeMissing(ai.essential_missing_before),
+      missingAfter: normalizeMissing(ai.essential_missing_after),
+      missingFinal: missing,
+      missingReasons,
+      receiptRowsLuce: (Array.isArray(data.receipt_rows) ? data.receipt_rows : []).filter(row => row?.commodity === "luce").length,
+      receiptRowsGas: (Array.isArray(data.receipt_rows) ? data.receipt_rows : []).filter(row => row?.commodity === "gas").length,
+      numbers, dates, charges, receiptRows, comparisonReasons,
+      priceTypeLuce: safeEnums(data.tipo_prezzo_luce, ["fisso", "variabile"]),
+      priceTypeGas: safeEnums(data.tipo_prezzo_gas, ["fisso", "variabile"]),
+      elapsedMs: Math.max(0, Math.min(120_000, Number(elapsedMs || 0))),
+    },
+  };
 }
 
 function publicError(error) {
@@ -342,10 +482,29 @@ export default async function handler(req, res) {
           reason: /timeout/i.test(String(archiveError?.message || "")) ? "archive_timeout" : "archive_error",
         }))
         : { stored: false, reason: "insufficient_time_budget" };
+    // Salva SOLO il risultato tecnico anonimizzato della foto dal server.
+    // Il risultato non dipende dalla consegna dell'evento nel browser; non archiviamo la foto.
+    let photoDiagnosticStored = null;
+    if (inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
+      const result = await persistAnalyticsEvent({
+        eventType: "bill_photo_server_diagnostic",
+        sessionId: String(archiveContext.sessionId).slice(0,90),
+        page: "/", customerType: normalized.customer_type || "privato",
+        dataOrigin: "pdf_upload", source: "public_photo_reader",
+        payload: publicPhotoDiagnosticPayload(normalized, {
+          attemptId: archiveContext.attemptId, inputSource: photoSource,
+          elapsedMs: Date.now() - requestStartedAt, stage: analysisStage,
+        }),
+      });
+      photoDiagnosticStored = Boolean(result.ok && !result.skipped);
+      if (!photoDiagnosticStored) console.warn("photo_diagnostic_not_stored", String(result.reason || result.error || "unknown").slice(0,80));
+    }
     // La risposta originale dell'IA contiene evidenze diagnostiche riservate allo staff.
     // Non viene esposta al browser pubblico.
     const { _reader_trace: _privateReaderTrace, ...publicNormalized } = normalized;
-    return json(res, 200, { ok: true, inputKind, inputSource: inputKind === "photo" ? photoSource : "pdf", normalized: publicNormalized, archive });
+    return json(res, 200, { ok: true, inputKind, inputSource: inputKind === "photo" ? photoSource : "pdf", normalized: publicNormalized, archive,
+      ...(inputKind === "photo" && archiveContext?.origin === "public_calculator" ? { photoDiagnosticStored } : {}),
+    });
   } catch (error) {
     const elapsedMs = Date.now() - requestStartedAt;
     const remainingMs = analysisDeadlineAt - Date.now();
@@ -392,6 +551,18 @@ export default async function handler(req, res) {
     });
     console.error("[pdf-analysis-error]", JSON.stringify(logPayload));
 
+    if (inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
+      await persistAnalyticsEvent({
+        eventType: "bill_photo_server_diagnostic",
+        sessionId: String(archiveContext.sessionId).slice(0,90), page: "/",
+        customerType: archiveContext.customerType === "business" ? "business" : "privato",
+        dataOrigin: "pdf_upload", source: "public_photo_reader",
+        payload: publicPhotoDiagnosticPayload(null, {
+          attemptId: archiveContext.attemptId, inputSource: photoSource,
+          elapsedMs, stage: analysisStage, diagnosticCode: diagnostic.diagnosticCode,
+        }),
+      }).catch(() => {});
+    }
     const { status, ...payload } = mapped;
     return json(res, status, {
       ok: false,

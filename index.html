@@ -14470,6 +14470,16 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
   if (origineDocumentoConfronto()) applicaFallbackStimaDocumentale();
   const attuale = leggiOffertaAttuale();
   if (!options?.daFiltroMedia) trackEvent("comparison_started", {
+    ...(origineDocumentoConfronto() === "photo" ? { photoComparisonFields: [
+      "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
+      "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
+    ].map(field => {
+      const input = document.getElementById(field);
+      const raw = String(input?.value || "").trim().replace(",", ".");
+      const n = raw === "" ? null : Number(raw);
+      return { field, value: n !== null && Number.isFinite(n) && n >= 0 ? n : null,
+        source: raw === "" ? "missing" : input?.dataset?.estimateFallback === "profile-medium" ? "profile_estimate" : "manual_or_previous" };
+    }) } : {}),
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
     ...leggiProfiloComparazione(),
@@ -17925,6 +17935,25 @@ window.apriFotoBolletta = function apriFotoBolletta(source = "camera") {
 
 async function analizzaFotoBolletta(file, source = "camera") {
   const normalizedSource = source === "gallery" ? "gallery" : "camera";
+  const photoAttemptId = window.crypto?.randomUUID?.() || "";
+  const photoInputFields = () => [
+    ["in-gas-cons-att", "consumo_gas_smc"], ["in-gas-prezzo-att", "prezzo_gas_eur_smc"],
+    ["in-gas-fisso-att", "quota_fissa_vendita_gas_eur_anno"],
+    ["in-luce-cons-att", "consumo_luce_kwh"], ["in-luce-prezzo-att", "prezzo_luce_eur_kwh"],
+    ["in-luce-fisso-att", "quota_fissa_vendita_luce_eur_anno"],
+  ];
+  const snapshotPhotoComparison = (raw = null) => photoInputFields().map(([field, key]) => {
+    const input = document.getElementById(field);
+    const value = input?.value?.trim() || "";
+    const number = value === "" ? null : Number(value.replace(",", "."));
+    const valid = number !== null && Number.isFinite(number) && number >= 0;
+    const rawValue = raw?.[key];
+    const fromPhoto = valid && rawValue !== null && rawValue !== undefined
+      && Number.isFinite(Number(rawValue)) && Math.abs(Number(rawValue) - number) < 1e-5;
+    return { field, value: valid ? number : null,
+      source: !valid ? "missing" : input?.dataset?.estimateFallback === "profile-medium" ? "profile_estimate"
+        : fromPhoto ? "photo_ai" : "manual_or_previous" };
+  });
   const originalFilename = String(file?.name || "foto-bolletta");
   nascondiEsitiFincheNonConfronti();
   impostaControlliPdfInAnalisi(true);
@@ -17941,6 +17970,7 @@ async function analizzaFotoBolletta(file, source = "camera") {
     filename: originalFilename,
   });
   trackEvent("bill_photo_selected", {
+    photoAttemptId,
     inputSource: normalizedSource,
     fileCount: 1,
     selectedCount: 1,
@@ -17951,6 +17981,7 @@ async function analizzaFotoBolletta(file, source = "camera") {
   try {
     preparedFile = await preparaFotoBolletta(file);
     trackEvent("bill_photo_analysis_started", {
+      photoAttemptId,
       inputSource: normalizedSource,
       fileCount: 1,
       ...trackingOrigineCaricamentoPdf(),
@@ -17960,6 +17991,8 @@ async function analizzaFotoBolletta(file, source = "camera") {
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       inputKind: "photo",
+      origin: "public_calculator",
+      attemptId: photoAttemptId,
     };
     const formData = new FormData();
     formData.append("photo", preparedFile, preparedFile.name);
@@ -17999,6 +18032,8 @@ async function analizzaFotoBolletta(file, source = "camera") {
 
     if (!validCurrent.length && !validOffer.length) {
       trackEvent("bill_photo_analysis_completed", {
+        photoAttemptId,
+        photoDiagnosticStored: payload.photoDiagnosticStored === true,
         inputSource: normalizedSource,
         analysisStatus: "unreadable",
         photoReadable: false,
@@ -18019,6 +18054,11 @@ async function analizzaFotoBolletta(file, source = "camera") {
       && !pendingSecondBill
       && missingAfterFallback.length === 0;
     trackEvent("bill_photo_analysis_completed", {
+      photoAttemptId,
+      photoDiagnosticStored: payload.photoDiagnosticStored === true,
+      photoComparisonFields: snapshotPhotoComparison(payload.normalized),
+      photoMissingAfterFallback: missingAfterFallback.map(item => item?.id).filter(Boolean),
+      photoFallbackFields: fallback.map(item => item.id),
       inputSource: normalizedSource,
       analysisStatus: missing.length ? "success_missing_data" : "success",
       photoReadable: true,
@@ -18032,6 +18072,7 @@ async function analizzaFotoBolletta(file, source = "camera") {
 
     if (canAutoCompare) {
       trackEvent("bill_photo_comparison_auto_started", {
+        photoAttemptId,
         inputSource: normalizedSource,
         photoReadable: true,
         comparisonAutoStarted: true,
@@ -18057,6 +18098,7 @@ async function analizzaFotoBolletta(file, source = "camera") {
   } catch (error) {
     const diagnosticError = pdfEnsureDiagnosticError(error, "photo_analysis");
     trackEvent("bill_photo_analysis_failed", {
+      photoAttemptId,
       inputSource: normalizedSource,
       analysisStatus: "failed",
       photoReadable: false,

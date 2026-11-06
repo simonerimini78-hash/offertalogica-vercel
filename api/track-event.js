@@ -207,6 +207,21 @@ function pdfFieldDiagnosticList(value, maxItems = 120) {
   }).filter((item) => item.field);
 }
 
+// Soltanto i sei campi economici del form pubblico; nessun testo libero / dato personale.
+const PHOTO_COMPARISON_FIELDS = new Set([
+  "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
+  "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
+]);
+function photoInputSnapshot(value) {
+  if (!Array.isArray(value)) return [];
+  return value.slice(0, 6).flatMap(entry => {
+    if (!PHOTO_COMPARISON_FIELDS.has(entry?.field)) return [];
+    const parsed = entry.value === null || entry.value === undefined || entry.value === "" ? null : numberOrNull(entry.value);
+    if (parsed !== null && (!Number.isFinite(parsed) || parsed < 0 || parsed > 10_000_000)) return [];
+    const source = ["photo_ai", "profile_estimate", "manual_or_previous", "missing"].includes(entry.source) ? entry.source : "unknown";
+    return [{ field: entry.field, value: parsed, source }];
+  });
+}
 function requestHeader(req, name, max = 500) {
   const normalized = String(name || "").trim().toLowerCase();
   const value = req?.headers?.[normalized];
@@ -337,6 +352,11 @@ function sanitizePayload(payload = {}) {
     inputSource: text(input.inputSource, 40).toLowerCase(),
     photoReadable: booleanOrNull(input.photoReadable),
     comparisonAutoStarted: booleanOrNull(input.comparisonAutoStarted),
+    photoAttemptId: /^[a-f0-9-]{36}$/i.test(String(input.photoAttemptId || "")) ? String(input.photoAttemptId).toLowerCase() : "",
+    photoDiagnosticStored: booleanOrNull(input.photoDiagnosticStored),
+    photoComparisonFields: photoInputSnapshot(input.photoComparisonFields),
+    photoMissingAfterFallback: textList(input.photoMissingAfterFallback, 12, 65).filter(x => PHOTO_COMPARISON_FIELDS.has(x)),
+    photoFallbackFields: textList(input.photoFallbackFields, 12, 65).filter(x => PHOTO_COMPARISON_FIELDS.has(x)),
     pdfFieldDiagnostics: pdfFieldDiagnosticList(input.pdfFieldDiagnostics),
     mixedDocuments: booleanOrNull(input.mixedDocuments),
     mergeBlocked: booleanOrNull(input.mergeBlocked),
