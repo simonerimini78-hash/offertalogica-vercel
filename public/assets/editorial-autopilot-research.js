@@ -1,41 +1,18 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.121";
+  const VERSION = "0.12.57";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
-  const ANALYSIS_PAGE_SIZE = 10;
   let statusLoaded = false;
   let lastAnalysisPayload = null;
-  let analysisPage = 1;
-  let analysisSearchTerm = "";
-  let analysisScoreFilter = "all";
   let opportunityRows = [];
-  let opportunitiesLoaded = false;
-  let opportunityLoadError = "";
-  let plannerLoaded = false;
-  let plannerLoadError = "";
-  let automationLoaded = false;
-  let socialPlanLoaded = false;
-  let decisionImageNotice = { articleId: "", message: "" };
-  let automationLoadError = "";
-  let socialPlanLoadError = "";
   let opportunityTopicKeys = new Set();
   let plannerDecision = null;
-  let lastResearchRadarPayload = null;
   const expandedOpportunityIds = new Set();
   let socialPlanItems = [];
   let socialChannels = [];
   let automationRuns = [];
-  let schedulerGlobalHeartbeat = null;
-  let automationRunsExpanded = false;
-  const ARTICLE_IMAGE_PROFILES = [
-    { value: "auto", label: "Auto editoriale (consigliata)", hint: "Sceglie automaticamente il profilo più adatto all'articolo." },
-    { value: "warm_human", label: "Calda e umana", hint: "Persona reale, atmosfera calda, gesto comprensibile." },
-    { value: "clean_context", label: "Pulita e contestuale", hint: "Scena più pulita, contesto chiaro, meno elementi." },
-    { value: "objects_context", label: "Oggetti e contesto", hint: "Focus su ambiente e oggetti, persone secondarie o assenti." },
-    { value: "professional_context", label: "Professionale / attività", hint: "Contesto di lavoro reale, adatto a imprese e attività." },
-  ];
 
   function sessionRead() {
     try { return JSON.parse(sessionStorage.getItem(SESSION_KEY) || "null"); }
@@ -61,14 +38,6 @@
     return new Intl.NumberFormat("it-IT").format(Number(value || 0));
   }
 
-  function articleImageProfileOptions(selected = "auto") {
-    return ARTICLE_IMAGE_PROFILES.map((profile) => `<option value="${esc(profile.value)}" ${profile.value === selected ? "selected" : ""}>${esc(profile.label)}</option>`).join("");
-  }
-
-  function articleImageProfileHint(value = "auto") {
-    return ARTICLE_IMAGE_PROFILES.find((profile) => profile.value === value)?.hint || ARTICLE_IMAGE_PROFILES[0].hint;
-  }
-
   async function endpoint(action, { method = "GET", body } = {}) {
     const session = sessionRead();
     if (!session?.access_token) throw new Error("Sessione Redazione non disponibile.");
@@ -88,223 +57,136 @@
 
   function cardMarkup() {
     return `
-      <div class="ol-autopilot-card-heading ol-decision-heading">
-        <div><h3>Centro decisionale editoriale</h3><p>Prima la risposta: qual è il prossimo articolo? Poi i candidati, le ricerche e lo storico tecnico.</p></div>
+      <div class="ol-autopilot-card-heading">
+        <div><h3>Flusso operativo del ciclo</h3><p>Idea o segnale → scelta → nuovo articolo → social → controllo. L’Editoriale usa i dati del sito come contesto ma non modifica mai le pagine esistenti.</p></div>
       </div>
-      <section class="ol-decision-hub" aria-label="Quadro della decisione editoriale">
-        <div class="ol-decision-path" aria-label="Percorso editoriale"><span>1 · Ricerca: trova candidati</span><span>2 · Decisione: conferma il tema</span><span>3 · Produzione: crea l'articolo</span></div>
-        <div class="ol-decision-grid">
-          <article class="ol-decision-card" aria-label="Articolo in produzione"><h4>Articolo in produzione</h4><div data-decision-production><p>Verifica dello stato…</p></div></article>
-          <article class="ol-decision-card ol-decision-card-primary" aria-label="Tema selezionato"><h4>Prossimo articolo · decisione effettiva</h4><div data-decision-selection><p>Verifica della scelta…</p></div></article>
-          <article class="ol-decision-card" aria-label="Previsione non vincolante"><h4>Previsione planner · simulazione</h4><div data-decision-preview><p>Calcolo della previsione…</p></div></article>
-        </div>
-        <p class="ol-decision-warning" data-decision-warning role="status" aria-live="polite" hidden></p>
-        <div class="ol-decision-actions">
-          <button class="ol-button ol-button-primary ol-button-small" type="button" data-decision-target="opportunities">Valuta o cambia tema</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="research">Apri ricerche</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="ideas">Aggiungi idea</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="refresh">Aggiorna quadro</button>
-        </div>
-      </section>
 
       <div class="ol-autopilot-workflow">
-        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-opportunity-stage open>
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Candidati e scelta editoriale</h4><p>Qui si conferma il prossimo articolo. Le proposte salvate non sono scelte finché non le selezioni.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-autopilot-stage-body">
-            <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
-            <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
-          </div>
-        </details>
-
-        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-research-stage>
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Ricerca e segnali da verificare</h4><p>Search Console e Radar: producono candidati, non decisioni confermate.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-autopilot-stage-body">
-            <div class="ol-autopilot-pair">
-              <div class="ol-autopilot-pane">
-                <h5>Acquisizione</h5>
-                <div class="ol-autopilot-fields ol-autopilot-fields-compact">
-                  <div class="ol-field">
-                    <label for="autopilot-search-console-period">Periodo stabile</label>
-                    <select id="autopilot-search-console-period" data-search-console-days>
-                      <option value="7">Ultimi 7 giorni</option>
-                      <option value="28" selected>Ultimi 28 giorni</option>
-                      <option value="90">Ultimi 90 giorni</option>
-                    </select>
-                    <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
-                  </div>
-                  <div class="ol-field">
-                    <label>Stato collegamento</label>
-                    <div class="ol-autopilot-archive-item" data-search-console-status>
-                      <strong>Verifica configurazione…</strong>
-                      <small>Controllo credenziali server e storico disponibile.</small>
-                    </div>
-                  </div>
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Idee e priorità</h4><p>Inserisci un tema manuale oppure verifica quale opportunità sceglierebbe oggi il planner.</p></div></div>
+          <div class="ol-autopilot-pair">
+            <div class="ol-autopilot-pane" data-manual-idea-editor>
+              <h5>Idea editoriale manuale</h5>
+              <div class="ol-autopilot-fields">
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-topic">Argomento</label>
+                  <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
                 </div>
                 <div class="ol-field">
-                  <label>Storico 7 / 28 / 90 giorni</label>
-                  <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
+                  <label>Destinazione</label>
+                  <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
+                  <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
                 </div>
-                <div class="ol-autopilot-toolbar">
-                  <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
-                  <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-priority">Priorità</label>
+                  <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
+                    <option value="normal">Normale · dopo i segnali Search Console sopra soglia</option>
+                    <option value="high">Alta · precede Search Console</option>
+                    <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
+                  </select>
                 </div>
-              </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
+                  <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
+                </div>
+                <div class="ol-field">
+                  <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
+                  <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
+                </div>
 
-              <div class="ol-autopilot-pane">
-                <h5>Analisi segnali</h5>
-                <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
-                <div class="ol-autopilot-toolbar">
-                  <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
-                  <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
+                <div class="ol-field ol-autopilot-field-wide">
+                  <label for="autopilot-manual-idea-notes">Note editoriali</label>
+                  <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
                 </div>
-                <div class="ol-autopilot-fields ol-autopilot-fields-compact" data-signal-controls hidden>
-                  <div class="ol-field ol-field-compact">
-                    <label for="autopilot-signal-search">Cerca nella graduatoria</label>
-                    <input id="autopilot-signal-search" data-signal-search type="search" placeholder="Argomento, query o pagina">
-                  </div>
-                  <div class="ol-field ol-field-compact">
-                    <label for="autopilot-signal-score-filter">Punteggio</label>
-                    <select id="autopilot-signal-score-filter" data-signal-score-filter>
-                      <option value="all">Tutti i segnali</option>
-                      <option value="40plus">40–100</option>
-                      <option value="30to39">30–39</option>
-                      <option value="under30">Sotto 30</option>
-                    </select>
-                  </div>
-                </div>
-                <div class="ol-autopilot-toolbar" data-signal-pagination-top hidden>
-                  <p class="ol-autopilot-save-state" data-signal-page-summary></p>
-                  <div class="ol-toolbar-group">
-                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
-                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
-                  </div>
-                </div>
-                <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
-                <div class="ol-autopilot-toolbar" data-signal-pagination-bottom hidden>
-                  <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="prev">← Precedenti</button>
-                  <div class="ol-toolbar-group">
-                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-jump-opportunities>Vai alle opportunità ↓</button>
-                    <button class="ol-button ol-button-secondary ol-button-small" type="button" data-signal-page="next">Successivi →</button>
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div class="ol-autopilot-pane">
-              <h5>Radar web editoriale</h5>
-              <p class="ol-muted">Scansione automatica sabato, domenica e lunedì dalle 08:00. Confronta web, Search Console, archivio articoli e strumenti OffertaLogica prima di proporre un nuovo contenuto.</p>
-              <div class="ol-autopilot-pane" data-research-hint-editor>
-                <h5>Proponi un tema al Radar</h5>
-                <p class="ol-muted">Suggeriscilo al Radar per verificarlo sul web e nell’archivio. Finché non scegli esplicitamente un tema, il suggerimento non forza la pubblicazione. La tua scelta ha priorità sulla graduatoria automatica per il prossimo articolo non ancora avviato.</p>
-                <div class="ol-autopilot-fields ol-autopilot-fields-compact">
-                  <div class="ol-field">
-                    <label for="autopilot-research-hint-topic">Tema da validare</label>
-                    <input id="autopilot-research-hint-topic" data-research-hint-topic type="text" maxlength="240" placeholder="Es. Spread a zero: conviene davvero?">
-                  </div>
-                  <div class="ol-field">
-                    <label for="autopilot-research-hint-depth">Livello di ricerca</label>
-                    <select id="autopilot-research-hint-depth" data-research-hint-depth>
-                      <option value="normal">Normale</option>
-                      <option value="deep">Approfondisci</option>
-                    </select>
-                    <small>“Approfondisci” chiede più verifiche, ma non dà punti extra.</small>
-                  </div>
-                </div>
-                <div class="ol-autopilot-toolbar">
-                  <p class="ol-autopilot-save-state" data-research-hint-message>Il tema entrerà nelle prossime scansioni Radar finché non lo rimuovi.</p>
-                  <button class="ol-button ol-button-primary" type="button" data-research-hint-save>Invia al Radar (non seleziona)</button>
-                </div>
-                <div class="ol-autopilot-archive-list" data-research-hint-list></div>
               </div>
               <div class="ol-autopilot-toolbar">
-                <p class="ol-autopilot-save-state" data-research-radar-message>Caricamento radar…</p>
-                <button class="ol-button ol-button-secondary" type="button" data-research-radar-start>Avvia scansione ora</button>
-              </div>
-              <div class="ol-autopilot-archive-list" data-research-radar-results><p class="ol-muted">Caricamento…</p></div>
-            </div>
-          </div>
-        </details>
-
-        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-ideas-stage>
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Proponi un tema e verifica le priorità</h4><p>Inserisci idee manuali o consulta il calcolo simulato del planner.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-autopilot-stage-body">
-            <div class="ol-autopilot-pair">
-              <div class="ol-autopilot-pane" data-manual-idea-editor>
-                <h5>Inserisci un candidato manuale</h5><p class="ol-muted">Salvare un’idea non equivale a sceglierla: rimane in valutazione, anche se la sua priorità influenza il planner.</p>
-                <div class="ol-autopilot-fields">
-                  <div class="ol-field">
-                    <label for="autopilot-manual-idea-topic">Argomento</label>
-                    <input id="autopilot-manual-idea-topic" data-manual-idea-topic type="text" maxlength="240" placeholder="Es. nuova norma urgente sul mercato energia">
-                  </div>
-                  <div class="ol-field">
-                    <label>Destinazione</label>
-                    <input id="autopilot-manual-idea-type" data-manual-idea-type type="hidden" value="new_article">
-                    <div class="ol-autopilot-archive-item"><strong>Nuovo articolo</strong><small>L’Editoriale non modifica le pagine esistenti del sito.</small></div>
-                  </div>
-                  <div class="ol-field">
-                    <label for="autopilot-manual-idea-priority">Priorità</label>
-                    <select id="autopilot-manual-idea-priority" data-manual-idea-priority>
-                      <option value="normal">Normale · dopo i segnali automatici sopra soglia</option>
-                      <option value="high">Alta · precede i segnali automatici</option>
-                      <option value="urgent">Urgente · precede tutto salvo una scelta già selezionata</option>
-                    </select>
-                  </div>
-                  <div class="ol-field">
-                    <label for="autopilot-manual-idea-deadline">Scadenza facoltativa</label>
-                    <input id="autopilot-manual-idea-deadline" data-manual-idea-deadline type="date">
-                  </div>
-                  <div class="ol-field">
-                    <label for="autopilot-manual-idea-category">Categoria facoltativa</label>
-                    <input id="autopilot-manual-idea-category" data-manual-idea-category type="text" maxlength="80" placeholder="Es. Energia">
-                  </div>
-                  <div class="ol-field ol-autopilot-field-wide">
-                    <label for="autopilot-manual-idea-notes">Note editoriali</label>
-                    <textarea id="autopilot-manual-idea-notes" data-manual-idea-notes maxlength="2000" rows="3" placeholder="Perché è importante, taglio desiderato, fonti da verificare…"></textarea>
-                  </div>
+                <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
+                <div class="ol-toolbar-group">
+                  <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
+                  <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva idea</button>
                 </div>
-                <div class="ol-autopilot-toolbar">
-                  <p class="ol-autopilot-save-state" data-manual-idea-message>Le idee ad alta priorità o urgenti possono precedere i segnali automatici.</p>
-                  <div class="ol-toolbar-group">
-                    <button class="ol-button ol-button-secondary" type="button" data-manual-idea-cancel hidden>Annulla modifica</button>
-                    <button class="ol-button ol-button-primary" type="button" data-manual-idea-save>Salva tra i candidati</button>
-                  </div>
-                </div>
-              </div>
-
-              <div class="ol-autopilot-pane">
-                <h5>Simulazione delle priorità Autopilota</h5>
-                <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
-                <div class="ol-autopilot-toolbar">
-                  <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
-                  <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Simula scelta (non conferma)</button>
-                </div>
-                <div class="ol-autopilot-archive-list" data-planner-result></div>
               </div>
             </div>
-          </div>
-        </details>
 
-        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-cycle-stage>
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Produzione e storico tecnico</h4><p>Stato dettagliato, articoli monitorati, post e registri dello scheduler.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
-          <div class="ol-autopilot-stage-body">
-          <div class="ol-cycle-overview" data-cycle-overview><strong>Caricamento stato ciclo…</strong></div>
+            <div class="ol-autopilot-pane">
+              <h5>Anteprima priorità Autopilota</h5>
+              <p class="ol-muted">Calcola quale tema verrebbe scelto oggi. È un dry-run: non cambia stati, non crea bozze e non pubblica.</p>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-planner-message>Nessuna anteprima calcolata.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-planner-preview>Calcola scelta</button>
+              </div>
+              <div class="ol-autopilot-archive-list" data-planner-result></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">2</span><div><h4>Dati Search Console</h4><p>Acquisizione e analisi restano strumenti di controllo. Lo scheduler usa gli stessi dati quando è configurato.</p></div></div>
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
-              <h5>Articoli monitorati</h5>
+              <h5>Acquisizione</h5>
+              <div class="ol-autopilot-fields ol-autopilot-fields-compact">
+                <div class="ol-field">
+                  <label for="autopilot-search-console-period">Periodo stabile</label>
+                  <select id="autopilot-search-console-period" data-search-console-days>
+                    <option value="7">Ultimi 7 giorni</option>
+                    <option value="28" selected>Ultimi 28 giorni</option>
+                    <option value="90">Ultimi 90 giorni</option>
+                  </select>
+                  <small>Il periodo termina 3 giorni fa per usare dati consolidati.</small>
+                </div>
+                <div class="ol-field">
+                  <label>Stato collegamento</label>
+                  <div class="ol-autopilot-archive-item" data-search-console-status>
+                    <strong>Verifica configurazione…</strong>
+                    <small>Controllo credenziali server e storico disponibile.</small>
+                  </div>
+                </div>
+              </div>
+              <div class="ol-field">
+                <label>Storico 7 / 28 / 90 giorni</label>
+                <div class="ol-autopilot-archive-list" data-search-console-history><p class="ol-muted">Caricamento storico…</p></div>
+              </div>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-search-console-message>Acquisizione manuale controllata.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-search-console-collect disabled>Acquisisci Search Console</button>
+              </div>
+            </div>
+
+            <div class="ol-autopilot-pane">
+              <h5>Analisi segnali</h5>
+              <p class="ol-muted">Punteggio tecnico 0–100 basato su domanda, ritmo recente, posizione e clic. Non crea né pubblica contenuti.</p>
+              <div class="ol-autopilot-toolbar">
+                <p class="ol-autopilot-save-state" data-search-console-analysis-message>Servono gli snapshot 7, 28 e 90 giorni.</p>
+                <button class="ol-button ol-button-secondary" type="button" data-search-console-analyze disabled>Analizza storico</button>
+              </div>
+              <div class="ol-autopilot-archive-list" data-search-console-analysis-results></div>
+            </div>
+          </div>
+        </section>
+
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">3</span><div><h4>Opportunità e preparazione contenuti</h4><p>Tutte le opportunità restano visibili in forma compatta. Se non intervieni decide l’Autopilota; puoi scegliere tu un tema diverso finché l’articolo non è stato avviato.</p></div></div>
+          <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
+          <div class="ol-autopilot-archive-list" data-opportunity-list><p class="ol-muted">Caricamento…</p></div>
+        </section>
+
+        <section class="ol-autopilot-stage">
+          <div class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Controllo del ciclo</h4><p>Post preparati e registro tecnico restano affiancati per capire subito cosa è pronto e cosa ha fatto lo scheduler.</p></div></div>
+          <div class="ol-autopilot-pair">
+            <div class="ol-autopilot-pane">
+              <h5>Piano post statici</h5>
+              <p class="ol-muted">I due post collegati restano elementi separati del piano. In Automatico completo vengono distribuiti negli slot successivi sui canali abilitati; nelle altre modalità restano sotto controllo umano.</p>
               <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
-              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+              <div class="ol-autopilot-archive-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
             </div>
             <div class="ol-autopilot-pane">
               <h5>Ultimi cicli Autopilota</h5>
-              <p class="ol-muted">Vista compatta. Apri una riga solo se vuoi leggere il dettaglio tecnico.</p>
-              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
-              <div class="ol-autopilot-toolbar ol-cycle-history-toolbar" data-automation-run-toolbar hidden>
-                <button class="ol-button ol-button-secondary ol-button-small" type="button" data-automation-run-toggle>Mostra storico</button>
-              </div>
+              <p class="ol-muted">Registro tecnico dell’intero ciclo: ricerca, preparazione, pubblicazione articolo e social previsti dal calendario.</p>
+              <div class="ol-autopilot-archive-list" data-automation-run-list><p class="ol-muted">Caricamento…</p></div>
             </div>
           </div>
-          </div>
-        </details>
+        </section>
       </div>`;
   }
 
@@ -321,24 +203,10 @@
     host.append(section);
     section.querySelector("[data-search-console-collect]")?.addEventListener("click", collect);
     section.querySelector("[data-search-console-analyze]")?.addEventListener("click", analyze);
-    section.querySelector("[data-research-radar-start]")?.addEventListener("click", startResearchRadar);
-    section.querySelector("[data-signal-search]")?.addEventListener("input", (event) => {
-      analysisSearchTerm = String(event.currentTarget?.value || "").trim().toLocaleLowerCase("it");
-      analysisPage = 1;
-      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
-    });
-    section.querySelector("[data-signal-score-filter]")?.addEventListener("change", (event) => {
-      analysisScoreFilter = String(event.currentTarget?.value || "all");
-      analysisPage = 1;
-      if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
-    });
-    section.addEventListener("click", handleAnalysisNavigation);
     section.addEventListener("click", handleOpportunityAction);
-    section.addEventListener("change", handleOpportunityChange);
     statusLoaded = false;
     loadStatus(section);
     loadAnalysis(section, true);
-    loadResearchRadar(section);
     loadOpportunities(section);
     loadPlannerPreview(section, true);
     loadSocialPlan(section);
@@ -445,186 +313,6 @@
     }
   }
 
-
-  function researchRadarActionLabel(action) {
-    return ({
-      NEW_ARTICLE: "Nuovo articolo",
-      NEW_ANGLE: "Nuovo punto di vista",
-      UPDATE_EXISTING: "Aggiornamento consigliato",
-      SKIP_DUPLICATE: "Duplicato da scartare",
-    })[String(action || "")] || String(action || "Da valutare");
-  }
-
-  function researchHintVerdictLabel(verdict) {
-    return ({
-      NEW_ARTICLE: "Validato · nuovo articolo",
-      NEW_ANGLE: "Validato · nuovo punto di vista",
-      UPDATE_EXISTING: "Meglio aggiornare un articolo",
-      SKIP_DUPLICATE: "Già coperto · da non duplicare",
-      INSUFFICIENT_SIGNAL: "Segnale insufficiente",
-    })[verdict] || "In attesa di validazione";
-  }
-
-  function renderResearchHints(section, hints = []) {
-    const box = section?.querySelector("[data-research-hint-list]");
-    if (!box) return;
-    if (!hints.length) {
-      box.innerHTML = '<div class="ol-autopilot-archive-item"><small>Nessun tema suggerito in attesa di validazione.</small></div>';
-      return;
-    }
-    const previousArchiveOpen = Boolean(box.querySelector("[data-hints-archive]")?.open);
-    const hintMarkup = (hint) => {
-      const review = hint?.latest_review || null;
-      const sources = (review?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
-      const scans = Number(hint?.review_count || 0);
-      const status = review
-        ? `${researchHintVerdictLabel(review.verdict)} · ${Number(review.score || 0)}/100`
-        : "In attesa della prossima scansione";
-      return `<div class="ol-autopilot-archive-item">
-        <strong>${esc(hint?.topic || "Tema senza titolo")}</strong>
-        <small><b>${esc(status)}</b> · ricerca ${hint?.depth === "deep" ? "approfondita" : "normale"}${scans ? ` · valutato in ${scans} scansione${scans === 1 ? "" : "i"}` : ""}</small>
-        ${review?.rationale || review?.suggested_angle || sources ? `<details><summary>Verifica e fonti</summary>
-          ${review?.rationale ? `<small><b>Esito:</b> ${esc(review.rationale)}</small>` : ""}
-          ${review?.suggested_angle ? `<small><b>Possibile angolo:</b> ${esc(review.suggested_angle)}</small>` : ""}
-          ${sources ? `<small><b>Fonti:</b> ${sources}</small>` : ""}
-        </details>` : ""}
-        <div class="ol-toolbar-group">
-          <button class="ol-button ol-button-primary ol-button-small" type="button" data-research-hint-select="${esc(hint.id || "")}">Scegli per il prossimo articolo</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-research-hint-archive="${esc(hint.id || "")}">Rimuovi dalle ricerche</button>
-        </div>
-      </div>`;
-    };
-    const primary = hints.slice(0, 3);
-    const rest = hints.slice(3);
-    box.innerHTML = `${primary.map(hintMarkup).join("")}${rest.length ? `<details data-hints-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Altri ${rest.length} temi suggeriti</summary><div class="ol-autopilot-archive-list">${rest.map(hintMarkup).join("")}</div></details>` : ""}`;
-  }
-
-  function researchRadarActionTone(action) {
-    return ({
-      NEW_ARTICLE: "success",
-      NEW_ANGLE: "success",
-      UPDATE_EXISTING: "warning",
-      SKIP_DUPLICATE: "muted",
-    })[String(action || "")] || "muted";
-  }
-
-  function renderResearchRadar(section, payload) {
-    const box = section?.querySelector("[data-research-radar-results]");
-    const message = section?.querySelector("[data-research-radar-message]");
-    const button = section?.querySelector("[data-research-radar-start]");
-    if (!box || !message || !button) return;
-    renderResearchHints(section, Array.isArray(payload?.research_hints) ? payload.research_hints : []);
-    const running = payload?.running || null;
-    const scans = Array.isArray(payload?.scans) ? payload.scans : [];
-    const latestScan = scans[0] || null;
-    const lastSuccess = scans.find((row) => row.status === "success") || null;
-    button.disabled = Boolean(running);
-    if (running) {
-      message.textContent = `Scansione web in corso${running.local_date ? ` · ${running.local_date}` : ""}. L'Autopilota la riprenderà al prossimo tick.`;
-    } else if (latestScan?.status === "failed") {
-      message.textContent = `Ultima scansione non riuscita · ${dateIt(latestScan.finished_at || latestScan.started_at)}. Apri il registro per il motivo.`;
-    } else if (lastSuccess) {
-      message.textContent = `Ultima scansione completata ${dateIt(lastSuccess.finished_at || lastSuccess.started_at)} · ${Number(lastSuccess.candidate_count || 0)} candidati.`;
-    } else {
-      message.textContent = "Nessuna scansione web completata negli ultimi giorni.";
-    }
-
-    const scanStatus = (scan) => scan.status === "success" ? "completata" : scan.status === "failed" ? "non riuscita" : String(scan.status || "sconosciuta");
-    const scanHistory = scans.slice(0, 6).map((scan) => `<div class="ol-autopilot-archive-item">
-      <small><b>${esc(scan.local_date || dateIt(scan.started_at))}</b> · ${esc(scanStatus(scan))} · ${Number(scan.candidate_count || 0)} candidati</small>
-      ${scan.last_error ? `<small><b>Errore:</b> ${esc(scan.last_error)}</small>` : ""}
-    </div>`).join("");
-    const activity = `<div class="ol-autopilot-archive-item">
-      <strong>Attività delle ricerche</strong>
-      <small>${running ? `Ricerca in corso dal ${esc(dateIt(running.started_at))}.` : latestScan ? `Ultimo tentativo: ${esc(dateIt(latestScan.finished_at || latestScan.started_at))} · ${esc(scanStatus(latestScan))}.` : "Nessun tentativo recente registrato."}</small>
-      ${lastSuccess ? `<small>Ultimo risultato: ${esc(dateIt(lastSuccess.finished_at || lastSuccess.started_at))} · ${Number(lastSuccess.candidate_count || 0)} candidati.</small>` : ""}
-      ${scans.length ? `<details><summary>Registro delle ultime ${Math.min(scans.length, 6)} scansioni</summary><div class="ol-autopilot-archive-list">${scanHistory}</div></details>` : ""}
-    </div>`;
-
-    const previousArchiveOpen = Boolean(box.querySelector("[data-radar-archive]")?.open);
-    const candidates = Array.isArray(payload?.candidates) ? payload.candidates.slice(0, 10) : [];
-    const preferred = candidates.filter((candidate) => candidate?.eligible_for_selection !== false
-      && ["NEW_ARTICLE", "NEW_ANGLE"].includes(String(candidate?.editorial_action || ""))).slice(0, 3);
-    const others = candidates.filter((candidate) => !preferred.includes(candidate));
-    const candidateMarkup = (candidate) => {
-      const action = String(candidate?.editorial_action || "");
-      const sources = (candidate?.source_urls || []).slice(0, 3).map((url) => `<a href="${esc(url)}" target="_blank" rel="noopener noreferrer">fonte</a>`).join(" · ");
-      const tools = (candidate?.related_targets || []).slice(0, 4).map((row) => esc(row?.label || row?.url_path || "")).filter(Boolean).join(" · ");
-      const existing = candidate?.existing_article?.title
-        ? `<small><b>Articolo correlato:</b> ${esc(candidate.existing_article.title)}${candidate.difference_from_existing ? ` · ${esc(candidate.difference_from_existing)}` : ""}</small>`
-        : "";
-      const component = candidate?.component_scores || {};
-      const hintBadge = candidate?.research_hint?.id ? " · tema suggerito dalla Redazione" : "";
-      const selectable = candidate?.eligible_for_selection !== false
-        && ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) && candidate?.radar_key;
-      const choose = selectable
-        ? `<div class="ol-toolbar-group"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-radar-select="${esc(candidate.radar_key)}">Scegli come prossimo articolo</button></div>`
-        : "";
-      return `<div class="ol-autopilot-archive-item">
-        <strong>${esc(candidate?.topic || "Tema senza titolo")} · ${Number(candidate?.score || 0)}/100${esc(hintBadge)}</strong>
-        <small><b>${esc(researchRadarActionLabel(action))}</b>${candidate?.eligible_for_selection === false && ["NEW_ARTICLE", "NEW_ANGLE"].includes(action) ? " · ricerca storica, non selezionabile" : ""} · novità ${Number(component.freshness || 0)}/100${candidate?.appearances > 1 ? ` · ricomparso ${Number(candidate.appearances)} volte` : ""}</small>
-        ${candidate?.rationale ? `<small><b>Perché:</b> ${esc(candidate.rationale)}</small>` : ""}
-        ${candidate?.novelty_note ? `<small><b>Controllo novità:</b> ${esc(candidate.novelty_note)}</small>` : ""}
-        <details><summary>Mostra verifica, angolo e fonti</summary>
-          <small>Domanda ${Number(component.demand || 0)} · trend ${Number(component.trend || 0)} · gap ${Number(component.content_gap || 0)}</small>
-          <small><b>Intento:</b> ${esc(candidate?.search_intent || "—")}</small>
-          <small><b>Angolo:</b> ${esc(candidate?.angle || "—")}</small>
-          ${existing}
-          ${tools ? `<small><b>Strumenti pertinenti:</b> ${tools}</small>` : ""}
-          ${sources ? `<small><b>Fonti consultate:</b> ${sources}</small>` : ""}
-        </details>
-        ${choose}
-      </div>`;
-    };
-    if (!candidates.length) {
-      box.innerHTML = `${activity}<div class="ol-autopilot-archive-item"><strong>Nessun candidato radar disponibile</strong><small>Controlla il registro per verificare se le scansioni sono riuscite.</small></div>`;
-      return;
-    }
-    const featured = preferred.length
-      ? preferred.map(candidateMarkup).join("")
-      : '<div class="ol-autopilot-archive-item"><small>Nessun nuovo articolo o angolo editoriale verificato tra i candidati recenti.</small></div>';
-    const archive = others.length
-      ? `<details data-radar-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Altri ${others.length} temi, aggiornamenti o duplicati</summary><div class="ol-autopilot-archive-list">${others.map(candidateMarkup).join("")}</div></details>`
-      : "";
-    box.innerHTML = `${activity}<p class="ol-muted">${preferred.length} temi in evidenza · ${others.length} disponibili solo nei dettagli.</p>${featured}${archive}`;
-  }
-
-  async function loadResearchRadar(section) {
-    if (!section?.isConnected) return;
-    const message = section.querySelector("[data-research-radar-message]");
-    try {
-      const payload = await endpoint("editorial-research-radar");
-      if (section.isConnected) {
-        lastResearchRadarPayload = payload;
-        renderResearchRadar(section, payload);
-      }
-    } catch (error) {
-      if (message) message.textContent = `Radar non disponibile: ${error.message}`;
-      const button = section.querySelector("[data-research-radar-start]");
-      if (button) button.disabled = false;
-    }
-  }
-
-  async function startResearchRadar(event) {
-    const button = event.currentTarget;
-    const section = button.closest("[data-search-console-card]");
-    const message = section?.querySelector("[data-research-radar-message]");
-    if (!section || !message) return;
-    button.disabled = true;
-    message.textContent = "Avvio ricerca web editoriale…";
-    try {
-      const payload = await endpoint("start-editorial-web-radar", { method: "POST", body: {} });
-      const result = payload?.result || {};
-      message.textContent = result.action === "research_radar_already_running"
-        ? "Una scansione è già in corso. L'Autopilota la riprenderà al prossimo tick."
-        : "Scansione avviata. La ricerca web gira in background e verrà chiusa dai prossimi tick dell'Autopilota.";
-      await loadResearchRadar(section);
-    } catch (error) {
-      message.textContent = `Scansione non avviata: ${error.message}`;
-      button.disabled = false;
-    }
-  }
-
   function metricSummary(signal, days) {
     const metric = signal?.metrics?.[String(days)];
     if (!metric) return `${days}g: —`;
@@ -649,181 +337,6 @@
       social_only: "Solo social",
       monitor: "Monitoraggio",
     })[type] || type || "Monitoraggio";
-  }
-
-  function opportunityOriginLabel(row) {
-    if (manualIdeaMeta(row)) return row?.evidence?.manual_idea?.promoted_from_research_hint ? "Suggerimento Radar scelto" : "Idea manuale";
-    const source = String(row?.evidence?.source || "");
-    if (source === "research_radar") return "Radar web";
-    if (source === "search_console") return "Search Console";
-    return "Origine non specificata";
-  }
-
-  function opportunitySelectionLabel(row) {
-    const origin = String(row?.evidence?.selection?.origin || "");
-    return origin === "manual" ? "Scelta dalla Redazione" : origin === "scheduler" ? "Scelta automatica effettiva" : "Scelta registrata";
-  }
-
-  function decisionTopicKey(topic) {
-    return String(topic || "").normalize("NFKC").trim().replace(/\s+/g, " ").toLocaleLowerCase("it");
-  }
-
-  // Presentazione soltanto: usa la foto gia associata alla bozza o lo stato
-  // immagine esistente nell'opportunità. Nessuna chiamata alla generazione.
-  function decisionArticleImageMarkup(cycle, opportunity) {
-    const article = cycle?.article && typeof cycle.article === "object" ? cycle.article : null;
-    const imageState = opportunity?.evidence?.article_image;
-    const state = imageState && typeof imageState === "object" ? imageState : {};
-    const safeImageUrl = (value) => /^https:\/\//i.test(String(value || "").trim()) ? String(value).trim() : "";
-    const articleImageKnown = article && Object.prototype.hasOwnProperty.call(article, "featured_image_url");
-    const articleImageUrl = safeImageUrl(article?.featured_image_url);
-    const currentImageUrl = safeImageUrl(state?.current?.url);
-    const approvedUrl = articleImageUrl || currentImageUrl;
-    const approvedAlt = articleImageUrl
-      ? (article.featured_image_alt || article.title || "Immagine della bozza")
-      : (state?.current?.alt_text || article?.title || "Immagine approvata dell'articolo");
-    const candidateUrl = safeImageUrl(state?.candidate?.url);
-    const candidateAlt = state?.candidate?.alt_text || "Anteprima immagine in attesa di approvazione";
-    const renderPreview = (url, alt, label, detail) => `<figure class="ol-decision-image-preview"><img src="${esc(url)}" alt="${esc(alt)}" loading="lazy" decoding="async"><figcaption><strong>${esc(label)}</strong><span>${esc(detail)}</span></figcaption></figure>`;
-    const previews = [];
-    if (approvedUrl) {
-      previews.push(renderPreview(approvedUrl, approvedAlt,
-        articleImageUrl ? "Immagine attuale della bozza" : "Immagine approvata nella coda",
-        articleImageUrl ? "Letta dal collegamento dell'articolo." : "Da verificare nella bozza: il dato è disponibile nello stato dell'opportunità."));
-      if (articleImageUrl && currentImageUrl && articleImageUrl !== currentImageUrl) {
-        previews.push('<p class="ol-decision-image-caution">La bozza usa un’immagine diversa da quella registrata nello storico delle approvazioni. Fa fede l’immagine della bozza.</p>');
-      }
-    }
-    if (candidateUrl && candidateUrl !== approvedUrl) {
-      previews.push(renderPreview(candidateUrl, candidateAlt, "Alternativa da approvare",
-        "Non è ancora l'immagine scelta per l'articolo."));
-    }
-    if (!previews.length) {
-      return `<div class="ol-decision-image-empty"><strong>Immagine articolo</strong><p>${opportunitiesLoaded || articleImageKnown ? "Nessuna immagine verificabile nei dati caricati." : "Stato immagine non ancora verificabile: aggiorna il quadro."}</p></div>`;
-    }
-    return `<div class="ol-decision-article-media" aria-label="Anteprima immagine articolo">${previews.join("")}</div>`;
-  }
-
-  // Il caricamento diretto usa le stesse API di candidatura e approvazione gia esistenti.
-  // Nessuna modifica al motore immagini o alla pubblicazione automatica.
-  function decisionArticleImageControls(cycle, opportunity, articleUrl) {
-    const articleId = String(cycle?.articleId || "");
-    const state = opportunity?.evidence?.article_image || {};
-    const candidate = state?.candidate?.url ? state.candidate : null;
-    const canUseWorkflow = Boolean(
-      opportunity?.id
-      && String(opportunity?.target_article_id || "") === articleId
-      && String(opportunity?.opportunity_type || "") === "new_article"
-    );
-    if (!canUseWorkflow) {
-      return `<div class="ol-decision-image-controls"><strong>Vuoi usare una tua immagine?</strong><p>Puoi sempre caricarla dalla scheda della bozza, se hai il permesso di modificare le immagini.</p><a class="ol-decision-link" href="${articleUrl}">Apri la bozza per caricare la tua immagine</a></div>`;
-    }
-    const id = String(opportunity.id);
-    const alt = String(candidate?.alt_text || cycle?.article?.featured_image_alt || `Immagine per ${cycle?.article?.title || opportunity.topic || "articolo"}`).slice(0, 180);
-    const notice = decisionImageNotice.articleId === articleId ? decisionImageNotice.message : "";
-    const manualCandidate = candidate?.source === "manual_upload";
-    return `<div class="ol-decision-image-controls" aria-label="Caricamento immagine personale">
-      <strong>Scegli tu l'immagine dell'articolo</strong>
-      <label for="ol-decision-image-file">Carica una tua foto o illustrazione</label>
-      <input id="ol-decision-image-file" data-decision-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif">
-      <small>JPG, PNG, WebP o AVIF, massimo 5 MB. L'immagine attuale resta invariata fino alla tua approvazione.</small>
-      <label for="ol-decision-image-alt">Testo alternativo</label>
-      <input id="ol-decision-image-alt" data-decision-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(alt)}">
-      <div class="ol-decision-image-buttons">
-        <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-image-upload="${esc(id)}">Carica la mia immagine</button>
-        ${candidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-decision-image-approve="${esc(id)}">${manualCandidate ? "Approva e usa la mia immagine" : "Approva e usa l'anteprima"}</button>` : ""}
-      </div>
-      ${candidate ? `<small class="ol-decision-candidate-note">${manualCandidate ? "La tua immagine è stata caricata" : "È presente un'immagine candidata"}, ma non sostituirà la foto attuale finché non la approvi.</small>` : ""}
-      <p data-decision-image-message role="status" aria-live="polite">${esc(notice)}</p>
-      <small class="ol-decision-image-automation-note">Nota: l'attuale pubblicazione automatica può bloccare un'immagine caricata manualmente; in quel caso la pubblicazione va gestita dalla Redazione. Il motore automatico non viene modificato.</small>
-    </div>`;
-  }
-
-  function renderDecisionHub(section) {
-    const productionBox = section?.querySelector("[data-decision-production]");
-    const selectionBox = section?.querySelector("[data-decision-selection]");
-    const previewBox = section?.querySelector("[data-decision-preview]");
-    const warningBox = section?.querySelector("[data-decision-warning]");
-    if (!productionBox || !selectionBox || !previewBox || !warningBox) return;
-
-    const cycle = currentEditorialCycle();
-    const cycleOpportunity = cycle?.opportunityId
-      ? opportunityRows.find((row) => String(row?.id || "") === String(cycle.opportunityId)) : null;
-    const imageOpportunity = cycle?.articleId
-      ? (cycleOpportunity?.target_article_id === cycle.articleId ? cycleOpportunity : null)
-        || opportunityRows.find((row) => String(row?.target_article_id || "") === String(cycle.articleId))
-        || cycleOpportunity
-      : null;
-    if (!automationLoaded || !socialPlanLoaded) {
-      const error = [automationLoadError, socialPlanLoadError].filter(Boolean).join(" ");
-      productionBox.innerHTML = error
-        ? `<span class="ol-decision-state is-attention">Stato non verificabile</span><p>${esc(error)}</p>`
-        : '<span class="ol-decision-state">Dati in verifica</span><p>Caricamento dello stato degli articoli.</p>';
-    } else if (cycle?.articleId) {
-      const title = String(cycle.article?.title || cycleOpportunity?.topic || "").trim();
-      const articleUrl = `/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(cycle.articleId)}`;
-      productionBox.innerHTML = `<span class="ol-decision-state is-running">Articolo avviato</span><strong>${esc(title || "Articolo collegato al ciclo")}</strong><p>${esc(cycleOpportunity ? `Tema iniziale: ${cycleOpportunity.topic || "—"}.` : "Il tema iniziale non è disponibile nella coda caricata.")}</p>${decisionArticleImageMarkup(cycle, imageOpportunity)}${decisionArticleImageControls(cycle, imageOpportunity, articleUrl)}<a class="ol-decision-link" href="${articleUrl}">Apri articolo in Redazione</a>${imageOpportunity ? `<button class="ol-decision-link" type="button" data-decision-open-opportunity="${esc(imageOpportunity.id || "")}">Apri controllo immagine e approvazione</button>` : ""}`;
-    } else if (cycle?.opportunityId) {
-      productionBox.innerHTML = `<span class="ol-decision-state">Bozza non collegata</span><strong>${esc(cycleOpportunity?.topic || "Ricerca del ciclo registrata")}</strong><p>Il ciclo ha un tema, ma non risulta ancora un articolo collegato.</p>`;
-    } else {
-      productionBox.innerHTML = '<span class="ol-decision-state">Nessuna bozza identificata</span><p>Non risulta un articolo attivo nelle informazioni di produzione caricate. Controlla lo storico per gli articoli precedenti.</p>';
-    }
-
-    if (socialPlanLoaded) {
-      const pendingPhotoItems = socialPlanItems.filter((row) => ["article_followup", "related"].includes(String(row.post_type || ""))
-        && ["draft", "approved"].includes(String(row.status || ""))).slice(0, 4);
-      if (pendingPhotoItems.length) {
-        productionBox.insertAdjacentHTML("beforeend", `<div class="ol-decision-image-controls" style="margin-top:12px">
-          <strong>Fotografie dei prossimi post social</strong>
-          <p>Apri il post per caricare o approvare una tua fotografia, senza passare dalla generazione AI.</p>
-          <div class="ol-decision-image-buttons">${pendingPhotoItems.map((row) => `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-open-social-photo="${esc(row.id)}">Foto ${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}${row.social_asset?.manual_image_candidate?.url ? " · da approvare" : ""}</button>`).join("")}</div>
-        </div>`);
-      }
-    }
-
-    const selected = opportunitiesLoaded ? opportunityRows.filter((row) => row?.status === "selected" && !row?.target_article_id) : [];
-    const confirmedFromPlanner = plannerLoaded && plannerDecision?.status === "selected"
-      && plannerDecision?.id && ["manual_idea", "saved_opportunity"].includes(String(plannerDecision.source || ""))
-      ? plannerDecision : null;
-    if (selected.length > 1) {
-      selectionBox.innerHTML = `<span class="ol-decision-state is-attention">Scelte concorrenti</span><strong>${numberIt(selected.length)} temi risultano selezionati</strong><p>Non è possibile indicare un unico prossimo articolo. Controlla i candidati prima di procedere.</p>`;
-    } else if (selected.length === 1) {
-      const row = selected[0];
-      const isArticle = ["new_article", "update_article"].includes(String(row.opportunity_type || ""));
-      const status = isArticle ? opportunitySelectionLabel(row) : "Scelta registrata · destinazione da verificare";
-      const reason = String(row?.evidence?.selection?.selected_reason || row?.rationale || "").trim();
-      selectionBox.innerHTML = `<span class="ol-decision-state is-confirmed">${esc(status)}</span><strong>${esc(row.topic || "Tema senza titolo")}</strong><p>Origine: ${esc(opportunityOriginLabel(row))}${row.decided_at ? ` · confermato ${esc(dateIt(row.decided_at))}` : ""}.</p>${reason ? `<p class="ol-decision-reason">${esc(reason)}</p>` : ""}${!isArticle ? '<p class="ol-decision-caution">La destinazione attuale non è «Nuovo articolo»: verifica la classificazione prima della produzione.</p>' : ""}<button class="ol-decision-link" type="button" data-decision-open-opportunity="${esc(row.id || "")}">Apri scelta e strumenti articolo</button>`;
-    } else if (confirmedFromPlanner) {
-      selectionBox.innerHTML = `<span class="ol-decision-state is-confirmed">Scelta confermata · vista planner</span><strong>${esc(confirmedFromPlanner.topic || "Tema senza titolo")}</strong><p>La scelta risulta nel planner, ma non è presente nell'elenco delle opportunità caricate. Verificane il dettaglio dalla coda.</p>`;
-    } else if (opportunitiesLoaded && plannerLoaded) {
-      selectionBox.innerHTML = '<span class="ol-decision-state">Nessuna scelta confermata visibile</span><p>I candidati non sono il prossimo articolo finché non vengono selezionati. Apri la lista per sceglierne uno.</p>';
-    } else {
-      selectionBox.innerHTML = '<span class="ol-decision-state is-attention">Scelta non verificabile</span><p>Servono i dati aggiornati della coda e del planner per distinguere una scelta reale da una previsione.</p>';
-    }
-
-    if (!plannerLoaded) {
-      previewBox.innerHTML = `<span class="ol-decision-state">Simulazione non disponibile</span><p>${esc(plannerLoadError || "Caricamento del planner…")}</p>`;
-    } else if (plannerDecision) {
-      const source = plannerDecision.source === "research_radar" ? "Radar web" : plannerDecision.source === "search_console" ? "Search Console" : plannerDecision.source === "manual_idea" ? "Idea manuale" : "Opportunità salvata";
-      const matchesSelected = selected.some((row) => String(row.id || "") === String(plannerDecision.id || ""))
-        || Boolean(confirmedFromPlanner && String(confirmedFromPlanner.id || "") === String(plannerDecision.id || ""));
-      previewBox.innerHTML = `<span class="ol-decision-state is-preview">${matchesSelected ? "Simulazione coerente con la scelta" : "Solo previsione, non confermata"}</span><strong>${esc(plannerDecision.topic || "Tema senza titolo")}</strong><p>${esc(source)}${Number.isFinite(Number(plannerDecision.score)) ? ` · ${Number(plannerDecision.score)}/100` : ""}.</p><p class="ol-decision-reason">${esc(plannerDecision.reason || "Il planner simulerebbe questo tema con le priorità attuali.")}</p>`;
-    } else {
-      previewBox.innerHTML = '<span class="ol-decision-state">Nessun candidato nel dry-run</span><p>Il planner non propone un articolo con le condizioni attuali. Questa non è una decisione salvata.</p>';
-    }
-
-    const warnings = [];
-    if (opportunityLoadError) warnings.push(`Coda non disponibile: ${opportunityLoadError}`);
-    if (opportunitiesLoaded && opportunityRows.length >= 50) warnings.push("Vista limitata alle ultime 50 opportunità restituite dal backend: una scelta più vecchia potrebbe non essere visibile.");
-    if (selected.length > 1) warnings.push("Sono state rilevate più selezioni contemporanee. È necessario verificarle prima di avviare un nuovo articolo.");
-    const activeTopicCount = new Map();
-    for (const row of opportunityRows.filter((row) => ["selected", "pending", "deferred"].includes(String(row.status || "")) && !row.target_article_id)) {
-      const key = decisionTopicKey(row.topic);
-      if (key) activeTopicCount.set(key, (activeTopicCount.get(key) || 0) + 1);
-    }
-    if ([...activeTopicCount.values()].some((count) => count > 1)) warnings.push("Titoli identici compaiono più volte tra i candidati attivi: controlla i dettagli prima della scelta.");
-    warningBox.textContent = warnings.join(" ");
-    warningBox.hidden = warnings.length === 0;
   }
 
   function manualIdeaMeta(row) {
@@ -865,7 +378,7 @@
     const save = editor.querySelector("[data-manual-idea-save]");
     const message = editor.querySelector("[data-manual-idea-message]");
     if (cancel) cancel.hidden = true;
-    if (save) save.textContent = "Salva tra i candidati";
+    if (save) save.textContent = "Salva idea";
     if (message) message.textContent = finalMessage || "Le idee ad alta priorità o urgenti possono precedere i segnali automatici.";
   }
 
@@ -908,19 +421,14 @@
     if (!box || !message) return;
     const decision = payload?.decision || null;
     plannerDecision = decision;
-    plannerLoaded = true;
-    plannerLoadError = "";
-    renderDecisionHub(section);
     const engine = payload?.automation_enabled ? "motore configurato come attivo" : "motore ancora disattivato";
     if (!decision) {
       const reason = payload?.article_cycle_disabled
         ? "Il limite massimo articoli per ciclo è impostato a 0."
-        : payload?.duplicate_protection_no_publish
-          ? "I segnali disponibili risultano già coperti dall'archivio: il sistema evita un articolo duplicato e attende un nuovo angolo o una novità verificabile."
-          : payload?.no_publish
-            ? "La configurazione consente di chiudere il ciclo senza articolo."
-            : "Nessun candidato disponibile con le regole attuali.";
-      box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia automatica: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
+        : payload?.no_publish
+          ? "La configurazione consente di chiudere il ciclo senza articolo."
+          : "Nessun candidato disponibile con le regole attuali.";
+      box.innerHTML = `<div class="ol-autopilot-archive-item"><strong>Nessun tema selezionato nel dry-run</strong><small>Soglia Search Console: ${Number(payload?.minimum_opportunity_score || 0)}/100 · ${esc(engine)}.</small><small>${esc(reason)}</small></div>`;
       if (!quiet) message.textContent = "Dry-run completato senza candidato.";
       if (opportunityRows.length) renderOpportunities(section, opportunityRows);
       return;
@@ -929,11 +437,9 @@
       ? `Idea manuale · priorità ${manualIdeaPriorityLabel(decision.priority).toLowerCase()}`
       : decision.source === "search_console"
         ? `Search Console · ${Number(decision.score || 0)}/100`
-        : decision.source === "research_radar"
-          ? `Radar web · ${Number(decision.score || 0)}/100 · ${researchRadarActionLabel(decision?.radar_candidate?.editorial_action)}`
-          : "Opportunità già selezionata";
+        : "Opportunità già selezionata";
     const deadline = decision.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(decision.deadline)}` : "";
-    const destination = ["search_console", "research_radar"].includes(decision.source)
+    const destination = decision.source === "search_console"
       ? "Segnale da classificare"
       : opportunityTypeLabel(decision.opportunity_type);
     box.innerHTML = `<div class="ol-autopilot-archive-item">
@@ -943,7 +449,7 @@
       <small>Dry-run: nessuno stato o contenuto è stato modificato.</small>
     </div>`;
     if (!quiet) message.textContent = `Scelta calcolata · ${engine}.`;
-    else message.textContent = `Simulazione attuale · ${engine}. Nessuna scelta salvata.`;
+    else message.textContent = `Scelta automatica attuale · ${engine}.`;
     if (opportunityRows.length) renderOpportunities(section, opportunityRows);
   }
 
@@ -955,10 +461,7 @@
       if (section.isConnected) renderPlannerPreview(section, payload, quiet);
     } catch (error) {
       plannerDecision = null;
-      plannerLoaded = false;
-      plannerLoadError = String(error.message || "Anteprima non disponibile");
-      if (message) message.textContent = `Anteprima non disponibile: ${error.message}`;
-      renderDecisionHub(section);
+      if (!quiet && message) message.textContent = `Anteprima non disponibile: ${error.message}`;
     }
   }
 
@@ -1139,31 +642,20 @@
   function opportunityHeading(row) {
     const manual = manualIdeaMeta(row);
     if (manual) {
-      return `${esc(row.topic || "Senza titolo")} · ${manual.promoted_from_research_hint ? "Suggerimento scelto" : `Idea manuale · priorità ${esc(manualIdeaPriorityLabel(manual.priority))}`} · ${esc(opportunityStatusLabel(row.status))}`;
+      return `${esc(row.topic || "Senza titolo")} · Idea manuale · priorità ${esc(manualIdeaPriorityLabel(manual.priority))} · ${esc(opportunityStatusLabel(row.status))}`;
     }
     return `${esc(row.topic || "Senza titolo")} · ${Number(row.score || 0)}/100 · ${esc(opportunityStatusLabel(row.status))}`;
   }
 
   function opportunitySourceDetails(row) {
     const manual = manualIdeaMeta(row);
-    if (manual) {
-      const deadline = manual.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(manual.deadline)}` : " · nessuna scadenza";
-      const notes = manual.notes ? `<small>Note: ${esc(manual.notes)}</small>` : "";
-      const editable = row.status !== "completed" && !row.target_article_id
-        ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
-        : "";
-      const review = row?.evidence?.research_hint_selection?.last_review;
-      const reviewed = review ? `<small>Ultima verifica Radar prima della scelta: ${esc(researchHintVerdictLabel(review.verdict))} · ${Number(review.score || 0)}/100</small>${review.rationale ? `<small>${esc(review.rationale)}</small>` : ""}` : "";
-      const origin = manual.promoted_from_research_hint ? "suggerimento Radar scelto dalla Redazione" : "inserimento manuale";
-      return `<small>Origine: ${origin}${esc(deadline)}</small>${reviewed}${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
-    }
-    const radar = row?.evidence?.source === "research_radar" ? row.evidence.research_radar : null;
-    if (radar) {
-      const tools = (radar.related_targets || []).slice(0, 4).map((target) => esc(target?.label || target?.url_path || "")).filter(Boolean).join(" · ");
-      const existing = radar.existing_article?.title ? `<small>Articolo correlato: ${esc(radar.existing_article.title)}</small>` : "";
-      return `<small>Origine: Radar web · ${esc(researchRadarActionLabel(radar.editorial_action))}</small>${existing}${radar.difference_from_existing ? `<small>Differenza: ${esc(radar.difference_from_existing)}</small>` : ""}${tools ? `<small>Strumenti pertinenti: ${tools}</small>` : ""}`;
-    }
-    return "";
+    if (!manual) return "";
+    const deadline = manual.deadline ? ` · scadenza ${manualIdeaDeadlineLabel(manual.deadline)}` : " · nessuna scadenza";
+    const notes = manual.notes ? `<small>Note: ${esc(manual.notes)}</small>` : "";
+    const editable = row.status !== "completed" && !row.target_article_id
+      ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-manual-idea-edit="${esc(row.id || "")}">Modifica idea</button>`
+      : "";
+    return `<small>Origine: inserimento manuale${esc(deadline)}</small>${notes}${editable ? `<div class="ol-toolbar-group" style="margin-top:8px">${editable}</div>` : ""}`;
   }
 
 
@@ -1173,13 +665,10 @@
 
   function platformChoicesMarkup(id, selected = [], attribute = "data-package-platform") {
     const selectedSet = new Set(Array.isArray(selected) ? selected : []);
-    const planOnly = attribute === "data-social-plan-platform";
-    const allowed = planOnly ? new Set(["facebook", "instagram"]) : new Set(["facebook", "instagram", "linkedin"]);
     const channels = (socialChannels.length ? socialChannels : [
       { platform: "facebook", display_name: "Facebook", enabled: false },
       { platform: "instagram", display_name: "Instagram", enabled: false },
-      { platform: "linkedin", display_name: "LinkedIn", enabled: false },
-    ]).filter((channel) => allowed.has(String(channel.platform || "")));
+    ]).filter((channel) => ["facebook", "instagram"].includes(String(channel.platform || "")));
     return channels.map((channel) => {
       const platform = String(channel.platform || "");
       const enabled = Boolean(channel.enabled);
@@ -1199,9 +688,6 @@
     const candidate = imageState?.candidate && typeof imageState.candidate === "object" ? imageState.candidate : null;
     const current = imageState?.current && typeof imageState.current === "object" ? imageState.current : null;
     const candidateAlt = String(candidate?.alt_text || current?.alt_text || `Immagine editoriale dedicata a ${row.topic || "articolo OffertaLogica"}`).slice(0, 180);
-    const selectedProfile = String(candidate?.generation_profile_requested || current?.generation_profile_requested || "auto");
-    const previousImage = candidate || current;
-    const creativeGuidance = previousImage?.direction_mode === "editor" ? String(previousImage.guidance || "").slice(0, 600) : "";
     const currentMarkup = current?.url
       ? `<div style="margin-top:8px"><small>Immagine approvata e collegata all’articolo.</small><div style="margin-top:6px"><img src="${esc(current.url)}" alt="${esc(current.alt_text || "Immagine articolo approvata")}" loading="lazy" style="display:block;max-width:520px;width:100%;height:auto;border-radius:10px"></div></div>`
       : '<small>Nessuna immagine approvata ancora.</small>';
@@ -1219,12 +705,10 @@
       : "";
     return `<div class="ol-field" style="margin-top:12px" data-article-image-workflow="${esc(id)}">
       <label>Immagine dedicata articolo · HD fotografica</label>
-      <small>La master è orizzontale e senza testo sovrapposto. Il motore privilegia fotografie editoriali credibili: soggetto chiaro, contesto reale, scena non pubblicitaria e documenti solo secondari/non leggibili.</small>
+      <small>La master è orizzontale e senza testo sovrapposto, pensata anche per futuri crop del post statico. L’immagine attuale non cambia finché non approvi la nuova anteprima.</small>
       ${currentMarkup}
       ${candidateMarkup}
-      <div class="ol-field" style="margin-top:8px"><label>Impostazione visiva</label><select data-article-image-profile="${esc(id)}">${articleImageProfileOptions(selectedProfile)}</select><small data-article-image-profile-hint="${esc(id)}">${esc(articleImageProfileHint(selectedProfile))}</small></div>
-      <div class="ol-field" style="margin-top:8px"><label>Regia creativa dell’immagine <span class="ol-muted">(facoltativa)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="3" placeholder="Es. solo un contatore vero in primo piano, senza persone, luce diurna, prospettiva laterale, sfondo domestico sfocato…">${esc(creativeGuidance)}</textarea><small>Se descrivi una scena specifica, questa prevale sui suggerimenti visivi automatici. Il controllo qualità verificherà anche le tue indicazioni; restano vietate schermate e offerte inventate.</small></div>
-      <div class="ol-field" style="margin-top:8px"><label>Immagine guida per la generazione (facoltativa)</label><input data-article-reference-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPEG, PNG o WebP fino a 5 MB. Se presente, il modello la usa come riferimento reale tramite image edit; costa una generazione. Lo screenshot sul monitor non e' garantito pixel-per-pixel.</small></div>
+      <div class="ol-field" style="margin-top:8px"><label>Indicazioni per generare o rigenerare <span class="ol-muted">(facoltative)</span></label><textarea data-article-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. più realistica, niente persone, inquadratura più pulita, focus su contatore e abitazione…"></textarea></div>
       <div class="ol-field" style="margin-top:8px"><label>Testo alternativo</label><input data-article-image-alt="${esc(id)}" type="text" maxlength="180" value="${esc(candidateAlt)}"></div>
       <div class="ol-field" style="margin-top:8px"><label>Sostituzione manuale</label><input data-article-image-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp,image/avif"><small>JPG, PNG, WebP o AVIF, massimo 5 MB. Il file diventa prima una nuova anteprima e richiede comunque approvazione.</small></div>
       <div class="ol-toolbar-group" style="margin-top:8px">
@@ -1267,52 +751,6 @@
     return `${baseUrl}/storage/v1/object/public/editorial-images/${encodedPath}`;
   }
 
-  async function uploadReferenceImageFile(file, id) {
-    if (!file || !["image/jpeg", "image/png", "image/webp"].includes(file.type))
-      throw new Error("Come immagine guida o file social usa JPG, PNG o WebP.");
-    // La card resvg supporta JPEG e PNG; convertiamo WebP nel browser,
-    // mantenendo gli altri asset e il renderer del progetto invariati.
-    if (file.type !== "image/webp") return uploadArticleImageFile(file, id);
-    const bitmap = await createImageBitmap(file);
-    try {
-      const canvas = document.createElement("canvas");
-      canvas.width = bitmap.width; canvas.height = bitmap.height;
-      if (!canvas.width || !canvas.height || canvas.width * canvas.height > 25000000)
-        throw new Error("Immagine WebP troppo grande per la conversione: usa JPG o PNG");
-      const ctx = canvas.getContext("2d");
-      if (!ctx) throw new Error("Conversione WebP non disponibile nel browser");
-      ctx.fillStyle = "#fff"; ctx.fillRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(bitmap, 0, 0);
-      const converted = await new Promise((resolve) => canvas.toBlob(resolve, "image/jpeg", 0.92));
-      if (!converted) throw new Error("Conversione WebP non riuscita");
-      return uploadArticleImageFile(new File([converted], `${file.name.replace(/\.webp$/i, "")}.jpg`, { type: "image/jpeg" }), id);
-    } finally { bitmap.close(); }
-  }
-
-  function articleAutomationMarkup(row) {
-    const id = String(row?.id || "");
-    const state = String(row?.article_automation?.state || "");
-    if (!id || state === "unavailable" || state === "draft_pending") return "";
-    if (state === "published") {
-      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Articolo già pubblicato.</strong> Il ciclo prosegue con le fasi successive.</div>`;
-    }
-    if (state === "revision_in_progress") {
-      return `<div class="ol-alert ol-alert-warning" style="margin-top:10px"><strong>Automatico sospeso durante la revisione.</strong> Quando la nuova bozza è pronta, controllala e premi “Ripristina automatico”.</div>`;
-    }
-    if (state === "armed") {
-      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Automatico ripristinato.</strong> Questa versione è stata riconsegnata all’Autopilota${row?.article_automation?.armed_at ? ` il ${esc(dateIt(row.article_automation.armed_at))}` : ""}. Se non modifichi più il testo, il prossimo slot utile proseguirà da qui.</div>`;
-    }
-    if (state === "automatic") {
-      return `<div class="ol-alert ol-alert-success" style="margin-top:10px"><strong>Automatico attivo.</strong> La bozza non risulta modificata manualmente: il ciclo può proseguire senza interventi.</div>`;
-    }
-    const changedAfterHandoff = state === "manual_changes_after_handoff";
-    return `<div class="ol-alert ol-alert-warning" style="margin-top:10px">
-      <strong>${changedAfterHandoff ? "Automatico sospeso: la bozza è cambiata dopo la consegna." : "Controllo manuale attivo."}</strong>
-      <div style="margin-top:4px">Quando hai finito con testo, revisione e immagine, premi il pulsante: l’Autopilota userà esattamente la versione corrente e riprenderà il ciclo dal prossimo passaggio dovuto.</div>
-      <div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-primary ol-button-small" type="button" data-resume-automatic-cycle="${esc(id)}">Ripristina automatico</button></div>
-    </div>`;
-  }
-
   function articleGenerationMarkup(row) {
     const id = String(row?.id || "");
     const generation = row?.evidence?.article_generation;
@@ -1320,24 +758,21 @@
     const jobRunning = Boolean(job?.response_id && ["queued", "in_progress"].includes(String(job.status || "")));
     const qa = generation?.qa || {};
     const sourceCount = Number(qa.sources_count || generation?.sources?.length || 0);
-    const buttonLabel = jobRunning ? "Riprendi controllo generazione" : generation ? "Rigenera bozza con le mie indicazioni" : "Genera bozza completa con fonti";
+    const buttonLabel = jobRunning ? "Riprendi controllo generazione" : generation ? "Rigenera bozza completa" : "Genera bozza completa con fonti";
     const currentPlatforms = Array.isArray(job?.platforms) ? job.platforms : Array.isArray(generation?.platforms) ? generation.platforms : [];
-    const lastRevision = generation?.revision_notes ? `<small><b>Ultime indicazioni applicate:</b> ${esc(generation.revision_notes)}</small>` : "";
     const summary = jobRunning
       ? `<small>Generazione asincrona ${esc(job.status === "queued" ? "in coda" : "in corso")} dal ${esc(dateIt(job.started_at))}. Puoi lasciare lavorare il motore e riprendere il controllo senza perdere il job.</small>`
       : generation
         ? `<small>Ultima generazione: ${esc(dateIt(generation.generated_at))} · ${esc(generation.model || "modello server")} · ${sourceCount} fonti · ${Number(qa.static_posts_count || 0)} post statici. Pacchetto editoriale pronto per il calendario.</small>`
         : '<small>La generazione usa ricerca web lato server in background, salva le fonti, applica controlli minimi e prepara due post statici. La pubblicazione resta governata dalla modalità Autopilota e dal calendario.</small>';
     return `<div class="ol-field" style="margin-top:8px">
-      <label>Canali del ciclo editoriale</label>
+      <label>Canali per i post statici del pacchetto</label>
       <div class="ol-autopilot-sources">${platformChoicesMarkup(id, currentPlatforms)}</div>
-      <small>Facebook e Instagram vengono usati per lancio articolo + due post statici. LinkedIn, se collegato, pubblica solo il lancio dell’articolo.</small>
-      ${generation ? `<div class="ol-field" style="margin-top:10px"><label>Indicazioni di revisione <span class="ol-muted">(facoltative)</span></label><textarea data-article-revision-notes="${esc(id)}" maxlength="3000" rows="4" placeholder="Es. chiarisci meglio l'aumento luce rispetto al gas; aggiungi un esempio pratico; elimina il paragrafo X; mantieni la mia modifica al titolo…"></textarea><small>La rigenerazione usa la bozza attuale come base, conserva le modifiche manuali e applica queste indicazioni dopo un nuovo controllo delle fonti. È una revisione manuale e non consuma i tentativi automatici dello slot del martedì.</small>${lastRevision}</div>` : ""}
+      <small>Nessun canale è obbligatorio. I canali non collegati restano disabilitati.</small>
       <div class="ol-toolbar-group" style="margin-top:8px">
         <button class="ol-button ol-button-primary ol-button-small" type="button" data-article-generate="${esc(id)}">${buttonLabel}</button>
       </div>
       ${summary}
-      ${articleAutomationMarkup(row)}
       ${articleImageWorkflowMarkup(row)}
     </div>`;
   }
@@ -1346,516 +781,35 @@
     return ({ draft: "Bozza", approved: "Approvato", cancelled: "Annullato", scheduled: "Programmato", publishing: "Pubblicazione", published: "Pubblicato", failed: "Errore" })[status] || status || "—";
   }
 
-  function automationRunOpportunityId(run) {
-    const details = run?.details || {};
-    return String(run?.opportunity_id || details.selected_opportunity_id || details.opportunity_id || "").trim();
-  }
-
-  function automationRunArticleId(run) {
-    return String(run?.article_id || run?.details?.article_id || "").trim();
-  }
-
-  function currentEditorialCycle() {
-    // Se esiste già un articolo realmente in lavorazione, quello è il ciclo corrente.
-    // La sola "ricerca più recente" può restare indietro di alcuni giorni rispetto
-    // alla bozza effettivamente avviata (es. ricerca venerdì, bozza martedì).
-    const activeRecord = articleHistoryRecords().find((record) => articleCompletionState(record).tone !== "success") || null;
-    if (activeRecord?.opportunityId && activeRecord?.articleId) {
-      const anchor = automationRuns.find((run) => {
-        return String(run?.run_type || "") === "research"
-          && automationRunOpportunityId(run) === activeRecord.opportunityId;
-      }) || activeRecord.runs?.[activeRecord.runs.length - 1] || null;
-      return {
-        opportunityId: activeRecord.opportunityId,
-        articleId: activeRecord.articleId,
-        article: activeRecord.article || null,
-        record: activeRecord,
-        anchor,
-      };
-    }
-
-    // Fallback: prima che esista una bozza/articolo, il ciclo nasce dalla ricerca
-    // più recente che ha selezionato un'opportunità.
-    const anchor = automationRuns.find((run) => {
-      return String(run?.run_type || "") === "research" && Boolean(automationRunOpportunityId(run));
-    }) || null;
-    if (!anchor) return null;
-    const opportunityId = automationRunOpportunityId(anchor);
-    const articleRun = automationRuns.find((run) => automationRunOpportunityId(run) === opportunityId && automationRunArticleId(run)) || null;
-    return {
-      opportunityId,
-      articleId: automationRunArticleId(articleRun),
-      article: null,
-      record: null,
-      anchor,
-    };
-  }
-
-  function cycleRunState(runType, cycle) {
-    if (!cycle?.opportunityId) return { label: "da eseguire", tone: "pending", at: "" };
-    if (runType === "article_publish" && String(cycle?.record?.article?.status || "") === "published") {
-      return { label: "completato", tone: "success", at: cycle.record.article.published_at || cycle.record.article.updated_at || "" };
-    }
-    const run = automationRuns.find((row) => {
-      if (String(row?.run_type || "") !== runType) return false;
-      if (automationRunOpportunityId(row) !== cycle.opportunityId) return false;
-      if (cycle.articleId && runType !== "research") {
-        const rowArticleId = automationRunArticleId(row);
-        if (rowArticleId && rowArticleId !== cycle.articleId) return false;
-      }
-      return true;
-    }) || null;
-    if (!run) {
-      if (runType === "research" && cycle.opportunityId) {
-        const at = cycle.anchor?.finished_at || cycle.anchor?.started_at || cycle.anchor?.created_at || "";
-        return { label: "completato", tone: "success", at };
-      }
-      if (cycle.record) {
-        const fallback = articleStepState(cycle.record, runType);
-        if (fallback?.tone && fallback.tone !== "pending") return { ...fallback, at: "" };
-        if (runType === "article_prepare" && cycle.articleId) return { label: "completato", tone: "success", at: "" };
-      }
-      return { label: "da eseguire", tone: "pending", at: "" };
-    }
-    const at = run.finished_at || run.started_at || run.created_at || "";
-    const status = String(run.status || "");
-    if (status === "success") {
-      const stage = String(run?.details?.stage || "");
-      const publicationRun = ["article_publish", "social_followup", "social_related"].includes(String(runType || ""));
-      if (publicationRun && run?.details?.publication_performed !== true) return { label: "in attesa", tone: "pending", at };
-      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending", at };
-      return { label: "completato", tone: "success", at };
-    }
-    if (status === "failed") return { label: "errore", tone: "failed", at };
-    if (status === "running") return { label: "in corso", tone: "running", at };
-    return { label: status || "da eseguire", tone: "pending", at };
-  }
-
-  function compactAutomationRuns(runs) {
-    const rows = Array.isArray(runs) ? runs : [];
-    const shouldHide = new Set();
-    const timeOf = (run) => {
-      const value = run?.started_at || run?.created_at || "";
-      const ms = Date.parse(value);
-      return Number.isFinite(ms) ? ms : null;
-    };
-
-    for (const run of rows) {
-      if (String(run?.run_type || "") !== "article_prepare") continue;
-      if (String(run?.details?.stage || "") !== "background_started") continue;
-      const opportunityId = automationRunOpportunityId(run);
-      const articleId = automationRunArticleId(run);
-      if (!opportunityId || !articleId) continue;
-      const startedAt = timeOf(run);
-      const continuation = rows.find((candidate) => {
-        if (candidate === run) return false;
-        if (String(candidate?.run_type || "") !== "article_prepare") return false;
-        if (String(candidate?.details?.stage || "") === "background_started") return false;
-        if (automationRunOpportunityId(candidate) !== opportunityId) return false;
-        if (automationRunArticleId(candidate) !== articleId) return false;
-        const candidateAt = timeOf(candidate);
-        if (startedAt === null || candidateAt === null) return true;
-        return candidateAt >= startedAt && candidateAt - startedAt <= 30 * 60 * 1000;
-      });
-      if (continuation) shouldHide.add(String(run.id || ""));
-    }
-
-    return rows.filter((run) => !shouldHide.has(String(run?.id || "")));
-  }
-
-  function articlePublicUrl(article) {
-    const slug = String(article?.slug || "").trim();
-    return slug ? `/articoli/${encodeURIComponent(slug)}.html` : "";
-  }
-
-  function articleHistoryRecords() {
-    const map = new Map();
-    const ensure = (key, patch = {}) => {
-      if (!key) return null;
-      if (!map.has(key)) {
-        map.set(key, {
-          key,
-          articleId: "",
-          opportunityId: "",
-          article: null,
-          planItems: [],
-          runs: [],
-        });
-      }
-      const current = map.get(key);
-      const next = { ...current, ...patch };
-      if (patch.article) next.article = { ...(current.article || {}), ...patch.article };
-      map.set(key, next);
-      return next;
-    };
-
-    for (const row of socialPlanItems) {
-      const article = row?.source_article && typeof row.source_article === "object" ? row.source_article : null;
-      const articleId = String(row?.source_article_id || article?.id || "").trim();
-      const opportunityId = String(row?.opportunity_id || "").trim();
-      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
-      const record = ensure(key, { articleId, opportunityId, article });
-      if (record) record.planItems.push(row);
-    }
-
-    for (const run of automationRuns) {
-      const articleId = automationRunArticleId(run);
-      const opportunityId = automationRunOpportunityId(run);
-      const key = articleId || (opportunityId ? `opportunity:${opportunityId}` : "");
-      const record = ensure(key, { articleId, opportunityId });
-      if (record) record.runs.push(run);
-    }
-
-    return [...map.values()].filter((record) => Boolean(record.articleId)).map((record) => {
-      const latestAt = [
-        ...(record.runs || []).map((run) => run?.started_at || run?.created_at || ""),
-        ...(record.planItems || []).map((row) => row?.updated_at || row?.created_at || ""),
-        record.article?.published_at || "",
-      ].filter(Boolean).sort().reverse()[0] || "";
-      return { ...record, latestAt };
-    }).sort((a, b) => String(b.latestAt || "").localeCompare(String(a.latestAt || "")));
-  }
-
-  function articleRelatedPlanItem(record, postType) {
-    return (record?.planItems || []).find((row) => String(row?.post_type || "") === postType) || null;
-  }
-
-  function runStateLabelFromRun(run) {
-    if (!run) return null;
-    const status = String(run.status || "");
-    const stage = String(run?.details?.stage || "");
-    if (status === "success") {
-      const publicationRun = ["article_publish", "social_followup", "social_related"].includes(String(run?.run_type || ""));
-      if (publicationRun && run?.details?.publication_performed !== true) return { label: "in attesa", tone: "pending" };
-      if (["skipped", "blocked", "waiting_human_review", "waiting_human_approval", "waiting_social_retry", "skipped_draft_mode"].includes(stage)) return { label: "in attesa", tone: "pending" };
-      return { label: "completato", tone: "success" };
-    }
-    if (status === "failed") return { label: "errore", tone: "failed" };
-    if (status === "running") return { label: "in corso", tone: "running" };
-    return { label: status || "da eseguire", tone: "pending" };
-  }
-
-  function articlePlanState(item) {
-    if (!item) return { label: "da eseguire", tone: "pending" };
-    const status = String(item.status || "draft");
-    if (status === "published") return { label: "completato", tone: "success" };
-    if (status === "failed") return { label: "errore", tone: "failed" };
-    if (["publishing", "scheduled"].includes(status)) return { label: "in corso", tone: "running" };
-    if (status === "cancelled") return { label: "annullato", tone: "pending" };
-    return { label: "da eseguire", tone: "pending" };
-  }
-
-  function articleStepState(record, runType) {
-    if (runType === "article_publish" && String(record?.article?.status || "") === "published") return { label: "completato", tone: "success" };
-    const run = (record?.runs || []).find((row) => String(row?.run_type || "") === runType) || null;
-    if (run) return runStateLabelFromRun(run);
-    if (runType === "article_prepare" && record?.articleId) return { label: "completato", tone: "success" };
-    if (runType === "social_followup") return articlePlanState(articleRelatedPlanItem(record, "article_followup"));
-    if (runType === "social_related") return articlePlanState(articleRelatedPlanItem(record, "related"));
-    return { label: "da eseguire", tone: "pending" };
-  }
-
-  function articleCompletionState(record) {
-    const steps = ["article_prepare", "article_publish", "social_followup", "social_related"].map((type) => articleStepState(record, type));
-    if (steps.some((step) => step.tone === "failed")) return { label: "Attenzione", tone: "failed" };
-    if (steps.every((step) => step.tone === "success")) return { label: "Completo", tone: "success" };
-    return { label: "In corso", tone: "pending" };
-  }
-
-  function articleOpportunity(record) {
-    const id = String(record?.opportunityId || "");
-    return opportunityRows.find((row) => String(row?.id || "") === id) || null;
-  }
-
-  function articleResearchMarkup(record) {
-    const opportunity = articleOpportunity(record);
-    if (!opportunity) return '<div class="ol-article-history-section"><strong>Ricerca selezionata</strong><small>Dati della selezione non disponibili nello storico caricato.</small></div>';
-    const queries = opportunityQueryExamples(opportunity);
-    const brief = opportunity?.editorial_brief && typeof opportunity.editorial_brief === "object" ? opportunity.editorial_brief : null;
-    return `<div class="ol-article-history-section">
-      <strong>Ricerca selezionata per questo articolo</strong>
-      <div class="ol-article-selected-topic"><b>${esc(opportunity.topic || "Tema non disponibile")}</b>${manualIdeaMeta(opportunity) ? '<span>Idea manuale</span>' : `<span>${Number(opportunity.score || 0)}/100</span>`}</div>
-      ${opportunity.rationale ? `<small><b>Perché è stata selezionata:</b> ${esc(opportunity.rationale)}</small>` : ""}
-      ${queries.length ? `<small><b>Query collegate:</b> ${esc(queries.join(" · "))}</small>` : ""}
-      ${brief?.search_intent ? `<small><b>Intento:</b> ${esc(brief.search_intent)}</small>` : ""}
-      ${brief?.article_angle ? `<small><b>Brief editoriale:</b> ${esc(brief.article_angle)}</small>` : ""}
-    </div>`;
-  }
-
-  function articleDraftMarkup(record) {
-    const article = record?.article || {};
-    if (!record?.articleId) return "";
-    const content = String(article.content || "").trim();
-    const sources = String(article.sources || "").trim();
-    return `<div class="ol-article-history-section">
-      <strong>Bozza / articolo</strong>
-      ${article.title ? `<small><b>Titolo:</b> ${esc(article.title)}</small>` : ""}
-      ${article.excerpt ? `<small><b>Sommario:</b> ${esc(article.excerpt)}</small>` : ""}
-      ${content ? `<details class="ol-article-text-details"><summary>Apri testo completo</summary><pre>${esc(content)}</pre></details>` : '<small>Testo della bozza non disponibile.</small>'}
-      ${sources ? `<details class="ol-article-text-details"><summary>Apri fonti</summary><pre>${esc(sources)}</pre></details>` : ""}
-    </div>`;
-  }
-
-  function articleTimelineMarkup(record) {
-    const steps = [
-      ["article_prepare", "Bozza articolo"],
-      ["article_publish", "Articolo pubblicato"],
-      ["social_followup", "Post di venerdì"],
-      ["social_related", "Post OffertaLogica"],
-    ].map(([type, title]) => ({ title, ...articleStepState(record, type) }));
-    return `<div class="ol-cycle-steps ol-cycle-steps-article">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}</small></span>`).join("")}</div>`;
-  }
-
-  function planItemEditorMarkup(row) {
-    const id = String(row.id || "");
-    const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
-    const destination = row.destination_target
-      ? `${row.destination_target.label} · ${row.destination_target.url_path}`
-      : row.post_type === "article_followup" ? "Articolo collegato" : "—";
-    const statusOptions = [
-      ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
-    ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
-
-    const socialAsset = row.social_asset && typeof row.social_asset === "object" ? row.social_asset : null;
-    const articleTakeaway = String(socialAsset?.brief?.article_takeaway || "").trim();
-    const destinationSolution = String(socialAsset?.brief?.destination_solution || "").trim();
-    const copyQaReason = String(socialAsset?.brief?.copy_qa?.reason || "").trim();
-    const socialImageUrl = /^https:\/\//i.test(String(socialAsset?.image?.url || "")) ? String(socialAsset.image.url) : "";
-    const socialCardUrl = /^https:\/\//i.test(String(socialAsset?.card?.url || "")) ? String(socialAsset.card.url) : "";
-    const articleImageUrl = /^https:\/\//i.test(String(row.source_article?.featured_image_url || "")) ? String(row.source_article.featured_image_url) : "";
-    const imageQa = socialAsset?.image?.qa && typeof socialAsset.image.qa === "object" ? socialAsset.image.qa : null;
-    const imageQaStatus = String(imageQa?.status || "");
-    const imageState = imageQaStatus === "passed"
-      ? ((socialAsset?.image?.source === "article_image_fallback" || imageQa?.approval_mode?.includes("fallback"))
-        ? "Fallback editoriale — non una nuova QA fotografica"
-        : imageQa?.approval_mode === "manual_editorial" ? "Approvazione manuale — senza nuova QA"
-        : imageQa?.approval_mode === "manual_editorial_upload" ? "File personale approvato — QA AI non eseguita"
-        : imageQa?.approval_mode === "manual_editorial_after_passed_qa" ? "Approvata dopo QA superata" : "QA superata")
-      : imageQaStatus === "failed"
-        ? "QA fallita"
-        : imageQaStatus === "human_review_required"
-          ? "Revisione richiesta"
-          : socialImageUrl ? "Da verificare" : "Non ancora generata";
-    const imageReason = String(imageQa?.reason || "").trim();
-    const imageSource = String(socialAsset?.image?.source || "");
-    const imageAttempt = Number(socialAsset?.image?.attempt || 0);
-    const canReview = !["publishing", "published"].includes(String(row.status || ""));
-    const canRegeneratePhoto = ["draft", "approved"].includes(String(row.status || ""));
-    const candidate = socialAsset?.manual_image_candidate && typeof socialAsset.manual_image_candidate === "object" ? socialAsset.manual_image_candidate : null;
-    const candidateUrl = /^https:\/\//i.test(String(candidate?.url || "")) ? String(candidate.url) : "";
-    const candidateQa = String(candidate?.qa?.status || "");
-    const candidateAttempts = Number(candidate?.attempt_count || 1);
-    const candidateManualFile = candidate?.source === "manual_upload";
-    const canApproveCandidate = candidate?.manual_approval_allowed === true && socialAsset?.brief?.cover_ready === true;
-    const canCorrectCandidate = candidateQa === "failed" && candidateAttempts < 3;
-    const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
-    const imageMarkup = (socialImageUrl || articleImageUrl || canRegeneratePhoto) ? `
-      <div class="ol-autopilot-archive-item" style="margin-top:10px">
-        <strong>Immagine del post ${esc(row.post_type === "related" ? "OffertaLogica" : "follow-up")}</strong>
-        <small>Stato: ${esc(imageState)}${imageAttempt ? ` · tentativo ${imageAttempt}` : ""}${imageSource ? ` · sorgente ${esc(imageSource)}` : ""}</small>
-        ${imageReason ? `<small>${esc(imageReason)}</small>` : ""}
-        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: carica una tua foto; non verrà riutilizzata automaticamente quella dell’articolo.</small>'}
-        ${canReview ? `<div class="ol-toolbar-group" style="margin-top:8px">
-          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Valuta e approva questa immagine</button>` : ""}
-          ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
-        </div>` : ""}
-        ${canRegeneratePhoto ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
-          <strong>Alternativa fotografica (senza ripubblicare)</strong>
-          <small>La tua fotografia può essere caricata e approvata senza QA estetica AI. La generazione AI è facoltativa; la foto corrente resta invariata fino alla conferma.</small>
-          <div class="ol-field" style="margin-top:8px"><label>Indicazioni per la nuova foto (facoltative)</label><textarea data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. non ripetere la donna anziana seduta in cucina; preferisci un altro gesto o una scena credibile diversa"></textarea></div>
-          <div class="ol-field" style="margin-top:8px"><label>Foto di riferimento per generazione AI (facoltativa)</label><input data-social-reference-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB. La foto guida la nuova generazione, ma non viene pubblicata automaticamente.</small></div>
-          ${articleImageUrl ? `<div class="ol-field" style="margin-top:8px"><label><input data-social-article-reference="${esc(id)}" type="checkbox"> Usa l'immagine approvata dell'articolo come riferimento AI</label><small>Alternativa al file guida: la foto dell'articolo orienta la nuova generazione, senza essere semplicemente riutilizzata.</small></div>` : ""}
-          <div class="ol-field" style="margin-top:8px"><label>Foto da usare direttamente (senza generazione AI)</label><input data-social-manual-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB; l'immagine viene prima mostrata come candidata.</small></div>
-          <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}" ${socialImageUrl && socialAsset?.brief?.cover_ready === true ? "" : "disabled title=\"Generazione AI disponibile dopo la preparazione dell’asset social\""}>Genera alternativa con AI</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-upload="${esc(id)}">Carica foto personale</button></div>
-          ${candidateUrl && socialAsset?.brief?.cover_ready !== true ? '<small>Foto acquisita. Il testo della card non è ancora pronto: l’approvazione sarà disponibile appena completata la preparazione del post.</small>' : ""}
-          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateManualFile ? "File personale pronto da approvare" : candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA estetica non superata: puoi decidere se approvare, se i controlli di sicurezza sono superati" : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
-          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">${candidateManualFile ? "Approva file e componi card (senza QA AI)" : "Approva nuova foto e card"}</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate ? `<small>Approvazione non disponibile: il file non e' validato oppure la fotografia generata non supera i controlli minimi di pertinenza e sicurezza. Correggi o scarta l'anteprima.</small>` : ""}` : ""}
-          <small data-social-image-message="${esc(id)}">La fotografia corrente resta invariata fino all'approvazione. Non cambia l'orario di pubblicazione.</small>
-        </div>` : ""}
-        ${!canReview ? '<small>Post già avviato o pubblicato: non è possibile sostituire la fotografia su Instagram/Facebook. Una nuova pubblicazione richiede una procedura separata per evitare duplicati.</small>' : ""}
-        ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details style="margin-top:8px"><summary>Confronta con immagine articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
-        ${socialCardUrl ? `<details style="margin-top:8px"><summary>Apri card OL Informa composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OL Informa" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
-      </div>` : "";
-
-    return `<details class="ol-cycle-row ol-cycle-row-nested" data-social-plan-item="${esc(id)}">
-      <summary class="ol-cycle-row-summary">
-        <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(destination)}</small></span>
-        <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
-      </summary>
-      <div class="ol-cycle-row-body">
-        <small>${esc(row.theme || "")}</small>
-        ${articleTakeaway ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Sintesi editoriale usata dal post</strong><small>${esc(articleTakeaway)}</small>${copyQaReason ? `<small><b>QA copy:</b> ${esc(copyQaReason)}</small>` : ""}</div>` : ""}
-        ${destinationSolution ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Funzione OffertaLogica usata nel post</strong><small>${esc(destinationSolution)}</small></div>` : ""}
-        ${imageMarkup}
-        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
-        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
-        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        ${["article_followup", "related"].includes(String(row.post_type || "")) && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
-      </div>
-    </details>`;
-  }
-
-  function pendingCarryoverRecord() {
-    const cycle = currentEditorialCycle();
-    return articleHistoryRecords().find((record) => {
-      if (!record?.articleId) return false;
-      if (cycle?.opportunityId && record.opportunityId === cycle.opportunityId) return false;
-      const relatedState = articleStepState(record, "social_related");
-      const publishState = articleStepState(record, "article_publish");
-      return publishState.tone === "success" && relatedState.tone !== "success";
-    }) || null;
-  }
-
-  function renderArticleHistory(section) {
+  function renderSocialPlan(section) {
     const list = section?.querySelector("[data-social-plan-list]");
     const message = section?.querySelector("[data-social-plan-message]");
     if (!list || !message) return;
-    // Con un'anteprima fotografica nuova non richiudere i dettagli che l'editor
-    // aveva aperto: deve poter confrontare e approvare senza cercare la card.
-    const openArticles = new Set([...list.querySelectorAll("details[open][data-article-history]")].map((node) => node.dataset.articleHistory));
-    const openPlanItems = new Set([...list.querySelectorAll("details[open][data-social-plan-item]")].map((node) => node.dataset.socialPlanItem));
-    const records = articleHistoryRecords();
-    if (!records.length) {
-      list.innerHTML = '<p class="ol-muted">Nessun articolo ancora monitorato.</p>';
-      message.textContent = "Lo storico si popolerà quando il primo articolo avrà una bozza o un post collegato.";
-      renderCycleOverview(section);
+    if (!socialPlanItems.length) {
+      list.innerHTML = '<p class="ol-muted">Nessun post statico preparato.</p>';
+      message.textContent = "Il piano verrà popolato insieme alle bozze articolo generate dall’Autopilota.";
       return;
     }
-    list.innerHTML = records.map((record) => {
-      const article = record.article || {};
-      const summary = articleCompletionState(record);
-      const publicUrl = articlePublicUrl(article);
-      const detailLines = [];
-      const articlePublishRun = (record.runs || []).find((run) => String(run?.run_type || "") === "article_publish") || null;
-      if (articlePublishRun?.started_at) detailLines.push(`Pubblicazione ${dateIt(articlePublishRun.started_at)}`);
-      else if (article?.published_at) detailLines.push(`Pubblicazione ${dateIt(article.published_at)}`);
-      const followup = articleRelatedPlanItem(record, "article_followup");
-      const related = articleRelatedPlanItem(record, "related");
-      const carryover = articleStepState(record, "social_related").tone !== "success" && articleStepState(record, "article_publish").tone === "success";
-      return `<details class="ol-cycle-row ol-article-history-row" data-article-history="${esc(record.key)}">
-        <summary class="ol-cycle-row-summary">
-          <span><strong>${esc(article.title || followup?.theme || related?.theme || "Articolo del ciclo")}</strong><small>${esc(detailLines.join(" · ") || (record.opportunityId ? `Opportunità ${record.opportunityId}` : "Cronologia articolo"))}</small></span>
-          <span class="ol-cycle-status-badge ol-cycle-status-${esc(summary.tone)}">${esc(summary.label)}</span>
-        </summary>
-        <div class="ol-cycle-row-body">
-          ${articleTimelineMarkup(record)}
-          ${carryover ? `<div class="ol-cycle-carryover-note"><strong>Da chiudere:</strong> il Post OffertaLogica di questo articolo non risulta ancora completato.</div>` : ""}
-          ${articleResearchMarkup(record)}
-          ${articleDraftMarkup(record)}
-          ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
-          ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
-          ${compactAutomationRuns(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${compactAutomationRuns(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
-        </div>
-      </details>`;
+    list.innerHTML = socialPlanItems.map((row) => {
+      const id = String(row.id || "");
+      const editable = ["draft", "approved", "cancelled"].includes(String(row.status || ""));
+      const destination = row.destination_target
+        ? `${row.destination_target.label} · ${row.destination_target.url_path}`
+        : row.post_type === "article_followup" ? "Articolo collegato" : "—";
+      const statusOptions = [
+        ["draft", "Bozza"], ["approved", "Approvato"], ["cancelled", "Annullato"],
+      ].map(([value, label]) => `<option value="${value}" ${row.status === value ? "selected" : ""}>${label}</option>`).join("");
+      return `<div class="ol-autopilot-archive-item" data-social-plan-item="${esc(id)}">
+        <strong>${esc(row.theme || row.post_type || "Post statico")} · ${esc(socialPlanStatusLabel(row.status))}</strong>
+        <small>${esc(row.post_type || "")} · destinazione: ${esc(destination)}</small>
+        ${row?.source_article_image?.featured_image_url ? `<small>Immagine articolo approvata disponibile per il futuro riuso nel post statico.</small>` : `<small>Immagine articolo non ancora approvata.</small>`}
+        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
+        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
+        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
+        <small>La pubblicazione non parte dal pulsante di questo pannello: in Automatico completo viene eseguita dallo scheduler nello slot previsto.</small>
+      </div>`;
     }).join("");
-    for (const node of list.querySelectorAll("[data-article-history]")) {
-      if (openArticles.has(node.dataset.articleHistory)) node.open = true;
-    }
-    for (const node of list.querySelectorAll("[data-social-plan-item]")) {
-      if (openPlanItems.has(node.dataset.socialPlanItem)) node.open = true;
-    }
-    message.textContent = `${numberIt(records.length)} articoli monitorati. Clicca una riga per vedere lo stato completo del ciclo di quell’articolo.`;
-    renderCycleOverview(section);
-  }
-
-  function schedulerActionLabel(action) {
-    return ({
-      idle: "nessuna azione eseguibile in questo tick",
-      disabled: "scheduler disattivato",
-      research_collect_7: "raccolta Search Console 7 giorni",
-      research_collect_28: "raccolta Search Console 28 giorni",
-      research_collect_90: "raccolta Search Console 90 giorni",
-      research_plan: "ricerca e scelta opportunità completate",
-      article_generation_started: "generazione bozza avviata",
-      article_generation_check: "controllo generazione bozza",
-      article_prepare_orphan_recovered: "slot bloccato recuperato dopo timeout",
-      article_prepare_orphan_completed: "slot concluso: bozza gia pronta e verificata",
-      article_sources_second_search: "seconda ricerca web sullo stesso tema",
-      article_sources_next_topic: "QA fonti fallito due volte: generazione del tema successivo",
-      article_sources_no_eligible_alternative: "nessun altro tema verificabile disponibile",
-      article_sources_retry_start_failed: "nuova ricerca non avviata: intervento necessario",
-      article_generation_failed: "generazione bozza fallita",
-      image_candidate_generated: "immagine articolo generata",
-      image_qa_passed: "QA immagine articolo superata",
-      article_intro_social_copy_generated: "testo social dell’articolo preparato",
-      article_intro_social_card_generated: "card social dell’articolo generata",
-      article_intro_social_ready: "asset social dell’articolo pronto",
-      social_asset_brief_generated: "brief del post social preparato",
-      social_asset_cover_text_generated: "testo della card preparato",
-      social_asset_image_generated: "immagine social generata",
-      social_asset_image_qa_passed: "QA immagine social superata",
-      social_asset_waiting_manual_image_approval: "foto personale caricata: attende approvazione prima della card social",
-      social_asset_image_waiting_editor: "QA fotografica non superata: attende una scelta manuale, senza riutilizzare la copertina",
-      social_asset_card_generated: "card OL Informa generata",
-      social_asset_ready: "asset social pronto",
-      article_publish_waiting_social_retry: "social iniziale in attesa tecnica: riprova automatica",
-      social_followup_waiting_social_retry: "follow-up in attesa tecnica: riprova automatica",
-      social_related_waiting_social_retry: "post OffertaLogica in attesa tecnica: riprova automatica",
-      social_regeneration_waiting: "rigenerazione social in attesa tecnica: riprova automatica",
-      article_published: "articolo pubblicato",
-      article_published_social_check_required: "articolo pubblicato, social da verificare",
-      social_regeneration_published: "rigenerazione social pubblicata",
-      waiting_social_assets: "in attesa degli asset social",
-      background_social_error: "errore social in background",
-      failed: "tick terminato con errore",
-    })[String(action || "")] || String(action || "nessuna azione registrata").replaceAll("_", " ");
-  }
-
-  function schedulerHeartbeatMarkup(cycle, steps) {
-    // Heartbeat globale restituito dal backend: non dipende dal ciclo selezionato.
-    const heartbeat = schedulerGlobalHeartbeat;
-    const currentStep = steps.find((step) => step.tone !== "success") || null;
-    const phase = !cycle ? "Nessun ciclo attivo" : currentStep ? currentStep.title : "Ciclo completo";
-    if (!heartbeat?.at) {
-      return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota</strong><small>Fase corrente: ${esc(phase)}. Il backend non ha ancora registrato un heartbeat globale; verificare il cron.</small></div>`;
-    }
-
-    const lastMs = Date.parse(heartbeat.at);
-    const nextMs = Number.isFinite(lastMs) ? lastMs + (15 * 60 * 1000) : NaN;
-    const now = Date.now();
-    const delayed = Number.isFinite(nextMs) && now > nextMs + (5 * 60 * 1000);
-    const state = heartbeat.ok === false ? "errore" : delayed ? "ritardo da verificare" : "attivo";
-    const nextText = Number.isFinite(nextMs) ? dateIt(new Date(nextMs).toISOString()) : "—";
-    const action = schedulerActionLabel(heartbeat.action);
-    const slot = heartbeat.slot_label ? ` · slot ${heartbeat.slot_label}` : "";
-    const errorText = heartbeat.error ? ` · errore: ${heartbeat.error}` : "";
-    return `<div class="ol-autopilot-archive-item"><strong>Tick Autopilota · ${esc(state)}</strong><small>Ultimo tick effettivo: ${esc(dateIt(heartbeat.at))} · prossimo previsto: ${esc(nextText)}</small><small>Fase corrente: ${esc(phase)} · ultimo esito: ${esc(action)}${esc(slot)}${esc(errorText)}</small></div>`;
-  }
-
-  function renderCycleOverview(section) {
-    const box = section?.querySelector("[data-cycle-overview]");
-    if (!box) return;
-    const cycle = currentEditorialCycle();
-    if (!cycle) {
-      const selected = opportunityRows.find((row) => row.status === "selected" && !row.target_article_id);
-      box.innerHTML = `<strong>Ciclo articolo attuale</strong>${schedulerHeartbeatMarkup(null, [])}${selected
-        ? `<p class="ol-muted">Scelta confermata: ${esc(selected.topic || "Tema senza titolo")}. Nessuna bozza associata al ciclo è ancora visibile nello storico caricato.</p>`
-        : '<p class="ol-muted">Nessun ciclo con articolo collegato risulta nello storico caricato. Controlla il quadro decisionale per il prossimo tema.</p>'}`;
-      renderDecisionHub(section);
-      return;
-    }
-    const steps = [
-      ["research", "Ricerca"],
-      ["article_prepare", "Bozza articolo"],
-      ["article_publish", "Pubblicazione"],
-      ["social_followup", "Follow-up"],
-      ["social_related", "Post OffertaLogica"],
-    ].map(([type, title]) => ({ title, ...cycleRunState(type, cycle) }));
-    const startedAt = cycle.anchor?.started_at || cycle.anchor?.created_at || "";
-    const selectedOpportunity = opportunityRows.find((row) => String(row?.id || "") === String(cycle.opportunityId || ""));
-    const currentTitle = String(cycle.article?.title || selectedOpportunity?.topic || "").trim();
-    const cycleNote = currentTitle
-      ? `Articolo corrente: ${currentTitle}${startedAt ? ` · ricerca del ${dateIt(startedAt)}` : ""}.`
-      : startedAt ? `Ricerca del ${dateIt(startedAt)}. La barra mostra esclusivamente l’avanzamento del nuovo articolo selezionato da questa ricerca.` : "";
-    const carryover = pendingCarryoverRecord();
-    const carryoverTitle = carryover?.article?.title || articleRelatedPlanItem(carryover, "related")?.theme || "Articolo del ciclo precedente";
-    const carryoverState = carryover ? articleStepState(carryover, "social_related") : null;
-    box.innerHTML = `<strong>Ciclo articolo attuale</strong>${cycleNote ? `<small class="ol-cycle-overview-note">${esc(cycleNote)}</small>` : ""}${schedulerHeartbeatMarkup(cycle, steps)}<div class="ol-cycle-steps">${steps.map((step) => `<span class="ol-cycle-step ol-cycle-step-${esc(step.tone)}"><b>${esc(step.title)}</b><small>${esc(step.label)}${step.at ? ` · ${esc(dateIt(step.at))}` : ""}</small></span>`).join("")}</div>${carryover ? `<div class="ol-cycle-carryover"><strong>Da chiudere dal ciclo precedente</strong><small>${esc(carryoverTitle)} · Post OffertaLogica ${esc(carryoverState?.label || "in attesa")}</small></div>` : ""}`;
-    renderDecisionHub(section);
-  }
-
-  function renderSocialPlan(section) {
-    renderArticleHistory(section);
+    message.textContent = `${numberIt(socialPlanItems.length)} post nel piano. In Automatico completo i canali abilitati vengono gestiti dal calendario; negli altri modi restano sotto controllo umano.`;
   }
 
   async function loadSocialPlan(section) {
@@ -1863,61 +817,22 @@
     try {
       const payload = await endpoint("editorial-social-plan");
       socialPlanItems = Array.isArray(payload?.items) ? payload.items : [];
-      socialPlanLoaded = true;
-      socialPlanLoadError = "";
       socialChannels = Array.isArray(payload?.channels) ? payload.channels : [];
       renderSocialPlan(section);
       if (opportunityRows.length) renderOpportunities(section, opportunityRows);
     } catch (error) {
-      socialPlanLoaded = false;
-      socialPlanLoadError = `Piano post non disponibile: ${error.message}`;
-      if (message) message.textContent = socialPlanLoadError;
-      renderDecisionHub(section);
+      if (message) message.textContent = `Piano post non disponibile: ${error.message}`;
     }
-  }
-
-  function automationRunTypeLabel(type) {
-    return ({ research: "Ricerca", article_prepare: "Bozza articolo", article_publish: "Pubblicazione articolo", social_followup: "Follow-up", social_related: "Post OffertaLogica" })[type] || type || "Ciclo";
-  }
-
-  function automationRunStatusDisplay(run) {
-    const stage = String(run?.details?.stage || "");
-    const reason = String(run?.details?.reason || "");
-    if (stage === "skipped" && reason === "no_article_cycle") {
-      return { label: "Saltato", cssStatus: "running" };
-    }
-    if (String(run?.run_type || "") === "article_publish") {
-      const articleId = automationRunArticleId(run);
-      const record = articleId ? articleHistoryRecords().find((item) => item.articleId === articleId) : null;
-      if (String(record?.article?.status || "") === "published") {
-        return { label: "Pubblicato", cssStatus: "success" };
-      }
-    }
-    const state = runStateLabelFromRun(run) || { label: "—", tone: "pending" };
-    const label = ({
-      "completato": "Completato",
-      "errore": "Errore",
-      "in corso": "In corso",
-      "in attesa": "In attesa",
-    })[state.label] || state.label || "—";
-    const cssStatus = state.tone === "success" ? "success" : state.tone === "failed" ? "failed" : "running";
-    return { label, cssStatus };
   }
 
   function renderAutomationRuns(section) {
     const list = section?.querySelector("[data-automation-run-list]");
-    const toolbar = section?.querySelector("[data-automation-run-toolbar]");
-    const toggle = section?.querySelector("[data-automation-run-toggle]");
     if (!list) return;
     if (!automationRuns.length) {
       list.innerHTML = '<p class="ol-muted">Nessun ciclo registrato.</p>';
-      if (toolbar) toolbar.hidden = true;
-      renderCycleOverview(section);
       return;
     }
-    const displayRuns = compactAutomationRuns(automationRuns);
-    const visibleRuns = automationRunsExpanded ? displayRuns : displayRuns.slice(0, 5);
-    list.innerHTML = visibleRuns.map((run) => {
+    list.innerHTML = automationRuns.slice(0, 12).map((run) => {
       const details = run?.details || {};
       const diagnostic = [];
       if (details.stage) diagnostic.push(`fase ${details.stage}`);
@@ -1927,38 +842,23 @@
       if (details.selection_fallback_below_threshold) diagnostic.push("fallback sotto soglia");
       if (run.opportunity_id) diagnostic.push(`opportunità ${run.opportunity_id}`);
       if (run.article_id) diagnostic.push(`articolo ${run.article_id}`);
-      const displayStatus = automationRunStatusDisplay(run);
-      return `<details class="ol-cycle-row">
-        <summary class="ol-cycle-row-summary">
-          <span><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><small>${esc(dateIt(run.started_at || run.created_at))}</small></span>
-          <span class="ol-cycle-status-badge ol-cycle-status-${esc(displayStatus.cssStatus)}">${esc(displayStatus.label)}</span>
-        </summary>
-        <div class="ol-cycle-row-body">
-          ${run.finished_at ? `<small>Fine ${esc(dateIt(run.finished_at))}</small>` : ""}
-          ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
-          ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
-          ${run.last_error ? `<small class="ol-cycle-error">Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
-        </div>
-      </details>`;
+      return `<div class="ol-autopilot-archive-item">
+        <strong>${esc(run.run_type || "ciclo")} · ${esc(run.status || "—")}</strong>
+        <small>Avvio ${esc(dateIt(run.started_at || run.created_at))}${run.finished_at ? ` · fine ${esc(dateIt(run.finished_at))}` : ""}</small>
+        ${diagnostic.length ? `<small>${esc(diagnostic.join(" · "))}</small>` : ""}
+        ${details.selection_reason ? `<small>${esc(details.selection_reason)}</small>` : ""}
+        ${run.last_error ? `<small>Errore: ${esc(run.last_error)}</small>` : `<small>Pubblicazione automatica: ${details.publication_performed ? "sì" : "no"}</small>`}
+      </div>`;
     }).join("");
-    if (toolbar) toolbar.hidden = displayRuns.length <= 5;
-    if (toggle) toggle.textContent = automationRunsExpanded ? "Mostra solo gli ultimi 5" : `Mostra storico (${displayRuns.length})`;
-    renderCycleOverview(section);
   }
 
   async function loadAutomationRuns(section) {
     try {
       const payload = await endpoint("editorial-automation-runs");
       automationRuns = Array.isArray(payload?.runs) ? payload.runs : [];
-      automationLoaded = true;
-      automationLoadError = "";
-      schedulerGlobalHeartbeat = payload?.heartbeat || null;
       renderAutomationRuns(section);
     } catch {
       automationRuns = [];
-      automationLoaded = false;
-      automationLoadError = "Storico automazioni non disponibile: impossibile verificare il ciclo in produzione.";
-      schedulerGlobalHeartbeat = null;
       renderAutomationRuns(section);
     }
   }
@@ -2007,9 +907,9 @@
       return '<span class="ol-opportunity-lock">Articolo già avviato · scelta bloccata</span>';
     }
     if (status === "selected") {
-      return `<button class="ol-button ol-button-primary ol-button-small" type="button" disabled>Scelta confermata</button>`;
+      return `<button class="ol-button ol-button-primary ol-button-small" type="button" disabled>Scelta attiva</button>`;
     }
-    return `<button class="ol-button ol-button-primary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Scegli come prossimo articolo</button>`;
+    return `<button class="ol-button ol-button-primary ol-button-small" type="button" data-opportunity-id="${id}" data-opportunity-status="selected">Scegli questa opportunità</button>`;
   }
 
   function opportunityManagementActions(row) {
@@ -2027,13 +927,13 @@
     const badges = [];
     const manual = manualIdeaMeta(row);
     if (row.status === "selected" && !row.target_article_id) {
-      badges.push('<span class="ol-opportunity-badge is-selected">Scelta confermata</span>');
+      badges.push('<span class="ol-opportunity-badge is-selected">Scelta attiva</span>');
     } else if (plannerMatchesOpportunity(row)) {
-      badges.push('<span class="ol-opportunity-badge is-auto">Previsione planner · non scelta</span>');
+      badges.push('<span class="ol-opportunity-badge is-auto">Scelta automatica</span>');
     }
     if (row.target_article_id) badges.push('<span class="ol-opportunity-badge is-locked">Articolo avviato</span>');
     badges.push(`<span class="ol-opportunity-badge">${esc(opportunityStatusLabel(row.status))}</span>`);
-    badges.push(`<span class="ol-opportunity-badge">${manual ? (manual.promoted_from_research_hint ? "Suggerimento scelto" : `Idea manuale · ${esc(manualIdeaPriorityLabel(manual.priority))}`) : `${esc(opportunityOriginLabel(row))} · ${Number(row.score || 0)}/100`}</span>`);
+    badges.push(`<span class="ol-opportunity-badge">${manual ? `Idea manuale · ${esc(manualIdeaPriorityLabel(manual.priority))}` : `Search Console · ${Number(row.score || 0)}/100`}</span>`);
     return badges.join("");
   }
 
@@ -2045,7 +945,7 @@
     return `<div class="ol-opportunity-details-inner">
       <small><strong>Perché è in lista</strong></small>
       <small>${esc(row.rationale || "Segnale editoriale da valutare.")}</small>
-      ${source ? opportunitySourceDetails(row) : `<small>Origine: ${esc(opportunityOriginLabel(row))}.</small>${opportunitySourceDetails(row)}`}
+      ${source ? opportunitySourceDetails(row) : '<small>Origine: Search Console.</small>'}
       ${queries.length ? `<small><strong>Ricerche collegate</strong></small><small>${esc(queries.join(" · "))}</small>` : ""}
       ${source ? "" : contextPagesMarkup(row.context_pages)}
       <small>Tipo corrente: ${esc(opportunityTypeLabel(row.opportunity_type))} · salvata ${esc(dateIt(row.created_at))}${row.decided_at ? ` · decisione ${esc(dateIt(row.decided_at))}` : ""}</small>
@@ -2061,7 +961,7 @@
     const targetArticleId = String(row.target_article_id || "");
     if (targetArticleId && (row.status !== "selected" || type !== "new_article")) {
       return `<div class="ol-toolbar-group" style="margin-top:8px">
-        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
+        <a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a>
       </div>`;
     }
     if (row.status !== "selected") return "";
@@ -2069,7 +969,7 @@
     const option = (value, label) => `<option value="${value}" ${type === value ? "selected" : ""}>${label}</option>`;
     let followup = '<small>Scegli la destinazione editoriale e salvala prima di procedere.</small>';
     if (type === "new_article") {
-      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione.html?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a><button class="ol-button ol-button-secondary ol-button-small" type="button" data-opportunity-discard-draft="${id}" data-article-id="${esc(targetArticleId)}">Scarta bozza e non pubblicare</button></div><small>Disponibile finché l’articolo è ancora una bozza. Elimina la bozza e rifiuta questo tema senza toccare articoli già pubblicati.</small>` : ""}${articleGenerationMarkup(row)}`;
+      followup = `${targetArticleId ? `<div class="ol-toolbar-group" style="margin-top:8px"><a class="ol-button ol-button-secondary ol-button-small" href="/redazione?scope=mine&amp;status=all&amp;id=${encodeURIComponent(targetArticleId)}">Apri articolo collegato</a></div>` : ""}${articleGenerationMarkup(row)}`;
     } else if (type === "social_only") {
       followup = "<small>Classificata per uso social: in questa fase non viene creato alcun contenuto.</small>";
     } else if (type === "monitor") {
@@ -2102,7 +1002,7 @@
 
     if (!opportunityRows.length) {
       list.innerHTML = '<p class="ol-muted">Nessuna opportunità salvata.</p>';
-      message.textContent = "Le ricerche e le idee possono aggiungere candidati qui: salvarli non significa sceglierli.";
+      message.textContent = "Salva manualmente un segnale dall’analisi quando vuoi conservarlo.";
     } else {
       const statusRank = { selected: 0, pending: 1, deferred: 2, rejected: 3, completed: 4 };
       const visibleRows = [...opportunityRows].sort((left, right) => {
@@ -2115,13 +1015,7 @@
         return String(right?.updated_at || right?.created_at || "").localeCompare(String(left?.updated_at || left?.created_at || ""));
       });
 
-      const previousArchiveOpen = Boolean(list.querySelector("[data-opportunity-archive]")?.open);
-      const currentSelection = visibleRows.filter((row) => row.status === "selected" && !row.target_article_id);
-      const pending = visibleRows.filter((row) => row.status === "pending");
-      const featuredRows = [...currentSelection, ...pending.slice(0, Math.max(0, 3 - currentSelection.length))];
-      const additionalRows = visibleRows.filter((row) => !featuredRows.includes(row));
-      const cardMarkup = (row) => {
-        const index = visibleRows.indexOf(row);
+      list.innerHTML = visibleRows.map((row, index) => {
         const id = String(row.id || "");
         const expanded = expandedOpportunityIds.has(id);
         const queries = opportunityQueryExamples(row).slice(0, 3);
@@ -2149,18 +1043,11 @@
             ${opportunityDetailsMarkup(row)}
           </div>
         </article>`;
-      };
-      const additionalMarkup = additionalRows.length
-        ? `<details data-opportunity-archive class="ol-autopilot-archive-item" ${previousArchiveOpen ? "open" : ""}><summary>Consulta altre ${additionalRows.length} opportunità salvate</summary><div class="ol-autopilot-archive-list">${additionalRows.map(cardMarkup).join("")}</div></details>`
-        : "";
-      const emptyState = featuredRows.length ? "" : '<p class="ol-muted">Nessuna opportunità attiva da valutare.</p>';
-      list.innerHTML = `${emptyState}${featuredRows.map(cardMarkup).join("")}${additionalMarkup}`;
-      message.textContent = `${numberIt(featuredRows.length)} opportunità in evidenza su ${numberIt(opportunityRows.length)} salvate. Le altre restano consultabili senza occupare l'elenco principale. La previsione del planner non conferma un tema. Per decidere usa «Scegli come prossimo articolo».`;
+      }).join("");
+      message.textContent = `${numberIt(opportunityRows.length)} opportunità visibili. Se non scegli nulla, l’Autopilota mantiene la propria priorità; puoi scegliere un’altra opportunità finché l’articolo non è stato avviato.`;
     }
 
     if (lastAnalysisPayload) renderAnalysis(section, lastAnalysisPayload);
-    if (socialPlanItems.length) renderSocialPlan(section);
-    renderDecisionHub(section);
   }
 
   async function loadOpportunities(section, quiet = false) {
@@ -2169,49 +1056,24 @@
     if (!quiet && message) message.textContent = "Caricamento opportunità…";
     try {
       const payload = await endpoint("editorial-opportunities");
-      opportunitiesLoaded = true;
-      opportunityLoadError = "";
       if (section.isConnected) renderOpportunities(section, payload?.opportunities || []);
     } catch (error) {
-      opportunitiesLoaded = false;
-      opportunityLoadError = String(error.message || "Errore caricamento");
       if (message) message.textContent = `Opportunità non disponibili: ${error.message}`;
-      renderDecisionHub(section);
     }
-  }
-
-  function handleOpportunityChange(event) {
-    const profileSelect = event.target.closest("[data-article-image-profile]");
-    if (!profileSelect) return;
-    const id = profileSelect.dataset.articleImageProfile || "";
-    const hint = event.currentTarget.querySelector(`[data-article-image-profile-hint="${id}"]`);
-    if (hint) hint.textContent = articleImageProfileHint(profileSelect.value || "auto");
   }
 
   async function handleOpportunityAction(event) {
     const section = event.currentTarget;
     const manualSaveButton = event.target.closest("[data-manual-idea-save]");
-    const researchHintSaveButton = event.target.closest("[data-research-hint-save]");
-    const researchHintArchiveButton = event.target.closest("[data-research-hint-archive]");
-    const researchHintSelectButton = event.target.closest("[data-research-hint-select]");
     const manualCancelButton = event.target.closest("[data-manual-idea-cancel]");
     const manualEditButton = event.target.closest("[data-manual-idea-edit]");
     const plannerButton = event.target.closest("[data-planner-preview]");
-    const radarSelectButton = event.target.closest("[data-radar-select]");
-    const discardDraftButton = event.target.closest("[data-opportunity-discard-draft]");
     const generateArticleButton = event.target.closest("[data-article-generate]");
-    const resumeAutomaticButton = event.target.closest("[data-resume-automatic-cycle]");
     const generateImageButton = event.target.closest("[data-article-image-generate]");
     const uploadImageButton = event.target.closest("[data-article-image-upload]");
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
-    const socialImageGenerateButton = event.target.closest("[data-social-image-generate]");
-    const socialImageUploadButton = event.target.closest("[data-social-image-upload]");
-    const socialImageCandidateButton = event.target.closest("[data-social-image-candidate]");
-    const socialImageCorrectButton = event.target.closest("[data-social-image-correct]");
-    const socialImageReviewButton = event.target.closest("[data-social-image-review]");
-    const socialPlanRegenerateButton = event.target.closest("[data-social-plan-regenerate]");
     const saveButton = event.target.closest("[data-save-opportunity]");
     const toggleButton = event.target.closest("[data-opportunity-toggle]");
     const statusButton = event.target.closest("[data-opportunity-id][data-opportunity-status]");
@@ -2226,103 +1088,6 @@
     const updateCompleteButton = event.target.closest("[data-update-complete]");
     const updateImpactButton = event.target.closest("[data-update-impact-check]");
     const message = section.querySelector("[data-opportunity-message]");
-    const decisionTarget = event.target.closest("[data-decision-target]");
-    const decisionOpenSocialPhoto = event.target.closest("[data-decision-open-social-photo]");
-    const decisionOpenOpportunity = event.target.closest("[data-decision-open-opportunity]");
-    const decisionImageUploadButton = event.target.closest("[data-decision-image-upload]");
-    const decisionImageApproveButton = event.target.closest("[data-decision-image-approve]");
-    if (decisionImageUploadButton) {
-      const id = String(decisionImageUploadButton.dataset.decisionImageUpload || "");
-      const fileInput = section.querySelector(`[data-decision-image-file="${id}"]`);
-      const altInput = section.querySelector(`[data-decision-image-alt="${id}"]`);
-      const imageMessage = section.querySelector("[data-decision-image-message]");
-      const row = opportunityRows.find((item) => String(item?.id || "") === id);
-      if (!row?.target_article_id || !id || decisionImageUploadButton.disabled) return;
-      if (!fileInput?.files?.[0]) {
-        if (imageMessage) imageMessage.textContent = "Seleziona prima un file immagine.";
-        return;
-      }
-      decisionImageUploadButton.disabled = true;
-      if (imageMessage) imageMessage.textContent = "Caricamento della tua immagine…";
-      try {
-        const imageUrl = await uploadArticleImageFile(fileInput.files[0], id);
-        await endpoint("set-editorial-article-image-candidate", {
-          method: "POST",
-          body: { id, image_url: imageUrl, alt_text: altInput?.value || "" },
-        });
-        decisionImageNotice = { articleId: String(row.target_article_id), message: "Immagine personale caricata. Premi «Approva e usa la mia immagine» per collegarla alla bozza." };
-        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
-      } catch (error) {
-        decisionImageNotice = { articleId: String(row.target_article_id), message: `Caricamento non completato: ${error.message}` };
-        if (imageMessage) imageMessage.textContent = decisionImageNotice.message;
-        decisionImageUploadButton.disabled = false;
-      }
-      return;
-    }
-    if (decisionImageApproveButton) {
-      const id = String(decisionImageApproveButton.dataset.decisionImageApprove || "");
-      const row = opportunityRows.find((item) => String(item?.id || "") === id);
-      const candidate = row?.evidence?.article_image?.candidate;
-      const imageMessage = section.querySelector("[data-decision-image-message]");
-      const altInput = section.querySelector(`[data-decision-image-alt="${id}"]`);
-      if (!id || !row?.target_article_id || !candidate?.url || decisionImageApproveButton.disabled) return;
-      if (!window.confirm("Confermi di usare questa immagine come copertina dell’articolo, sostituendo quella eventualmente presente?")) return;
-      decisionImageApproveButton.disabled = true;
-      if (imageMessage) imageMessage.textContent = "Approvazione e collegamento dell'immagine alla bozza…";
-      try {
-        await endpoint("approve-editorial-article-image", {
-          method: "POST", body: { id, alt_text: altInput?.value || "" },
-        });
-        decisionImageNotice = { articleId: String(row.target_article_id), message: "Immagine approvata e collegata alla bozza. Puoi sostituirla ancora quando vuoi." };
-        await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
-      } catch (error) {
-        decisionImageNotice = { articleId: String(row.target_article_id), message: `Approvazione non completata: ${error.message}` };
-        if (imageMessage) imageMessage.textContent = decisionImageNotice.message;
-        decisionImageApproveButton.disabled = false;
-      }
-      return;
-    }
-    if (decisionTarget) {
-      const target = decisionTarget.dataset.decisionTarget;
-      if (target === "refresh") {
-        if (decisionTarget.disabled) return;
-        decisionTarget.disabled = true;
-        try {
-          await Promise.allSettled([loadOpportunities(section, true), loadPlannerPreview(section, true), loadAutomationRuns(section), loadSocialPlan(section)]);
-        } finally { decisionTarget.disabled = false; }
-        return;
-      }
-      const stage = section.querySelector(target === "research" ? "[data-research-stage]" : target === "ideas" ? "[data-ideas-stage]" : "[data-opportunity-stage]");
-      if (stage) { stage.open = true; stage.scrollIntoView({ behavior: "smooth", block: "start" }); }
-      return;
-    }
-    if (decisionOpenSocialPhoto) {
-      const id = String(decisionOpenSocialPhoto.dataset.decisionOpenSocialPhoto || "");
-      const post = [...section.querySelectorAll("[data-social-plan-item]")].find((node) => node.dataset.socialPlanItem === id);
-      const archive = post?.closest("[data-article-history]");
-      if (archive) archive.open = true;
-      if (post) {
-        post.open = true;
-        post.scrollIntoView({ behavior: "smooth", block: "center" });
-        post.querySelector(`[data-social-manual-file="${id}"]`)?.focus({ preventScroll: true });
-      } else {
-        const note = section.querySelector("[data-social-plan-message]");
-        if (note) note.textContent = "Il post non è presente nello storico caricato: aggiorna il piano social.";
-      }
-      return;
-    }
-    if (decisionOpenOpportunity) {
-      const id = String(decisionOpenOpportunity.dataset.decisionOpenOpportunity || "");
-      const stage = section.querySelector("[data-opportunity-stage]");
-      if (stage) stage.open = true;
-      if (id) expandedOpportunityIds.add(id);
-      renderOpportunities(section, opportunityRows);
-      const card = [...section.querySelectorAll("[data-opportunity-card]")].find((node) => node.dataset.opportunityCard === id);
-      const archive = card?.closest("[data-opportunity-archive]");
-      if (archive) archive.open = true;
-      (card || stage)?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
 
     if (toggleButton) {
       const id = toggleButton.dataset.opportunityToggle || "";
@@ -2330,79 +1095,6 @@
       if (expandedOpportunityIds.has(id)) expandedOpportunityIds.delete(id);
       else expandedOpportunityIds.add(id);
       renderOpportunities(section, opportunityRows);
-      return;
-    }
-
-    if (researchHintSaveButton) {
-      const hintMessage = section.querySelector("[data-research-hint-message]");
-      const topicInput = section.querySelector("[data-research-hint-topic]");
-      const depthInput = section.querySelector("[data-research-hint-depth]");
-      const topic = String(topicInput?.value || "").trim();
-      const depth = String(depthInput?.value || "normal");
-      if (topic.length < 3) {
-        if (hintMessage) hintMessage.textContent = "Inserisci un tema di almeno 3 caratteri.";
-        return;
-      }
-      researchHintSaveButton.disabled = true;
-      if (hintMessage) hintMessage.textContent = "Inserimento del tema nelle ricerche…";
-      try {
-        const payload = await endpoint("create-editorial-research-hint", { method: "POST", body: { topic, depth } });
-        if (topicInput) topicInput.value = "";
-        if (depthInput) depthInput.value = "normal";
-        if (hintMessage) hintMessage.textContent = payload?.result?.created === false
-          ? "Questo tema è già presente nelle ricerche."
-          : "Tema inserito. Verrà validato nella prossima scansione Radar; puoi avviare una scansione manuale se vuoi valutarlo subito.";
-        await loadResearchRadar(section);
-      } catch (error) {
-        if (hintMessage) hintMessage.textContent = `Tema non inserito: ${error.message}`;
-      } finally {
-        researchHintSaveButton.disabled = false;
-      }
-      return;
-    }
-
-    if (researchHintSelectButton) {
-      const id = researchHintSelectButton.dataset.researchHintSelect || "";
-      const hintMessage = section.querySelector("[data-research-hint-message]");
-      if (!id || researchHintSelectButton.disabled) return;
-      const hint = (lastResearchRadarPayload?.research_hints || []).find((row) => String(row.id || "") === id);
-      const review = hint?.latest_review || null;
-      const previous = opportunityRows.find((row) => row.status === "selected" && !row.target_article_id);
-      const warning = !review
-        ? "Questo tema non è ancora stato verificato dal Radar. Vuoi sceglierlo comunque per il prossimo articolo?"
-        : ["SKIP_DUPLICATE", "UPDATE_EXISTING", "INSUFFICIENT_SIGNAL"].includes(String(review.verdict || ""))
-          ? `Il Radar ha segnalato “${researchHintVerdictLabel(review.verdict)}”. Vuoi comunque scegliere questo tema? I controlli editoriali restano obbligatori.`
-          : null;
-      if (warning && !window.confirm(warning)) return;
-      if (previous && !window.confirm(`Sostituire la scelta attiva “${previous.topic || "opportunità precedente"}” con “${hint?.topic || "questo tema"}”?`)) return;
-      researchHintSelectButton.disabled = true;
-      if (hintMessage) hintMessage.textContent = "Salvataggio della tua scelta editoriale…";
-      try {
-        await endpoint("select-editorial-research-hint", { method: "POST", body: { id } });
-        if (hintMessage) hintMessage.textContent = "Scelta salvata: questo tema precede Radar e Search Console per il prossimo articolo non ancora avviato.";
-        await loadResearchRadar(section);
-        await loadOpportunities(section, true);
-        await loadPlannerPreview(section, true);
-      } catch (error) {
-        if (hintMessage) hintMessage.textContent = `Scelta non completata: ${error.message}`;
-        researchHintSelectButton.disabled = false;
-      }
-      return;
-    }
-
-    if (researchHintArchiveButton) {
-      const id = researchHintArchiveButton.dataset.researchHintArchive || "";
-      const hintMessage = section.querySelector("[data-research-hint-message]");
-      if (!id || researchHintArchiveButton.disabled) return;
-      researchHintArchiveButton.disabled = true;
-      try {
-        await endpoint("archive-editorial-research-hint", { method: "POST", body: { id } });
-        if (hintMessage) hintMessage.textContent = "Tema rimosso dalle prossime ricerche Radar.";
-        await loadResearchRadar(section);
-      } catch (error) {
-        if (hintMessage) hintMessage.textContent = `Tema non rimosso: ${error.message}`;
-        researchHintArchiveButton.disabled = false;
-      }
       return;
     }
 
@@ -2447,41 +1139,6 @@
       return;
     }
 
-    if (radarSelectButton) {
-      const radarKey = radarSelectButton.dataset.radarSelect || "";
-      if (!radarKey || radarSelectButton.disabled) return;
-      if (!window.confirm("Usare questo candidato Radar come prossimo articolo? La scelta manuale avrà precedenza fino all’avvio della bozza.")) return;
-      radarSelectButton.disabled = true;
-      if (message) message.textContent = "Salvataggio della scelta Radar…";
-      try {
-        await endpoint("select-editorial-radar-candidate", { method: "POST", body: { radar_key: radarKey } });
-        if (message) message.textContent = "Candidato Radar selezionato manualmente.";
-        await Promise.all([loadOpportunities(section, true), loadPlannerPreview(section, true), loadResearchRadar(section)]);
-      } catch (error) {
-        radarSelectButton.disabled = false;
-        if (message) message.textContent = `Scelta Radar non salvata: ${error.message}`;
-      }
-      return;
-    }
-
-    if (discardDraftButton) {
-      const id = discardDraftButton.dataset.opportunityDiscardDraft || "";
-      const articleId = discardDraftButton.dataset.articleId || "";
-      if (!id || !articleId || discardDraftButton.disabled) return;
-      if (!window.confirm("Scartare definitivamente questa bozza e rifiutare il tema per il ciclo corrente? Questa operazione non tocca articoli già pubblicati.")) return;
-      discardDraftButton.disabled = true;
-      if (message) message.textContent = "Eliminazione della bozza e rifiuto del tema…";
-      try {
-        await endpoint("discard-editorial-draft-opportunity", { method: "POST", body: { id, article_id: articleId } });
-        if (message) message.textContent = "Bozza eliminata e tema rifiutato. Ora puoi scegliere il candidato Radar corretto.";
-        await Promise.all([loadOpportunities(section, true), loadPlannerPreview(section, false), loadAutomationRuns(section)]);
-      } catch (error) {
-        discardDraftButton.disabled = false;
-        if (message) message.textContent = `Bozza non scartata: ${error.message}`;
-      }
-      return;
-    }
-
     if (plannerButton) {
       const plannerMessage = section.querySelector("[data-planner-message]");
       if (plannerButton.disabled) return;
@@ -2500,7 +1157,6 @@
       const id = generateImageButton.dataset.articleImageGenerate || "";
       const imageMessage = section.querySelector(`[data-article-image-message="${id}"]`);
       const guidance = section.querySelector(`[data-article-image-guidance="${id}"]`)?.value || "";
-      const generationProfile = section.querySelector(`[data-article-image-profile="${id}"]`)?.value || "auto";
       const row = opportunityRows.find((item) => String(item.id || "") === id);
       const candidate = row?.evidence?.article_image?.candidate;
       if (!id || generateImageButton.disabled) return;
@@ -2508,9 +1164,7 @@
       generateImageButton.disabled = true;
       if (imageMessage) imageMessage.textContent = "Generazione immagine fotografica HD in corso… può richiedere alcuni minuti.";
       try {
-        const referenceFile = section.querySelector(`[data-article-reference-file="${id}"]`)?.files?.[0] || null;
-        const referenceUrl = referenceFile ? await uploadReferenceImageFile(referenceFile, id) : "";
-        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance, generation_profile: generationProfile, direction_mode: guidance.trim() ? "editor" : "auto", reference_image_url: referenceUrl } });
+        await endpoint("generate-editorial-article-image", { method: "POST", body: { id, guidance } });
         if (imageMessage) imageMessage.textContent = "Nuova anteprima pronta. Verificala, modifica se serve il testo alternativo e approvala solo se ti convince.";
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section)]);
       } catch (error) {
@@ -2586,35 +1240,13 @@
       return;
     }
 
-    if (resumeAutomaticButton) {
-      const id = resumeAutomaticButton.dataset.resumeAutomaticCycle || "";
-      if (!id || resumeAutomaticButton.disabled) return;
-      if (!window.confirm("Riconsegnare la versione corrente all’Autopilota? Da questo momento il ciclo automatico userà questa bozza. Se la modifichi di nuovo, dovrai ripristinare nuovamente l’automatico.")) return;
-      resumeAutomaticButton.disabled = true;
-      if (message) message.textContent = "Ripristino del ciclo automatico sulla versione corrente…";
-      try {
-        const payload = await endpoint("resume-editorial-automatic-cycle", { method: "POST", body: { id } });
-        const released = Number(payload?.result?.released_skipped_publish_runs || 0);
-        if (message) message.textContent = released > 0
-          ? "Automatico ripristinato. Lo slot di pubblicazione già saltato è stato riaperto: il prossimo tick può riprendere il ciclo."
-          : "Automatico ripristinato. Il prossimo passaggio previsto dal calendario userà questa versione.";
-        await Promise.all([loadOpportunities(section, true), loadAutomationRuns(section)]);
-      } catch (error) {
-        resumeAutomaticButton.disabled = false;
-        if (message) message.textContent = `Automatico non ripristinato: ${error.message}`;
-      }
-      return;
-    }
-
     if (generateArticleButton) {
       const id = generateArticleButton.dataset.articleGenerate || "";
       if (!id || generateArticleButton.disabled) return;
       const row = opportunityRows.find((item) => String(item.id || "") === id);
       const existingJob = row?.evidence?.article_generation_job;
       const jobRunning = Boolean(existingJob?.response_id && ["queued", "in_progress"].includes(String(existingJob.status || "")));
-      const revisionInput = section.querySelector(`[data-article-revision-notes="${id}"]`);
-      const revisionNotes = String(revisionInput?.value || "").trim();
-      if (!jobRunning && row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza usando quella attuale come base? Le eventuali modifiche manuali verranno mantenute e le indicazioni inserite saranno applicate dopo un nuovo controllo delle fonti.")) return;
+      if (!jobRunning && row?.evidence?.article_generation && !window.confirm("Rigenerare la bozza completa? È consentito solo se la bozza non è stata modificata manualmente dopo l’ultima generazione.")) return;
       const platforms = [...section.querySelectorAll(`input[data-package-platform="${id}"]:checked`)].map((input) => input.value);
       generateArticleButton.disabled = true;
       if (message) message.textContent = jobRunning ? "Riprendo il controllo della generazione in background…" : "Avvio ricerca fonti e generazione editoriale in background…";
@@ -2624,17 +1256,10 @@
           const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
           result = check?.result;
         } else {
-          const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms, revision_notes: revisionNotes } });
+          const payload = await endpoint("generate-editorial-article-package", { method: "POST", body: { id, platforms } });
           result = payload?.result;
         }
-        const browserCheckStarted = Date.now();
         while (result?.pending) {
-          // Il lavoro resta sul server; non bloccare indefinitamente la UI.
-          if (Date.now() - browserCheckStarted > 20 * 60 * 1000) {
-            if (message) message.textContent = "Generazione ancora in verifica: il controllo continua lato server. Lo stato verra aggiornato dalla Redazione; non avviare un nuovo job.";
-            await Promise.all([loadOpportunities(section, true), loadAutomationRuns(section)]);
-            return;
-          }
           if (message) message.textContent = result.status === "queued"
             ? "Generazione avviata e in coda. La pagina controlla automaticamente lo stato…"
             : "Ricerca web e generazione editoriale in corso in background…";
@@ -2642,153 +1267,13 @@
           const check = await endpoint("check-editorial-article-package", { method: "POST", body: { id } });
           result = check?.result;
         }
-        if (message) message.textContent = revisionNotes
-          ? `Revisione completata: bozza rigenerata con le tue indicazioni, ${Number(result?.qa?.sources_count || 0)} fonti verificate. Resta in bozza fino allo slot di pubblicazione.`
-          : `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici. La pubblicazione segue modalità e calendario Autopilota.`;
+        if (message) message.textContent = `Bozza completa preparata: ${Number(result?.qa?.sources_count || 0)} fonti usate dalla ricerca, ${Number(result?.qa?.static_posts_count || 0)} post statici. La pubblicazione segue modalità e calendario Autopilota.`;
         await Promise.all([loadOpportunities(section, true), loadSocialPlan(section), loadAutomationRuns(section)]);
       } catch (error) {
         generateArticleButton.disabled = false;
         const errorText = `Generazione non completata: ${error.message}`;
         if (message) message.textContent = errorText;
         await loadAutomationRuns(section).catch(() => {});
-      }
-      return;
-    }
-
-    if (socialImageUploadButton) {
-      const id = socialImageUploadButton.dataset.socialImageUpload || "";
-      const file = section.querySelector(`[data-social-manual-file="${id}"]`)?.files?.[0];
-      const notice = section.querySelector(`[data-social-image-message="${id}"]`);
-      if (!id || socialImageUploadButton.disabled) return;
-      if (!file) { if (notice) notice.textContent = "Seleziona prima un file fotografico."; return; }
-      if (socialPlanItems.find((item) => item.id === id)?.social_asset?.manual_image_candidate?.url
-          && !window.confirm("Sostituire la candidata precedente? La foto corrente rimane invariata.")) return;
-      socialImageUploadButton.disabled = true;
-      try {
-        const imageUrl = await uploadReferenceImageFile(file, id);
-        await endpoint("set-editorial-social-image-candidate", { method: "POST", body: { id, image_url: imageUrl } });
-        await loadSocialPlan(section);
-        const message = section.querySelector("[data-social-plan-message]");
-        if (message) message.textContent = "Fotografia caricata come candidata. Non e' stata eseguita una QA AI: verifica e approva manualmente.";
-      } catch (error) {
-        socialImageUploadButton.disabled = false;
-        if (notice) notice.textContent = `Caricamento non completato: ${error.message}`;
-      }
-      return;
-    }
-
-    if (socialImageGenerateButton) {
-      const id = socialImageGenerateButton.dataset.socialImageGenerate || "";
-      if (!id || socialImageGenerateButton.disabled) return;
-      const guidance = section.querySelector(`[data-social-image-guidance="${id}"]`)?.value || "";
-      const referenceFile = section.querySelector(`[data-social-reference-file="${id}"]`)?.files?.[0] || null;
-      const useArticleReference = !referenceFile && section.querySelector(`[data-social-article-reference="${id}"]`)?.checked === true;
-      const current = socialPlanItems.find((item) => item.id === id);
-      if (current?.social_asset?.manual_image_candidate?.url && !window.confirm("Sostituire la nuova anteprima? La fotografia attualmente in uso restera' invariata finche' non approvi quella nuova.")) return;
-      socialImageGenerateButton.disabled = true;
-      const notice = section.querySelector(`[data-social-image-message="${id}"]`);
-      if (notice) notice.textContent = "Creazione e verifica della nuova fotografia in corso…";
-      try {
-        const referenceUrl = referenceFile ? await uploadReferenceImageFile(referenceFile, id) : "";
-        await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, guidance, reference_image_url: referenceUrl, use_article_image_reference: useArticleReference } });
-        await loadSocialPlan(section);
-        const message = section.querySelector("[data-social-plan-message]");
-        if (message) message.textContent = "Nuova fotografia candidata pronta: controllala e approvala soltanto se ti convince.";
-      } catch (error) {
-        socialImageGenerateButton.disabled = false;
-        if (notice) notice.textContent = `Fotografia non generata: ${error.message}`;
-      }
-      return;
-    }
-
-    if (socialImageCorrectButton) {
-      const id = socialImageCorrectButton.dataset.socialImageCorrect || "";
-      if (!id || socialImageCorrectButton.disabled) return;
-      const current = socialPlanItems.find((item) => item.id === id);
-      const candidate = current?.social_asset?.manual_image_candidate;
-      if (!candidate?.url || candidate.qa?.status !== "failed" || Number(candidate.attempt_count || 1) >= 3) return;
-      socialImageCorrectButton.disabled = true;
-      const notice = section.querySelector(`[data-social-image-message="${id}"]`);
-      if (notice) notice.textContent = "Correzione della fotografia in corso, sulla base della QA…";
-      try {
-        await endpoint("generate-editorial-social-image-candidate", { method: "POST", body: { id, auto_correct: true, based_on: candidate.url } });
-        await loadSocialPlan(section);
-        const message = section.querySelector("[data-social-plan-message]");
-        if (message) message.textContent = "Correzioni concluse. La fotografia attuale resta invariata finché non approvi la candidata.";
-      } catch (error) {
-        await loadSocialPlan(section).catch(() => {});
-        const message = section.querySelector("[data-social-plan-message]");
-        if (message) message.textContent = `Correzione interrotta: ${error.message}. L'immagine già approvata è invariata.`;
-      }
-      return;
-    }
-
-    if (socialImageCandidateButton) {
-      const id = socialImageCandidateButton.dataset.socialImageCandidate || "";
-      const decision = socialImageCandidateButton.dataset.socialCandidateDecision || "";
-      if (!id || !["approve", "discard"].includes(decision) || socialImageCandidateButton.disabled) return;
-      if (decision === "approve") {
-        const candidate = socialPlanItems.find((item) => item.id === id)?.social_asset?.manual_image_candidate;
-        const warning = candidate?.source === "manual_upload"
-          ? "Approvare il file caricato senza una QA fotografica AI e ricomporre la card? Non ripubblica il post."
-          : candidate?.qa?.status === "failed"
-          ? `La QA estetica non ha approvato la fotografia: ${candidate.qa.reason || "qualita' discutibile"}. Vuoi approvarla comunque come scelta editoriale? La decisione sara' registrata. Non cambia il calendario ne' pubblica subito.`
-          : "Approvare la nuova fotografia e ricomporre la card? Non ripubblica il post e non modifica il calendario.";
-        if (!window.confirm(warning)) return;
-      }
-      socialImageCandidateButton.disabled = true;
-      const message = section.querySelector("[data-social-plan-message]");
-      if (message) message.textContent = decision === "approve" ? "Composizione della nuova card…" : "Scarto della fotografia candidata…";
-      try {
-        await endpoint("decide-editorial-social-image-candidate", { method: "POST", body: { id, decision } });
-        await loadSocialPlan(section);
-        if (message) message.textContent = decision === "approve" ? "Nuova foto e card approvate. Nessuna ripubblicazione eseguita." : "Anteprima scartata: la foto originale e' rimasta invariata.";
-      } catch (error) {
-        socialImageCandidateButton.disabled = false;
-        if (message) message.textContent = `Operazione non eseguita: ${error.message}`;
-      }
-      return;
-    }
-
-    if (socialImageReviewButton) {
-      const id = socialImageReviewButton.dataset.socialImageReview || "";
-      const decision = socialImageReviewButton.dataset.socialImageDecision || "";
-      if (!id || !["approve", "use_article_image"].includes(decision) || socialImageReviewButton.disabled) return;
-      const confirmText = decision === "approve"
-        ? "Approvare manualmente questa immagine social? La card OL Informa verrà composta subito usando questa immagine."
-        : "Usare l’immagine già approvata dell’articolo per questo post? La card OL Informa verrà composta subito su quella base.";
-      if (!window.confirm(confirmText)) return;
-      socialImageReviewButton.disabled = true;
-      const socialMessage = section.querySelector("[data-social-plan-message]");
-      if (socialMessage) socialMessage.textContent = decision === "approve"
-        ? "Approvazione manuale dell’immagine social e composizione card…"
-        : "Imposto l’immagine dell’articolo come fallback e compongo la card…";
-      try {
-        await endpoint("review-editorial-social-image", { method: "POST", body: { id, decision } });
-        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
-        if (socialMessage) socialMessage.textContent = "Immagine social validata e card OL Informa pronta. Se lo slot era già passato senza pubblicazione, l’Autopilota riprende automaticamente al prossimo tick.";
-      } catch (error) {
-        if (socialMessage) socialMessage.textContent = `Immagine social non aggiornata: ${error.message}`;
-        socialImageReviewButton.disabled = false;
-      }
-      return;
-    }
-
-    if (socialPlanRegenerateButton) {
-      const id = socialPlanRegenerateButton.dataset.socialPlanRegenerate || "";
-      if (!id || socialPlanRegenerateButton.disabled) return;
-      const warning = "Procedi solo se hai già eliminato manualmente le vecchie pubblicazioni di questo post da Facebook e Instagram. Il testo social esistente verrà mantenuto: la rigenerazione verrà accodata e l’Autopilota completerà foto, QA, card e ripubblicazione senza una richiesta lunga nel browser. Continuare?";
-      if (!window.confirm(warning)) return;
-      socialPlanRegenerateButton.disabled = true;
-      const socialMessage = section.querySelector("[data-social-plan-message]");
-      if (socialMessage) socialMessage.textContent = "Rigenerazione accodata: l’Autopilota completerà automaticamente foto, QA, card e ripubblicazione nei prossimi heartbeat…";
-      try {
-        await endpoint("regenerate-editorial-social-plan-item", { method: "POST", body: { id } });
-        await Promise.all([loadSocialPlan(section), loadAutomationRuns(section)]);
-        if (socialMessage) socialMessage.textContent = "Rigenerazione presa in carico. Non serve lasciare aperta la pagina: lo stato verrà aggiornato dagli heartbeat dell’Autopilota.";
-      } catch (error) {
-        if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
-        socialPlanRegenerateButton.disabled = false;
       }
       return;
     }
@@ -2828,8 +1313,8 @@
         });
         const created = Boolean(payload?.result?.created);
         if (message) message.textContent = created
-          ? "Candidato salvato, ma NON scelto. Per confermarlo usa «Scegli come prossimo articolo» nella lista Candidati."
-          : "Questo candidato è già salvato: verifica il suo stato nella lista Candidati.";
+          ? "Opportunità salvata in attesa di decisione manuale."
+          : "Questa opportunità era già stata salvata per lo snapshot corrente.";
         await loadOpportunities(section, true);
         await loadPlannerPreview(section, true);
       } catch (error) {
@@ -3099,78 +1584,6 @@
     }
   }
 
-  function analysisSignalMatches(signal) {
-    const score = Number(signal?.score || 0);
-    if (analysisScoreFilter === "40plus" && score < 40) return false;
-    if (analysisScoreFilter === "30to39" && (score < 30 || score >= 40)) return false;
-    if (analysisScoreFilter === "under30" && score >= 30) return false;
-    if (!analysisSearchTerm) return true;
-
-    const haystack = [
-      signal?.topic,
-      signal?.editorial_brief?.article_angle,
-      ...(Array.isArray(signal?.query_examples) ? signal.query_examples : []),
-      ...(Array.isArray(signal?.page_urls) ? signal.page_urls : []),
-    ].filter(Boolean).join(" ").toLocaleLowerCase("it");
-    return haystack.includes(analysisSearchTerm);
-  }
-
-  function updateAnalysisPagination(section, filteredCount, totalCount) {
-    const pageCount = Math.max(1, Math.ceil(filteredCount / ANALYSIS_PAGE_SIZE));
-    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
-
-    const summary = section.querySelector("[data-signal-page-summary]");
-    if (summary) {
-      const filterNote = filteredCount === totalCount
-        ? `${numberIt(totalCount)} segnali`
-        : `${numberIt(filteredCount)} di ${numberIt(totalCount)} segnali`;
-      summary.textContent = `${filterNote} · ${ANALYSIS_PAGE_SIZE} per pagina · pagina ${analysisPage} di ${pageCount}`;
-    }
-
-    section.querySelectorAll('[data-signal-page="prev"]').forEach((button) => {
-      button.disabled = analysisPage <= 1 || filteredCount === 0;
-    });
-    section.querySelectorAll('[data-signal-page="next"]').forEach((button) => {
-      button.disabled = analysisPage >= pageCount || filteredCount === 0;
-    });
-
-    const hasSignals = totalCount > 0;
-    const controls = section.querySelector("[data-signal-controls]");
-    const top = section.querySelector("[data-signal-pagination-top]");
-    const bottom = section.querySelector("[data-signal-pagination-bottom]");
-    if (controls) controls.hidden = !hasSignals;
-    if (top) top.hidden = !hasSignals;
-    if (bottom) bottom.hidden = !hasSignals;
-
-    return pageCount;
-  }
-
-  function handleAnalysisNavigation(event) {
-    const section = event.currentTarget;
-    const pageButton = event.target.closest("[data-signal-page]");
-    const jumpButton = event.target.closest("[data-jump-opportunities]");
-    const historyToggle = event.target.closest("[data-automation-run-toggle]");
-
-    if (historyToggle) {
-      automationRunsExpanded = !automationRunsExpanded;
-      renderAutomationRuns(section);
-      return;
-    }
-    if (jumpButton) {
-      const target = section.querySelector("[data-opportunity-stage]");
-      if (target?.tagName === "DETAILS") target.open = true;
-      target?.scrollIntoView({ behavior: "smooth", block: "start" });
-      return;
-    }
-    if (!pageButton || pageButton.disabled || !lastAnalysisPayload) return;
-
-    const direction = pageButton.dataset.signalPage;
-    if (direction === "prev") analysisPage -= 1;
-    if (direction === "next") analysisPage += 1;
-    renderAnalysis(section, lastAnalysisPayload);
-    section.querySelector("[data-signal-pagination-top]")?.scrollIntoView({ behavior: "smooth", block: "nearest" });
-  }
-
   function renderAnalysis(section, payload) {
     lastAnalysisPayload = payload || null;
     const list = section.querySelector("[data-search-console-analysis-results]");
@@ -3180,7 +1593,6 @@
     if (!payload?.ready) {
       const missing = (payload?.missing || []).join(", ");
       list.innerHTML = "";
-      updateAnalysisPagination(section, 0, 0);
       message.textContent = `Storico incompleto. Mancano: ${missing || "snapshot richiesti"}.`;
       return;
     }
@@ -3188,57 +1600,40 @@
     const signals = Array.isArray(payload.signals) ? payload.signals : [];
     if (!signals.length) {
       list.innerHTML = '<p class="ol-muted">Nessun segnale utile trovato nello storico disponibile.</p>';
-      updateAnalysisPagination(section, 0, 0);
       message.textContent = "Analisi completata senza segnali utili.";
       return;
     }
 
-    const filteredSignals = signals.filter(analysisSignalMatches);
-    const pageCount = updateAnalysisPagination(section, filteredSignals.length, signals.length);
-    analysisPage = Math.min(Math.max(1, analysisPage), pageCount);
-
-    if (!filteredSignals.length) {
-      list.innerHTML = '<p class="ol-muted">Nessun segnale corrisponde ai filtri attuali.</p>';
-    } else {
-      const startIndex = (analysisPage - 1) * ANALYSIS_PAGE_SIZE;
-      const visibleSignals = filteredSignals.slice(startIndex, startIndex + ANALYSIS_PAGE_SIZE);
-      list.innerHTML = visibleSignals.map((signal, index) => {
-        const momentum = Number.isFinite(Number(signal.momentum_ratio))
-          ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
-          : "ritmo recente non calcolabile";
-        const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
-        const brief = signal?.editorial_brief?.article_angle || "";
-        const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
-        const fallbackRank = signals.indexOf(signal) + 1;
-        const rank = Number(signal.rank || fallbackRank || (startIndex + index + 1));
-        return `<div class="ol-autopilot-archive-item">
-          <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
-          ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
-          <details style="margin-top:6px">
-            <summary>Mostra dettagli Search Console</summary>
-            <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
-            <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
-            ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
-            ${contextPagesMarkup(signal.page_urls)}
-          </details>
-          <div class="ol-toolbar-group" style="margin-top:8px">
-            <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già tra i candidati" : "Salva tra i candidati"}</button>
-          </div>
-        </div>`;
-      }).join("");
-    }
+    list.innerHTML = signals.map((signal, index) => {
+      const momentum = Number.isFinite(Number(signal.momentum_ratio))
+        ? `${((Number(signal.momentum_ratio) - 1) * 100).toFixed(0)}% ritmo 7g vs media 28g`
+        : "ritmo recente non calcolabile";
+      const alreadySaved = opportunityTopicKeys.has(String(signal.topic_key || ""));
+      const brief = signal?.editorial_brief?.article_angle || "";
+      const queries = Array.isArray(signal?.query_examples) ? signal.query_examples.slice(0, 5) : [];
+      const rank = Number(signal.rank || (index + 1));
+      return `<div class="ol-autopilot-archive-item">
+        <strong>#${rank} · ${esc(signal.topic)} · punteggio ${Number(signal.score || 0)}/100</strong>
+        ${brief ? `<small><b>Possibile articolo:</b> ${esc(brief)}</small>` : ""}
+        <details style="margin-top:6px">
+          <summary>Dettagli Search Console</summary>
+          <small>${esc(metricSummary(signal, 7))} · ${esc(metricSummary(signal, 28))} · ${esc(metricSummary(signal, 90))}</small>
+          <small>${Number(signal.query_count || 0)} query collegate · ${Number(signal.page_count || 0)} pagine · ${esc(momentum)}</small>
+          ${queries.length ? `<small><b>Query principali:</b> ${esc(queries.join(" · "))}</small>` : ""}
+          ${contextPagesMarkup(signal.page_urls)}
+        </details>
+        <div class="ol-toolbar-group" style="margin-top:8px">
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-save-opportunity="${esc(signal.topic_key || "")}" ${alreadySaved ? "disabled" : ""}>${alreadySaved ? "Già salvata" : "Scegli questo tema"}</button>
+        </div>
+      </div>`;
+    }).join("");
 
     const total = Number(payload.signals_total || signals.length);
-    const available = signals.length;
-    const backendNote = payload.signals_truncated
-      ? ` Il backend ha restituito i primi ${numberIt(available)} di ${numberIt(total)} cluster trovati.`
-      : ` ${numberIt(available)} segnali disponibili nella graduatoria.`;
-    const filterNote = filteredSignals.length !== signals.length
-      ? ` Il filtro corrente ne mostra ${numberIt(filteredSignals.length)}.`
-      : "";
+    const shown = signals.length;
+    const truncationNote = payload.signals_truncated ? ` Sono mostrati i primi ${shown} di ${total}.` : ` Sono mostrati tutti i ${shown} segnali trovati.`;
     message.textContent = payload.truncated
-      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${backendNote}${filterNote}`
-      : `Graduatoria Search Console aggiornata.${backendNote}${filterNote}`;
+      ? `Analisi completata su un campione massimo di 20.000 righe per snapshot.${truncationNote}`
+      : `Graduatoria Search Console aggiornata.${truncationNote}`;
   }
 
   async function loadAnalysis(section, quiet = false) {
@@ -3295,26 +1690,8 @@
   function boot() {
     const observer = new MutationObserver(() => { ensureCard(); enforceArticleOnlySettings(); });
     observer.observe(document.documentElement, { childList: true, subtree: true });
-    window.addEventListener("offertalogica:editorial-article-updated", () => {
-      const section = document.querySelector("[data-search-console-card]");
-      if (!section) return;
-      Promise.all([
-        loadSocialPlan(section),
-        loadAutomationRuns(section),
-        loadOpportunities(section, true),
-      ]).catch(() => {});
-    });
     ensureCard();
     enforceArticleOnlySettings();
-    // Il dashboard non deve restare congelato dopo un reload: aggiornamento leggero
-    // senza interrompere l'editing attivo o i pannelli gia aperti.
-    window.setInterval(() => {
-      const section = document.querySelector("[data-search-console-card]");
-      const focused = document.activeElement;
-      if (!section?.isConnected || document.hidden ||
-          (focused && section.contains(focused) && ["INPUT", "TEXTAREA", "SELECT"].includes(focused.tagName))) return;
-      Promise.all([loadAutomationRuns(section), loadOpportunities(section, true)]).catch(() => {});
-    }, 60000);
   }
 
   if (document.readyState === "loading") document.addEventListener("DOMContentLoaded", boot, { once: true });
