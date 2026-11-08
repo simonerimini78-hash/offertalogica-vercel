@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.5 — stronger mobile typography, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.6 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -840,112 +840,176 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
-  // Mobile-first typography: prefer two strong title lines over smaller multi-line paragraphs.
-  // Long editorial text remains in the storyboard; only on-screen copy is fitted.
-  function fitSceneCopy(ctx,scene,width) {
-    const headline=String(scene.headline||'').trim();
-    const isCta=scene.role==='cta';
-    const maxLines=2;
-    let size=isCta?122:(scene.role==='hook'?118:112);
-    let lines=[];
-    for (;size>=84;size-=4) {
-      ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
-      lines=wrapOverlayLines(ctx,headline,width);
-      if (lines.length<=maxLines && lines.every(line=>ctx.measureText(line).width<=width)) break;
-    }
-    if (size<84) size=84;
-    ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
-    const complete=wrapOverlayLines(ctx,headline,width);
-    const titleTruncated=complete.length>maxLines || complete.some(line=>ctx.measureText(line).width>width);
-    lines=titleTruncated?wrapCanvasText(ctx,headline,width,maxLines):complete;
-    const secondary=String(scene.secondary_text||'').trim();
-    let detailSize=isCta?48:52,detail=[],detailTruncated=false;
-    if (secondary) {
-      for(;detailSize>=40;detailSize-=2) {
-        ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
-        detail=wrapOverlayLines(ctx,secondary,width);
-        if(detail.length<=2 && detail.every(line=>ctx.measureText(line).width<=width)) break;
+  // Measure all words before placing them. The automatic compositor NEVER emits ellipses.
+  // Balancing the lines (rather than greedy wrapping) avoids stranded single-word endings.
+  function balancedCopyLines(ctx, value, width, maxLines) {
+    const words=String(value||'').trim().split(/\s+/u).filter(Boolean);
+    if(!words.length)return [];
+    const widths=words.map(word=>ctx.measureText(word).width);
+    if(widths.some(size=>size>width))return null;
+    const memo=new Map(),measureMemo=new Map();
+    const segment=(a,b)=>{
+      const key=`${a}-${b}`;
+      if(!measureMemo.has(key))measureMemo.set(key,ctx.measureText(words.slice(a,b).join(' ')).width);
+      return measureMemo.get(key);
+    };
+    const solve=(index,remaining)=>{
+      if(index===words.length)return {score:0,lines:[]};
+      if(remaining===0)return null;
+      const key=`${index}-${remaining}`;
+      if(memo.has(key))return memo.get(key);
+      let best=null;
+      for(let last=index+1;last<=words.length;last++) {
+        const size=segment(index,last);
+        if(size>width)break;
+        const rest=solve(last,remaining-1);
+        if(!rest)continue;
+        const line=words.slice(index,last).join(' ');
+        const empty=(width-size)/width;
+        const oneWordOrphan=(index>0&&last===words.length&&last===index+1)?0.38:0;
+        const score=rest.score+empty*empty+0.28+oneWordOrphan;
+        if(!best||score<best.score)best={score,lines:[line,...rest.lines]};
       }
-      if(detailSize<40) detailSize=40;
-      ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
-      const completeDetail=wrapOverlayLines(ctx,secondary,width);
-      detailTruncated=completeDetail.length>2 || completeDetail.some(line=>ctx.measureText(line).width>width);
-      detail=wrapCanvasText(ctx,secondary,width,2);
+      memo.set(key,best);
+      return best;
+    };
+    return solve(0,maxLines)?.lines||null;
+  }
+  // Fit whole titles and subtitles to their actual candidate area. Scale both, not just the title.
+  function fitSceneCopy(ctx,scene,width,maxHeight) {
+    const headline=String(scene.headline||'').trim();
+    const secondary=String(scene.secondary_text||'').trim();
+    const isCta=scene.role==='cta';
+    const maxTitleSize=isCta?120:scene.role==='hook'?124:116;
+    let best=null;
+    for(let size=maxTitleSize;size>=56;size-=4) {
+      ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
+      const lines=balancedCopyLines(ctx,headline,width,4);
+      if(!lines)continue;
+      const titleStep=Math.round(size*1.085);
+      const titleHeight=size+(lines.length-1)*titleStep;
+      const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
+      if(titleHeight>maxHeight)continue;
+      const detailSizes=secondary?Array.from({length:12},(_,i)=>54-i*2):[0];
+      for(const detailSize of detailSizes) {
+        let detail=[],detailHeight=0,detailWidth=0;
+        const detailStep=Math.round(detailSize*1.21);
+        if(secondary) {
+          ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
+          const result=balancedCopyLines(ctx,secondary,width,3);
+          if(!result)continue;
+          detail=result;
+          detailHeight=detailSize+(detail.length-1)*detailStep;
+          detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
+        }
+        const textHeight=titleHeight+(detail.length?22+detailHeight:0);
+        if(textHeight>maxHeight)continue;
+        const score=size*0.75+detailSize*0.40-
+          Math.max(0,lines.length-2)*18-Math.max(0,detail.length-2)*6;
+        if(!best||score>best.score)best={lines,size,titleStep,detail,detailSize,detailStep,
+          titleHeight,textHeight,titleWidth,detailWidth,score,titleTruncated:false,
+          detailTruncated:false,overflow:false};
+      }
     }
-    ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
-    const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
-    ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
-    const detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
-    const titleStep=Math.round(size*1.08);
-    const detailStep=Math.round(detailSize*1.18);
-    const titleHeight=lines.length?size+(lines.length-1)*titleStep:0;
-    const detailHeight=detail.length?detailSize+(detail.length-1)*detailStep:0;
-    const textHeight=titleHeight+(detail.length?26+detailHeight:0);
-    return {lines,size,titleStep,detail,detailSize,detailStep,
-      titleHeight,textHeight,titleTruncated,detailTruncated,titleWidth,detailWidth};
+    return best;
+  }
+  function overlapArea(a,b) {
+    const width=Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x));
+    const height=Math.max(0,Math.min(a.y+a.height,b.y+b.height)-Math.max(a.y,b.y));
+    return width*height;
   }
   function compositionForScene(ctx,view) {
-    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view._faceBoxes?.length||0}`;
-    if (view._compositionKey===key && view._composition) return view._composition;
-    const mode=scenePlacement(view);
-    const choices=[
-      {side:'left',x:130,y:440,width:570},
-      {side:'right',x:380,y:440,width:570},
-      {side:'left',x:130,y:650,width:570},
-      {side:'right',x:380,y:650,width:570},
-      {side:'left',x:130,y:440,width:440},
-      {side:'right',x:510,y:440,width:440},
-      {side:'top',x:130,y:440,width:820},
-      {side:'bottom',x:130,y:650,width:820},
-    ];
-    const isCta=view.scene.role==='cta';
+    const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
+    const key=`1.3.3.6|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${faceSignature}`;
+    if(view._compositionKey===key && view._composition)return view._composition;
+    const mode=scenePlacement(view),isCta=view.scene.role==='cta';
     const brand=transparentBrandLogo()||previewView?.logo;
     const logoAspectRatio=brand?.naturalWidth
-      ? brand.naturalHeight/brand.naturalWidth : 353/640;
-    const ranked=[];
-    for(const choice of choices) {
-      if(view.layoutPreference!=='auto' && choice.side!==view.layoutPreference) continue;
-      const copy=fitSceneCopy(ctx,view.scene,choice.width);
-      // The action is a branded destination, not a tiny label squeezed beside the logo.
-      const actionHeight=isCta?142:0;
-      const logoW=isCta?Math.min(340,Math.floor(choice.width*.78)):0;
-      const logoH=Math.ceil(logoW*logoAspectRatio);
-      const footerHeight=isCta?24+actionHeight+14+logoH:0;
-      const groupHeight=copy.textHeight+footerHeight;
-      const y=Math.min(choice.y,1225-groupHeight);
-      if(y<405) continue;
-      const footerY=y+copy.textHeight+24;
-      const logo={x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH};
-      const inkWidth=Math.min(choice.width,Math.max(copy.titleWidth,copy.detailWidth));
-      const textBounds={x:choice.x,y,width:inkWidth,height:copy.textHeight};
-      const bounds={x:choice.x-14,y:y-16,width:choice.width+28,height:groupHeight+28};
-      const faces=view._faceBoxes||[];
-      const facePenalty=faces.some(face=>intersects(face,bounds,48))?85:0;
-      const busyArea=quietness(view,bounds);
-      const subjectSide=view.scene.subject_side;
-      const oppositeSide=(subjectSide==='left'&&choice.side==='right')||
-        (subjectSide==='right'&&choice.side==='left');
-      const sidePenalty=['left','right'].includes(subjectSide)
-        ? oppositeSide?-2.5:['top','bottom'].includes(choice.side)?1.5:5.5 : 0;
-      const sizePenalty=(112-copy.size)*.018+(copy.titleTruncated?2.7:0);
-      const preference=(mode!=='auto' && choice.side===mode)?-1.1:0;
-      const widePenalty=isCta&&choice.width>600?.8:0;
-      const score=busyArea*2.4+facePenalty+sidePenalty+sizePenalty+widePenalty+preference+
-        (choice.side==='bottom'?.13:0);
-      ranked.push({choice,copy,y,bounds,textBounds,logo,footerY,actionHeight,score});
+      ?brand.naturalHeight/brand.naturalWidth:353/640;
+    const safeBottom=1196;
+    const topPositions=isCta?[350,400,455,520]:[385,455,535,625,705];
+    const widths=isCta?[820,760,700]:[820,760,700,630,560];
+    const cache=new Map(),ranked=[];
+    for(const width of widths) {
+      if(isCta) {
+        let domainSize=60;
+        ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
+        while(domainSize>34&&ctx.measureText('OFFERTALOGICA.IT').width>width-48) {
+          domainSize-=2;
+          ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
+        }
+        if(domainSize<46||ctx.measureText('OFFERTALOGICA.IT').width>width-48)continue;
+      }
+      const positions=[
+        {side:'left',x:130},{side:'right',x:950-width},
+        {side:'top',x:Math.round((1080-width)/2)},
+        {side:'bottom',x:Math.round((1080-width)/2)},
+      ];
+      for(const choice of positions) {
+        if(view.layoutPreference!=='auto'&&choice.side!==view.layoutPreference)continue;
+        for(const y of topPositions) {
+          if(choice.side==='top'&&y>455)continue;
+          if(choice.side==='bottom'&&y<535)continue;
+          const actionHeight=isCta?142:0;
+          const logoW=isCta?Math.min(340,Math.round(width*.48)):0;
+          const logoH=isCta?Math.ceil(logoW*logoAspectRatio):0;
+          const footerHeight=isCta?24+actionHeight+14+logoH:0;
+          const maxTextHeight=safeBottom-y-footerHeight;
+          if(maxTextHeight<160)continue;
+          const fitKey=`${width}|${maxTextHeight}`;
+          if(!cache.has(fitKey))cache.set(fitKey,fitSceneCopy(ctx,view.scene,width,maxTextHeight));
+          const copy=cache.get(fitKey);
+          if(!copy)continue;
+          const footerY=y+copy.textHeight+24;
+          const logo={x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH};
+          // Measure the actual glyph block, not the entire horizontal candidate strip.
+          const inkWidth=Math.max(copy.titleWidth,copy.detailWidth);
+          const textBounds={x:choice.x-6,y:y-9,width:Math.min(width+12,inkWidth+12),height:copy.textHeight+18};
+          const bounds={x:choice.x-14,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36};
+          const faces=view._faceBoxes||[];
+          let facePenalty=0;
+          for(const face of faces) {
+            const faceArea=Math.max(1,face.width*face.height);
+            const eyeRegion={x:face.x+face.width*.16,y:face.y+face.height*.14,
+              width:face.width*.68,height:face.height*.37};
+            facePenalty+=7*overlapArea(textBounds,face)/faceArea;
+            facePenalty+=16*overlapArea(textBounds,eyeRegion)/Math.max(1,eyeRegion.width*eyeRegion.height);
+          }
+          const busyArea=quietness(view,textBounds);
+          const subjectSide=view.scene.subject_side;
+          const oppositeSide=(subjectSide==='left'&&choice.side==='right')||
+            (subjectSide==='right'&&choice.side==='left');
+          const sidePenalty=['left','right'].includes(subjectSide)
+            ?oppositeSide?-1.3:['top','bottom'].includes(choice.side)?0.4:1.6:0;
+          const sizePenalty=(124-copy.size)*.054+(54-copy.detailSize)*(copy.detail.length?.02:0);
+          const preference=(mode!=='auto'&&choice.side===mode)?-1.2:0;
+          const balancePenalty=copy.lines.length>2?(copy.lines.length-2)*1.8:0;
+          const positionPenalty=Math.abs(y-(isCta?385:505))*.002;
+          const score=busyArea*7+facePenalty+sidePenalty+sizePenalty+balancePenalty+
+            preference+positionPenalty;
+          ranked.push({choice:{...choice,y,width},copy,y,bounds,textBounds,logo,footerY,
+            actionHeight,score,overflow:false});
+        }
+      }
     }
     ranked.sort((a,b)=>a.score-b.score);
     const selected=ranked[0]||(()=>{
-      const choice=choices[0],copy=fitSceneCopy(ctx,view.scene,choice.width);
-      const actionHeight=isCta?142:0;
-      const logoW=isCta?340:0,logoH=Math.ceil(logoW*logoAspectRatio);
-      const groupHeight=copy.textHeight+(isCta?24+actionHeight+14+logoH:0);
-      const y=Math.max(405,Math.min(440,1225-groupHeight));
+      // Never cut the copy to satisfy a fixed box. Surface a warning if no layout fits.
+      const width=820,y=350;
+      const actionHeight=isCta?142:0,logoW=isCta?340:0;
+      const logoH=Math.ceil(logoW*logoAspectRatio);
+      const footerHeight=isCta?24+actionHeight+14+logoH:0;
+      const copy=fitSceneCopy(ctx,view.scene,width,Number.POSITIVE_INFINITY)||{
+        lines:[String(view.scene.headline||'')],detail:[String(view.scene.secondary_text||'')],
+        size:56,detailSize:32,titleStep:61,detailStep:39,titleHeight:56,textHeight:134,
+        titleWidth:width,detailWidth:width,overflow:true};
+      copy.overflow=true;
       const footerY=y+copy.textHeight+24;
-      return {choice,copy,y,bounds:{x:choice.x-14,y:y-16,width:choice.width+28,height:groupHeight+28},
-        textBounds:{x:choice.x,y,width:choice.width,height:copy.textHeight},
-        logo:{x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH},
-        footerY,actionHeight,score:0};
+      return {choice:{side:'top',x:130,y,width},copy,y,overflow:true,
+        bounds:{x:116,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36},
+        textBounds:{x:130,y,width,height:copy.textHeight},
+        logo:{x:130,y:footerY+actionHeight+14,width:logoW,height:logoH},footerY,
+        actionHeight,score:999};
     })();
     view._compositionKey=key;
     view._composition=selected;
@@ -1102,8 +1166,7 @@
     }
     size=Math.max(floor,size+2);
     ctx.font=`${weight} ${size}px ${family}`;
-    const limit=Math.max(1,Math.floor(maxHeight/(size*1.15)));
-    return {lines:wrapCanvasText(ctx,text,maxWidth,limit),size,family,weight,pad,overflow:true};
+    return {lines:wrapOverlayLines(ctx,text,maxWidth),size,family,weight,pad,overflow:true};
   }
   function drawManualTextLayer(ctx,view,kind) {
     const text=layerText(view,kind);
@@ -1168,41 +1231,26 @@
         }
       if(count) brightness=sum/count;
     }
-    const lightText=brightness<.52;
-    const ink=lightText?'#ffffff':'#102b3b';
-    const outline=lightText?'rgba(6,14,22,.88)':'rgba(255,255,255,.88)';
+    const brighterPhoto=brightness>=.52;
+    const ink='#ffffff';
+    const outline='rgba(5,16,24,.84)';
     const centreX=bounds.x+bounds.width/2,centreY=bounds.y+bounds.height/2;
-    const fade=ctx.createRadialGradient(centreX,centreY,25,centreX,centreY,Math.max(bounds.width,bounds.height)*.86);
-    fade.addColorStop(0,lightText?'rgba(4,15,24,.54)':'rgba(255,255,255,.46)');
-    fade.addColorStop(.58,lightText?'rgba(4,15,24,.24)':'rgba(255,255,255,.20)');
+    const fade=ctx.createRadialGradient(centreX,centreY,20,centreX,centreY,
+      Math.max(bounds.width,bounds.height)*.96);
+    fade.addColorStop(0,brighterPhoto?'rgba(4,15,24,.44)':'rgba(4,15,24,.31)');
+    fade.addColorStop(.60,brighterPhoto?'rgba(4,15,24,.18)':'rgba(4,15,24,.12)');
     fade.addColorStop(1,'rgba(0,0,0,0)');
     ctx.save();ctx.fillStyle=fade;
     ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
-    const side=view.layoutPreference!=='auto'?view.layoutPreference:choice.side;
-    const panelX=Math.max(0,choice.x-52),panelY=Math.max(0,y-36),panelW=Math.min(MONTAGE_WIDTH-panelX,choice.width+104),panelH=Math.min(MONTAGE_HEIGHT-panelY,bounds.height+72);
-    let localFade;
-    if(side==='right') {
-      localFade=ctx.createLinearGradient(panelX+panelW,panelY,panelX,panelY);
-    } else if(side==='top') {
-      localFade=ctx.createLinearGradient(panelX,panelY,panelX,panelY+panelH);
-    } else if(side==='bottom') {
-      localFade=ctx.createLinearGradient(panelX,panelY+panelH,panelX,panelY);
-    } else {
-      localFade=ctx.createLinearGradient(panelX,panelY,panelX+panelW,panelY);
-    }
-    localFade.addColorStop(0,lightText?'rgba(4,15,24,.42)':'rgba(255,255,255,.26)');
-    localFade.addColorStop(.68,lightText?'rgba(4,15,24,.17)':'rgba(255,255,255,.10)');
-    localFade.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.fillStyle=localFade;
-    ctx.fillRect(panelX,panelY,panelW,panelH);
     const art=scene.art_direction;
     const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#228c59';
+    // Only feathered, full-canvas gradients: no hard-edged light rectangles over the photo.
     if(art?.typography==='editorial_panel') {
-      // Never mask the person with an opaque card. Use a local feathered veil instead.
-      const veil=ctx.createRadialGradient(centreX,centreY,10,centreX,centreY,Math.max(bounds.width,bounds.height)*.60);
-      veil.addColorStop(0,lightText?'rgba(4,15,24,.22)':'rgba(255,255,255,.24)');
+      const veil=ctx.createRadialGradient(centreX,centreY,0,centreX,centreY,
+        Math.max(bounds.width,bounds.height)*.92);
+      veil.addColorStop(0,brighterPhoto?'rgba(4,15,24,.12)':'rgba(4,15,24,.06)');
       veil.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=veil;ctx.fillRect(bounds.x,bounds.y,bounds.width,bounds.height);
+      ctx.fillStyle=veil;ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
     }
     if(art?.typography==='accent_rule'||art?.typography==='editorial_panel') {
       ctx.fillStyle=accent;
@@ -1220,7 +1268,7 @@
       ctx.font=font;
       ctx.lineWidth=isDetail?4.5:6.5;
       ctx.strokeStyle=outline;ctx.strokeText(text,x,yy+offset);
-      ctx.shadowColor=lightText?'rgba(0,0,0,.72)':'rgba(255,255,255,.62)';
+      ctx.shadowColor='rgba(0,0,0,.72)';
       ctx.shadowBlur=isDetail?10:14;
       ctx.fillStyle=ink;ctx.fillText(text,x,yy+offset);
       ctx.restore();
@@ -1629,9 +1677,21 @@
   }
   async function exportMontage() {
     if (!previewView || busy() || musicLoading || !photosReady()) return;
-    // Placement and crop indicators are advisory: never block an intentional editorial export.
-    // Facebook/Instagram warnings remain visible beside the preview.
+    // Geometric overlap warnings are advisory; incomplete or oversized copy is not.
     updatePlacementAudit();
+    const ctx=previewView.canvas.getContext('2d');
+    const overflowScenes=sceneViews.filter(view=>{
+      if(view.layoutPreference!=='manual')return compositionForScene(ctx,view).overflow;
+      const design=initializeManualCopy(view);
+      return manualKinds(view).some(kind=>kind!=='logo'&&layerText(view,kind)&&
+        (()=>{const layer=layerFor(view,kind),b=constrainTextBox(layer.box,kind);
+          return fitManualLines(ctx,layerText(view,kind),layer.style,
+            b.width*MONTAGE_WIDTH,b.height*MONTAGE_HEIGHT).overflow;})());
+    });
+    if(overflowScenes.length) {
+      previewView.exportStatus.textContent=`Testo da sistemare nelle scene ${overflowScenes.map(v=>v.index+1).join(', ')}: nessuna parola viene nascosta. Allarga il riquadro o accorcia il messaggio prima di esportare.`;
+      return;
+    }
 
     const format = formatForRecorder();
     if (!format) {
@@ -1774,7 +1834,7 @@
     const ctx=previewView?.canvas?.getContext('2d');
     if(ctx)for(const {kind,box} of boxes) {
       const result=fitManualLines(ctx,layerText(view,kind),layerFor(view,kind).style,box.width,box.height);
-      if(result.overflow)warnings.push(`${kind.startsWith('extra:')?'Testo aggiuntivo':kind}: riquadro piccolo, testo abbreviato`);
+      if(result.overflow)warnings.push(`${kind.startsWith('extra:')?'Testo aggiuntivo':kind}: riquadro piccolo, testo da sistemare`);
     }
     if(t.logo.visible) {
       const logo=textBoxRect({box:constrainLogoBox(t.logo.box)});
@@ -1794,7 +1854,10 @@
     if(!view || productScreenActive(view.index))return [];
     const ctx=previewView?.canvas?.getContext('2d');
     if(!ctx)return [];
-    const zone=option===PREVIEW_CROPS.master?textGuidePixels():(option.safe||option);
+    // The customizable text guide is advisory; automatic composition uses social-safe bounds.
+    const zone=option===PREVIEW_CROPS.master
+      ?(view.layoutPreference==='manual'?textGuidePixels():REELS_VISIBLE)
+      :(option.safe||option);
     const objects=[];
     if(view.layoutPreference==='manual') {
       const design=initializeManualCopy(view);
@@ -1804,15 +1867,18 @@
         const rect=textBoxRect({box});
         objects.push({name:editorBoxLabel(kind,view),rect});
         if(fitManualLines(ctx,layerText(view,kind),layer.style,rect.width,rect.height).overflow)
-          objects.push({name:`${editorBoxLabel(kind,view)} abbreviato`,truncated:true});
+          objects.push({name:`${editorBoxLabel(kind,view)} supera il riquadro`,truncated:true});
       }
       if(design.logo.visible)objects.push({name:'Logo',rect:textBoxRect({box:constrainLogoBox(design.logo.box)})});
     } else {
       const auto=compositionForScene(ctx,view);
       objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
-      objects.push({name:'Logo',rect:auto.logo});
-      if(auto.copy?.titleTruncated)objects.push({name:'Titolo abbreviato',truncated:true});
-      if(auto.copy?.detailTruncated)objects.push({name:'Sottotitolo abbreviato',truncated:true});
+      if(view.scene.role==='cta') {
+        objects.push({name:'CTA',rect:{x:auto.choice.x,y:auto.footerY,
+          width:auto.choice.width,height:auto.actionHeight}});
+        objects.push({name:'Logo',rect:auto.logo});
+      }
+      if(auto.overflow)objects.push({name:'Testo senza spazio sufficiente',truncated:true});
     }
     return objects.filter(item=>item.truncated||(item.rect&&!rectangleInside(item.rect,zone)))
       .map(item=>item.name);
