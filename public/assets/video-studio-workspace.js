@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.8 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
+/* Video Studio v1.3.3.9 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -1083,7 +1083,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.8|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.9|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key && view._composition)return view._composition;
     const isCta=view.scene.role==='cta';
     if(isCta) {
@@ -1393,7 +1393,8 @@
   }
   function drawCinematicOverlay(ctx,view,localTime=1) {
     const {scene}=view;
-    const {choice,copy,y,logo,footerY,actionHeight,type,palette}=compositionForScene(ctx,view);
+    const composition=compositionForScene(ctx,view);
+    const {choice,copy,y,logo,footerY,actionHeight,type,palette}=composition;
     const art=scene.art_direction;
     ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
