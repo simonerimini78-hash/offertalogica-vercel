@@ -134,7 +134,7 @@
       ]
     }
     </script>
-    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.123">
+    <link rel="stylesheet" href="/assets/ol-app-access.css?v=0.10.125">
     <style>
         :root {
             --bg-color: #f1f5f9;
@@ -4493,6 +4493,54 @@
 })();
 </script>
 
+
+<style id="ol-v125-manual-mobile">
+@media (max-width:700px) {
+  #ol-manual-mobile-gate, #ol-questions {box-sizing:border-box;}
+  body.mobile-fast-mode-manual #mobile-private-input-flow {padding:14px 12px!important;margin-bottom:10px!important;}
+  body.mobile-fast-mode-manual #mobile-private-input-flow .ol-manual-mobile-gate:not([hidden]),
+  body.mobile-fast-mode-manual #mobile-private-input-flow .ol-manual-questions:not([hidden]) {display:block!important;}
+  #ol-manual-mobile-gate[hidden],#ol-questions[hidden], .ol-question-step[hidden] {display:none!important;}
+  body:not(.mobile-fast-mode-manual) #ol-manual-mobile-gate,body:not(.mobile-fast-mode-manual) #ol-questions {display:none!important;}
+  #ol-manual-gate-title,.ol-question-step h3 {font-size:20px!important;line-height:1.27!important;text-align:left!important;margin:0 0 14px!important;color:var(--text-color)!important;}
+  .ol-manual-gate-grid {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;}
+  .ol-manual-choice {min-height:92px;display:flex;flex-direction:column;justify-content:center;align-items:center;gap:6px;padding:12px 7px;border:2px solid #16804b;border-radius:13px;color:var(--text-color);background:var(--card-bg);font:inherit;cursor:pointer;}
+  .ol-manual-choice strong {font-size:22px;line-height:1.15;color:#16804b;}
+  .ol-manual-choice span {font-size:15px;line-height:1.3;font-weight:650;text-align:center;overflow-wrap:break-word;}
+  .ol-questions-top {display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:16px;}
+  .ol-questions-top span {font-size:14px;font-weight:700;color:var(--text-muted);}
+  .ol-questions-back {padding:10px 2px;min-height:44px;border:0;background:transparent;color:var(--accent);font-size:15px;font-weight:700;cursor:pointer;}
+  .ol-questions-people {display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:9px;}
+  .ol-questions-people button:last-child {grid-column:1/-1;}
+  .ol-questions-people button,.ol-heating-list button {width:100%;min-height:54px;border:1.5px solid #b7c7cf;border-radius:11px;background:var(--card-bg);color:var(--text-color);font:inherit;font-size:16px;font-weight:700;line-height:1.25;text-align:center;padding:9px 8px;cursor:pointer;}
+  .ol-heating-list {display:grid;gap:9px;}
+  .ol-appliance-list {display:grid;gap:9px;margin:13px 0;}
+  .ol-appliance-list label {display:flex;align-items:center;gap:11px;min-height:52px;border:1.5px solid #b7c7cf;border-radius:11px;padding:9px 12px;font-size:16px;line-height:1.25;font-weight:650;cursor:pointer;}
+  .ol-appliance-list label:has(input:checked) {border-color:#16804b;background:rgba(22,128,75,.08);}
+  .ol-appliance-list input {width:22px;height:22px;flex-shrink:0;accent-color:#16804b;}
+  .ol-question-step p,.ol-questions-hint {font-size:14px;line-height:1.45;margin:0 0 10px;color:var(--text-muted);}
+  .ol-questions-primary {width:100%;min-height:52px;background:#16804b;border:0;color:#fff;font-size:17px;font-weight:700;border-radius:11px;margin-top:4px;cursor:pointer;}
+  .ol-questions-status {font-size:14px;line-height:1.4;margin:12px 0 0;color:var(--text-muted);}
+  #ol-guided-edit-answers {display:inline-flex;align-items:center;min-height:44px;margin-top:8px;padding:9px 14px;border:1px solid #16804b;border-radius:10px;background:var(--card-bg);color:#16804b;font-size:15px;font-weight:700;cursor:pointer;}
+  #ol-questions button:focus-visible,#ol-manual-mobile-gate button:focus-visible,.ol-appliance-list input:focus-visible {outline:3px solid #38bdf8;outline-offset:3px;}
+  /* Only manual-known route is allowed to show the old, data-driven form. */
+  body.mobile-fast-mode-manual:not([data-ol-manual-choice="known"]) #master-tendine-container,
+  body.mobile-fast-mode-manual:not([data-ol-manual-choice="known"]) #master-blocchi-inferiori,
+  body.mobile-fast-mode-manual:not([data-ol-manual-choice="known"]) #master-pulsante-calc-manuale,
+  body.mobile-fast-mode-manual:not([data-ol-manual-choice="known"]) #comparison-submit-button {display:none!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-tendine-container {margin-top:0;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-commodity-grid {display:grid!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-blocchi-inferiori {gap:10px!important;margin-top:10px!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #blocco-attuale {padding:13px 10px!important;margin:0!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #blocco-attuale .compare-card-intro {margin:5px 0 10px!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] .manual-block .input-group {margin-bottom:10px!important;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-tendine-container .ol-advanced-details {margin:5px 0 0;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-tendine-container .ol-advanced-details>summary {font-size:15px;line-height:1.35;font-weight:700;padding:12px 10px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border);cursor:pointer;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #blocco-attuale .ol-current-provider-details {margin:10px 0 0;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #blocco-attuale .ol-current-provider-details>summary {font-size:15px;line-height:1.35;font-weight:700;padding:12px 10px;border-radius:10px;background:var(--card-bg);border:1px solid var(--border);cursor:pointer;}
+  body.mobile-fast-mode-manual[data-ol-manual-choice="known"] #master-common-filters {display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:5px!important;}
+}
+</style>
 </head>
 <body>
 <section class="social-mobile-entry" id="social-mobile-entry" aria-labelledby="social-entry-title">
@@ -4867,6 +4915,49 @@
             <span class="title-green">Luce e Gas</span>
         </h3>
         
+
+        <!-- V125: due percorsi manuali mobile, senza toccare Foto/PDF -->
+        <section id="ol-manual-mobile-gate" class="ol-manual-mobile-gate" aria-labelledby="ol-manual-gate-title" hidden>
+            <h3 id="ol-manual-gate-title">Conosci i tuoi consumi?</h3>
+            <div class="ol-manual-gate-grid">
+                <button type="button" id="ol-manual-known" class="ol-manual-choice"><strong>Sì</strong><span>Inserisci i tuoi dati</span></button>
+                <button type="button" id="ol-manual-unknown" class="ol-manual-choice"><strong>No</strong><span>Rispondi a 3 domande</span></button>
+            </div>
+        </section>
+        <section id="ol-questions" class="ol-manual-questions" aria-labelledby="ol-questions-heading" hidden>
+            <div class="ol-questions-top"><button type="button" id="ol-questions-back" class="ol-questions-back" aria-label="Torna alla schermata precedente">‹ Indietro</button><span id="ol-questions-progress" aria-live="polite">Domanda 1 di 3</span></div>
+            <div class="ol-question-step" data-ol-step="1">
+                <h3 id="ol-questions-heading">Quante persone vivono in casa?</h3>
+                <div class="ol-questions-people" role="group" aria-label="Numero di persone in casa">
+                    <button type="button" data-ol-people="1">1 persona</button>
+                    <button type="button" data-ol-people="2">2 persone</button>
+                    <button type="button" data-ol-people="3">3 persone</button>
+                    <button type="button" data-ol-people="4">4 persone</button>
+                    <button type="button" data-ol-people="5">5 o più</button>
+                </div>
+            </div>
+            <div class="ol-question-step" data-ol-step="2" hidden>
+                <h3>Quali elettrodomestici usi abitualmente?</h3>
+                <p>Seleziona quelli presenti. Puoi anche lasciare tutto deselezionato.</p>
+                <div class="ol-appliance-list">
+                    <label><input type="checkbox" value="dryer" data-ol-appliance><span>Asciugatrice</span></label>
+                    <label><input type="checkbox" value="ac" data-ol-appliance><span>Condizionatore</span></label>
+                    <label><input type="checkbox" value="water" data-ol-appliance><span>Scaldabagno elettrico</span></label>
+                </div>
+                <button type="button" id="ol-appliances-next" class="ol-questions-primary">Continua</button>
+            </div>
+            <div class="ol-question-step" data-ol-step="3" hidden>
+                <h3>Come riscaldi principalmente la casa?</h3>
+                <div class="ol-heating-list" role="group" aria-label="Tipo di riscaldamento">
+                    <button type="button" data-ol-heat="gas">Caldaia a gas</button>
+                    <button type="button" data-ol-heat="electric">Elettrico / pompa di calore, senza gas</button>
+                    <button type="button" data-ol-heat="central">Centralizzato, gas solo per cucina o acqua calda</button>
+                    <button type="button" data-ol-heat="unknown">Non so / altro</button>
+                </div>
+                <p class="ol-questions-hint">Le offerte saranno confrontate su consumi indicativi, non sulla tua bolletta reale.</p>
+            </div>
+            <p id="ol-questions-status" class="ol-questions-status" aria-live="polite" hidden></p>
+        </section>
         <div class="choice-grid">
             <button type="button" id="btn-attiva-medi" class="choice-card primary">
                 <strong>Parti con una stima media</strong>
@@ -7553,6 +7644,12 @@ let PARAMETRI_CALCOLO = {
 let PERDITE_RETE_LUCE_VARIABILE = PARAMETRI_CALCOLO.perditeReteLuceVariabile;
 const TESTO_METODOLOGIA_CONSUMI_REALI = "I risparmi stimati sono calcolati sui consumi che hai inserito o confermato dalla bolletta. Applichiamo le condizioni economiche delle offerte allo stesso profilo di consumo, separando quota variabile e quota fissa.";
 const TESTO_METODOLOGIA_MEDIA_ARERA = "Nella stima media confrontiamo le offerte usando lo stesso profilo: luce domestica residente (3 kW, 2.700 kWh/anno) e gas domestico (1.400 Smc/anno). Per il gas usiamo Milano/Lombardia come riferimento territoriale, non come media nazionale. Questa stima serve a confrontare le offerte, non a prevedere la tua bolletta.";
+function metodologiaProfiloConfronto() {
+  if (!isGuidedView()) return TESTO_METODOLOGIA_MEDIA_ARERA;
+  const p = OL_GUIDED_PROFILE;
+  return `La classifica usa consumi indicativi ottenuti dalle 3 risposte: ${p.kwh.toLocaleString("it-IT")} kWh luce/anno e ${p.smc.toLocaleString("it-IT")} Smc gas/anno. Sono stime orientative, non letture del contatore. Il gas usa un riferimento climatico convenzionale e può variare molto secondo l'abitazione. I costi delle offerte vengono dal catalogo; non conosciamo il prezzo della tua bolletta attuale e quindi non possiamo calcolare un tuo risparmio personale.`;
+}
+
 
 const STIMA_DOCUMENTALE_STATE = {
   fallbacks: [],
@@ -10397,6 +10494,8 @@ function calcolaDifferenza(offertaAttuale, offertaConfronto, tipoTariffaAttuale,
 }
 
 let modalitaCalcolo = "manuale";
+let OL_GUIDED_PROFILE = null; // V125: only estimated consumption, never current-bill prices.
+function isGuidedView() { return Boolean(OL_GUIDED_PROFILE && modalitaCalcolo === "media" && LEAD_STATE.dataOrigin === "guided_three_questions"); }
 // Il filtro della Top 10 media NON modifica la tariffa attuale usata come riferimento.
 let TIPO_PREZZO_RANKING_MEDIA = "tutte";
 
@@ -12141,7 +12240,7 @@ function aggiornaVerdetto(differenzaNuova) {
   }
   if (testoDescrizione) {
     testoDescrizione.innerText = modalitaCalcolo === "media"
-      ? TESTO_METODOLOGIA_MEDIA_ARERA
+      ? metodologiaProfiloConfronto()
       : TESTO_METODOLOGIA_CONSUMI_REALI;
   }
   aggiornaBottoneAttiva(btnAttiva);
@@ -12160,7 +12259,7 @@ function mostraSoloMetodologia() {
   if (badgeNumero) badgeNumero.style.display = "none";
   if (testoDescrizione) {
     testoDescrizione.innerText = modalitaCalcolo === "media"
-      ? TESTO_METODOLOGIA_MEDIA_ARERA
+      ? metodologiaProfiloConfronto()
       : TESTO_METODOLOGIA_CONSUMI_REALI;
   }
   if (btnAttiva) btnAttiva.style.display = "none";
@@ -14096,7 +14195,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   const offerteCalcolateRanking = offerteCalcolate.filter((item) => !item.soloOffertaSelezionata);
   const ordinateRanking = offerteCalcolateRanking
     .filter((item) => item.compatibileRanking)
-    .sort((a, b) => (b.differenza - a.differenza) || (a.costo - b.costo))
+    .sort((a, b) => isGuidedView()
+      ? ((a.costo - b.costo) || (a.offerta?.id || "").localeCompare(b.offerta?.id || ""))
+      : ((b.differenza - a.differenza) || (a.costo - b.costo)))
     .map((item, index) => ({ ...item, posizioneEconomica: index + 1 }));
 
   // BLOCCO04_RANKING_ECONOMICO_UNICO_20260825
@@ -14157,7 +14258,9 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   if (mediaContext) {
     mediaContext.hidden = modalitaCalcolo !== "media";
     if (modalitaCalcolo === "media") {
-      mediaContext.innerHTML = `<strong>Stima iniziale su profilo standard.</strong> Per conoscere il risultato sui tuoi consumi, approfondisci l’offerta che ti interessa.`;
+      mediaContext.innerHTML = isGuidedView()
+        ? `<strong>Consumi stimati dalle 3 risposte:</strong> ${OL_GUIDED_PROFILE.kwh.toLocaleString("it-IT")} kWh/anno${OL_GUIDED_PROFILE.smc > 0 ? ` e ${OL_GUIDED_PROFILE.smc.toLocaleString("it-IT")} Smc/anno` : ""}. Non sono valori letti dalla bolletta: le spese possono variare. <button type="button" id="ol-guided-edit-answers">Modifica risposte</button>`
+        : `<strong>Stima iniziale su profilo standard.</strong> Per conoscere il risultato sui tuoi consumi, approfondisci l’offerta che ti interessa.`;
     } else {
       mediaContext.textContent = "";
     }
@@ -14214,7 +14317,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
         matchesSelectedFilter: Boolean(filtroEsatto),
         isFilterAlternative: Boolean(alternativeFiltro),
         annualCost: Number(costo.toFixed(2)),
-        annualDelta: Number(differenza.toFixed(2)),
+        annualDelta: isGuidedView() ? null : Number(differenza.toFixed(2)),
         bestAnnualCost: migliore ? Number(migliore.costo.toFixed(2)) : Number(costo.toFixed(2)),
         estimatedCommission: commissionePrevista(offerta),
         network: offerta.monetizzazione?.network || "",
@@ -14346,7 +14449,12 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
           </div>
         </details>`;
       saving.style.color = risparmio ? "var(--primary)" : "var(--danger)";
-      saving.innerHTML = `
+      saving.innerHTML = isGuidedView() ? `
+        ${badge}
+        <span class="offer-metrics">
+          <span class="offer-cost-line"><span class="offer-metric-copy"><b>Spesa annua stimata</b></span><strong>${euro(costo)} / anno</strong></span>
+        </span>
+      ` : `
         ${badge}${livelloStimaBadge}${bollettaPrecisionButton}
         <span class="offer-metrics">
           <span class="${savingLineClass}"><span class="offer-metric-copy"><b>${risparmioLabel}</b>${risparmioMensileHtml}</span><strong>${euro(Math.abs(differenza))} / anno</strong></span>
@@ -14372,11 +14480,11 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       contenitoreTarget?.appendChild(card);
     });
 
-  LEAD_STATE.bestPartnerSaving = Math.max(0, ...attivabiliVisibili.map((item) => item.differenza));
+  LEAD_STATE.bestPartnerSaving = isGuidedView() ? null : Math.max(0, ...attivabiliVisibili.map((item) => item.differenza));
   const primaPosizione = visibili[0] || null;
-  LEAD_STATE.firstOfferSaving = primaPosizione ? Math.max(0, Number(primaPosizione.differenza) || 0) : 0;
+  LEAD_STATE.firstOfferSaving = isGuidedView() ? null : (primaPosizione ? Math.max(0, Number(primaPosizione.differenza) || 0) : 0);
   LEAD_STATE.firstOfferId = String(primaPosizione?.offerta?.id || "");
-  // Unica fonte per il risparmio consumer: coincide sempre con la Posizione 1 visualizzata.
+  // In the three-question path there is no real current-price reference.
   LEAD_STATE.bestSaving = LEAD_STATE.firstOfferSaving;
   aggiornaRisparmioLandingDaPrimaPosizione();
   trackEvent("offers_rendered", {
@@ -14417,6 +14525,15 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
 
 function aggiornaConsumiDaMasterSeMedia() {
   if (modalitaCalcolo !== "media") return;
+  if (OL_GUIDED_PROFILE) {
+    const profile = OL_GUIDED_PROFILE;
+    [["in-luce-cons-att", profile.kwh], ["in-luce-cons-nuov", profile.kwh],
+     ["in-gas-cons-att", profile.smc], ["in-gas-cons-nuov", profile.smc]].forEach(([id, amount]) => {
+      const input = document.getElementById(id);
+      if (input) input.value = String(amount);
+    });
+    return;
+  }
 
   const luceMaster = leggiValore("master-luce-consumo", "");
   const gasMaster = leggiValore("master-gas-consumo", "");
@@ -14470,16 +14587,6 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
   if (origineDocumentoConfronto()) applicaFallbackStimaDocumentale();
   const attuale = leggiOffertaAttuale();
   if (!options?.daFiltroMedia) trackEvent("comparison_started", {
-    ...(origineDocumentoConfronto() === "photo" ? { photoComparisonFields: [
-      "in-gas-cons-att", "in-gas-prezzo-att", "in-gas-fisso-att",
-      "in-luce-cons-att", "in-luce-prezzo-att", "in-luce-fisso-att",
-    ].map(field => {
-      const input = document.getElementById(field);
-      const raw = String(input?.value || "").trim().replace(",", ".");
-      const n = raw === "" ? null : Number(raw);
-      return { field, value: n !== null && Number.isFinite(n) && n >= 0 ? n : null,
-        source: raw === "" ? "missing" : input?.dataset?.estimateFallback === "profile-medium" ? "profile_estimate" : "manual_or_previous" };
-    }) } : {}),
     tipoPrezzo: tipoTariffa,
     tipoFornitura,
     ...leggiProfiloComparazione(),
@@ -17935,25 +18042,6 @@ window.apriFotoBolletta = function apriFotoBolletta(source = "camera") {
 
 async function analizzaFotoBolletta(file, source = "camera") {
   const normalizedSource = source === "gallery" ? "gallery" : "camera";
-  const photoAttemptId = window.crypto?.randomUUID?.() || "";
-  const photoInputFields = () => [
-    ["in-gas-cons-att", "consumo_gas_smc"], ["in-gas-prezzo-att", "prezzo_gas_eur_smc"],
-    ["in-gas-fisso-att", "quota_fissa_vendita_gas_eur_anno"],
-    ["in-luce-cons-att", "consumo_luce_kwh"], ["in-luce-prezzo-att", "prezzo_luce_eur_kwh"],
-    ["in-luce-fisso-att", "quota_fissa_vendita_luce_eur_anno"],
-  ];
-  const snapshotPhotoComparison = (raw = null) => photoInputFields().map(([field, key]) => {
-    const input = document.getElementById(field);
-    const value = input?.value?.trim() || "";
-    const number = value === "" ? null : Number(value.replace(",", "."));
-    const valid = number !== null && Number.isFinite(number) && number >= 0;
-    const rawValue = raw?.[key];
-    const fromPhoto = valid && rawValue !== null && rawValue !== undefined
-      && Number.isFinite(Number(rawValue)) && Math.abs(Number(rawValue) - number) < 1e-5;
-    return { field, value: valid ? number : null,
-      source: !valid ? "missing" : input?.dataset?.estimateFallback === "profile-medium" ? "profile_estimate"
-        : fromPhoto ? "photo_ai" : "manual_or_previous" };
-  });
   const originalFilename = String(file?.name || "foto-bolletta");
   nascondiEsitiFincheNonConfronti();
   impostaControlliPdfInAnalisi(true);
@@ -17970,7 +18058,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
     filename: originalFilename,
   });
   trackEvent("bill_photo_selected", {
-    photoAttemptId,
     inputSource: normalizedSource,
     fileCount: 1,
     selectedCount: 1,
@@ -17981,7 +18068,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
   try {
     preparedFile = await preparaFotoBolletta(file);
     trackEvent("bill_photo_analysis_started", {
-      photoAttemptId,
       inputSource: normalizedSource,
       fileCount: 1,
       ...trackingOrigineCaricamentoPdf(),
@@ -17991,8 +18077,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
       staffMode: staffModeAttiva(),
       customerType: LEAD_STATE.customerType,
       inputKind: "photo",
-      origin: "public_calculator",
-      attemptId: photoAttemptId,
     };
     const formData = new FormData();
     formData.append("photo", preparedFile, preparedFile.name);
@@ -18032,8 +18116,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
 
     if (!validCurrent.length && !validOffer.length) {
       trackEvent("bill_photo_analysis_completed", {
-        photoAttemptId,
-        photoDiagnosticStored: payload.photoDiagnosticStored === true,
         inputSource: normalizedSource,
         analysisStatus: "unreadable",
         photoReadable: false,
@@ -18054,11 +18136,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
       && !pendingSecondBill
       && missingAfterFallback.length === 0;
     trackEvent("bill_photo_analysis_completed", {
-      photoAttemptId,
-      photoDiagnosticStored: payload.photoDiagnosticStored === true,
-      photoComparisonFields: snapshotPhotoComparison(payload.normalized),
-      photoMissingAfterFallback: missingAfterFallback.map(item => item?.id).filter(Boolean),
-      photoFallbackFields: fallback.map(item => item.id),
       inputSource: normalizedSource,
       analysisStatus: missing.length ? "success_missing_data" : "success",
       photoReadable: true,
@@ -18072,7 +18149,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
 
     if (canAutoCompare) {
       trackEvent("bill_photo_comparison_auto_started", {
-        photoAttemptId,
         inputSource: normalizedSource,
         photoReadable: true,
         comparisonAutoStarted: true,
@@ -18098,7 +18174,6 @@ async function analizzaFotoBolletta(file, source = "camera") {
   } catch (error) {
     const diagnosticError = pdfEnsureDiagnosticError(error, "photo_analysis");
     trackEvent("bill_photo_analysis_failed", {
-      photoAttemptId,
       inputSource: normalizedSource,
       analysisStatus: "failed",
       photoReadable: false,
@@ -21384,11 +21459,13 @@ function ottimizzaRisultatiMobile() {
   if (prompt) prompt.hidden = true;
 
   const metodo = modalitaCalcolo === "media"
-    ? TESTO_METODOLOGIA_MEDIA_ARERA
+    ? metodologiaProfiloConfronto()
     : TESTO_METODOLOGIA_CONSUMI_REALI;
   const copertura = document.getElementById("offers-ranking-explainer")?.textContent?.trim() || "";
   const origineDocumento = origineDocumentoConfronto();
-  const origine = modalitaCalcolo === "media"
+  const origine = isGuidedView()
+    ? "Consumi stimati da 3 risposte"
+    : modalitaCalcolo === "media"
     ? "Profilo standard · approfondisci quella che ti interessa"
     : origineDocumento === "pdf"
       ? "Stima personalizzata da PDF"
@@ -21482,6 +21559,7 @@ function collegaEventiUX() {
   btnBusiness?.addEventListener("click", () => selezionaSegmentoCliente("business"));
 
   btnMedi?.addEventListener("click", (event) => {
+    OL_GUIDED_PROFILE = null;
     modalitaCalcolo = "media";
     if (event?.isTrusted) tracciaSceltaPercorsoConfronto("average", "desktop_choice");
   }, true);
@@ -21515,6 +21593,7 @@ function collegaEventiUX() {
   });
 
   btnPrecisi?.addEventListener("click", (event) => {
+    OL_GUIDED_PROFILE = null;
     modalitaCalcolo = "manuale";
     if (event?.isTrusted) tracciaSceltaPercorsoConfronto("manual", "desktop_choice");
   }, true);
@@ -22898,6 +22977,7 @@ if (document.readyState === "loading") {
     compactSegmentState();
     if (submit) submit.textContent = "Scopri le offerte";
     window.__OL_OPEN_MOBILE_FAST_PDF__ = () => {
+      document.querySelectorAll(".ol-advanced-details,.ol-current-provider-details").forEach(item => item.open = true);
       setMobileFastMode("pdf", "pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
     };
@@ -22944,6 +23024,8 @@ if (document.readyState === "loading") {
     });
 
     btnPhoto?.addEventListener("click", () => {
+      OL_GUIDED_PROFILE = null;
+      document.querySelectorAll(".ol-advanced-details,.ol-current-provider-details").forEach(item => item.open = true);
       tracciaSceltaPercorsoConfronto("pdf", "photo_camera_choice");
       setMobileFastMode("pdf", "photo");
       document.body.classList.remove("mobile-fast-pdf-review");
@@ -22952,6 +23034,8 @@ if (document.readyState === "loading") {
     });
 
     btnPdf?.addEventListener("click", () => {
+      OL_GUIDED_PROFILE = null;
+      document.querySelectorAll(".ol-advanced-details,.ol-current-provider-details").forEach(item => item.open = true);
       tracciaSceltaPercorsoConfronto("pdf", "pdf_file_choice");
       setMobileFastMode("pdf", "pdf");
       document.body.classList.remove("mobile-fast-pdf-review");
@@ -22962,13 +23046,173 @@ if (document.readyState === "loading") {
     btnManual?.addEventListener("click", () => {
       tracciaSceltaPercorsoConfronto("manual", "comparison_method_choice");
       setMobileFastMode("manual");
-      btnPrecisi?.click();
-      window.setTimeout(() => {
-        if (submit) submit.textContent = "Scopri le offerte";
-        const firstField = manualFlow?.querySelector("select:not([disabled]), input:not([type='hidden']):not([disabled])");
-        scrollFast(firstField || manualFlow, "center");
-      }, 60);
+      document.body.dataset.olManualChoice = "gate";
+      const gate = document.getElementById("ol-manual-mobile-gate");
+      const wizard = document.getElementById("ol-questions");
+      if (gate) gate.hidden = false;
+      if (wizard) wizard.hidden = true;
+      window.setTimeout(() => scrollFast(gate || manualFlow, "center"), 30);
     });
+
+    // V125: three quick questions or a compact, real-bill manual form.
+    function initializeManualMobileChoices() {
+      const gate = document.getElementById("ol-manual-mobile-gate");
+      const wizard = document.getElementById("ol-questions");
+      const status = document.getElementById("ol-questions-status");
+      const progress = document.getElementById("ol-questions-progress");
+      const back = document.getElementById("ol-questions-back");
+      const manualContainer = document.getElementById("master-tendine-container");
+      const techGrid = document.getElementById("master-commodity-grid");
+      const commonFilters = document.getElementById("master-common-filters");
+      const currentCard = document.getElementById("blocco-attuale");
+      const providers = currentCard?.querySelector(".compare-provider-panel");
+      const currentSubgrid = currentCard?.querySelector(".columns-subgrid");
+      let wrapped = false;
+      let step = 1;
+      let people = null;
+      function scrollToElement(target) {
+        if (!target) return;
+        requestAnimationFrame(() => target.scrollIntoView({behavior: "smooth", block: "start"}));
+      }
+      function compressKnownForm() {
+        if (wrapped || !manualContainer || !techGrid || !commonFilters) return;
+        // Move actual existing controls, not copies, keeping their ids and calculations.
+        const supplyGroup = commonFilters.querySelector("#master-tipo-fornitura")?.closest(".input-group");
+        if (!supplyGroup) return;
+        const advanced = document.createElement("details");
+        advanced.className = "ol-advanced-details";
+        const summary = document.createElement("summary");
+        summary.textContent = "Parametri tecnici (facoltativi)";
+        advanced.appendChild(summary);
+        const scope = document.createElement("div");
+        scope.className = "ol-manual-scope";
+        scope.appendChild(supplyGroup);
+        manualContainer.insertBefore(scope, techGrid);
+        manualContainer.insertBefore(advanced, techGrid);
+        advanced.appendChild(techGrid);
+        advanced.appendChild(commonFilters);
+        if (providers && currentSubgrid) {
+          const providerDetails = document.createElement("details");
+          providerDetails.className = "ol-current-provider-details";
+          const title = document.createElement("summary");
+          title.textContent = "Fornitore attuale (facoltativo)";
+          providerDetails.appendChild(title);
+          providerDetails.appendChild(providers);
+          currentCard.insertBefore(providerDetails, currentSubgrid.nextSibling);
+        }
+        wrapped = true;
+      }
+      gate?.querySelector("#ol-manual-known")?.addEventListener("click", () => {
+        gate.hidden = true;
+        if (wizard) wizard.hidden = true;
+        compressKnownForm();
+        document.querySelectorAll(".ol-advanced-details,.ol-current-provider-details").forEach(item => item.open = false);
+        if (document.body.dataset.olManualChoice !== "known") btnPrecisi?.click();
+        document.body.dataset.olManualChoice = "known";
+        if (submit) submit.textContent = "Scopri le offerte";
+        const scope = document.querySelector("#master-tipo-fornitura");
+        window.setTimeout(() => scrollToElement(scope || manualFlow), 40);
+        trackEvent("manual_known_consumption_selected", {source: "mobile_manual_choice"});
+      });
+      function showStep(number) {
+        step = number;
+        if (gate) gate.hidden = true;
+        if (wizard) wizard.hidden = false;
+        document.body.dataset.olManualChoice = "unknown";
+        wizard?.querySelectorAll(".ol-question-step").forEach((node) => {
+          node.hidden = Number(node.dataset.olStep) !== number;
+        });
+        if (progress) progress.textContent = `Domanda ${number} di 3`;
+        if (status) status.hidden = true;
+        scrollToElement(wizard);
+      }
+      gate?.querySelector("#ol-manual-unknown")?.addEventListener("click", () => {
+        showStep(1);
+        trackEvent("guided_three_questions_started", {source: "mobile_manual_choice"});
+      });
+      back?.addEventListener("click", () => {
+        if (step > 1) showStep(step - 1);
+        else {
+          if (wizard) wizard.hidden = true;
+          if (gate) gate.hidden = false;
+          document.body.dataset.olManualChoice = "gate";
+          scrollToElement(gate);
+        }
+      });
+      wizard?.querySelectorAll("[data-ol-people]").forEach((button) => {
+        button.addEventListener("click", () => {
+          people = Number(button.dataset.olPeople);
+          showStep(2);
+        });
+      });
+      wizard?.querySelector("#ol-appliances-next")?.addEventListener("click", () => showStep(3));
+      function guidedConsumption(heat) {
+        // ARERA: household-size reference bands for electric use (1929/2583/2927)
+        // and gas cooking/hot water (246/278) vs heating (1024/1129 in climate E).
+        // Intermediate one-person and three-person steps and appliance add-ons are
+        // explicitly heuristics (not meter readings); figures remain adjustable later.
+        const baseKwh = ({1:1740, 2:1929, 3:2400, 4:2583, 5:2927})[people] || 2583;
+        const addons = {dryer:230, ac:360, water:1600};
+        const applianceValues = [...wizard.querySelectorAll("[data-ol-appliance]:checked")].map(el => el.value);
+        const addon = applianceValues.reduce((sum, key) => sum + (addons[key] || 0), 0);
+        const heatElectricExtra = heat === "electric" ? 2400 : 0;
+        const kwh = Math.round((baseKwh + addon + heatElectricExtra) / 50) * 50;
+        const smc = heat === "electric" ? 0
+          : heat === "gas" ? (people >= 5 ? 1129 : 1024)
+          : heat === "central" ? (people >= 5 ? 278 : 246)
+          : 1400;
+        return {people, heat, appliances: applianceValues, kwh, smc};
+      }
+      function applyGuidedConsumptions(profile) {
+        // Reference profile activates the existing catalog; customize consumption only.
+        btnMedi?.click();
+        OL_GUIDED_PROFILE = profile;
+        LEAD_STATE.dataOrigin = "guided_three_questions";
+        TIPO_PREZZO_RANKING_MEDIA = "tutte";
+        const scope = profile.smc > 0 ? "dual" : "luce";
+        const averageFilter = document.getElementById("average-ranking-fornitura-setup");
+        if (averageFilter) averageFilter.value = scope;
+        const masterScope = document.getElementById("master-tipo-fornitura");
+        if (masterScope) masterScope.value = scope;
+        applicaAmbitoConfronto(scope);
+        sincronizzaFiltriRankingMedia();
+        aggiornaConsumiDaMasterSeMedia();
+      }
+      wizard?.querySelectorAll("[data-ol-heat]").forEach((button) => {
+        button.addEventListener("click", () => {
+          if (!people) return showStep(1);
+          const profile = guidedConsumption(button.dataset.olHeat);
+          applyGuidedConsumptions(profile);
+          if (status) { status.hidden = false; status.textContent = "Prepariamo le offerte per i tuoi consumi stimati…"; }
+          wizard.querySelectorAll("[data-ol-heat]").forEach(item => item.disabled = true);
+          let checks = 0;
+          function runWhenReady() {
+            if (document.body.dataset.olManualChoice !== "unknown") return;
+            if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
+              trackEvent("guided_three_questions_completed", {source: "mobile_manual", people: profile.people, appliances: profile.appliances.length, heating: profile.heat, estimatedKwh:profile.kwh, estimatedSmc:profile.smc});
+              window.__OL_A11Y_RESULTS_PENDING__ = true;
+              window.__OL_MOBILE_FAST_RESULTS_PENDING__ = true;
+              setMobileFastMode("average", "manual");
+              document.body.dataset.olManualChoice = "guidedResults";
+              wizard.hidden = true;
+              window.avviaComparazioneDati?.();
+              wizard.querySelectorAll("[data-ol-heat]").forEach(item => item.disabled = false);
+              return;
+            }
+            if (++checks < 120) return window.setTimeout(runWhenReady, 125);
+            if (status) status.textContent = "I dati delle offerte non sono ancora pronti. Riprova tra poco.";
+            wizard.querySelectorAll("[data-ol-heat]").forEach(item => item.disabled = false);
+          }
+          runWhenReady();
+        });
+      });
+      document.addEventListener("click", (event) => {
+        if (event.target?.id !== "ol-guided-edit-answers") return;
+        setMobileFastMode("manual", "manual");
+        showStep(1);
+      });
+    }
+    initializeManualMobileChoices();
 
     const helpBackdrop = document.getElementById("mobile-fast-help-backdrop");
     const helpTitle = document.getElementById("mobile-fast-help-title");
