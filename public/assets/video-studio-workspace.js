@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.3 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');

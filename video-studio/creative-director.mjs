@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.2';
+const CREATIVE_ENGINE_VERSION = '1.3.3.3';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -47,7 +47,9 @@ export function sceneRolesForCount(count){return rolesByCount[count]||null;}
 
 function check(ok,msg){if(!ok)throw new Error(`VIDEO_STUDIO_CREATIVE: ${msg}`);}
 function clean(v,label,max,{optional=false}={}) {
-  check((optional&& (v==null||v===''))||(typeof v==='string'&&v.trim()&&v.length<=max),`${label} non valido (massimo ${max} caratteri)`);
+  const valid=(optional&& (v==null||v===''))||
+    (typeof v==='string'&&v.trim()&&(max==null||v.length<=max));
+  check(valid,`${label} non valido${max==null?'':` (massimo ${max} caratteri)`}`);
   return String(v||'').trim();
 }
 export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideVideoSha256='',guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='reference_only',guideContext='',guideFidelity='inspiration',sceneCountPreference='auto'}={}) {
@@ -250,8 +252,8 @@ export function validateCreativeResponse(input,response) {
   check(response.guide_review&&typeof response.guide_review==='object'&&
     Array.isArray(response.guide_review.observed_headlines)&&
     response.guide_review.observed_headlines.length<=8,'resoconto Reel guida non valido');
-  const observedHeadlines=response.guide_review.observed_headlines.map(x=>clean(x,'testo rilevato dalla guida',110));
-  const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',500,{optional:true});
+  const observedHeadlines=response.guide_review.observed_headlines.map(x=>clean(x,'testo rilevato dalla guida',null));
+  const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',null,{optional:true});
   const creativeDeparture=clean(response.guide_review.creative_departure,'divergenza creativa',500,{optional:true});
   const inventive=['guide_image','guide_video'].includes(input.input_type)&&input.guide_fidelity==='inspiration';
   if(inventive) check(creativeDeparture.length>=30,
@@ -371,14 +373,14 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const profile=await askModel(reviewRequest);
     const section=(value,name)=>{
       check(value&&typeof value==='object',`analisi guida: ${name} mancante`);
-      for(const [key,item] of Object.entries(value))clean(item,`analisi guida ${name}.${key}`,500);
+      for(const [key,item] of Object.entries(value))clean(item,`analisi guida ${name}.${key}`,null);
       return value;
     };
     section(profile?.graphic,'grafica');section(profile?.narrative,'narrativa');section(profile?.visual,'visiva');
     check(Array.isArray(profile?.observed_headlines)&&profile.observed_headlines.length<=8 &&
-      profile.observed_headlines.every(v=>typeof v==='string'&&v.length<=110),'testi guida non validi');
+      profile.observed_headlines.every(v=>typeof v==='string'&&v.trim()),'testi guida non validi');
     check(Array.isArray(profile?.quality_principles)&&profile.quality_principles.length>=2&&
-      profile.quality_principles.length<=8&&profile.quality_principles.every(v=>typeof v==='string'&&v.trim()&&v.length<=250),
+      profile.quality_principles.length<=8&&profile.quality_principles.every(v=>typeof v==='string'&&v.trim()),
       'principi qualitativi guida insufficienti');
     const guidedRequest=buildCreativeRequest(normalized,{guideImageBytes,guideVideoFrames,guideProfile:profile});
     const compare=async candidate=>{
