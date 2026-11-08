@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.3';
+const CREATIVE_ENGINE_VERSION = '1.3.3.4';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -189,8 +189,11 @@ Evita promesse commerciali non verificate. In visual_brief descrivi ambientazion
 Fotografie AI ORIGINALI create per il Reel: le fotografie dell'articolo o dei post sono solo contesto, MAI asset da copiare o riutilizzare.
 Non riproporre immagini pubblicitarie riconoscibili, scene standard ripetute né identità di persone reali tratte dalle fonti.
 Niente grafica, scritte, loghi, cifre, tabelle o interfacce all'interno delle fotografie: questi elementi sono aggiunti dal compositore in livelli separati.
-Per ogni immagine riserva spazio negativo per una headline grande e il logo all'interno della fascia centrale 1080x1920: x circa 130-950 px e y circa 420-1248 px; non collocare occhi, volto o mani significative in quella zona se impediscono la leggibilità. Evita di prevedere testi principali nei bordi alti e bassi, soggetti a ritagli Facebook e Instagram.
+Per ogni immagine riserva spazio negativo per una headline grande all'interno della fascia centrale 1080x1920: x circa 130-950 px e y circa 420-1248 px; nella CTA finale riserva anche spazio per un invito chiaro al sito e il logo. Non collocare occhi, volto o mani significative nell'area dei testi se ne impediscono la leggibilità. Evita di prevedere testi principali nei bordi alti e bassi, soggetti a ritagli Facebook e Instagram.
 Headline brevi, specifiche, massimo 6 parole; sottotitolo opzionale massimo 8 parole.
+REGIA DEI TESTI: l'HOOK (prima scena) deve essere capito immediatamente e suscitare curiosita concreta sul problema mostrato; evita introduzioni generiche e slogan che non agganciano. Il testo deve avere un rapporto evidente con l'azione fotografata, e il sottotitolo deve aggiungere informazione invece di parafrasare la headline.
+Nelle scene centrali ogni headline deve far avanzare la storia, e il sottotitolo deve essere un chiarimento breve: scegli parole che si possano leggere in un secondo senza invadere volto, mani o oggetto protagonista. Per art_direction.typography preferisci clean o accent_rule; editorial_panel non deve implicare un rettangolo opaco sopra la fotografia.
+L'ULTIMA SCENA ha ruolo CTA: deve dare una ragione pertinente per continuare su OffertaLogica, non soltanto una frase motivazionale. Il renderer mostra gia un invito esplicito VAI SU OFFERTALOGICA.IT e il marchio autentico: non duplicare indirizzo, nome del brand o comando nel sottotitolo. Headline e sottotitolo devono spiegare cosa l'utente puo trovare sul sito, senza promesse commerciali non verificate.
 Non inventare risparmi, percentuali, tariffe, bollette, testimonianze, confronti quantitativi o prove; non promettere risparmi garantiti.
 Le note del proprietario sono indicazioni creative, non autorizzano affermazioni non supportate. Se l'input è un articolo, rispetta le condizioni e sfumature delle fonti; se è un tema libero, le affermazioni fattuali sono proposte da verificare.
 Non asserire che contenuti, immagini, originalità storica o licenze siano già stati approvati.

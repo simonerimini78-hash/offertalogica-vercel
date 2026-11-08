@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.3 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.4 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -645,8 +645,8 @@
   });
   const clampNumber = (value,min,max) => Math.max(min,Math.min(max,value));
   function defaultTextStyle(kind) {
-    return {font:'system-ui',size:kind==='title'?100:kind==='cta'?43:48,weight:kind==='subtitle'?500:800,
-      color:'#ffffff',align:'left',background:false,bgColor:'#152c38',opacity:.6,
+    return {font:'system-ui',size:kind==='title'?100:kind==='cta'?56:48,weight:kind==='subtitle'?500:800,
+      color:'#ffffff',align:'left',background:kind==='cta',bgColor:kind==='cta'?'#207f51':'#152c38',opacity:kind==='cta'?.96:.6,
       padding:14,radius:16,shadow:true};
   }
   function constrainTextBox(box,kind) {
@@ -680,7 +680,7 @@
   function layerText(view,kind) {
     if(kind==='title')return String(view.scene.headline||'').trim();
     if(kind==='subtitle')return String(view.scene.secondary_text||'').trim();
-    if(kind==='cta')return 'ENTRA IN';
+    if(kind==='cta')return 'VISITA IL SITO';
     return String(layerFor(view,kind)?.text||'').trim();
   }
   function manualKinds(view) {
@@ -707,9 +707,13 @@
       subtitle:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:secondaryY/MONTAGE_HEIGHT,
         width:Math.min(0.8,choice.width/MONTAGE_WIDTH),height:.095},'subtitle'),
         style:defaultTextStyle('subtitle')},
-      ...(view.scene.role==='cta'?{cta:{box:constrainTextBox({x:.36,y:.66,width:.48,height:.08},'cta'),
+      ...(view.scene.role==='cta'?{cta:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,
+        y:(auto?.footerY||950)/MONTAGE_HEIGHT,width:choice.width/MONTAGE_WIDTH,
+        height:(auto?.actionHeight||142)/MONTAGE_HEIGHT},'cta'),
         style:defaultTextStyle('cta')}}:{}),
-      extras:[],logo:newLogoLayer(),
+      extras:[],logo:view.scene.role==='cta'&&auto?{visible:true,opacity:1,
+        box:constrainLogoBox({x:auto.logo.x/MONTAGE_WIDTH,y:auto.logo.y/MONTAGE_HEIGHT,
+          width:auto.logo.width/MONTAGE_WIDTH})}:newLogoLayer(),
     });
   }
   function currentTextView() { return sceneViews[previewIndex] || null; }
@@ -830,23 +834,24 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
-  // A headline is a mobile-first message, not a paragraph: two lines at most.
-  // Long editorial text remains in the storyboard; only the on-screen copy is shortened.
+  // Hook stays within two lines; other scenes may use three rather than lose meaning.
+  // Long editorial text remains in the storyboard; only on-screen copy is fitted.
   function fitSceneCopy(ctx,scene,width) {
     const headline=String(scene.headline||'').trim();
     const isCta=scene.role==='cta';
+    const maxLines=scene.role==='hook'?2:3;
     let size=isCta?112:(scene.role==='hook'?108:100);
     let lines=[];
     for (;size>=76;size-=4) {
       ctx.font=`800 ${size}px system-ui, sans-serif`;
       lines=wrapOverlayLines(ctx,headline,width);
-      if (lines.length<=2 && lines.every(line=>ctx.measureText(line).width<=width)) break;
+      if (lines.length<=maxLines && lines.every(line=>ctx.measureText(line).width<=width)) break;
     }
     if (size<76) size=76;
     ctx.font=`800 ${size}px system-ui, sans-serif`;
     const complete=wrapOverlayLines(ctx,headline,width);
-    const titleTruncated=complete.length>2 || complete.some(line=>ctx.measureText(line).width>width);
-    lines=titleTruncated?wrapCanvasText(ctx,headline,width,2):complete;
+    const titleTruncated=complete.length>maxLines || complete.some(line=>ctx.measureText(line).width>width);
+    lines=titleTruncated?wrapCanvasText(ctx,headline,width,maxLines):complete;
     const secondary=String(scene.secondary_text||'').trim();
     let detailSize=isCta?46:48,detail=[],detailTruncated=false;
     if (secondary) {
@@ -874,59 +879,67 @@
       titleHeight,textHeight,titleTruncated,detailTruncated,titleWidth,detailWidth};
   }
   function compositionForScene(ctx,view) {
-    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.art_direction?.placement||''}|${view._faceBoxes?.length||0}`;
+    const key=`${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view._faceBoxes?.length||0}`;
     if (view._compositionKey===key && view._composition) return view._composition;
     const mode=scenePlacement(view);
     const choices=[
-      {side:'top',x:130,y:440,width:820},
-      {side:'bottom',x:130,y:650,width:820},
+      {side:'left',x:130,y:440,width:570},
+      {side:'right',x:380,y:440,width:570},
+      {side:'left',x:130,y:650,width:570},
+      {side:'right',x:380,y:650,width:570},
       {side:'left',x:130,y:440,width:440},
       {side:'right',x:510,y:440,width:440},
-      {side:'left',x:130,y:650,width:440},
-      {side:'right',x:510,y:650,width:440},
+      {side:'top',x:130,y:440,width:820},
+      {side:'bottom',x:130,y:650,width:820},
     ];
-    let ranked=[];
-    const image=previewView?.logo;
     const isCta=view.scene.role==='cta';
-    // Logo and headline form one unit; on CTA the action label leads into the logo.
-    const logoW=isCta?290:230;
-    const logoH=image?.naturalWidth ? Math.round(logoW*image.naturalHeight/image.naturalWidth) : Math.round(logoW*.552);
-    const actionSize=isCta?43:0;
+    const brand=transparentBrandLogo()||previewView?.logo;
+    const logoAspectRatio=brand?.naturalWidth
+      ? brand.naturalHeight/brand.naturalWidth : 353/640;
+    const ranked=[];
     for(const choice of choices) {
       if(view.layoutPreference!=='auto' && choice.side!==view.layoutPreference) continue;
       const copy=fitSceneCopy(ctx,view.scene,choice.width);
-      const actionWidth=isCta?Math.round(actionSize*3.65):0;
-      const footerHeight=Math.max(logoH,actionSize)+20;
-      const groupHeight=copy.textHeight+24+footerHeight;
-      const y=Math.min(choice.y,1240-groupHeight);
-      if(y<420) continue;
-      const inkWidth=Math.min(choice.width,Math.max(copy.titleWidth,copy.detailWidth,
-        logoW+(isCta?actionWidth+16:0)));
-      const textBounds={x:choice.x,y,width:inkWidth,height:copy.textHeight};
+      // The action is a branded destination, not a tiny label squeezed beside the logo.
+      const actionHeight=isCta?142:0;
+      const logoW=isCta?Math.min(340,Math.floor(choice.width*.78)):0;
+      const logoH=Math.ceil(logoW*logoAspectRatio);
+      const footerHeight=isCta?24+actionHeight+14+logoH:0;
+      const groupHeight=copy.textHeight+footerHeight;
+      const y=Math.min(choice.y,1225-groupHeight);
+      if(y<405) continue;
       const footerY=y+copy.textHeight+24;
-      const logo={x:choice.x+(isCta?actionWidth+16:0),y:footerY,width:logoW,height:logoH};
-      if(logo.x+logo.width>950) continue;
-      const bounds={x:choice.x-14,y:y-16,width:Math.max(inkWidth+28,logo.x+logo.width-choice.x+28),height:groupHeight+22};
+      const logo={x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH};
+      const inkWidth=Math.min(choice.width,Math.max(copy.titleWidth,copy.detailWidth));
+      const textBounds={x:choice.x,y,width:inkWidth,height:copy.textHeight};
+      const bounds={x:choice.x-14,y:y-16,width:choice.width+28,height:groupHeight+28};
       const faces=view._faceBoxes||[];
-      const facePenalty=faces.some(face=>intersects(face,bounds,70))?80:0;
+      const facePenalty=faces.some(face=>intersects(face,bounds,48))?85:0;
       const busyArea=quietness(view,bounds);
-      // Large readable headlines outrank arbitrary left/right placement.
+      const subjectSide=view.scene.subject_side;
+      const oppositeSide=(subjectSide==='left'&&choice.side==='right')||
+        (subjectSide==='right'&&choice.side==='left');
+      const sidePenalty=['left','right'].includes(subjectSide)
+        ? oppositeSide?-2.5:['top','bottom'].includes(choice.side)?1.5:5.5 : 0;
       const sizePenalty=(112-copy.size)*.018+(copy.titleTruncated?2.7:0);
-      const preference=(mode!=='auto' && choice.side===mode)?-.34:0;
-      const footerOverlap=faces.some(face=>intersects(face,logo,62))?35:0;
-      const score=busyArea*2.4+facePenalty+footerOverlap+sizePenalty+preference+
+      const preference=(mode!=='auto' && choice.side===mode)?-1.1:0;
+      const widePenalty=isCta&&choice.width>600?.8:0;
+      const score=busyArea*2.4+facePenalty+sidePenalty+sizePenalty+widePenalty+preference+
         (choice.side==='bottom'?.13:0);
-      ranked.push({choice,copy,y,bounds,textBounds,logo,actionSize,footerY,score});
+      ranked.push({choice,copy,y,bounds,textBounds,logo,footerY,actionHeight,score});
     }
     ranked.sort((a,b)=>a.score-b.score);
-    // This fallback is only for an unsupported manual location, not for normal scenes.
     const selected=ranked[0]||(()=>{
       const choice=choices[0],copy=fitSceneCopy(ctx,view.scene,choice.width);
-      const fallbackY=Math.max(420,1240-(copy.textHeight+24+Math.max(logoH,actionSize)+20));
-      const footerY=fallbackY+copy.textHeight+24;
-      return {choice,copy,y:fallbackY,bounds:{x:122,y:fallbackY-16,width:836,height:copy.textHeight+logoH+70},
-        textBounds:{x:choice.x,y:fallbackY,width:choice.width,height:copy.textHeight},
-        logo:{x:choice.x,y:footerY,width:logoW,height:logoH},footerY,actionSize,score:0};
+      const actionHeight=isCta?142:0;
+      const logoW=isCta?340:0,logoH=Math.ceil(logoW*logoAspectRatio);
+      const groupHeight=copy.textHeight+(isCta?24+actionHeight+14+logoH:0);
+      const y=Math.max(405,Math.min(440,1225-groupHeight));
+      const footerY=y+copy.textHeight+24;
+      return {choice,copy,y,bounds:{x:choice.x-14,y:y-16,width:choice.width+28,height:groupHeight+28},
+        textBounds:{x:choice.x,y,width:choice.width,height:copy.textHeight},
+        logo:{x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH},
+        footerY,actionHeight,score:0};
     })();
     view._compositionKey=key;
     view._composition=selected;
@@ -1136,9 +1149,9 @@
         b.width*MONTAGE_WIDTH,b.height*MONTAGE_HEIGHT);ctx.restore();
     }
   }
-  function drawCinematicOverlay(ctx,view) {
+  function drawCinematicOverlay(ctx,view,localTime=1) {
     const {scene}=view;
-    const {choice,copy,y,bounds,logo,footerY,actionSize}=compositionForScene(ctx,view);
+    const {choice,copy,y,bounds,logo,footerY,actionHeight}=compositionForScene(ctx,view);
     const photo=photoSalience(view);
     let brightness=.52;
     if(photo) {
@@ -1153,49 +1166,77 @@
     const ink=lightText?'#ffffff':'#102b3b';
     const outline=lightText?'rgba(8,17,26,.72)':'rgba(255,255,255,.78)';
     const centreX=bounds.x+bounds.width/2,centreY=bounds.y+bounds.height/2;
-    const fade=ctx.createRadialGradient(centreX,centreY,25,centreX,centreY,Math.max(bounds.width,bounds.height)*.85);
-    fade.addColorStop(0,lightText?'rgba(4,15,24,.50)':'rgba(255,255,255,.48)');
-    fade.addColorStop(.58,lightText?'rgba(4,15,24,.24)':'rgba(255,255,255,.22)');
+    const fade=ctx.createRadialGradient(centreX,centreY,25,centreX,centreY,Math.max(bounds.width,bounds.height)*.86);
+    fade.addColorStop(0,lightText?'rgba(4,15,24,.58)':'rgba(255,255,255,.51)');
+    fade.addColorStop(.58,lightText?'rgba(4,15,24,.28)':'rgba(255,255,255,.26)');
     fade.addColorStop(1,'rgba(0,0,0,0)');
     ctx.save();ctx.fillStyle=fade;
     ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
     const art=scene.art_direction;
-    const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#32b66d';
+    const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#228c59';
     if(art?.typography==='editorial_panel') {
-      const x=Math.max(105,bounds.x-2),width=Math.min(MONTAGE_WIDTH-x-105,bounds.width+4);
-      ctx.fillStyle=lightText?'rgba(5,17,26,.77)':'rgba(255,255,255,.85)';
-      ctx.beginPath();ctx.roundRect(x,Math.max(405,bounds.y),width,Math.min(bounds.height,840),24);ctx.fill();
-      ctx.fillStyle=accent;ctx.fillRect(x,Math.max(405,bounds.y),9,Math.min(bounds.height,840));
-    } else if(art?.typography==='accent_rule') {
+      // Never mask the person with an opaque card. Use a local feathered veil instead.
+      const veil=ctx.createRadialGradient(centreX,centreY,10,centreX,centreY,Math.max(bounds.width,bounds.height)*.60);
+      veil.addColorStop(0,lightText?'rgba(4,15,24,.22)':'rgba(255,255,255,.24)');
+      veil.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.fillStyle=veil;ctx.fillRect(bounds.x,bounds.y,bounds.width,bounds.height);
+    }
+    if(art?.typography==='accent_rule'||art?.typography==='editorial_panel') {
       ctx.fillStyle=accent;
-      ctx.fillRect(Math.max(115,choice.x-17),y,8,Math.max(48,copy.titleHeight));
+      ctx.fillRect(Math.max(115,choice.x-17),y,7,Math.max(48,copy.titleHeight));
     }
     ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
-    const drawLine=(text,x,yy,font,isDetail=false)=>{
+    const progress=(delay,duration)=>Math.max(0,Math.min(1,(localTime-delay)/duration));
+    // The hook must be readable from frame one; the supporting thought enters next.
+    const titleProgress=.78+.22*progress(0,.32);
+    const detailProgress=progress(scene.role==='hook'?.24:.15,.52);
+    const actionProgress=progress(.28,.40);
+    const drawLine=(text,x,yy,font,isDetail=false,alpha=1,offset=0)=>{
+      ctx.save();ctx.globalAlpha*=alpha;
       ctx.font=font;
       ctx.lineWidth=isDetail?3.5:5;
-      ctx.strokeStyle=outline;ctx.strokeText(text,x,yy);
+      ctx.strokeStyle=outline;ctx.strokeText(text,x,yy+offset);
       ctx.shadowColor=lightText?'rgba(0,0,0,.60)':'rgba(255,255,255,.54)';
-      ctx.shadowBlur=8;ctx.fillStyle=ink;ctx.fillText(text,x,yy);ctx.shadowBlur=0;
+      ctx.shadowBlur=8;ctx.fillStyle=ink;ctx.fillText(text,x,yy+offset);
+      ctx.restore();
     };
     const baseline=y+copy.size;
     copy.lines.forEach((line,i)=>drawLine(line,choice.x,baseline+i*copy.titleStep,
-      `800 ${copy.size}px system-ui, sans-serif`));
+      `800 ${copy.size}px system-ui, sans-serif`,false,titleProgress,14*(1-titleProgress)));
     if(copy.detail.length) {
       const first=y+copy.titleHeight+26+copy.detailSize;
       copy.detail.forEach((line,i)=>drawLine(line,choice.x,first+i*copy.detailStep,
-        `500 ${copy.detailSize}px system-ui, sans-serif`,true));
+        `500 ${copy.detailSize}px system-ui, sans-serif`,true,detailProgress,12*(1-detailProgress)));
     }
-    // The CTA is an action immediately completed by the authentic brand mark.
     if(scene.role==='cta') {
-      drawLine('ENTRA IN',choice.x,footerY+actionSize+22,
-        `800 ${actionSize}px system-ui, sans-serif`,true);
-    }
-    const brand=transparentBrandLogo()||previewView?.logo;
-    if(brand && (brand.width||brand.naturalWidth)) {
-      ctx.shadowColor='rgba(255,255,255,.75)';ctx.shadowBlur=11;
-      ctx.drawImage(brand,logo.x,logo.y,logo.width,logo.height);
+      // A readable, explicit destination, visible independently of any AI-written slogan.
+      const buttonAlpha=.45+.55*actionProgress;
+      const buttonY=footerY+12*(1-actionProgress);
+      const buttonX=choice.x;
+      const buttonW=choice.width;
+      ctx.save();ctx.globalAlpha*=buttonAlpha;
+      ctx.fillStyle='#207f51';
+      ctx.beginPath();ctx.roundRect(buttonX,buttonY,buttonW,actionHeight,20);ctx.fill();
+      ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#ffffff';
+      ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=5;
+      ctx.font='750 37px system-ui, sans-serif';
+      ctx.fillText('VAI SU',buttonX+22,buttonY+49);
+      let domainSize=52;
+      do {
+        ctx.font=`800 ${domainSize}px system-ui, sans-serif`;
+        if(ctx.measureText('OFFERTALOGICA.IT').width<=buttonW-44)break;
+        domainSize-=2;
+      } while(domainSize>30);
+      ctx.fillText('OFFERTALOGICA.IT',buttonX+22,buttonY+113);
+      ctx.restore();
+      const brand=transparentBrandLogo()||previewView?.logo;
+      if(brand && (brand.width||brand.naturalWidth)) {
+        ctx.save();ctx.globalAlpha*=progress(.50,.40);
+        ctx.shadowColor='rgba(255,255,255,.8)';ctx.shadowBlur=12;
+        ctx.drawImage(brand,logo.x,logo.y,logo.width,logo.height);
+        ctx.restore();
+      }
     }
     ctx.restore();
   }
@@ -1226,7 +1267,7 @@
       }
       if (sceneViews[segment.index]?.layoutPreference === 'manual')
         drawManualOverlay(ctx,sceneViews[segment.index]);
-      else drawCinematicOverlay(ctx, sceneViews[segment.index]);
+      else drawCinematicOverlay(ctx, sceneViews[segment.index],segment.local);
     }
     // Thin timeline belongs to the editing PREVIEW only, not the exported video.
     if (!exporting) {
