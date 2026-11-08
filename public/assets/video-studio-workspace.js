@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.6 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
+/* Video Studio v1.3.3.7 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -788,9 +788,11 @@
       const {data} = c.getImageData(0, 0, 108, 192);
       const mass = new Float32Array(108*192);
       const lum = new Float32Array(108*192);
+      const rgb = new Uint8Array(108*192*3);
       for (let y=0; y<192; y++) for (let x=0; x<108; x++) {
         const i=y*108+x, j=i*4;
         const r=data[j], g=data[j+1], b=data[j+2];
+        rgb[i*3]=r;rgb[i*3+1]=g;rgb[i*3+2]=b;
         const gray=(0.2126*r+0.7152*g+0.0722*b)/255;
         lum[i]=gray;
         const skin=r>75 && g>44 && b>22 && r>g+10 && r>b+15 && g>b*0.72 && g<b*2.1;
@@ -801,7 +803,7 @@
         mass[i] += Math.min(1.2, (Math.abs(lum[i+1]-lum[i-1])+
           Math.abs(lum[i+108]-lum[i-108]))*1.7);
       }
-      view._salience = {mass,lum};
+      view._salience = {mass,lum,rgb};
       return view._salience;
     } catch { return null; }
   }
@@ -840,6 +842,68 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
+  // The guide's art direction selects a typographic language; the actual scene photo
+  // decides legible colors. All families have local fallbacks (no external font request).
+  function sceneTypeStyle(view) {
+    const art=view.scene?.art_direction;
+    let mode=art?.typography;
+    if(!['clean','accent_rule','editorial_panel'].includes(mode)) {
+      const photo=photoSalience(view);
+      let warm=0,samples=0;
+      if(photo?.rgb)for(let i=0;i<photo.rgb.length;i+=147) {
+        warm+=photo.rgb[i]-photo.rgb[i+2];samples++;
+      }
+      mode=samples && warm/samples>24?'editorial_panel':'clean';
+    }
+    if(mode==='editorial_panel')return {mode,titleFamily:'Georgia, "Times New Roman", serif',
+      titleWeight:700,detailFamily:'"Trebuchet MS", Arial, sans-serif',detailWeight:600,
+      detailItalic:false,detailIndent:30};
+    if(mode==='accent_rule')return {mode,titleFamily:'"Arial Black", "Trebuchet MS", Arial, sans-serif',
+      titleWeight:800,detailFamily:'"Trebuchet MS", Arial, sans-serif',detailWeight:600,
+      detailItalic:false,detailIndent:28};
+    return {mode,titleFamily:'system-ui, "Segoe UI", Arial, sans-serif',titleWeight:800,
+      detailFamily:'Georgia, "Times New Roman", serif',detailWeight:600,
+      detailItalic:true,detailIndent:26};
+  }
+  function sceneFont(type,size,detail=false) {
+    return detail?`${type.detailItalic?'italic ':''}${type.detailWeight} ${size}px ${type.detailFamily}`:
+      `${type.titleWeight} ${size}px ${type.titleFamily}`;
+  }
+  function samplePhotoBrightness(view,rect) {
+    const photo=photoSalience(view);
+    if(!photo?.rgb)return null;
+    const x0=Math.max(0,Math.floor(rect.x/10)),x1=Math.min(108,Math.ceil((rect.x+rect.width)/10));
+    const y0=Math.max(0,Math.floor(rect.y/10)),y1=Math.min(192,Math.ceil((rect.y+rect.height)/10));
+    let sum=0,count=0,bright=0;
+    for(let y=y0;y<y1;y+=2)for(let x=x0;x<x1;x+=2) {
+      const i=(y*108+x)*3;
+      const lum=(.2126*photo.rgb[i]+.7152*photo.rgb[i+1]+.0722*photo.rgb[i+2])/255;
+      sum+=lum;bright+=lum>=.55?1:0;count++;
+    }
+    return count?{mean:sum/count,brightShare:bright/count}:null;
+  }
+  function photoTextPalette(view,composition) {
+    const {choice,copy,y}=composition;
+    const titleArea={x:choice.x,y,width:Math.min(choice.width,copy.titleWidth+12),height:copy.titleHeight};
+    const detailArea={x:choice.x+copy.detailIndent,y:y+copy.titleHeight+copy.gap,
+      width:Math.min(choice.width-copy.detailIndent,copy.detailWidth+12),
+      height:Math.max(copy.detailSize,copy.textHeight-copy.titleHeight-copy.gap)};
+    const titleLight=samplePhotoBrightness(view,titleArea);
+    const detailLight=copy.detail.length?samplePhotoBrightness(view,detailArea):titleLight;
+    const dark=(tone)=>tone?.mean>=.54 || (tone?.mean>=.46&&tone?.brightShare>=.7);
+    const titleDark=dark(titleLight);
+    const detailDark=dark(detailLight);
+    const green=String(view.scene.art_direction?.accent_color||'');
+    const accent=/^#[0-9a-fA-F]{6}$/.test(green)?green:'#23845b';
+    // Dark type on light photography; warm white on dark photography.
+    // The support line is differentiated without forcing it to be tiny.
+    return {title:titleDark?'#183039':'#fff9ef',
+      detail:detailDark?'#205943':'#e3f0da',
+      titleOutline:titleDark?'rgba(255,250,242,.70)':'rgba(4,15,24,.77)',
+      detailOutline:detailDark?'rgba(255,250,242,.65)':'rgba(4,15,24,.72)',
+      titleShadow:titleDark?'rgba(255,255,255,.18)':'rgba(0,0,0,.56)',
+      detailShadow:detailDark?'rgba(255,255,255,.16)':'rgba(0,0,0,.50)',accent};
+  }
   // Measure all words before placing them. The automatic compositor NEVER emits ellipses.
   // Balancing the lines (rather than greedy wrapping) avoids stranded single-word endings.
   function balancedCopyLines(ctx, value, width, maxLines) {
@@ -875,40 +939,43 @@
     };
     return solve(0,maxLines)?.lines||null;
   }
-  // Fit whole titles and subtitles to their actual candidate area. Scale both, not just the title.
-  function fitSceneCopy(ctx,scene,width,maxHeight) {
+  // Fit COMPLETE editorial copy with real breathing room; title and support are
+  // two independently measured typographic levels, never a compressed paragraph.
+  function fitSceneCopy(ctx,scene,width,maxHeight,type) {
     const headline=String(scene.headline||'').trim();
     const secondary=String(scene.secondary_text||'').trim();
     const isCta=scene.role==='cta';
-    const maxTitleSize=isCta?120:scene.role==='hook'?124:116;
+    const maxTitleSize=isCta?118:scene.role==='hook'?124:116;
     let best=null;
-    for(let size=maxTitleSize;size>=56;size-=4) {
-      ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
+    for(let size=maxTitleSize;size>=54;size-=4) {
+      ctx.font=sceneFont(type,size);
       const lines=balancedCopyLines(ctx,headline,width,4);
       if(!lines)continue;
-      const titleStep=Math.round(size*1.085);
+      const titleStep=Math.round(size*1.22);
       const titleHeight=size+(lines.length-1)*titleStep;
       const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
       if(titleHeight>maxHeight)continue;
-      const detailSizes=secondary?Array.from({length:12},(_,i)=>54-i*2):[0];
+      const detailSizes=secondary?[64,60,56,52,48,44,40,36]:[0];
       for(const detailSize of detailSizes) {
         let detail=[],detailHeight=0,detailWidth=0;
-        const detailStep=Math.round(detailSize*1.21);
+        const detailStep=Math.round(detailSize*1.35);
+        const detailIndent=secondary?type.detailIndent:0;
         if(secondary) {
-          ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
-          const result=balancedCopyLines(ctx,secondary,width,3);
+          ctx.font=sceneFont(type,detailSize,true);
+          const result=balancedCopyLines(ctx,secondary,width-detailIndent,3);
           if(!result)continue;
           detail=result;
           detailHeight=detailSize+(detail.length-1)*detailStep;
           detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
         }
-        const textHeight=titleHeight+(detail.length?22+detailHeight:0);
+        const gap=detail.length?Math.max(82,Math.round(size*.72)):0;
+        const textHeight=titleHeight+gap+detailHeight;
         if(textHeight>maxHeight)continue;
-        const score=size*0.75+detailSize*0.40-
-          Math.max(0,lines.length-2)*18-Math.max(0,detail.length-2)*6;
+        const score=size*.75+detailSize*.45-Math.max(0,lines.length-2)*13-
+          Math.max(0,detail.length-2)*5;
         if(!best||score>best.score)best={lines,size,titleStep,detail,detailSize,detailStep,
-          titleHeight,textHeight,titleWidth,detailWidth,score,titleTruncated:false,
-          detailTruncated:false,overflow:false};
+          detailIndent,gap,titleHeight,textHeight,titleWidth,detailWidth,score,
+          titleTruncated:false,detailTruncated:false,overflow:false};
       }
     }
     return best;
@@ -920,14 +987,14 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.6|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${faceSignature}`;
+    const key=`1.3.3.7|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}`;
     if(view._compositionKey===key && view._composition)return view._composition;
-    const mode=scenePlacement(view),isCta=view.scene.role==='cta';
+    const mode=scenePlacement(view),isCta=view.scene.role==='cta',type=sceneTypeStyle(view);
     const brand=transparentBrandLogo()||previewView?.logo;
     const logoAspectRatio=brand?.naturalWidth
       ?brand.naturalHeight/brand.naturalWidth:353/640;
-    const safeBottom=1196;
-    const topPositions=isCta?[350,400,455,520]:[385,455,535,625,705];
+    const safeBottom=1250;
+    const topPositions=isCta?[290,340,395,450]:[330,405,490,580,675];
     const widths=isCta?[820,760,700]:[820,760,700,630,560];
     const cache=new Map(),ranked=[];
     for(const width of widths) {
@@ -950,20 +1017,20 @@
         for(const y of topPositions) {
           if(choice.side==='top'&&y>455)continue;
           if(choice.side==='bottom'&&y<535)continue;
-          const actionHeight=isCta?142:0;
-          const logoW=isCta?Math.min(340,Math.round(width*.48)):0;
+          const actionHeight=isCta?166:0;
+          const logoW=isCta?Math.min(265,Math.round(width*.38)):0;
           const logoH=isCta?Math.ceil(logoW*logoAspectRatio):0;
-          const footerHeight=isCta?24+actionHeight+14+logoH:0;
+          const footerHeight=isCta?74+actionHeight+44+logoH:0;
           const maxTextHeight=safeBottom-y-footerHeight;
           if(maxTextHeight<160)continue;
           const fitKey=`${width}|${maxTextHeight}`;
-          if(!cache.has(fitKey))cache.set(fitKey,fitSceneCopy(ctx,view.scene,width,maxTextHeight));
+          if(!cache.has(fitKey))cache.set(fitKey,fitSceneCopy(ctx,view.scene,width,maxTextHeight,type));
           const copy=cache.get(fitKey);
           if(!copy)continue;
-          const footerY=y+copy.textHeight+24;
-          const logo={x:choice.x,y:footerY+actionHeight+14,width:logoW,height:logoH};
+          const footerY=y+copy.textHeight+74;
+          const logo={x:choice.x,y:footerY+actionHeight+44,width:logoW,height:logoH};
           // Measure the actual glyph block, not the entire horizontal candidate strip.
-          const inkWidth=Math.max(copy.titleWidth,copy.detailWidth);
+          const inkWidth=Math.max(copy.titleWidth,copy.detailWidth+copy.detailIndent);
           const textBounds={x:choice.x-6,y:y-9,width:Math.min(width+12,inkWidth+12),height:copy.textHeight+18};
           const bounds={x:choice.x-14,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36};
           const faces=view._faceBoxes||[];
@@ -981,10 +1048,10 @@
             (subjectSide==='right'&&choice.side==='left');
           const sidePenalty=['left','right'].includes(subjectSide)
             ?oppositeSide?-1.3:['top','bottom'].includes(choice.side)?0.4:1.6:0;
-          const sizePenalty=(124-copy.size)*.054+(54-copy.detailSize)*(copy.detail.length?.02:0);
+          const sizePenalty=(124-copy.size)*.049+(64-copy.detailSize)*(copy.detail.length?.025:0);
           const preference=(mode!=='auto'&&choice.side===mode)?-1.2:0;
           const balancePenalty=copy.lines.length>2?(copy.lines.length-2)*1.8:0;
-          const positionPenalty=Math.abs(y-(isCta?385:505))*.002;
+          const positionPenalty=Math.abs(y-(isCta?335:view.scene.role==='hook'?415:485))*.006;
           const score=busyArea*7+facePenalty+sidePenalty+sizePenalty+balancePenalty+
             preference+positionPenalty;
           ranked.push({choice:{...choice,y,width},copy,y,bounds,textBounds,logo,footerY,
@@ -996,22 +1063,24 @@
     const selected=ranked[0]||(()=>{
       // Never cut the copy to satisfy a fixed box. Surface a warning if no layout fits.
       const width=820,y=350;
-      const actionHeight=isCta?142:0,logoW=isCta?340:0;
+      const actionHeight=isCta?166:0,logoW=isCta?265:0;
       const logoH=Math.ceil(logoW*logoAspectRatio);
-      const footerHeight=isCta?24+actionHeight+14+logoH:0;
-      const copy=fitSceneCopy(ctx,view.scene,width,Number.POSITIVE_INFINITY)||{
+      const footerHeight=isCta?74+actionHeight+44+logoH:0;
+      const copy=fitSceneCopy(ctx,view.scene,width,Number.POSITIVE_INFINITY,type)||{
         lines:[String(view.scene.headline||'')],detail:[String(view.scene.secondary_text||'')],
-        size:56,detailSize:32,titleStep:61,detailStep:39,titleHeight:56,textHeight:134,
+        size:56,detailSize:36,titleStep:67,detailStep:48,titleHeight:56,textHeight:170,detailIndent:26,gap:70,
         titleWidth:width,detailWidth:width,overflow:true};
       copy.overflow=true;
-      const footerY=y+copy.textHeight+24;
+      const footerY=y+copy.textHeight+74;
       return {choice:{side:'top',x:130,y,width},copy,y,overflow:true,
         bounds:{x:116,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36},
         textBounds:{x:130,y,width,height:copy.textHeight},
-        logo:{x:130,y:footerY+actionHeight+14,width:logoW,height:logoH},footerY,
+        logo:{x:130,y:footerY+actionHeight+44,width:logoW,height:logoH},footerY,
         actionHeight,score:999};
     })();
     view._compositionKey=key;
+    selected.type=type;
+    selected.palette=photoTextPalette(view,selected);
     view._composition=selected;
     return selected;
   }
@@ -1220,92 +1289,63 @@
   }
   function drawCinematicOverlay(ctx,view,localTime=1) {
     const {scene}=view;
-    const {choice,copy,y,bounds,logo,footerY,actionHeight}=compositionForScene(ctx,view);
-    const photo=photoSalience(view);
-    let brightness=.52;
-    if(photo) {
-      let sum=0,count=0;
-      for(let iy=Math.max(0,Math.floor(bounds.y/10));iy<Math.min(191,Math.floor((bounds.y+bounds.height)/10));iy+=4)
-        for(let ix=Math.max(0,Math.floor(bounds.x/10));ix<Math.min(107,Math.floor((bounds.x+bounds.width)/10));ix+=4) {
-          sum+=photo.lum[iy*108+ix];count++;
-        }
-      if(count) brightness=sum/count;
-    }
-    const brighterPhoto=brightness>=.52;
-    const ink='#ffffff';
-    const outline='rgba(5,16,24,.84)';
-    const centreX=bounds.x+bounds.width/2,centreY=bounds.y+bounds.height/2;
-    const fade=ctx.createRadialGradient(centreX,centreY,20,centreX,centreY,
-      Math.max(bounds.width,bounds.height)*.96);
-    fade.addColorStop(0,brighterPhoto?'rgba(4,15,24,.44)':'rgba(4,15,24,.31)');
-    fade.addColorStop(.60,brighterPhoto?'rgba(4,15,24,.18)':'rgba(4,15,24,.12)');
-    fade.addColorStop(1,'rgba(0,0,0,0)');
-    ctx.save();ctx.fillStyle=fade;
-    ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
+    const {choice,copy,y,logo,footerY,actionHeight,type,palette}=compositionForScene(ctx,view);
     const art=scene.art_direction;
-    const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#228c59';
-    // Only feathered, full-canvas gradients: no hard-edged light rectangles over the photo.
-    if(art?.typography==='editorial_panel') {
-      const veil=ctx.createRadialGradient(centreX,centreY,0,centreX,centreY,
-        Math.max(bounds.width,bounds.height)*.92);
-      veil.addColorStop(0,brighterPhoto?'rgba(4,15,24,.12)':'rgba(4,15,24,.06)');
-      veil.addColorStop(1,'rgba(0,0,0,0)');
-      ctx.fillStyle=veil;ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
-    }
-    if(art?.typography==='accent_rule'||art?.typography==='editorial_panel') {
-      ctx.fillStyle=accent;
-      ctx.fillRect(Math.max(115,choice.x-17),y,7,Math.max(48,copy.titleHeight));
-    }
-    ctx.textAlign='left';ctx.textBaseline='alphabetic';
+    ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
     const progress=(delay,duration)=>Math.max(0,Math.min(1,(localTime-delay)/duration));
-    // The hook must be readable from frame one; the supporting thought enters next.
     const titleProgress=.78+.22*progress(0,.32);
-    const detailProgress=progress(scene.role==='hook'?.24:.15,.52);
+    const detailProgress=progress(scene.role==='hook'?.26:.18,.50);
     const actionProgress=progress(.28,.40);
-    const drawLine=(text,x,yy,font,isDetail=false,alpha=1,offset=0)=>{
-      ctx.save();ctx.globalAlpha*=alpha;
-      ctx.font=font;
-      ctx.lineWidth=isDetail?4.5:6.5;
+    const drawLine=(text,x,yy,font,color,outline,shadow,detail=false,alpha=1,offset=0)=>{
+      ctx.save();ctx.globalAlpha*=alpha;ctx.font=font;
+      ctx.lineWidth=detail?2.6:3.6;
       ctx.strokeStyle=outline;ctx.strokeText(text,x,yy+offset);
-      ctx.shadowColor='rgba(0,0,0,.72)';
-      ctx.shadowBlur=isDetail?10:14;
-      ctx.fillStyle=ink;ctx.fillText(text,x,yy+offset);
+      ctx.shadowColor=shadow;ctx.shadowBlur=detail?7:10;
+      ctx.fillStyle=color;ctx.fillText(text,x,yy+offset);
       ctx.restore();
     };
     const baseline=y+copy.size;
     copy.lines.forEach((line,i)=>drawLine(line,choice.x,baseline+i*copy.titleStep,
-      `800 ${copy.size}px ${DISPLAY_FONT_STACK}`,false,titleProgress,12*(1-titleProgress)));
+      sceneFont(type,copy.size),palette.title,palette.titleOutline,palette.titleShadow,
+      false,titleProgress,10*(1-titleProgress)));
     if(copy.detail.length) {
-      const first=y+copy.titleHeight+22+copy.detailSize;
-      copy.detail.forEach((line,i)=>drawLine(line,choice.x,first+i*copy.detailStep,
-        `600 ${copy.detailSize}px ${BODY_FONT_STACK}`,true,detailProgress,10*(1-detailProgress)));
+      const detailX=choice.x+copy.detailIndent;
+      const detailTop=y+copy.titleHeight+copy.gap;
+      if(type.mode==='accent_rule') {
+        ctx.save();ctx.globalAlpha*=detailProgress;
+        ctx.fillStyle=palette.accent;
+        ctx.fillRect(detailX,detailTop-Math.round(copy.gap*.53),78,6);
+        ctx.restore();
+      }
+      copy.detail.forEach((line,i)=>drawLine(line,detailX,detailTop+copy.detailSize+i*copy.detailStep,
+        sceneFont(type,copy.detailSize,true),palette.detail,palette.detailOutline,
+        palette.detailShadow,true,detailProgress,9*(1-detailProgress)));
     }
     if(scene.role==='cta') {
-      // A readable, explicit destination, visible independently of any AI-written slogan.
-      const buttonAlpha=.45+.55*actionProgress;
+      const buttonAlpha=.50+.50*actionProgress;
       const buttonY=footerY+10*(1-actionProgress);
-      const buttonX=choice.x;
-      const buttonW=choice.width;
+      const buttonX=choice.x,buttonW=choice.width;
       ctx.save();ctx.globalAlpha*=buttonAlpha;
-      ctx.shadowColor='rgba(0,0,0,.22)';ctx.shadowBlur=16;
+      // A branded action is allowed; opaque light/white text panels are not.
+      ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=12;
       ctx.fillStyle='#207f51';
       ctx.beginPath();ctx.roundRect(buttonX,buttonY,buttonW,actionHeight,24);ctx.fill();
-      ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#ffffff';
-      ctx.font=`700 34px ${BODY_FONT_STACK}`;
-      ctx.fillText('VAI SU',buttonX+24,buttonY+46);
-      let domainSize=60;
+      ctx.shadowBlur=0;ctx.fillStyle='#ffffff';
+      ctx.font=`700 38px ${BODY_FONT_STACK}`;
+      ctx.fillText('VAI SU',buttonX+25,buttonY+51);
+      let domainSize=62;
       do {
         ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
-        if(ctx.measureText('OFFERTALOGICA.IT').width<=buttonW-48)break;
+        if(ctx.measureText('OFFERTALOGICA.IT').width<=buttonW-50)break;
         domainSize-=2;
-      } while(domainSize>34);
-      ctx.fillText('OFFERTALOGICA.IT',buttonX+24,buttonY+114);
+      }while(domainSize>34);
+      ctx.fillText('OFFERTALOGICA.IT',buttonX+25,buttonY+128);
       ctx.restore();
       const brand=transparentBrandLogo()||previewView?.logo;
-      if(brand && (brand.width||brand.naturalWidth)) {
-        ctx.save();ctx.globalAlpha*=progress(.50,.40);
-        ctx.shadowColor='rgba(255,255,255,.8)';ctx.shadowBlur=12;
+      if(brand&&(brand.width||brand.naturalWidth)) {
+        ctx.save();ctx.globalAlpha*=progress(.55,.42);
+        ctx.shadowColor='rgba(0,0,0,.15)';ctx.shadowBlur=6;
         ctx.drawImage(brand,logo.x,logo.y,logo.width,logo.height);
         ctx.restore();
       }
