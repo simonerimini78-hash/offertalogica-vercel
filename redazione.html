@@ -309,9 +309,9 @@
                   <input id="vs-editorial-guide" type="file" accept="image/jpeg,image/png,image/webp">
                   <small>JPG, PNG o WebP fino a 8 MB. L'immagine guida viene analizzata per costruire la storia, non è una prova di dati o offerte.</small>
                   <label for="vs-editorial-guide-mode">Come usare l'immagine?</label>
-                  <select id="vs-editorial-guide-mode"><option value="first_scene">Usa come prima scena del Reel</option><option value="reference_only">Usa solo come riferimento per le foto AI</option></select>
+                  <select id="vs-editorial-guide-mode"><option value="reference_only">Usa come riferimento creativo (consigliato)</option><option value="first_scene">Usa come prima scena del Reel</option></select>
                   <label for="vs-editorial-guide-fidelity">Fedeltà e inventiva rispetto alla foto guida</label>
-                  <select id="vs-editorial-guide-fidelity"><option value="strong">Aderenza forte — luce, palette e stile coerenti</option><option value="inspiration">Ispirazione libera — storia e immagini nuove</option></select>
+                  <select id="vs-editorial-guide-fidelity"><option value="inspiration">Ispirazione libera — guida senza copie (consigliato)</option><option value="strong">Aderenza forte — luce, palette e stile coerenti</option></select>
                   <small>Con «Aderenza forte» la guida autentica rimane il primo riferimento di ogni scena AI. Verifica sempre le immagini: non è garantita l'identità perfetta di persone, ambienti o dettagli.</small>
                   <label for="vs-editorial-guide-context">Contesto aggiuntivo (facoltativo)</label>
                   <input id="vs-editorial-guide-context" type="text" maxlength="180" placeholder="Es. Consumatore che cerca una soluzione alle bollette">
@@ -321,7 +321,7 @@
                   <input id="vs-editorial-video-guide" type="file" accept="video/mp4,.mp4">
                   <small>MP4 fino a 60 MB e 180 secondi. Il browser estrae 5–8 fotogrammi distribuiti sull'intero Reel; l’AI esamina la sequenza, NON l’audio né il movimento tra i fotogrammi. Il video non viene copiato nel nuovo montaggio né salvato nel progetto JSON.</small>
                   <label for="vs-editorial-video-fidelity">Stile e originalità rispetto al Reel guida</label>
-                  <select id="vs-editorial-video-fidelity"><option value="strong">Aderenza forte — luce, palette e stile coerenti</option><option value="inspiration">Ispirazione libera — una nuova storia</option></select>
+                  <select id="vs-editorial-video-fidelity"><option value="inspiration">Ispirazione libera — riferimento creativo (consigliato)</option><option value="strong">Aderenza forte — luce, palette e stile coerenti</option></select>
                   <small>Con «Ispirazione libera» il Reel orienta la regia, ma non viene usato come fotografia iniziale; i testi riconosciuti vengono confrontati prima di generare le immagini. L'originalità complessiva richiede comunque verifica umana.</small>
                   <label for="vs-editorial-video-context">Contesto aggiuntivo (facoltativo)</label>
                   <input id="vs-editorial-video-context" type="text" maxlength="180" placeholder="Es. Ritmo, impostazione narrativa e atmosfera da seguire">
@@ -358,6 +358,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.120" defer></script>
-<script src="/assets/video-studio-workspace.js?v=1.3.2" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.3.3.2" defer></script>
 </body>
 </html>

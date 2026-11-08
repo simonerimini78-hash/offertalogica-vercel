@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.0 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.2 — visual layers, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -2487,7 +2487,7 @@
     const references=strong
       ? view.index===0?[guide]:view.index===1&&generation.input.guide_usage==='first_scene'?[guide]:
         [guide,previous[previous.length-1].result.continuity_reference]
-      : view.index===0?(isGuide&&generation.input.input_type!=='guide_video'&&generation.input.guide_usage==='reference_only'?[guide]:[]):
+      : view.index===0?[]:
         view.index===1?[previous[0].result.continuity_reference]:
         [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     if(references.some(ref=>!ref))throw Error('Riferimento guida mancante: rigenera lo storyboard prima di avviare altre foto.');

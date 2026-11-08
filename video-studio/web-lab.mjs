@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, sceneRolesForCount} from './creative-director.mjs';
 import {generatePhoto, photoPrompt} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.1';
+export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.2';
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -63,7 +63,7 @@ export function verifyProposal(userId,input,plan,receipt,{env=process.env,now=Da
   }
   return true;
 }
-export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideVideoFramesBase64=[],guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='',guideContext='',guideFidelity='strong',sceneCountPreference='auto', suggestions='',platform='instagram_reel'},
+export async function createStoryboard({userId, theme, articleId, guideImageBase64='',guideVideoFramesBase64=[],guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='reference_only',guideContext='',guideFidelity='inspiration',sceneCountPreference='auto', suggestions='',platform='instagram_reel'},
   {readArticle,generate=generateCreativePlan,env=process.env,now=Date.now(),sharpFactory=null}={}) {
   if(!labEnabled(env))err('laboratorio server non configurato');
   const hasVideo=Array.isArray(guideVideoFramesBase64)&&guideVideoFramesBase64.length>0;
@@ -118,7 +118,7 @@ export function expectedReferenceIndices(sceneIndex,input) {
   }
   // Un Reel MP4 in Ispirazione libera resta nel brief della regia,
   // non diventa il modello fotografico della scena d'apertura.
-  if(sceneIndex===0)return isGuide&&input.input_type!=='guide_video'&&input.guide_usage==='reference_only'?[-1]:[];
+  if(sceneIndex===0)return []; // Inspiration mode: do not edit the guide photo into scene one.
   return sceneIndex===1?[0]:[0,sceneIndex-1];
 }
 function decodeUploadedJpeg(value,maxBytes) {

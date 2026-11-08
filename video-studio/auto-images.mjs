@@ -1,6 +1,12 @@
 // Video Studio-owned image provider; does not invoke or change editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
+// Keep existing deployment overrides except retired/older image-model defaults.
+function imageModel() {
+  const requested=String(process.env.VIDEO_STUDIO_IMAGE_MODEL||'').trim();
+  return !requested || /^(?:gpt-image-2|gpt-image-1(?:-mini)?)$/i.test(requested)
+    ? 'gpt-image-2.6-sunburst' : requested;
+}
 
 function cleanRevisionNotes(value) {
   const notes = String(value || '').trim();
@@ -73,9 +79,9 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Proposed unreviewed visual asset only.`;
 }
 // Only server-verified, thumbnail-sized references from the same signed storyboard are accepted.
-export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=process.env.VIDEO_STUDIO_IMAGE_MODEL||'gpt-image-2',fetchImpl=fetch,sharpFactory=null}) {
+export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],apiKey=process.env.OPENAI_API_KEY,model=imageModel(),fetchImpl=fetch,sharpFactory=null}) {
   if(!apiKey)throw new Error('VIDEO_STUDIO_IMAGE: OPENAI_API_KEY mancante');
-  if((index>0 || (index===0 && story?.input_type==='guide_image' && (story?.guide_usage==='reference_only'||story?.guide_fidelity==='strong'))) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
+  if((index>0 || (index===0 && ['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong')) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
     referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(['guide_image','guide_video'].includes(story?.input_type)&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
   const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages});
@@ -83,7 +89,7 @@ export async function generatePhoto({article,scene,index,story=null,revisionNote
   if(index===0 && referenceImages.length===0) {
     response=await fetchImpl('https://api.openai.com/v1/images/generations',{
       method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-      body:JSON.stringify({model,prompt,size:'1024x1536',quality:'high',output_format:'png',n:1}),
+      body:JSON.stringify({model,prompt,size:'1088x1920',quality:'high',output_format:'png',n:1}),
       signal:AbortSignal.timeout(180000)
     });
   } else {
@@ -91,7 +97,7 @@ export async function generatePhoto({article,scene,index,story=null,revisionNote
     const form = new FormData();
     form.append('model',model);
     form.append('prompt',prompt);
-    form.append('size','1024x1536');
+    form.append('size','1088x1920');
     form.append('quality','high');
     form.append('output_format','png');
     form.append('n','1');
