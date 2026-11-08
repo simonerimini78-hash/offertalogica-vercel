@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.4 — visual layers, authentic logo and resumable local/portable browser drafts. */
+/* Video Studio v1.3.3.5 — stronger mobile typography, authentic logo and resumable local/portable browser drafts. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -637,17 +637,23 @@
   const MAX_EXTRA_TEXTS = 4;
   const DEFAULT_LOGO = Object.freeze({x:76/MONTAGE_WIDTH,y:1510/MONTAGE_HEIGHT,width:232/MONTAGE_WIDTH});
   const TEXT_FONTS = Object.freeze({
-    'system-ui':'system-ui, sans-serif',
+    'system-ui':'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
     'Arial':'Arial, Helvetica, sans-serif',
     'Georgia':'Georgia, serif',
     'Trebuchet MS':'"Trebuchet MS", Arial, sans-serif',
     'Verdana':'Verdana, sans-serif',
+    'Offerta Sans':'Inter, "Aptos", "Segoe UI", Arial, sans-serif',
+    'Offerta Display':'"Arial Black", "Trebuchet MS", "Segoe UI", Arial, sans-serif',
   });
+  const DISPLAY_FONT_STACK = TEXT_FONTS['Offerta Display'];
+  const BODY_FONT_STACK = TEXT_FONTS['Offerta Sans'];
+  const CTA_FONT_STACK = TEXT_FONTS['Offerta Display'];
   const clampNumber = (value,min,max) => Math.max(min,Math.min(max,value));
   function defaultTextStyle(kind) {
-    return {font:'system-ui',size:kind==='title'?100:kind==='cta'?56:48,weight:kind==='subtitle'?500:800,
+    return {font:kind==='subtitle'?'Offerta Sans':'Offerta Display',
+      size:kind==='title'?108:kind==='cta'?62:52,weight:kind==='subtitle'?600:800,
       color:'#ffffff',align:'left',background:kind==='cta',bgColor:kind==='cta'?'#207f51':'#152c38',opacity:kind==='cta'?.96:.6,
-      padding:14,radius:16,shadow:true};
+      padding:16,radius:18,shadow:true};
   }
   function constrainTextBox(box,kind) {
     const minW=kind.startsWith('extra:')?.17:.23,minH=kind==='title'?.085:kind.startsWith('extra:')?.052:.065;
@@ -834,44 +840,44 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
-  // Hook stays within two lines; other scenes may use three rather than lose meaning.
+  // Mobile-first typography: prefer two strong title lines over smaller multi-line paragraphs.
   // Long editorial text remains in the storyboard; only on-screen copy is fitted.
   function fitSceneCopy(ctx,scene,width) {
     const headline=String(scene.headline||'').trim();
     const isCta=scene.role==='cta';
-    const maxLines=scene.role==='hook'?2:3;
-    let size=isCta?112:(scene.role==='hook'?108:100);
+    const maxLines=2;
+    let size=isCta?122:(scene.role==='hook'?118:112);
     let lines=[];
-    for (;size>=76;size-=4) {
-      ctx.font=`800 ${size}px system-ui, sans-serif`;
+    for (;size>=84;size-=4) {
+      ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
       lines=wrapOverlayLines(ctx,headline,width);
       if (lines.length<=maxLines && lines.every(line=>ctx.measureText(line).width<=width)) break;
     }
-    if (size<76) size=76;
-    ctx.font=`800 ${size}px system-ui, sans-serif`;
+    if (size<84) size=84;
+    ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
     const complete=wrapOverlayLines(ctx,headline,width);
     const titleTruncated=complete.length>maxLines || complete.some(line=>ctx.measureText(line).width>width);
     lines=titleTruncated?wrapCanvasText(ctx,headline,width,maxLines):complete;
     const secondary=String(scene.secondary_text||'').trim();
-    let detailSize=isCta?46:48,detail=[],detailTruncated=false;
+    let detailSize=isCta?48:52,detail=[],detailTruncated=false;
     if (secondary) {
-      for(;detailSize>=37;detailSize-=2) {
-        ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+      for(;detailSize>=40;detailSize-=2) {
+        ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
         detail=wrapOverlayLines(ctx,secondary,width);
         if(detail.length<=2 && detail.every(line=>ctx.measureText(line).width<=width)) break;
       }
-      if(detailSize<37) detailSize=37;
-      ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+      if(detailSize<40) detailSize=40;
+      ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
       const completeDetail=wrapOverlayLines(ctx,secondary,width);
       detailTruncated=completeDetail.length>2 || completeDetail.some(line=>ctx.measureText(line).width>width);
       detail=wrapCanvasText(ctx,secondary,width,2);
     }
-    ctx.font=`800 ${size}px system-ui, sans-serif`;
+    ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
     const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
-    ctx.font=`500 ${detailSize}px system-ui, sans-serif`;
+    ctx.font=`600 ${detailSize}px ${BODY_FONT_STACK}`;
     const detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
-    const titleStep=Math.round(size*1.14);
-    const detailStep=Math.round(detailSize*1.23);
+    const titleStep=Math.round(size*1.08);
+    const detailStep=Math.round(detailSize*1.18);
     const titleHeight=lines.length?size+(lines.length-1)*titleStep:0;
     const detailHeight=detail.length?detailSize+(detail.length-1)*detailStep:0;
     const textHeight=titleHeight+(detail.length?26+detailHeight:0);
@@ -962,7 +968,7 @@
     ctx.textAlign='left';ctx.textBaseline='alphabetic';
     let size=102,lines=[];
     for(;size>=76;size-=4) {
-      ctx.font=`800 ${size}px system-ui, sans-serif`;
+      ctx.font=`800 ${size}px ${DISPLAY_FONT_STACK}`;
       lines=wrapOverlayLines(ctx,headline,936);
       if(lines.length<=2) break;
     }
@@ -973,7 +979,7 @@
     const subtitle=String(view.scene.secondary_text||'').trim();
     const subY=158+titleHeight;
     if(subtitle) {
-      ctx.font='500 42px system-ui, sans-serif';
+      ctx.font=`600 46px ${BODY_FONT_STACK}`;
       const sublines=wrapCanvasText(ctx,subtitle,930,2);
       sublines.forEach((line,i)=>ctx.fillText(line,72,subY+50+i*52));
     }
@@ -985,7 +991,7 @@
       ctx.shadowColor='rgba(255,255,255,.60)';ctx.shadowBlur=8;
       ctx.drawImage(logo,72,logoY,logoW,logoH);ctx.shadowBlur=0;
     }
-    ctx.font='500 32px system-ui, sans-serif';
+    ctx.font=`600 34px ${BODY_FONT_STACK}`;
     ctx.fillStyle='#cde5f1';
     ctx.fillText('Schermata verificata dalla Redazione',72,1515);
   }
@@ -1164,14 +1170,31 @@
     }
     const lightText=brightness<.52;
     const ink=lightText?'#ffffff':'#102b3b';
-    const outline=lightText?'rgba(8,17,26,.72)':'rgba(255,255,255,.78)';
+    const outline=lightText?'rgba(6,14,22,.88)':'rgba(255,255,255,.88)';
     const centreX=bounds.x+bounds.width/2,centreY=bounds.y+bounds.height/2;
     const fade=ctx.createRadialGradient(centreX,centreY,25,centreX,centreY,Math.max(bounds.width,bounds.height)*.86);
-    fade.addColorStop(0,lightText?'rgba(4,15,24,.58)':'rgba(255,255,255,.51)');
-    fade.addColorStop(.58,lightText?'rgba(4,15,24,.28)':'rgba(255,255,255,.26)');
+    fade.addColorStop(0,lightText?'rgba(4,15,24,.54)':'rgba(255,255,255,.46)');
+    fade.addColorStop(.58,lightText?'rgba(4,15,24,.24)':'rgba(255,255,255,.20)');
     fade.addColorStop(1,'rgba(0,0,0,0)');
     ctx.save();ctx.fillStyle=fade;
     ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
+    const side=view.layoutPreference!=='auto'?view.layoutPreference:choice.side;
+    const panelX=Math.max(0,choice.x-52),panelY=Math.max(0,y-36),panelW=Math.min(MONTAGE_WIDTH-panelX,choice.width+104),panelH=Math.min(MONTAGE_HEIGHT-panelY,bounds.height+72);
+    let localFade;
+    if(side==='right') {
+      localFade=ctx.createLinearGradient(panelX+panelW,panelY,panelX,panelY);
+    } else if(side==='top') {
+      localFade=ctx.createLinearGradient(panelX,panelY,panelX,panelY+panelH);
+    } else if(side==='bottom') {
+      localFade=ctx.createLinearGradient(panelX,panelY+panelH,panelX,panelY);
+    } else {
+      localFade=ctx.createLinearGradient(panelX,panelY,panelX+panelW,panelY);
+    }
+    localFade.addColorStop(0,lightText?'rgba(4,15,24,.42)':'rgba(255,255,255,.26)');
+    localFade.addColorStop(.68,lightText?'rgba(4,15,24,.17)':'rgba(255,255,255,.10)');
+    localFade.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=localFade;
+    ctx.fillRect(panelX,panelY,panelW,panelH);
     const art=scene.art_direction;
     const accent=/^#[0-9a-fA-F]{6}$/.test(art?.accent_color||'')?art.accent_color:'#228c59';
     if(art?.typography==='editorial_panel') {
@@ -1195,40 +1218,41 @@
     const drawLine=(text,x,yy,font,isDetail=false,alpha=1,offset=0)=>{
       ctx.save();ctx.globalAlpha*=alpha;
       ctx.font=font;
-      ctx.lineWidth=isDetail?3.5:5;
+      ctx.lineWidth=isDetail?4.5:6.5;
       ctx.strokeStyle=outline;ctx.strokeText(text,x,yy+offset);
-      ctx.shadowColor=lightText?'rgba(0,0,0,.60)':'rgba(255,255,255,.54)';
-      ctx.shadowBlur=8;ctx.fillStyle=ink;ctx.fillText(text,x,yy+offset);
+      ctx.shadowColor=lightText?'rgba(0,0,0,.72)':'rgba(255,255,255,.62)';
+      ctx.shadowBlur=isDetail?10:14;
+      ctx.fillStyle=ink;ctx.fillText(text,x,yy+offset);
       ctx.restore();
     };
     const baseline=y+copy.size;
     copy.lines.forEach((line,i)=>drawLine(line,choice.x,baseline+i*copy.titleStep,
-      `800 ${copy.size}px system-ui, sans-serif`,false,titleProgress,14*(1-titleProgress)));
+      `800 ${copy.size}px ${DISPLAY_FONT_STACK}`,false,titleProgress,12*(1-titleProgress)));
     if(copy.detail.length) {
-      const first=y+copy.titleHeight+26+copy.detailSize;
+      const first=y+copy.titleHeight+22+copy.detailSize;
       copy.detail.forEach((line,i)=>drawLine(line,choice.x,first+i*copy.detailStep,
-        `500 ${copy.detailSize}px system-ui, sans-serif`,true,detailProgress,12*(1-detailProgress)));
+        `600 ${copy.detailSize}px ${BODY_FONT_STACK}`,true,detailProgress,10*(1-detailProgress)));
     }
     if(scene.role==='cta') {
       // A readable, explicit destination, visible independently of any AI-written slogan.
       const buttonAlpha=.45+.55*actionProgress;
-      const buttonY=footerY+12*(1-actionProgress);
+      const buttonY=footerY+10*(1-actionProgress);
       const buttonX=choice.x;
       const buttonW=choice.width;
       ctx.save();ctx.globalAlpha*=buttonAlpha;
+      ctx.shadowColor='rgba(0,0,0,.22)';ctx.shadowBlur=16;
       ctx.fillStyle='#207f51';
-      ctx.beginPath();ctx.roundRect(buttonX,buttonY,buttonW,actionHeight,20);ctx.fill();
+      ctx.beginPath();ctx.roundRect(buttonX,buttonY,buttonW,actionHeight,24);ctx.fill();
       ctx.textAlign='left';ctx.textBaseline='alphabetic';ctx.fillStyle='#ffffff';
-      ctx.shadowColor='rgba(0,0,0,.18)';ctx.shadowBlur=5;
-      ctx.font='750 37px system-ui, sans-serif';
-      ctx.fillText('VAI SU',buttonX+22,buttonY+49);
-      let domainSize=52;
+      ctx.font=`700 34px ${BODY_FONT_STACK}`;
+      ctx.fillText('VAI SU',buttonX+24,buttonY+46);
+      let domainSize=60;
       do {
-        ctx.font=`800 ${domainSize}px system-ui, sans-serif`;
-        if(ctx.measureText('OFFERTALOGICA.IT').width<=buttonW-44)break;
+        ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
+        if(ctx.measureText('OFFERTALOGICA.IT').width<=buttonW-48)break;
         domainSize-=2;
-      } while(domainSize>30);
-      ctx.fillText('OFFERTALOGICA.IT',buttonX+22,buttonY+113);
+      } while(domainSize>34);
+      ctx.fillText('OFFERTALOGICA.IT',buttonX+24,buttonY+114);
       ctx.restore();
       const brand=transparentBrandLogo()||previewView?.logo;
       if(brand && (brand.width||brand.naturalWidth)) {
