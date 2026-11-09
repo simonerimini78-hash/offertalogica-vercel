@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.9 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
+/* Video Studio v1.3.3.10 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -1012,7 +1012,7 @@
     const type=sceneTypeStyle(view);
     const brand=transparentBrandLogo()||previewView?.logo;
     const logoAspectRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
-    const paletteBase=photoTextPalette(view,{choice:{x:safe.x,y:safe.y,width:safe.width},copy:{titleWidth:safe.width,titleHeight:120,detailWidth:safe.width,detailSize:44,textHeight:220,gap:0,detailIndent:0},y:safe.y});
+    const paletteBase=photoTextPalette(view,{choice:{x:safe.x,y:safe.y,width:safe.width},copy:{titleWidth:safe.width,titleHeight:120,detail:[],detailWidth:safe.width,detailSize:44,textHeight:220,gap:0,detailIndent:0},y:safe.y});
     const headline=String(view.scene.headline||'').trim();
     const support=cleanCtaSupport(view.scene.secondary_text);
     const blocks=[];
@@ -1083,7 +1083,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.9|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.10|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key && view._composition)return view._composition;
     const isCta=view.scene.role==='cta';
     if(isCta) {
@@ -3000,6 +3000,7 @@
     if(!localProjectActive || !generation || !sceneViews.length)return;
     clearTimeout(autoSaveTimer);
     autoSaveTimer=setTimeout(()=>{
+      if(!localProjectActive)return;
       if(busy()) {scheduleProjectAutosave();return;}
       saveProjectLocally({silent:true}).catch(error=>projectMessage(`Salvataggio automatico non riuscito: ${error.message}`,true));
     },1100);
@@ -3034,6 +3035,10 @@
   async function restoreProject(project) {
     if(busy())throw Error('Termina prima le operazioni in corso.');
     if(!isValidProject(project))throw Error('Progetto incompatibile, alterato o appartenente a un altro account.');
+    // Do not let a previous autosave overwrite the intact draft during partial restoration.
+    clearTimeout(autoSaveTimer);
+    autoSaveTimer=null;
+    localProjectActive=false;
     // Pre-validate the images before discarding the currently open draft.
     const testSources=project.scenes.filter(scene=>scene.result).map(scene=>
       `data:${scene.result.preview_mime};base64,${scene.result.preview_base64}`);
