@@ -14672,7 +14672,16 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
       const count = group.querySelectorAll(".partner-vertical-card:not([style*='display: none'])").length;
       group.setAttribute("aria-label", `Risultati del confronto. ${count || ""} offerte disponibili`.trim());
       group.focus({ preventScroll: true });
-      group.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block: "start" });
+      // For the guided path, bring the first actual offer into view,
+      // not the header above the results. All other paths keep their target.
+      const firstGuidedOffer = isGuidedView()
+        ? [...group.querySelectorAll(".offer-group-cards .partner-vertical-card")]
+            .find(card => window.getComputedStyle(card).display !== "none")
+        : null;
+      (firstGuidedOffer || group).scrollIntoView({
+        behavior: movimentoRidottoAttivo() ? "auto" : "smooth",
+        block: "start"
+      });
     }, 100);
   }
 };
@@ -21492,7 +21501,11 @@ function ottimizzaRisultatiMobile() {
 
   if (window.__OL_MOBILE_FAST_RESULTS_PENDING__) {
     window.__OL_MOBILE_FAST_RESULTS_PENDING__ = false;
-    window.setTimeout(() => group.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    // Three-question results use the dedicated scroll to the first offer card.
+    // Do not start a competing scroll to the ranking header.
+    if (!isGuidedView()) {
+      window.setTimeout(() => group.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
+    }
   }
 }
 
