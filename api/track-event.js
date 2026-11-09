@@ -57,6 +57,10 @@ const ALLOWED_EVENT_TYPES = new Set([
   "assistance_callback_started",
   "assistance_callback_verified",
   "comparison_path_selected",
+  // V126: scelte del percorso manuale V125. Nessuna nuova API.
+  "manual_known_consumption_selected",
+  "guided_three_questions_started",
+  "guided_three_questions_completed",
   "pdf_picker_opened",
   "pdf_file_selected",
   "pdf_no_file_selected",
@@ -315,6 +319,13 @@ function sanitizePayload(payload = {}) {
     pdfUploadProvider: text(input.pdfUploadProvider, 100),
     pathChoice: text(input.pathChoice, 40).toLowerCase(),
     trigger: text(input.trigger, 80).toLowerCase(),
+    // V125 guided questionnaire: only coarse, non-personal consumption summary.
+    people: [1, 2, 3, 4, 5].includes(Number(input.people)) ? Number(input.people) : null,
+    appliances: [0, 1, 2, 3].includes(Number(input.appliances)) ? Number(input.appliances) : null,
+    heating: ["gas", "electric", "central", "unknown"].includes(text(input.heating, 24).toLowerCase())
+      ? text(input.heating, 24).toLowerCase() : "",
+    estimatedKwh: (() => { const n = numberOrNull(input.estimatedKwh); return n !== null && n >= 0 && n <= 60000 ? n : null; })(),
+    estimatedSmc: (() => { const n = numberOrNull(input.estimatedSmc); return n !== null && n >= 0 && n <= 30000 ? n : null; })(),
     fileCount: numberOrNull(input.fileCount),
     selectedCount: numberOrNull(input.selectedCount),
     acceptedCount: numberOrNull(input.acceptedCount),
