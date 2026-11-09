@@ -284,7 +284,7 @@
             <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
           </summary>
           <div class="ol-editorial-block-body">
-            <div class="ol-vs-intro"><strong>Video Studio v1.3.3.14 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI da 3 a 5 scene e avvia fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini non vengono archiviate nel server: rimangono nel browser soltanto se salvi il progetto. Il progetto può essere salvato sul dispositivo o esportato in JSON e riaperto senza nuove generazioni. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi aggiungere testi liberi e trascinare, ingrandire o rendere trasparente anche il logo autentico, mantenendo impostazioni indipendenti per scena. Il master approvato e la pubblicazione restano disabilitati.</p></div>
+            <div class="ol-vs-intro"><strong>Video Studio v1.3.3.15 · Laboratorio AI riservato</strong><p>Prepara un brief, genera uno storyboard AI da 3 a 5 scene e avvia fotografie originali da revisionare. Puoi rigenerare una singola scena o caricare una foto personale per qualsiasi slot, e vedere un montaggio audiovisivo di prova con testi, logo, transizioni e musica privata salvabile sul dispositivo. La funzione richiede abilitazione server e account amministratore. Le immagini non vengono archiviate nel server: rimangono nel browser soltanto se salvi il progetto. Il progetto può essere salvato sul dispositivo o esportato in JSON e riaperto senza nuove generazioni. La bozza scaricabile usa fotografie a tutto schermo 1080×1920; nell’anteprima puoi aggiungere testi liberi e trascinare, ingrandire o rendere trasparente anche il logo autentico, mantenendo impostazioni indipendenti per scena. Il master approvato e la pubblicazione restano disabilitati.</p></div>
             <p class="ol-muted ol-small" data-vs-session-status role="status" aria-live="polite">Verifica accesso all'apertura della sezione.</p>
             <form class="ol-form ol-vs-form" data-vs-brief-form hidden>
               <fieldset class="ol-fieldset"><legend>1. Sorgente</legend>
@@ -336,6 +336,8 @@
                   <div class="ol-field"><label for="vs-editorial-scene-count">Numero scene</label><select id="vs-editorial-scene-count"><option value="auto">Automatico (3–5)</option><option value="3">3 scene</option><option value="4">4 scene</option><option value="5">5 scene</option></select><small>La scelta manuale prevale sull'Autopilota; in automatico decide la regia AI.</small></div>
                   <div class="ol-field"><label for="vs-editorial-platform">Destinazione</label><select id="vs-editorial-platform"><option value="instagram_reel">Instagram Reel</option><option value="facebook_reel">Facebook Reel</option></select></div>
                 </div>
+                <div class="ol-field"><label><input id="vs-editorial-integrated-text" type="checkbox"> Sperimentale: genera scene pubblicitarie AI con titolo e sottotitolo già nell’immagine</label>
+                  <small>Si applica alle scene narrative generate automaticamente. La CTA mantiene logo, invito e dominio esatti tramite il renderer. Le parole generate dall’AI NON sono verificate automaticamente: controllale e confermale una per una prima di scaricare il video. I testi integrati non sono modificabili senza rigenerare l’immagine.</small></div>
               </fieldset>
               <div class="ol-toolbar-group ol-vs-actions">
                 <button class="ol-button ol-button-primary" type="submit">Prepara brief</button>
@@ -344,7 +346,7 @@
               </div>
               <div class="ol-alert" role="status" data-vs-feedback aria-live="polite" hidden></div>
               <section class="ol-vs-output" data-vs-output hidden aria-live="polite"><h3>Brief preparato</h3><div data-vs-summary></div><p class="ol-muted ol-small">Il brief non è ancora una regia AI. Premi «Genera storyboard + foto AI» per attivare il motore se abilitato sul server.</p></section>
-              <section class="ol-vs-output" data-vs-generated hidden aria-live="polite"><h3>Regia AI generata · Da revisionare</h3><div data-vs-generated-summary></div><div data-vs-scenes></div><p class="ol-muted ol-small">Le anteprime fotografiche vengono mostrate nel browser senza salvarle su Supabase: salva il progetto per recuperarle. Puoi rigenerare ogni scena con note di revisione. Il montaggio browser utilizza le nuove foto AI, i testi, il logo e la musica della libreria privata scelta automaticamente o modificata manualmente. Scarica la bozza per la revisione; non è un master approvato né una pubblicazione autorizzata.</p></section>
+              <section class="ol-vs-output" data-vs-generated hidden aria-live="polite"><h3>Regia AI generata · Da revisionare</h3><div data-vs-generated-summary></div><div data-vs-scenes></div><p class="ol-muted ol-small">Le anteprime fotografiche vengono mostrate nel browser senza salvarle su Supabase: salva il progetto per recuperarle. Puoi rigenerare ogni scena con note di revisione. Il montaggio browser utilizza le foto o le creatività AI con testi integrati, i livelli grafici pertinenti, il logo e la musica della libreria privata scelta automaticamente o modificata manualmente. Scarica la bozza per la revisione; non è un master approvato né una pubblicazione autorizzata.</p></section>
             </form>
           </div>
         </details>
@@ -358,6 +360,6 @@
 <script src="/assets/editorial.js?v=0.12.81" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.120" defer></script>
-<script src="/assets/video-studio-workspace.js?v=1.3.3.14" defer></script>
+<script src="/assets/video-studio-workspace.js?v=1.3.3.15" defer></script>
 </body>
 </html>

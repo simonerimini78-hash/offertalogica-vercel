@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.14 — poster-scale mobile copy, hierarchy-first layout and CTA. */
+/* Video Studio v1.3.3.15 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -21,6 +21,7 @@
   const videoGuideFidelity = qs('#vs-editorial-video-fidelity');
   const videoGuideContext = qs('#vs-editorial-video-context');
   const sceneCountSelect = qs('#vs-editorial-scene-count');
+  const integratedTextChoice = qs('#vs-editorial-integrated-text');
   const suggestionsInput = qs('#vs-editorial-suggestions');
   const platformSelect = qs('#vs-editorial-platform');
   const form = qs('[data-vs-brief-form]');
@@ -85,6 +86,8 @@
   const PROJECT_STORE = 'working-projects';
   const MAX_PROJECT_BYTES = 32 * 1024 * 1024;
   const PROJECT_SCHEMA = 'offertalogica.video-studio.draft.v1';
+  const POSTER_NOTE_PREFIX = '[OL_VIDEO_STUDIO_POSTER_V1]';
+  const isIntegratedPoster = view => view?.scene?.role!=='cta' && view?.result?.image_mode==='poster';
   const validSceneCount = n => Number.isInteger(n) && n>=3 && n<=5;
   const plannedSceneCount = () => generation?.plan?.scenes?.length || 0;
   const photosReady = () => validSceneCount(plannedSceneCount()) &&
@@ -206,6 +209,9 @@
       view.actionButton.disabled = !generation || isBusy || view.running ||
         (view.index>0 && sceneViews.slice(0,view.index).some(prev=>!prev.result?.continuity_reference));
       view.notesInput.disabled = isBusy && !view.running;
+      if(view.posterInput)view.posterInput.disabled=isBusy;
+      if(view.posterVerifyInput)view.posterVerifyInput.disabled=isBusy || !isIntegratedPoster(view);
+      if(view.layoutSelect)view.layoutSelect.disabled=isBusy || isIntegratedPoster(view);
     });
     if (projectSaveButton) projectSaveButton.disabled = !generation || isBusy;
     if (projectExportButton) projectExportButton.disabled = !generation || isBusy;
@@ -221,7 +227,7 @@
     if (previewView?.productConfirmed) previewView.productConfirmed.disabled = isBusy || !verifiedProductScreen;
     if (previewView?.editorMode) {
       const disabled = isBusy || previewPlaying;
-      previewView.editorMode.disabled = disabled;
+      previewView.editorMode.disabled = disabled || isIntegratedPoster(currentTextView());
       previewView.editorScene.disabled = disabled;
       previewView.editorLayer.disabled = disabled;
       for(const section of [previewView.editorFields,previewView.editorLogoFields,previewView.editorExtraFields])
@@ -364,6 +370,7 @@
     line('Suggerimenti', b.input.suggestions || 'Nessuno');
     line('Destinazione', b.input.platform);
     line('Scene', b.input.scene_count_preference==='auto'?'Automatico (3–5)':`${b.input.scene_count_preference} scene`);
+    line('Creatività immagini', b.input.image_mode==='poster'?'Testo già integrato (sperimentale, esclusa CTA)':'Foto + testi Canvas');
     line('Passaggio successivo', 'Storyboard AI con fotografie automatiche da revisionare');
     output.hidden = false;
   }
@@ -483,7 +490,10 @@
       for(const later of sceneViews.slice(view.index+1)) {
         later.result=null;later.image.removeAttribute('src');later.image.hidden=true;
         later.prompt.hidden=true;later._compositionKey=null;later._salienceImage=null;
-        later._faceBoxes=null;later.error='';
+        later._faceBoxes=null;later.error='';later.posterVerified=false;
+        if(later.posterVerifyInput)later.posterVerifyInput.checked=false;
+        if(later.posterVerifyWrap)later.posterVerifyWrap.hidden=true;
+        if(later.layoutSelect)later.layoutSelect.disabled=false;
         setSceneState(later,'Scena precedente cambiata: rigenera o carica questa fotografia.','pending');
         updateSceneActionLabel(later);
       }
@@ -492,6 +502,14 @@
     if(view.result && manual && sceneViews.slice(view.index+1).some(later=>later.result))
       message('Foto sostituita: le altre scene sono conservate. Verifica la continuità visiva prima di esportare.');
     view.result=result;view._imageEpoch=(view._imageEpoch||0)+1;
+    view.posterVerified=false;
+    if(view.posterVerifyInput)view.posterVerifyInput.checked=false;
+    if(view.posterVerifyWrap)view.posterVerifyWrap.hidden=!isIntegratedPoster(view);
+    if(isIntegratedPoster(view)){
+      view.layoutPreference='auto';
+      if(view.layoutSelect)view.layoutSelect.value='auto';
+    }
+    if(view.layoutSelect)view.layoutSelect.disabled=isIntegratedPoster(view)||busy();
     view._compositionKey=null;view._salienceImage=null;view._faceBoxes=null;
     view.image.src=`data:${result.preview_mime};base64,${result.preview_base64}`;
     view.image.addEventListener('load',()=>{
@@ -540,7 +558,8 @@
         schema_version: 1,
         status: 'prepared_not_generated',
         mode,
-        input: {...base, suggestions, platform: platformSelect.value,scene_count_preference:sceneCountSelect.value==='auto'?'auto':Number(sceneCountSelect.value)},
+        input: {...base, suggestions, platform: platformSelect.value,scene_count_preference:sceneCountSelect.value==='auto'?'auto':Number(sceneCountSelect.value),
+          image_mode:integratedTextChoice?.checked?'poster':'photo'},
         next_step: 'creative_director_requires_protected_server_execution',
         publication_authorized: false,
       };
@@ -727,7 +746,7 @@
   }
   function currentTextView() { return sceneViews[previewIndex] || null; }
   function sceneIsManuallyEditable(view) {
-    return !!(view && view.layoutPreference==='manual' && (previewView?.cropChoice?.value||'master')==='master' && !productScreenActive(view.index) &&
+    return !!(view && !isIntegratedPoster(view) && view.layoutPreference==='manual' && (previewView?.cropChoice?.value||'master')==='master' && !productScreenActive(view.index) &&
       !exporting && !previewPlaying && !busy());
   }
 
@@ -1237,7 +1256,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.14|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.15|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1461,8 +1480,10 @@
     // A restrained Ken Burns move; full-bleed cover, no blind panning onto faces.
     const finalScene = index === sceneViews.length - 1;
     const travel = finalScene ? (1 - zoomProgress) : zoomProgress;
+    // Lettering is baked into poster pixels: zooming would cut glyphs or change their apparent crop.
+    const staticPoster=isIntegratedPoster(sceneViews[index]);
     const scale = Math.max(MONTAGE_WIDTH / image.naturalWidth, MONTAGE_HEIGHT / image.naturalHeight) *
-      (1.010 + travel * (finalScene ? 0.024 : 0.036));
+      (staticPoster?1:(1.010 + travel * (finalScene ? 0.024 : 0.036)));
     const w = image.naturalWidth * scale;
     const h = image.naturalHeight * scale;
     ctx.drawImage(image, (MONTAGE_WIDTH - w) / 2, (MONTAGE_HEIGHT - h) / 2, w, h);
@@ -1786,9 +1807,11 @@
         ctx.fillStyle=glow;
         ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
       }
-      if (sceneViews[segment.index]?.layoutPreference === 'manual')
-        drawManualOverlay(ctx,sceneViews[segment.index]);
-      else drawCinematicOverlay(ctx, sceneViews[segment.index],segment.local);
+      if (!isIntegratedPoster(sceneViews[segment.index])) {
+        if (sceneViews[segment.index]?.layoutPreference === 'manual')
+          drawManualOverlay(ctx,sceneViews[segment.index]);
+        else drawCinematicOverlay(ctx, sceneViews[segment.index],segment.local);
+      }
     }
     // Thin timeline belongs to the editing PREVIEW only, not the exported video.
     if (!exporting) {
@@ -2129,7 +2152,13 @@
     // Geometric overlap warnings are advisory; incomplete or oversized copy is not.
     updatePlacementAudit();
     const ctx=previewView.canvas.getContext('2d');
+    const unchecked=sceneViews.filter(view=>isIntegratedPoster(view)&&!view.posterVerified);
+    if(unchecked.length){
+      previewView.exportStatus.textContent=`Prima di esportare, conferma parole, accenti, leggibilità e griglia social per le scene ${unchecked.map(v=>v.index+1).join(', ')}. Il testo nell’immagine non è verificabile automaticamente.`;
+      return;
+    }
     const overflowScenes=sceneViews.filter(view=>{
+      if(isIntegratedPoster(view))return false;
       if(view.layoutPreference!=='manual')return compositionForScene(ctx,view).overflow;
       const design=initializeManualCopy(view);
       return manualKinds(view).some(kind=>kind!=='logo'&&layerText(view,kind)&&
@@ -2303,6 +2332,7 @@
     if(!view || productScreenActive(view.index))return [];
     const ctx=previewView?.canvas?.getContext('2d');
     if(!ctx)return [];
+    if(isIntegratedPoster(view))return ['Testo integrato nella foto: controlla visivamente la griglia social e la leggibilità'];
     // The customizable text guide is advisory; automatic composition uses social-safe bounds.
     const zone=option===PREVIEW_CROPS.master
       ?(view.layoutPreference==='manual'?textGuidePixels():REELS_VISIBLE)
@@ -2438,6 +2468,7 @@
     const view=currentTextView();
     previewView.editorScene.value=String(view?.index??0);
     previewView.editorMode.value=view?.layoutPreference||'auto';
+    previewView.editorMode.disabled=!!view && isIntegratedPoster(view);
     const layerSelect=previewView.editorLayer;
     const selected=layerSelect.value;
     const types=view?manualKinds(view):['title','subtitle','logo'];
@@ -2570,7 +2601,7 @@
       ['auto','Automatica'],['manual','Manuale · trascina'],
       ['top','In alto'],['left','A sinistra'],['right','A destra'],['bottom','In basso'],
     ],()=>{
-      const view=currentTextView();if(!view||busy()||previewPlaying)return;
+      const view=currentTextView();if(!view||busy()||previewPlaying||isIntegratedPoster(view))return;
       if(mode.select.value==='manual')initializeManualCopy(view);
       view.layoutPreference=mode.select.value;
       if(view.layoutSelect)view.layoutSelect.value=view.layoutPreference;
@@ -2953,7 +2984,7 @@
 
     const image = document.createElement('img');
     image.hidden = true;
-    image.alt = `Fotografia proposta per scena ${index + 1}, da revisionare`;
+    image.alt = `Immagine proposta per scena ${index + 1}, da revisionare`;
     image.className = 'ol-vs-scene-photo';
     image.addEventListener('load', () => {
       if (!previewPlaying && previewView) showPreview(previewIndex);
@@ -2983,7 +3014,7 @@
     const prompt = document.createElement('details');
     prompt.hidden = true;
     prompt.className = 'ol-vs-scene-prompt';
-    prompt.append(textElement('summary', 'Mostra prompt fotografico'));
+    prompt.append(textElement('summary', 'Mostra prompt di generazione'));
     const promptBody = textElement('pre', '');
     prompt.append(promptBody);
 
@@ -3002,6 +3033,21 @@
       layoutSelect.append(option);
     }
     layoutWrap.append(layoutLabel, layoutSelect);
+    const posterWrap=document.createElement('label');
+    posterWrap.className='ol-vs-editor-check';
+    posterWrap.hidden=scene.role==='cta';
+    const posterInput=document.createElement('input');
+    posterInput.type='checkbox';
+    posterInput.checked=scene.role!=='cta' && brief?.input?.image_mode==='poster';
+    posterWrap.append(posterInput,document.createTextNode(' Genera immagine con scritte integrate (prossimo tentativo)'));
+    const posterVerifyWrap=document.createElement('label');
+    posterVerifyWrap.className='ol-vs-editor-check';
+    posterVerifyWrap.hidden=true;
+    const posterVerifyInput=document.createElement('input');
+    posterVerifyInput.type='checkbox';
+    posterVerifyWrap.append(posterVerifyInput,document.createTextNode(' Confermo testo ESATTO, accenti, punteggiatura, contrasto e leggibilità mobile in questa scena'));
+    const posterHint=textElement('small','Modalità sperimentale: testo non modificabile separatamente; verifica anche il ritaglio delle interfacce social. La CTA usa logo e indirizzo originali.');
+    posterHint.hidden=scene.role==='cta';
     const view = {
       scene,
       index,
@@ -3010,6 +3056,7 @@
       image,
       actionButton,
       notesInput,
+      posterInput,posterVerifyInput,posterVerifyWrap,posterVerified:false,
       layoutPreference: 'auto',
       layoutSelect,
       prompt,
@@ -3019,8 +3066,15 @@
       error: '',
       running: false,
     };
+    posterInput.addEventListener('change',()=>{scheduleProjectAutosave();
+      setSceneState(view,'Modalità scelta per la PROSSIMA rigenerazione. La scena già generata resta invariata.','pending');});
+    posterVerifyInput.addEventListener('change',()=>{
+      view.posterVerified=posterVerifyInput.checked;
+      updatePlacementAudit();
+      syncControls();
+    });
     layoutSelect.addEventListener('change', () => {
-      if (exporting) return;
+      if (exporting || isIntegratedPoster(view)) return;
       if(layoutSelect.value==='manual')initializeManualCopy(view);
       view.layoutPreference = layoutSelect.value;
       view._compositionKey = null;
@@ -3057,7 +3111,7 @@
     });
     updateSceneActionLabel(view);
     actions.append(actionButton,uploadLabel);
-    card.append(heading, lead, visual, subject, side, state, image, layoutWrap, notesWrap, actions, prompt);
+    card.append(heading, lead, visual, subject, side, state, image, posterWrap, posterHint, posterVerifyWrap, layoutWrap, notesWrap, actions, prompt);
     sceneHolder.append(card);
     return view;
   }
@@ -3077,13 +3131,16 @@
         view.index===1?[previous[0].result.continuity_reference]:
         [previous[0].result.continuity_reference,previous[previous.length-1].result.continuity_reference];
     if(references.some(ref=>!ref))throw Error('Riferimento guida mancante: rigenera lo storyboard prima di avviare altre foto.');
+    const integrated=view.scene.role!=='cta' && Boolean(view.posterInput?.checked);
+    const encodedNotes=integrated?`${POSTER_NOTE_PREFIX}\n${revisionNotes}`:revisionNotes;
+    if(encodedNotes.length>700)throw Error('Note troppo lunghe per la modalità con testo integrato (massimo 670 caratteri).');
     stopPreview();
     view.running = true;
     view.error = '';
     let failure = null;
     view.attempts += 1;
     updateSceneActionLabel(view);
-    setSceneState(view, revisionNotes ? 'Rigenerazione fotografica reale richiesta…' : 'Generazione fotografica reale richiesta…', 'pending');
+    setSceneState(view, integrated?'Generazione creatività con scritte integrate richiesta…':(revisionNotes ? 'Rigenerazione fotografica reale richiesta…' : 'Generazione fotografica reale richiesta…'), 'pending');
     beginRequest();
     try {
       const result = await labRequest('video-studio-photo', {
@@ -3091,14 +3148,14 @@
         plan: generation.plan,
         receipt: generation.receipt,
         scene_index: view.index,
-        revision_notes: revisionNotes || undefined,
+        revision_notes: encodedNotes || undefined,
         references,
       }, token, 230000);
       assignSceneResult(view,result);
       const tone=result.guide_style_check?.status==='review_light_and_palette'
         ? ' · Guida: luminosità/palette da verificare manualmente'
         : result.guide_style_check ? ' · Guida: tono cromatico preliminarmente coerente' : '';
-      setSceneState(view, `Generata · ${result.provider}${tone} · Anteprima browser non persistente, da revisionare.`, 'success');
+      setSceneState(view, `Generata · ${result.provider}${tone} · ${isIntegratedPoster(view)?'TESTI GENERATI NELL’IMMAGINE: controlla e conferma ogni parola prima del download.':'Fotografia con testi Canvas.'} · Anteprima browser da revisionare.`, 'success');
       updateSceneActionLabel(view);
       showPreview(previewIndex || view.index);
     } catch (e) {
@@ -3138,7 +3195,7 @@
     const ready = sceneViews.filter(view => view.result).length;
     const blocked = sceneViews.filter(view => !view.result).length;
     if (blocked === 0) {
-      message(`Storyboard AI e ${sceneViews.length} fotografie generate automaticamente. Rivedi ogni scena e rigenera solo quelle che non ti convincono.`);
+      message(`Storyboard AI e ${sceneViews.length} immagini generate automaticamente. Rivedi ogni scena, controlla il testo integrato e conferma prima del download.`);
     } else {
       message(`Storyboard AI generato. Foto pronte: ${ready}/${sceneViews.length}. Generazione automatica interrotta per evitare richieste inutili: correggi l’errore e riprova sulle scene mancanti.`, true);
     }
@@ -3224,7 +3281,9 @@
       !data.brief?.input || !Array.isArray(data.scenes) || data.scenes.length!==data.generation.plan.scenes.length ||
       typeof data.generation.receipt.expiresAt!=='number') return false;
     return data.scenes.every((scene,i)=>scene?.index===i && (!scene.result ||
-      (scene.result.preview_mime==='image/jpeg' && isBase64Image(scene.result.preview_base64) &&
+      (scene.result.preview_mime==='image/jpeg' && ['photo','poster',undefined].includes(scene.result.image_mode) &&
+        (scene.result.image_mode!=='poster'||data.generation.plan.scenes[i].role!=='cta') &&
+        isBase64Image(scene.result.preview_base64) &&
         scene.result.continuity_reference?.scene_index===i)));
   }
   function snapshotProject() {
@@ -3232,10 +3291,12 @@
       throw Error('Genera prima uno storyboard per salvare un progetto completo.');
     const projects = sceneViews.map(view=>({index:view.index,
       result:view.result ? {preview_mime:view.result.preview_mime,preview_base64:view.result.preview_base64,
+        image_mode:isIntegratedPoster(view)?'poster':'photo',
         continuity_reference:view.result.continuity_reference,provider:view.result.provider,
         prompt:String(view.result.prompt||'').slice(0,7000),guide_style_check:view.result.guide_style_check||null} : null,
       textDesign:view.textDesign||null,
       layoutPreference:view.layoutPreference,
+      poster_requested:Boolean(view.posterInput?.checked),
       notes:String(view.notesInput.value||'').slice(0,700),attempts:view.attempts}));
     return {schema:PROJECT_SCHEMA, saved_at:new Date().toISOString(), owner_id:projectOwner(),
       brief, generation:{input:generation.input,plan:generation.plan,receipt:generation.receipt,
@@ -3355,10 +3416,12 @@
       view.layoutPreference=['auto','manual','top','left','right','bottom'].includes(saved.layoutPreference)?saved.layoutPreference:'auto';
       view.layoutSelect.value=view.layoutPreference;
       view.notesInput.value=String(saved.notes||'').slice(0,700);
+      if(view.posterInput)view.posterInput.checked=Boolean(saved.poster_requested);
+      view.posterVerified=false;
       if(saved.textDesign && typeof saved.textDesign==='object')view.textDesign=saved.textDesign;
       if(saved.result){
         assignSceneResult(view,saved.result);
-        setSceneState(view,'Fotografia recuperata dal progetto salvato.','success');
+        setSceneState(view,isIntegratedPoster(view)?'Creatività con testo integrato recuperata: ricontrolla ogni parola e riconferma prima del download.':'Fotografia recuperata dal progetto salvato.','success');
       }
       updateSceneActionLabel(view);
     }

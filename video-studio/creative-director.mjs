@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.14';
+const CREATIVE_ENGINE_VERSION = '1.3.3.15';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
