@@ -6950,6 +6950,124 @@
   .social-entry-route{padding-inline:7px!important}
   .social-entry-route-kicker{letter-spacing:0!important}
 }
+
+/* V128 — Card offerte consumer mobile: CTA leggibili e info Switcho compatta.
+   Nessuna modifica ai link commerciali, al ranking o ai dati delle offerte. */
+@media (max-width:720px) {
+  .partner-vertical-card .partner-meta { min-width:0; }
+  .partner-vertical-card .partner-title {
+    font-size:17px !important;
+    line-height:1.24 !important;
+    font-weight:800 !important;
+    overflow-wrap:break-word;
+    text-wrap:pretty;
+  }
+  .partner-vertical-card .offer-action-column:not(.is-switcho-panel) {
+    min-height:0;
+    padding:10px !important;
+    gap:6px;
+  }
+  .partner-vertical-card .offer-action-column:not(.is-switcho-panel) [id^="link-partner-"] {
+    min-height:54px !important;
+    height:auto !important;
+    padding:11px 14px !important;
+    font-size:16px !important;
+    line-height:1.25 !important;
+    font-weight:850 !important;
+    display:flex;
+    justify-content:center;
+    align-items:center;
+    text-align:center;
+  }
+  .partner-vertical-card .offer-action-column.is-switcho-panel {
+    min-height:0 !important;
+    height:auto !important;
+    padding:0 !important;
+    gap:0 !important;
+    align-self:auto !important;
+    justify-content:flex-start !important;
+    overflow:visible !important;
+    border:none !important;
+    background:transparent !important;
+    box-shadow:none !important;
+  }
+  .partner-vertical-card .offer-action-column.is-switcho-panel .offer-action-row {
+    flex:0 0 auto !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) 48px !important;
+    grid-template-rows:auto !important;
+    gap:8px !important;
+    align-items:stretch !important;
+    min-height:0 !important;
+  }
+  .partner-vertical-card .offer-action-column.is-switcho-panel [id^="link-partner-"] {
+    min-width:0 !important;
+    width:100% !important;
+    min-height:58px !important;
+    height:auto !important;
+    border-radius:12px !important;
+    padding:9px 12px !important;
+    background:#167a40 !important;
+    display:flex !important;
+    flex-direction:row !important;
+    flex-wrap:wrap;
+    align-items:center;
+    justify-content:center;
+    gap:7px !important;
+    color:#fff !important;
+    text-align:center;
+    line-height:1.18 !important;
+    box-shadow:none !important;
+  }
+  .partner-vertical-card .offer-switcho-cta-title {
+    font-size:16px !important;
+    line-height:1.2 !important;
+    font-weight:850 !important;
+  }
+  .partner-vertical-card .offer-switcho-cta-brand {
+    min-height:26px;
+    padding:4px 8px;
+    background:#fff;
+  }
+  .partner-vertical-card .offer-switcho-cta-logo { height:19px; max-width:96px; }
+  .partner-vertical-card .offer-switcho-info-link:not([hidden]) {
+    display:flex !important;
+    box-sizing:border-box;
+    width:48px !important;
+    height:100% !important;
+    min-height:48px !important;
+    padding:0 !important;
+    border:1.5px solid #167a40 !important;
+    border-radius:12px !important;
+    background:#fff !important;
+    color:#14532d !important;
+    align-items:center;
+    justify-content:center;
+  }
+  .partner-vertical-card .offer-switcho-info-link > span:first-child {
+    width:25px;
+    height:25px;
+    border:2px solid currentColor;
+    border-radius:50%;
+    font-family:Arial,sans-serif;
+    font-size:16px !important;
+    line-height:1;
+    font-weight:800;
+  }
+  .partner-vertical-card .offer-switcho-info-link > span:last-child { display:none !important; }
+  .partner-vertical-card .offer-action-column.is-switcho-panel .offer-switcho-bill-note {
+    display:block !important;
+    margin:6px 0 0 !important;
+    padding:7px 9px !important;
+    border:0 !important;
+    border-radius:9px !important;
+    background:#0f5132 !important;
+    color:#fff !important;
+    font-size:13.5px !important;
+    line-height:1.32 !important;
+    font-weight:750 !important;
+  }
+}
 </style>
 
 <script>
@@ -12344,7 +12462,12 @@ function offertaSeparataMultiFornitore(offerta) {
 
 function titoloOffertaVisibile(offerta) {
   if (offertaSeparataMultiFornitore(offerta)) return "Miglior abbinamento separato";
-  return offerta?.nome || "Offerta energia";
+  const nome = String(offerta?.nome || "");
+  // Solo l'abbinamento Iren Ultra luce+gas verificato: manteniamo il nome ufficiale nei dati e nel titolo accessibile.
+  if (/^Iren Luce e Gas\s*-\s*IREN PREZZO FISSO ULTRA LUCE\s*\+\s*IREN PREZZO FISSO ULTRA GAS$/i.test(nome.trim())) {
+    return "Iren Prezzo Fisso Ultra Luce e Gas";
+  }
+  return nome || "Offerta energia";
 }
 
 function dettagliOffertaSeparata(offerta) {
@@ -14374,6 +14497,8 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
       const recessoHtml = htmlCondizioniRecessoOfferta(offerta);
       if (title) {
         title.innerText = titoloOffertaVisibile(offerta);
+        if (offerta?.nome && offerta.nome !== titoloOffertaVisibile(offerta)) title.setAttribute("title", offerta.nome);
+        else title.removeAttribute("title");
         title.setAttribute("role", "heading");
         title.setAttribute("aria-level", "3");
       }
