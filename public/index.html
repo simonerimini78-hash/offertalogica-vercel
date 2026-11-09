@@ -7007,7 +7007,7 @@
     height:auto !important;
     border-radius:12px !important;
     padding:9px 12px !important;
-    background:#167a40 !important;
+    background:linear-gradient(135deg, #166534 0%, #16a34a 48%, #22c55e 100%) !important;
     display:flex !important;
     flex-direction:row !important;
     flex-wrap:wrap;
@@ -7017,7 +7017,7 @@
     color:#fff !important;
     text-align:center;
     line-height:1.18 !important;
-    box-shadow:none !important;
+    box-shadow:0 11px 26px rgba(22,163,74,.25), inset 0 1px 0 rgba(255,255,255,.24) !important;
   }
   .partner-vertical-card .offer-switcho-cta-title {
     font-size:16px !important;
@@ -7066,6 +7066,27 @@
     font-size:13.5px !important;
     line-height:1.32 !important;
     font-weight:750 !important;
+  }
+}
+
+/* V129 — Switcho mobile: CTA coerente con le altre card; nota leggibile e non cliccabile.
+   Il contenuto della nota, la i collegata alla CTA e i link commerciali restano invariati. */
+@media (max-width:720px) {
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active)
+    .partner-vertical-card .offer-action-column.is-switcho-panel .offer-switcho-bill-note,
+  .partner-vertical-card .offer-action-column.is-switcho-panel .offer-switcho-bill-note {
+    display:block !important;
+    margin:7px 2px 0 !important;
+    padding:2px 3px !important;
+    border:0 !important;
+    border-radius:0 !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    color:#475569 !important;
+    font-size:14.5px !important;
+    line-height:1.4 !important;
+    font-weight:650 !important;
+    text-align:center !important;
   }
 }
 </style>
