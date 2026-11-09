@@ -149,6 +149,9 @@
     comparison_missing_current_price: "Confronto: tariffa attuale incompleta",
     comparison_completed: "Confronto completato",
     comparison_path_selected: "Percorso confronto scelto",
+    manual_known_consumption_selected: "Inserimento dati conosciuti selezionato",
+    guided_three_questions_started: "Percorso 3 domande avviato",
+    guided_three_questions_completed: "Percorso 3 domande completato",
     offers_rendered: "Offerte visualizzate",
     offers_unlocked: "Offerte sbloccate",
     offers_bill_prompt_dismissed: "Invito bolletta chiuso",
@@ -224,6 +227,7 @@
     arera_average_profile: "Profilo medio ARERA",
     landing_average_profile: "Profilo medio ARERA",
     manual_input: "Consumi inseriti",
+    guided_three_questions: "Consumi stimati con 3 domande",
     pdf_upload: "Bolletta/PDF",
     business_profile: "Profilo aziendale",
   });
@@ -2010,6 +2014,7 @@
     "landing_view", "calculator_view", "landing_self_service_click", "landing_assisted_click",
     "landing_free_app_click", "landing_premium_app_click",
     "comparison_started", "comparison_completed", "comparison_path_selected", "offers_rendered",
+    "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed",
     "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted",
     "bill_photo_camera_opened", "bill_photo_gallery_opened", "bill_photo_selected", "bill_photo_analysis_started",
     "bill_photo_analysis_completed", "bill_photo_analysis_failed", "bill_photo_comparison_auto_started",
@@ -2290,7 +2295,7 @@
   const SESSION_USER_ACTION_EVENTS = new Set([
     "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
     "home_discovery_opened", "home_discovery_clicked", "navigation_link_clicked", "site_action_clicked",
-    "comparison_path_selected", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
+    "comparison_path_selected", "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed", "comparison_started", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_interrupted", "lead_modal_opened", "otp_request_started", "otp_verified",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_request_started",
     "offer_verified_direct_redirect", "offer_request_recorded", "offer_switcho_redirect", "switcho_landing_opened", "offer_redirect",
@@ -2312,7 +2317,7 @@
   const SESSION_MAIN_EVENT_TYPES = new Set([
     "landing_view", "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
     "home_discovery_viewed", "home_discovery_opened", "home_discovery_clicked", "navigation_link_clicked", "site_page_view", "site_action_clicked",
-    "calculator_view", "comparison_path_selected", "comparison_started", "comparison_completed", "offers_rendered",
+    "calculator_view", "comparison_path_selected", "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed", "comparison_started", "comparison_completed", "offers_rendered",
     "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
@@ -2603,6 +2608,21 @@
       site_page_view: item.service === "internet_casa" ? "Ha aperto la pagina Internet casa" : item.service === "casa_smart" ? "Ha aperto la pagina Casa smart" : `Ha aperto ${item.page || "una pagina del sito"}`,
       site_action_clicked: `Ha selezionato ${item.item || "un’azione"}${item.destination ? ` → ${item.destination}` : ""}`,
       calculator_view: "Ha aperto il calcolatore",
+      manual_known_consumption_selected: "Ha scelto di inserire consumi conosciuti",
+      guided_three_questions_started: "Ha scelto ‘Rispondi a 3 domande’",
+      guided_three_questions_completed: (() => {
+        const people = Number(item.people);
+        const applianceCount = Number(item.appliances);
+        const heating = ({gas: "caldaia a gas", electric: "riscaldamento elettrico", central: "centralizzato", unknown: "altro / non conosciuto"})[String(item.heating || "")];
+        const details = [
+          Number.isInteger(people) && people >= 1 && people <= 5 ? `${people === 5 ? "5+" : people} persone` : "",
+          item.appliances != null && Number.isInteger(applianceCount) && applianceCount >= 0 && applianceCount <= 3 ? `${applianceCount} apparecchi selezionati` : "",
+          heating ? `riscaldamento ${heating}` : "",
+          Number.isFinite(Number(item.estimatedKwh)) && item.estimatedKwh !== null && item.estimatedKwh !== undefined ? `${formatNumber(Number(item.estimatedKwh))} kWh/anno` : "",
+          Number.isFinite(Number(item.estimatedSmc)) && item.estimatedSmc !== null && item.estimatedSmc !== undefined ? `${formatNumber(Number(item.estimatedSmc))} Smc/anno` : "",
+        ].filter(Boolean);
+        return `Ha completato le 3 domande${details.length ? `: ${details.join(" · ")}` : ""}`;
+      })(),
       comparison_path_selected: `Ha scelto ${item.pathChoice === "pdf" ? "il percorso PDF" : item.pathChoice === "manual" ? "l’inserimento manuale" : item.pathChoice === "average" ? "il profilo medio ARERA" : "una modalità di confronto"}`,
       comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
       comparison_completed: Number.isFinite(saving) && Math.abs(saving) > 0 ? `Confronto completato · risparmio stimato ${formatMoney(saving)}` : "Confronto completato",
@@ -2720,6 +2740,7 @@
     if (["pdf_analysis_interrupted", "offer_partner_consent_missing", "otp_failed", "otp_failed_preview_fallback"].includes(type)) return "warn";
     if ([
       "landing_view", "landing_self_service_click", "landing_assisted_click", "calculator_view", "comparison_path_selected",
+      "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed",
       "comparison_started", "comparison_completed", "offers_rendered", "pdf_analysis_completed", "pdf_data_confirmed",
       "offer_card_clicked", "offer_click_locked", "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
       "offer_verified_direct_redirect", "offers_unlocked", "offer_partner_consent_confirmed", "offer_request_recorded", "offer_switcho_redirect",
@@ -2822,6 +2843,11 @@
     const cookie = [...ordered].reverse().find(item => String(item.eventType || "") === "cookie_consent_choice");
     if (cookie) paragraphs.push({ text: `Scelta cookie Iubenda registrata: ${cookie.consentAction === "accept" ? "accetta" : cookie.consentAction === "reject" ? "rifiuta" : "apre le preferenze"}.`, tone: "info" });
 
+    // Il vecchio percorso V125 può essere riconosciuto da dataOrigin, anche
+    // se gli eventi specifici sono stati respinti prima dell'aggiornamento API.
+    const guidedOrigin = ordered.some(item => ["comparison_started", "offers_rendered", "comparison_completed"].includes(String(item.eventType || "")) && String(item.dataOrigin || "") === "guided_three_questions");
+    const guidedCompleted = ordered.some(item => String(item.eventType || "") === "guided_three_questions_completed");
+    if (guidedOrigin && !guidedCompleted) paragraphs.push({ text: "Percorso 3 domande riconosciuto dai dati del confronto; le singole risposte non sono registrate in questa sessione.", tone: "info" });
     const pathRows = ordered.filter(item => String(item.eventType || "") === "comparison_path_selected");
     if (pathRows.length) {
       const pathLabels = pathRows.map(item => analyticsPathChoiceLabel(item.pathChoice)).filter(Boolean);
