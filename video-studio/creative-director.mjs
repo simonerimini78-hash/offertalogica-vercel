@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.7';
+const CREATIVE_ENGINE_VERSION = '1.3.3.12';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -135,6 +135,20 @@ const guideProfileSchema={type:'object',additionalProperties:false,properties:{
   observed_headlines:{type:'array',items:{type:'string'}},
   quality_principles:{type:'array',items:{type:'string'}}
 },required:['graphic','narrative','visual','observed_headlines','quality_principles']};
+// A compact, typed rendering brief. The model decides WHICH words and gestures matter;
+// Canvas implements the safe primitives locally, without another AI request.
+const textDesignSchema={type:'object',additionalProperties:false,properties:{
+  font_mood:{type:'string',enum:['clean','accent_rule','editorial_panel']},
+  emphasis_text:{type:'string'},
+  emphasis_effect:{type:'string',enum:['none','color','underline','brush']},
+  cta_focus:{type:'string',enum:['follow','site','balanced']},
+  cta_accent:{type:'string',enum:['none','color','underline','brush']},
+  cta_order:{type:'string'},cta_align:{type:'string',enum:['auto','left','center','right']},
+  cta_lettering:{type:'string',enum:['display','italic']},
+  cta_gesture:{type:'string',enum:['none','rays','arrow']}
+},required:['font_mood','emphasis_text','emphasis_effect','cta_focus','cta_accent','cta_order','cta_align','cta_lettering','cta_gesture']};
+schema.properties.scenes.items.properties.text_design=textDesignSchema;
+schema.properties.scenes.items.required.push('text_design');
 const guidedSceneSchema=JSON.parse(JSON.stringify(schema));
 guidedSceneSchema.properties.scenes.items.properties.art_direction={type:'object',additionalProperties:false,properties:{
   placement:{type:'string',enum:['auto','top','bottom','left','right']},
@@ -166,7 +180,7 @@ const guidedCreativeSystem=`
 PROTOCOLLO REEL GUIDA — DOPPIO OBIETTIVO:
 1) La quality_profile allegata deriva dal Reel scelto dall'editor (puo essere QUALSIASI MP4, NON un esempio fisso). APPRENDI la grammatica visiva: composizione dei testi, contrasto, gerarchia, profondita fotografica e ritmo. Trasferisci il LIVELLO DI CURA, non gli oggetti o i fotogrammi.
 2) Il Reel guida e una richiesta di stile e qualita per QUESTO SOLO PROGETTO, mai una matrice universale. Se guide_fidelity=inspiration, genera immagini, testi, inquadrature e azioni originali; puoi conservare il tema generale o una dinamica narrativa quando le note dell'editor lo richiedono, senza replicare le scene distintive o le frasi del riferimento. Non forzare una storia diversa se l'editor chiede di cambiare solo personaggio e ambientazione. Evita formule fisse; usa quiz, sorpresa, metafora visiva o dimostrazione quando utili. Per strong mantieni la vicinanza stilistica richiesta senza copiare immagini o composizioni.
-3) Le indicazioni esplicite dell'editor prevalgono sullo stile implicito della guida, pur senza autorizzare dati non verificati. Per ogni scena restituisci art_direction: placement (zona preferita, verificata poi dal compositore), typography (clean=geometrico moderno con supporto editoriale, accent_rule=display forte con linea cromatica, editorial_panel=serif editoriale SENZA pannelli), accent_color (#RRGGBB ricavato dalla palette della guida o in armonia con la fotografia), photo_lighting e camera_intent. Scegli tipografia e accento in base alla GERARCHIA, ALLE FAMIGLIE DI FONT VISIBILI e ALLA PALETTE osservate nel Reel o nella foto guida, senza fingere di riconoscere il nome esatto di un font e senza copiarne la composizione. Differenzia titolo e sottotitolo attraverso font, peso e distanze generose, NON obbligatoriamente riducendo il sottotitolo. Colore e contrasto finali saranno adattati ai PIXEL della nuova fotografia dal renderer. NESSUN riquadro bianco, chiaro o pannello opaco dietro al testo; il rettangolo verde della CTA e riservato all'azione. L'AI NON deve inventare scritte dentro la foto: saranno rese dal compositore. Nessun titolo fuori dall'area prudenziale del master.
+3) Le indicazioni esplicite dell'editor prevalgono sullo stile implicito della guida, pur senza autorizzare dati non verificati. Per ogni scena restituisci art_direction: placement (zona preferita, verificata poi dal compositore), typography (clean=geometrico moderno con supporto editoriale, accent_rule=display forte con linea cromatica, editorial_panel=serif editoriale SENZA pannelli), accent_color (#RRGGBB ricavato dalla palette della guida o in armonia con la fotografia), photo_lighting e camera_intent. Scegli tipografia e accento in base alla GERARCHIA, ALLE FAMIGLIE DI FONT VISIBILI e ALLA PALETTE osservate nel Reel o nella foto guida, senza fingere di riconoscere il nome esatto di un font e senza copiarne la composizione. Differenzia titolo e sottotitolo attraverso font, peso e distanze generose, NON obbligatoriamente riducendo il sottotitolo. Usa text_design per descrivere l'enfasi grafica veramente utile a ogni scena. Colore e contrasto finali saranno adattati ai PIXEL della nuova fotografia dal renderer. NON imporre riquadri o pannelli sulla CTA: scegli accenti tipografici, sottolineature o tratti espressivi in funzione della guida e del messaggio. L'AI NON deve inventare scritte dentro la foto: saranno rese dal compositore. Nessun titolo fuori dall'area prudenziale del master.
 4) Non imporre persone, ambientazioni, azioni, oggetti, successioni narrative o finali predefiniti. Un Reel valido puo usare personaggi, oggetti, grafica, metafore, situazioni diverse oppure nessuna persona. Gli eventuali elementi reali e i claim devono restare verificabili.
 5) In creative_departure spiega che cosa viene conservato come preferenza dell'editor e che cosa cambia concretamente in scene, personaggi, ambienti, inquadrature e testi. Un tema comune non equivale a una scena copiata.
 `;
@@ -193,8 +207,9 @@ Per ogni immagine riserva spazio negativo per una headline grande all'interno de
 Scrivi per CONVERSIONE MOBILE, non per estetica fine a se stessa: CATTURA l'attenzione, fa' COMPRENDERE un solo problema o beneficio verificabile per scena, conduci a un'AZIONE concreta verso OffertaLogica. Le fotografie sostengono la comprensione del messaggio. Headline brevi, specifiche e forti, massimo 6 parole, meglio 2-5; sottotitolo opzionale massimo 8 parole, meglio 4-7. Evita parole generiche, frasi duplicate e concetti non leggibili in circa un secondo. Il sottotitolo aggiunge un'informazione nuova, non allunga la stessa frase.
 REGIA DEI TESTI: l'HOOK (prima scena) deve essere capito immediatamente e suscitare curiosita concreta sul problema mostrato; evita introduzioni generiche e slogan che non agganciano. Il testo deve avere un rapporto evidente con l'azione fotografata, e il sottotitolo deve aggiungere informazione invece di parafrasare la headline. Privilegia frasi incisive, sostantivi e verbi forti, evitando costruzioni molli come consigli generici o motivazionali.
 Nelle scene centrali ogni headline deve far avanzare la storia, e il sottotitolo deve essere un chiarimento breve: scegli parole che si possano leggere in un secondo. Prevedi spazio NEGATIVO e RESPIRO fra titolo e supporto; se utile consentine una sovrapposizione equilibrata a parti secondarie del soggetto ma non oscurare gratuitamente occhi o espressioni. Per art_direction.typography scegli uno dei tre linguaggi tipografici secondo contenuto e riferimento (clean, accent_rule, editorial_panel); editorial_panel e uno stile serif/editoriale, NON un rettangolo sopra la fotografia.
-L'ULTIMA SCENA ha ruolo CTA: deve dare una ragione pertinente per continuare su OffertaLogica, non soltanto una frase motivazionale. La chiusura finale usa una composizione di marca dedicata con poche varianti: evita quindi di duplicare nel testo il comando, l'indirizzo del sito o il nome del brand. Per la CTA privilegia headline brevi e forti (2-5 parole) e un eventuale sottotitolo breve solo se aggiunge valore reale; meglio una promessa chiara e leggibile che due frasi ridondanti. Headline e sottotitolo devono spiegare cosa l'utente puo trovare sul sito, senza promesse commerciali non verificate.
+L'ULTIMA SCENA ha ruolo CTA: deve dare una ragione pertinente per continuare su OffertaLogica, non soltanto una frase motivazionale. La chiusura finale contiene logo autentico, invito a seguire OffertaLogica e richiamo al sito, con gerarchia e trattamento differenti secondo il progetto: evita quindi di duplicare nel testo il comando, l'indirizzo del sito o il nome del brand. Per la CTA privilegia headline brevi e forti (2-5 parole) e un eventuale sottotitolo breve solo se aggiunge valore reale; meglio una promessa chiara e leggibile che due frasi ridondanti. Headline e sottotitolo devono spiegare cosa l'utente puo trovare sul sito, senza promesse commerciali non verificate.
 Non inventare risparmi, percentuali, tariffe, bollette, testimonianze, confronti quantitativi o prove; non promettere risparmi garantiti.
+PIANO GRAFICO text_design: scegli font_mood coerente fra scene, salvo contrasti intenzionali; emphasis_text deve essere una parola o breve frase LETTERALMENTE PRESENTE nell'headline, oppure '' se non serve enfasi; emphasis_effect (none, color, underline, brush) sceglie come valorizzarla, senza mettere il testo in box. Per le scene non CTA usa cta_focus=balanced, cta_accent=none, cta_align=auto, cta_lettering=display, cta_gesture=none e cta_order='logo,headline,support,action,domain'. Nella CTA scegli cta_focus (follow, site, balanced), cta_accent (none, color, underline, brush) e cta_align (left, center, right, auto) in base alla guida e alla fotografia. cta_lettering (display, italic) definisce la voce tipografica di 'SEGUI'; cta_gesture (none, rays, arrow) e un accento grafico opzionale misurato dal renderer, mai un box obbligatorio. cta_order indica l'ORDINE LIBERO dei cinque elementi logo,headline,support,action,domain separati da virgole, senza omissioni o ripetizioni: sceglilo in base alla gerarchia (il renderer omette il supporto se vuoto). Non fissare sempre lo stesso ordine. Sono istruzioni di stile, non un modello fisso. Evita ripetizioni estetiche inutili. Tutti i blocchi essenziali devono restare leggibili nella griglia social senza tagli. Non chiedere nuove chiamate AI per il disegno; Canvas usera queste istruzioni.
 Le note del proprietario sono indicazioni creative, non autorizzano affermazioni non supportate. Se l'input è un articolo, rispetta le condizioni e sfumature delle fonti; se è un tema libero, le affermazioni fattuali sono proposte da verificare.
 Non asserire che contenuti, immagini, originalità storica o licenze siano già stati approvati.
 Limiti delle descrizioni: subject_description al massimo 450 caratteri; visual_brief, editorial_goal ed emotion al massimo 500; narrative_action 200, setting 200, shot_type 110, key_object 110, art_direction.camera_intent e art_direction.photo_lighting 200. Inserisci prima i dettagli essenziali.`;
@@ -235,7 +250,7 @@ export function buildCreativeRequest(input,{guideImageBytes=null,guideVideoFrame
   ] : JSON.stringify(input);
   return {...modelOptions(0.65,'medium'),
     messages:[{role:'system',content:guided?system+guidedCreativeSystem+(input.input_type==='guide_image'?guidedImageCreativeSystem:''):system},{role:'user',content:userContent}],
-    response_format:{type:'json_schema',json_schema:{name:guided?'video_studio_creative_v4':'video_studio_creative_v3',
+    response_format:{type:'json_schema',json_schema:{name:guided?'video_studio_creative_v5':'video_studio_creative_v5',
       strict:true,schema:guided?guidedSceneSchema:schema}}};
 }
 export function validateCreativeResponse(input,response) {
@@ -281,6 +296,29 @@ export function validateCreativeResponse(input,response) {
     const shotType=clean(s.shot_type,'shot_type',120);
     const keyObject=clean(s.key_object,'key_object',120,{optional:true});
     check(i===0||continuityLink.length>=8,`scena ${i+1}: legame narrativo mancante`);
+    let textDesign=null;
+    if(s.text_design!=null) {
+      const d=s.text_design;
+      check(d&&typeof d==='object','piano grafico non valido');
+      check(['clean','accent_rule','editorial_panel'].includes(d.font_mood),'famiglia tipografica non valida');
+      check(['none','color','underline','brush'].includes(d.emphasis_effect),'enfasi non valida');
+      check(['follow','site','balanced'].includes(d.cta_focus),'priorita CTA non valida');
+      check(['none','color','underline','brush'].includes(d.cta_accent),'accento CTA non valido');
+      check(['auto','left','center','right'].includes(d.cta_align),'allineamento CTA non valido');
+      check(['display','italic'].includes(d.cta_lettering),'lettering CTA non valido');
+      check(['none','rays','arrow'].includes(d.cta_gesture),'gesto CTA non valido');
+      const order=String(d.cta_order||'').split(',').map(v=>v.trim());
+      check(order.length===5&&new Set(order).size===5&&
+        ['logo','headline','support','action','domain'].every(k=>order.includes(k)),'ordine CTA non valido');
+      const requested=clean(d.emphasis_text,'parola in evidenza',50,{optional:true});
+      // Gracefully discard impossible emphasis instead of losing a good creative proposal.
+      const normal=v=>String(v).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
+      const found=Boolean(requested&&normal(title).includes(normal(requested)));
+      textDesign={font_mood:d.font_mood,emphasis_text:found?requested:'',
+        emphasis_effect:found?d.emphasis_effect:'none',cta_focus:d.cta_focus,cta_accent:d.cta_accent,
+        cta_order:order.join(','),cta_align:d.cta_align,
+        cta_lettering:d.cta_lettering,cta_gesture:d.cta_gesture};
+    }
     const isArtDirected=['guide_image','guide_video'].includes(input.input_type)&&s.art_direction!=null;
     const direction=isArtDirected?s.art_direction:null;
     let artDirection=null;
@@ -303,6 +341,7 @@ export function validateCreativeResponse(input,response) {
       narrative_action:narrativeAction,continuity_link:continuityLink,setting,shot_type:shotType,
       key_object:keyObject,protagonist_profile:protagonistProfile,
       ...(artDirection?{art_direction:artDirection}:{}),
+      ...(textDesign?{text_design:textDesign}:{}),
       scene_signature_sha256:sha(signature),
       image_reviewed_clean:false,protected_regions:[],needs_human_review:true};
   });
@@ -389,14 +428,14 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const compare=async candidate=>{
       const qa={...modelOptions(0.1,'low'),
         messages:[{role:'system',content:isPhoto?
-          `Sei un revisore indipendente di storyboard creati da UNA FOTOGRAFIA, non da un video. Non inventare una trama originale da attribuire alla foto. In Ispirazione libera verifica che le nuove scene siano originali, narrative e distinte, senza ripetere per 15 secondi la foto; il soggetto o il messaggio generale della guida possono essere mantenuti se richiesti nelle note. Se guide_usage=first_scene e CORRETTO che la prima scena corrisponda alla foto; valuta le successive. Valuta se art_direction e applicabile al rendering e alla leggibilita grafica; non certificare bellezza di foto non generate. Restituisci JSON.` :
-          `Sei un revisore INDIPENDENTE di storyboard. Confronta le SCENE SPECIFICHE e i testi del Reel guida con quelli della proposta. In Ispirazione libera richiedi nuove azioni, immagini e headline, non solo aggettivi sostituiti; NON penalizzare la conservazione di un tema generale, di un messaggio o di una struttura efficace richiesti dall'editor. In Aderenza forte una narrativa affine e ammessa. Valuta se la art_direction e applicabile; non certificare bellezza di foto non generate. Restituisci JSON.`},
+          `Sei un revisore indipendente di storyboard creati da UNA FOTOGRAFIA, non da un video. Non inventare una trama originale da attribuire alla foto. In Ispirazione libera verifica che le nuove scene siano originali, narrative e distinte, senza ripetere per 15 secondi la foto; il soggetto o il messaggio generale della guida possono essere mantenuti se richiesti nelle note. Se guide_usage=first_scene e CORRETTO che la prima scena corrisponda alla foto; valuta le successive. Valuta se art_direction e text_design sono applicabili al renderer, con testo leggibile, parole realmente presenti nell'headline e gerarchia CTA chiara; non certificare bellezza di foto non generate. Restituisci JSON.` :
+          `Sei un revisore INDIPENDENTE di storyboard. Confronta le SCENE SPECIFICHE e i testi del Reel guida con quelli della proposta. In Ispirazione libera richiedi nuove azioni, immagini e headline, non solo aggettivi sostituiti; NON penalizzare la conservazione di un tema generale, di un messaggio o di una struttura efficace richiesti dall'editor. In Aderenza forte una narrativa affine e ammessa. Valuta se art_direction e text_design possono rendere la grammatica grafica scelta, senza imporre pannelli e senza nascondere la CTA; non certificare bellezza di foto non generate. Restituisci JSON.`},
           {role:'user',content:JSON.stringify({guide_fidelity:normalized.guide_fidelity,
             guide_usage:normalized.guide_usage||'reference_only',guide_story:profile.narrative,guide_headlines:profile.observed_headlines,
             new_story:{concept:candidate.concept,episode_angle:candidate.episode_angle,
               story_logline:candidate.story_logline,scenes:candidate.scenes.map(x=>({headline:x.headline,
                 narrative_action:x.narrative_action,setting:x.setting,shot_type:x.shot_type,
-                art_direction:x.art_direction}))}})}],
+                art_direction:x.art_direction,text_design:x.text_design}))}})}],
         response_format:{type:'json_schema',json_schema:{name:'video_story_qa_v1',strict:true,schema:semanticReviewSchema}}};
       const result=await askModel(qa);
       check(typeof result?.genuinely_distinct==='boolean'&&typeof result?.art_direction_actionable==='boolean',
