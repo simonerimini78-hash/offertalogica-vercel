@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.12 — semantic typography and adaptable frameless CTA; existing drafts retained. */
+/* Video Studio v1.3.3.13 — portrait-aware composition, independent copy zones and mobile-first CTA. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -491,7 +491,8 @@
     }
     if(view.result && manual && sceneViews.slice(view.index+1).some(later=>later.result))
       message('Foto sostituita: le altre scene sono conservate. Verifica la continuità visiva prima di esportare.');
-    view.result=result;view._compositionKey=null;view._salienceImage=null;view._faceBoxes=null;
+    view.result=result;view._imageEpoch=(view._imageEpoch||0)+1;
+    view._compositionKey=null;view._salienceImage=null;view._faceBoxes=null;
     view.image.src=`data:${result.preview_mime};base64,${result.preview_base64}`;
     view.image.addEventListener('load',()=>{
       view._compositionKey=null;
@@ -705,13 +706,15 @@
     const choice=auto?.choice||{x:76,width:900};
     const titleY=auto?.y||320;
     const titleH=auto?.copy?.titleHeight||210;
-    const secondaryY=titleY+titleH+33;
+    const secondaryY=Number.isFinite(auto?.copy?.detailY)?auto.copy.detailY:titleY+titleH+33;
+    const secondaryX=Number.isFinite(auto?.copy?.detailX)?auto.copy.detailX:choice.x;
     return (view.textDesign={
       title:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:titleY/MONTAGE_HEIGHT,
         width:choice.width/MONTAGE_WIDTH,height:Math.max(150,titleH+22)/MONTAGE_HEIGHT},'title'),
         style:defaultTextStyle('title')},
-      subtitle:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:secondaryY/MONTAGE_HEIGHT,
-        width:Math.min(0.8,choice.width/MONTAGE_WIDTH),height:.095},'subtitle'),
+      subtitle:{box:constrainTextBox({x:secondaryX/MONTAGE_WIDTH,y:secondaryY/MONTAGE_HEIGHT,
+        width:Math.min(.8,Math.max(.30,(auto?.copy?.detailWidth||choice.width)/MONTAGE_WIDTH+.04)),
+        height:Math.max(.075,(auto?.detailBox?.height||145)/MONTAGE_HEIGHT)},'subtitle'),
         style:defaultTextStyle('subtitle')},
       ...(view.scene.role==='cta'?{cta:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,
         y:(auto?.footerY||950)/MONTAGE_HEIGHT,width:choice.width/MONTAGE_WIDTH,
@@ -842,6 +845,38 @@
       if (!previewPlaying && previewView) showPreview(view.index);
     } catch { /* Automatic placement falls back to low-detail regions and manual review. */ }
   }
+  // FaceDetector is not available in every browser. When no confirmed face rectangles
+  // exist, reserve a conservative PORTRAIT zone using the storyboard's subject-side
+  // hint; this is an exclusion estimate, NOT a detected face. Keeping these separate
+  // prevents a noisy pixel heuristic from being represented as a real detection.
+  function protectedPortraits(view) {
+    if (Array.isArray(view._faceBoxes) && view._faceBoxes.length) return view._faceBoxes.map(face=>({
+      x:face.x-face.width*.20,y:face.y-face.height*.24,
+      width:face.width*1.40,height:face.height*1.48,confirmed:true
+    }));
+    const description=[view.scene?.subject_description,view.scene?.visual_brief,
+      view.scene?.shot_type].filter(Boolean).join(' ');
+    if(!/\b(?:uomo|donna|persona|persone|viso|volto|ritratto|artigian\w*|imprenditor\w*|lavorator\w*|consulent\w*|cliente|professionist\w*|operai\w*|man|woman|person|people|portrait|face|worker|customer|owner)\b/iu.test(description))
+      return [];
+    const side=view.scene?.subject_side;
+    if(side==='left')return [{x:38,y:270,width:535,height:700,estimated:true}];
+    if(side==='right')return [{x:507,y:270,width:535,height:700,estimated:true}];
+    return [{x:245,y:270,width:590,height:700,estimated:true}];
+  }
+  function facesOverlap(rect,faces,padding=0) {
+    return faces.reduce((sum,face)=>sum+overlapArea(rect,{x:face.x-padding,y:face.y-padding,
+      width:face.width+padding*2,height:face.height+padding*2}),0);
+  }
+  function insideRect(rect,zone) {
+    return rect.x>=zone.x-1&&rect.y>=zone.y-1&&
+      rect.x+rect.width<=zone.x+zone.width+1&&
+      rect.y+rect.height<=zone.y+zone.height+1;
+  }
+  function unionRects(rects) {
+    const minX=Math.min(...rects.map(r=>r.x)),minY=Math.min(...rects.map(r=>r.y));
+    return {x:minX,y:minY,width:Math.max(...rects.map(r=>r.x+r.width))-minX,
+      height:Math.max(...rects.map(r=>r.y+r.height))-minY};
+  }
   // The guide's art direction selects a typographic language; the actual scene photo
   // decides legible colors. All families have local fallbacks (no external font request).
   function sceneTypeStyle(view) {
@@ -884,9 +919,10 @@
   }
   function photoTextPalette(view,composition) {
     const {choice,copy,y}=composition;
-    const titleArea={x:choice.x,y,width:Math.min(choice.width,copy.titleWidth+12),height:copy.titleHeight};
-    const detailArea={x:choice.x+copy.detailIndent,y:y+copy.titleHeight+copy.gap,
-      width:Math.min(choice.width-copy.detailIndent,copy.detailWidth+12),
+    const titleArea=composition.titleBox||{x:choice.x,y,
+      width:Math.min(choice.width,copy.titleWidth+12),height:copy.titleHeight};
+    const detailArea=composition.detailBox||{x:choice.x+copy.detailIndent,
+      y:y+copy.titleHeight+copy.gap,width:Math.min(choice.width-copy.detailIndent,copy.detailWidth+12),
       height:Math.max(copy.detailSize,copy.textHeight-copy.titleHeight-copy.gap)};
     const titleLight=samplePhotoBrightness(view,titleArea);
     const detailLight=copy.detail.length?samplePhotoBrightness(view,detailArea):titleLight;
@@ -955,7 +991,7 @@
       const titleHeight=size+(lines.length-1)*titleStep;
       const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
       if(titleHeight>maxHeight)continue;
-      const detailSizes=secondary?[64,60,56,52,48,44,40,36]:[0];
+      const detailSizes=secondary?[68,64,60,56,52,48,44]:[0];
       for(const detailSize of detailSizes) {
         let detail=[],detailHeight=0,detailWidth=0;
         const detailStep=Math.round(detailSize*1.35);
@@ -1009,7 +1045,7 @@
     if(!fitted)return null;
     const step=Math.round(fitted.size*(kind==='support'?1.27:1.13));
     return {kind,text,width,size:fitted.size,lines:fitted.lines,lineWidth:fitted.width,
-      step,height:fitted.size+(fitted.lines.length-1)*step};
+      step,height:fitted.size+(fitted.lines.length-1)*step+Math.ceil(fitted.size*.14)};
   }
   // Build a real typographic CTA, not a compulsory pair of buttons.
   // The AI selects the emphasis and priority; Canvas measures every word before export.
@@ -1021,108 +1057,136 @@
     const support=cleanCtaSupport(view.scene.secondary_text);
     const brand=transparentBrandLogo()||previewView?.logo;
     const logoRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
-    const preference=scenePlacement(view),subject=view.scene.subject_side;
-    const layouts=[{variant:'editorial-left',align:'left'},{variant:'signature-center',align:'center'},
-      {variant:'editorial-right',align:'right'}];
+    const preference=scenePlacement(view),faces=protectedPortraits(view);
+    const requested=String(design.cta_order||'').split(',').map(part=>part.trim());
+    const validOrder=requested.length===5&&new Set(requested).size===5&&
+      ['logo','headline','support','action','domain'].every(part=>requested.includes(part));
+    const order=validOrder?requested:(focus==='site'?['logo','headline','action','domain','support']:
+      focus==='balanced'?['headline','logo','action','support','domain']:
+      ['logo','headline','support','action','domain']);
     let best=null;
-    for(const layout of layouts)for(const scale of [1,.96,.92,.88,.84,.8,.76,.72,.68,.64,.60]) {
-      const margin=Math.round(14*scale),contentWidth=safe.width-margin*2;
-      if(contentWidth<180)continue;
-      const headlineWidth=contentWidth*(layout.align==='center'?.93:.95);
-      const title=ctaTextBlock(ctx,'headline',headline,headlineWidth,3,
-        size=>`${type.titleWeight} ${size}px ${type.titleFamily}`,
-        Math.round(35*scale),Math.round((focus==='follow'?65:70)*scale));
-      const detail=support?ctaTextBlock(ctx,'support',support,headlineWidth,3,
-        size=>`650 ${size}px ${BODY_FONT_STACK}`,Math.round(24*scale),Math.round(39*scale)):null;
-      const follow=ctaTextBlock(ctx,'follow','SEGUI',contentWidth,1,
-        size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(29*scale),Math.round((focus==='site'?72:94)*scale));
-      const name=ctaTextBlock(ctx,'name','OffertaLogica',contentWidth,1,
-        size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(48*scale),
-        Math.round((focus==='site'?75:focus==='balanced'?94:103)*scale));
-      const domain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',contentWidth,1,
-        size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(36*scale),
-        Math.round((focus==='site'?68:focus==='balanced'?59:53)*scale));
-      if(!title||(support&&!detail)||!follow||!name||!domain)continue;
-      const siteLabelSize=Math.round((focus==='site'?28:24)*scale);
-      const actionH=follow.size+name.size+34*scale;
-      const domainH=siteLabelSize+domain.size+32*scale;
-      const logoW=Math.min(contentWidth*.53,Math.round((focus==='follow'?360:332)*scale));
-      const logoH=Math.ceil(logoW*logoRatio);
-      const gaps=Math.round(22*scale);
-      const blocks={
-        logo:{kind:'logo',width:logoW,height:logoH},
-        headline:{...title,kind:'headline',width:headlineWidth},
-        ...(detail?{support:{...detail,kind:'support',width:headlineWidth}}:{}),
-        action:{...name,kind:'action',width:contentWidth,height:actionH,followSize:follow.size},
-        domain:{...domain,kind:'domain',width:contentWidth,height:domainH,labelSize:siteLabelSize},
-      };
-      const requested=String(design.cta_order||'').split(',').map(part=>part.trim());
-      const validOrder=requested.length===5&&new Set(requested).size===5&&
-        ['logo','headline','support','action','domain'].every(part=>requested.includes(part));
-      const order=validOrder?requested:(focus==='site'?['logo','action','headline','support','domain']:
-        focus==='balanced'?['logo','headline','action','support','domain']:
-        ['logo','headline','support','action','domain']);
-      const ordered=order.map(key=>blocks[key]).filter(Boolean);
-      const total=ordered.reduce((height,item)=>height+item.height,0)+gaps*(ordered.length-1);
-      if(total>safe.height-22)continue;
-      let y=safe.y+(safe.height-total)/2;
-      const alignX=width=>layout.align==='left'?safe.x+margin:
-        layout.align==='right'?safe.x+safe.width-margin-width:safe.x+(safe.width-width)/2;
-      const items=ordered.map(block=>{
-        const item={...block,x:alignX(block.width),y,align:layout.align};
-        y+=block.height+gaps;
-        return item;
-      });
-      const textObjects=items.filter(item=>item.kind==='headline'||item.kind==='support'||item.kind==='action');
-      const salience=textObjects.reduce((sum,item)=>sum+quietness(view,item),0);
-      const facePenalty=(view._faceBoxes||[]).reduce((sum,face)=>sum+textObjects.reduce((acc,item)=>
-        acc+overlapArea(item,face)/Math.max(1,face.width*face.height),0),0);
-      const artAlign=['left','center','right'].includes(design.cta_align)?design.cta_align:null;
-      const preferred=artAlign||(preference==='left'?'left':preference==='right'?'right':
-        preference==='top'||preference==='bottom'?'center':null);
-      const opposite=(subject==='right'&&layout.align==='left')||(subject==='left'&&layout.align==='right');
-      const score=name.size*.75+domain.size*(focus==='site'?.65:.22)+title.size*.38+
-        logoW*.055-salience*10-facePenalty*2+(layout.align===preferred?(artAlign?30:14):0)+
-        (opposite?3:0)+((layout.align==='center'&&!preferred)?1:0);
-      if(!best||score>best.score)best={items,variant:layout.variant,score,scale,focus};
+    const available=Math.max(0,safe.width-28);
+    for(const fraction of [1,.86,.73,.64,.57,.51])for(const align of ['left','right','center']) {
+      if(['left','right'].includes(view.layoutPreference)&&align!==view.layoutPreference)continue;
+      const contentWidth=Math.round(available*fraction);
+      if(contentWidth<300)continue;
+      if(align==='center'&&fraction<.72)continue;
+      const x=align==='left'?safe.x+14:align==='right'?safe.x+safe.width-14-contentWidth:
+        safe.x+(safe.width-contentWidth)/2;
+      for(const scale of [1,.94,.88,.82,.76,.70,.64]) {
+        const title=ctaTextBlock(ctx,'headline',headline,contentWidth,4,
+          size=>`${type.titleWeight} ${size}px ${type.titleFamily}`,
+          Math.round(44*scale),Math.round((focus==='site'?76:82)*scale));
+        const detail=support?ctaTextBlock(ctx,'support',support,contentWidth,3,
+          size=>`700 ${size}px ${BODY_FONT_STACK}`,Math.round(32*scale),Math.round(48*scale)):null;
+        const follow=ctaTextBlock(ctx,'follow','SEGUI',contentWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(68*scale));
+        const name=ctaTextBlock(ctx,'name','OffertaLogica',contentWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(52*scale),
+          Math.round((focus==='site'?89:106)*scale));
+        const domain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',contentWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(39*scale),
+          Math.round((focus==='site'?75:70)*scale));
+        if(!title||(support&&!detail)||!follow||!name||!domain)continue;
+        // The generic micro-label above the URL was unreadable on mobile;
+        // the fully visible domain already communicates the destination.
+        const wideWidth=available;
+        const wideFollow=ctaTextBlock(ctx,'follow','SEGUI',wideWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(77*scale));
+        const wideName=ctaTextBlock(ctx,'name','OffertaLogica',wideWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(55*scale),
+          Math.round((focus==='site'?96:113)*scale));
+        const wideDomain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',wideWidth,1,
+          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(44*scale),Math.round(84*scale));
+        for(const span of ['column','wide-footer']) {
+          const footW=span==='wide-footer'?wideWidth:contentWidth;
+          const footFollow=span==='wide-footer'?wideFollow:follow;
+          const footName=span==='wide-footer'?wideName:name;
+          const footDomain=span==='wide-footer'?wideDomain:domain;
+          if(!footFollow||!footName||!footDomain)continue;
+          const actionH=footFollow.size+footName.size+Math.round(20*scale);
+          const domainH=footDomain.size+Math.round(12*scale);
+          const logoW=Math.min(contentWidth*.48,Math.round(248*scale));
+          const logoH=Math.ceil(logoW*logoRatio);
+          const gap=Math.round(20*scale);
+          const blocks={
+            logo:{kind:'logo',width:logoW,height:logoH,lineWidth:logoW},
+            headline:{...title,kind:'headline',width:contentWidth},
+            ...(detail?{support:{...detail,kind:'support',width:contentWidth}}:{}),
+            action:{...footName,kind:'action',width:footW,height:actionH,
+              lineWidth:Math.max(footFollow.lineWidth,footName.lineWidth),followSize:footFollow.size},
+            domain:{...footDomain,kind:'domain',width:footW,height:domainH}
+          };
+          const ordered=order.map(key=>blocks[key]).filter(Boolean);
+          const total=ordered.reduce((sum,item)=>sum+item.height,0)+gap*(ordered.length-1);
+          if(total>safe.height-16)continue;
+          for(const anchor of ['top','middle','bottom']) {
+            if(view.layoutPreference==='top'&&anchor!=='top')continue;
+            if(view.layoutPreference==='bottom'&&anchor!=='bottom')continue;
+            let y=anchor==='top'?safe.y+10:anchor==='bottom'?safe.y+safe.height-total-10:
+              safe.y+(safe.height-total)/2;
+            const items=ordered.map(block=>{
+              const column=(block.kind==='action'||block.kind==='domain')&&span==='wide-footer'
+                ?{x:safe.x+14,width:wideWidth}: {x,width:contentWidth};
+              const item={...block,x:column.x,y,align};
+              y+=block.height+gap;
+              return item;
+            });
+            const textBoxes=items.map(item=>{
+              const inkWidth=Math.min(item.width,item.lineWidth||item.width);
+              return {x:item.align==='left'?item.x:item.align==='right'?item.x+item.width-inkWidth:
+                item.x+(item.width-inkWidth)/2,y:item.y,width:inkWidth,height:item.height};
+            });
+            if(textBoxes.some(box=>!insideRect(box,safe)))continue;
+            if(textBoxes.some(box=>facesOverlap(box,faces,14)>36))continue;
+            const photoNoise=textBoxes.reduce((sum,box,i)=>sum+quietness(view,box)*
+              (items[i].kind==='logo'?.3:items[i].kind==='headline'?1.25:1),0);
+            const artAlign=['left','center','right'].includes(design.cta_align)?design.cta_align:null;
+            const prefer=artAlign||(preference==='left'?'left':preference==='right'?'right':null);
+            const score=footName.size*.83+footDomain.size*1.25+title.size*.60+
+              (detail?detail.size*.55:0)+footFollow.size*.22+
+              logoW*.075-photoNoise*68+(prefer===align?3:0)+
+              (align==='center'?-1.5:0)-(anchor==='middle'?0:anchor==='top'?.8:1.4);
+            if(!best||score>best.score)best={items,textBoxes,
+              variant:`editorial-${align}-${anchor}-${span}`,score,scale,focus,failed:false};
+          }
+        }
+      }
     }
-    if(!best){
-      // The renderer cannot silently remove a word. Return an invalid composition
-      // with every semantic block intact and let the existing export gate stop it.
+    if(!best) {
+      // Unsafe layouts are never silently accepted or silently truncated.
+      // Keep every semantic block and trigger the existing export overflow gate.
       const w=Math.max(1,safe.width-28),x=safe.x+14;
       const simple=(kind,text,y,size)=>({kind,text,x,y,width:w,height:size+18,size,step:size+8,
         align:'left',lines:[text],lineWidth:w});
-      const logoW=Math.max(0,Math.min(220,w));
+      const logoW=Math.min(200,w);
       const items=[{kind:'logo',x,y:safe.y,width:logoW,height:logoW*logoRatio,align:'left'},
         simple('headline',headline,safe.y+140,54),
-        ...(support?[simple('support',support,safe.y+220,34)]:[]),
-        {...simple('action','OffertaLogica',safe.y+320,62),followSize:36},
-        {...simple('domain','OFFERTALOGICA.IT',safe.y+455,52),labelSize:23}];
-      best={items,variant:'unfitted',score:-Infinity,scale:.6,focus,failed:true};
+        ...(support?[simple('support',support,safe.y+218,34)]:[]),
+        {...simple('action','OffertaLogica',safe.y+315,62),followSize:36},
+        simple('domain','OFFERTALOGICA.IT',safe.y+460,48)];
+      best={items,textBoxes:items,variant:'unfitted',score:-Infinity,scale:.6,focus,failed:true};
     }
     const {items}=best,logo=items.find(item=>item.kind==='logo');
     const title=items.find(item=>item.kind==='headline');
     const detail=items.find(item=>item.kind==='support');
     const action=items.find(item=>item.kind==='action');
     const textItems=items.filter(item=>item.kind!=='logo');
-    const minX=Math.min(...items.map(item=>item.x)),minY=Math.min(...items.map(item=>item.y));
-    const maxX=Math.max(...items.map(item=>item.x+item.width));
-    const maxY=Math.max(...items.map(item=>item.y+item.height));
     const copy={lines:title.lines,size:title.size,titleStep:title.step,
       detail:detail?.lines||[],detailSize:detail?.size||0,detailStep:detail?.step||0,
       detailIndent:0,gap:detail?detail.y-title.y-title.height:0,titleHeight:title.height,
-      textHeight:title.height,titleWidth:title.lineWidth,detailWidth:detail?.lineWidth||0,overflow:false};
-    const palette=photoTextPalette(view,{choice:{x:title.x,y:title.y,width:title.width},copy,y:title.y});
-    const overflow=Boolean(best.failed)||items.some(item=>
-      item.x<safe.x-1||item.y<safe.y-1||item.x+item.width>safe.x+safe.width+1||
-      item.y+item.height>safe.y+safe.height+1);
+      textHeight:title.height,titleWidth:title.lineWidth,detailWidth:detail?.lineWidth||0,
+      overflow:false};
+    const titleBox=best.textBoxes[items.indexOf(title)];
+    const detailBox=detail?best.textBoxes[items.indexOf(detail)]:null;
+    const palette=photoTextPalette(view,{choice:{x:title.x,y:title.y,width:title.width},copy,
+      titleBox,detailBox,y:title.y});
+    const overflow=Boolean(best.failed)||items.some(item=>!insideRect(item,safe));
     copy.overflow=overflow;
-    return {variant:best.variant,type,palette,safe,items,logo,
+    return {variant:best.variant,type,palette,safe,items,inkBoxes:best.textBoxes,
+      logo,titleBox,detailBox,
       choice:{side:'cta',x:title.x,y:title.y,width:title.width},
-      bounds:{x:minX,y:minY,width:maxX-minX,height:maxY-minY},
-      textBounds:{x:Math.min(...textItems.map(item=>item.x)),y:Math.min(...textItems.map(item=>item.y)),
-        width:Math.max(...textItems.map(item=>item.x+item.width))-Math.min(...textItems.map(item=>item.x)),
-        height:Math.max(...textItems.map(item=>item.y+item.height))-Math.min(...textItems.map(item=>item.y))},
+      bounds:unionRects(items),textBounds:unionRects(textItems),
       copy,y:title.y,footerY:action.y,actionHeight:action.height,overflow};
   }
   function overlapArea(a,b) {
@@ -1132,109 +1196,123 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.12|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
-    if(view._compositionKey===key && view._composition)return view._composition;
-    const isCta=view.scene.role==='cta';
-    if(isCta) {
+    const key=`1.3.3.13|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    if(view._compositionKey===key&&view._composition)return view._composition;
+    if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
-      view._compositionKey=key;
-      view._composition=cta;
+      view._compositionKey=key;view._composition=cta;
       return cta;
     }
     const mode=scenePlacement(view),type=sceneTypeStyle(view);
-    const brand=transparentBrandLogo()||previewView?.logo;
-    const logoAspectRatio=brand?.naturalWidth
-      ?brand.naturalHeight/brand.naturalWidth:353/640;
-    const safeArea=textGuidePixels();
-    const safeBottom=Math.round(safeArea.y+safeArea.height);
-    const topPositions=isCta?[290,340,395,450]:[330,405,490,580,675];
-    const widths=isCta?[820,760,700]:[820,760,700,630,560];
-    const cache=new Map(),ranked=[];
-    for(const width of widths) {
-      if(isCta) {
-        let domainSize=60;
-        ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
-        while(domainSize>34&&ctx.measureText('OFFERTALOGICA.IT').width>width-48) {
-          domainSize-=2;
-          ctx.font=`800 ${domainSize}px ${CTA_FONT_STACK}`;
-        }
-        if(domainSize<46||ctx.measureText('OFFERTALOGICA.IT').width>width-48)continue;
-      }
-      const positions=[
-        {side:'left',x:130},{side:'right',x:950-width},
-        {side:'top',x:Math.round((1080-width)/2)},
-        {side:'bottom',x:Math.round((1080-width)/2)},
-      ];
-      for(const choice of positions) {
-        if(view.layoutPreference!=='auto'&&choice.side!==view.layoutPreference)continue;
-        for(const y of topPositions) {
-          if(choice.side==='top'&&y>455)continue;
-          if(choice.side==='bottom'&&y<535)continue;
-          const actionHeight=isCta?166:0;
-          const logoW=isCta?Math.min(265,Math.round(width*.38)):0;
-          const logoH=isCta?Math.ceil(logoW*logoAspectRatio):0;
-          const footerHeight=isCta?74+actionHeight+44+logoH:0;
-          const maxTextHeight=safeBottom-y-footerHeight;
-          if(maxTextHeight<160)continue;
-          const fitKey=`${width}|${maxTextHeight}`;
-          if(!cache.has(fitKey))cache.set(fitKey,fitSceneCopy(ctx,view.scene,width,maxTextHeight,type));
-          const copy=cache.get(fitKey);
-          if(!copy)continue;
-          const footerY=y+copy.textHeight+74;
-          const logo={x:choice.x,y:footerY+actionHeight+44,width:logoW,height:logoH};
-          // Measure the actual glyph block, not the entire horizontal candidate strip.
-          const inkWidth=Math.max(copy.titleWidth,copy.detailWidth+copy.detailIndent);
-          const textBounds={x:choice.x-6,y:y-9,width:Math.min(width+12,inkWidth+12),height:copy.textHeight+18};
-          const bounds={x:choice.x-14,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36};
-          const faces=view._faceBoxes||[];
-          let facePenalty=0;
-          for(const face of faces) {
-            const faceArea=Math.max(1,face.width*face.height);
-            const eyeRegion={x:face.x+face.width*.16,y:face.y+face.height*.14,
-              width:face.width*.68,height:face.height*.37};
-            facePenalty+=7*overlapArea(textBounds,face)/faceArea;
-            facePenalty+=16*overlapArea(textBounds,eyeRegion)/Math.max(1,eyeRegion.width*eyeRegion.height);
+    const guide=textGuidePixels();
+    const x0=Math.max(guide.x,REELS_VISIBLE.x),y0=Math.max(guide.y,REELS_VISIBLE.y);
+    const right=Math.min(guide.x+guide.width,REELS_VISIBLE.x+REELS_VISIBLE.width);
+    const bottom=Math.min(guide.y+guide.height,REELS_VISIBLE.y+REELS_VISIBLE.height);
+    const safe={x:x0,y:y0,width:Math.max(0,right-x0),height:Math.max(0,bottom-y0)};
+    const faces=protectedPortraits(view),titleCache=new Map(),detailCache=new Map();
+    const ranked=[],titleScene={...view.scene,secondary_text:''};
+    const support=String(view.scene.secondary_text||'').trim();
+    const usableWidth=Math.max(0,safe.width-20);
+    for(const fraction of [1,.86,.72,.61,.52,.44]) {
+      const width=Math.round(usableWidth*fraction);
+      if(width<240)continue;
+      const xs=[safe.x+10,safe.x+safe.width-width-10,
+        safe.x+(safe.width-width)/2,safe.x+(safe.width-width)*.32,
+        safe.x+(safe.width-width)*.68];
+      for(const x of [...new Set(xs.map(Math.round))]) {
+        if(x<safe.x||x+width>right+1)continue;
+        const leftish=x<safe.x+safe.width*.32;
+        const rightish=x+width>right-safe.width*.32;
+        // Explicit editor preferences constrain the side, not the available whitespace.
+        if(view.layoutPreference==='left'&&!leftish)continue;
+        if(view.layoutPreference==='right'&&!rightish)continue;
+        const starts=[safe.y+12,safe.y+70,safe.y+145,safe.y+220,safe.y+295,
+          safe.y+safe.height*.46,safe.y+safe.height*.57];
+        for(const y of [...new Set(starts.map(Math.round))]) {
+          if(y>bottom-155)continue;
+          if(view.layoutPreference==='top'&&y>safe.y+145)continue;
+          if(view.layoutPreference==='bottom'&&y<safe.y+safe.height*.43)continue;
+          const maxHeight=bottom-y-10;
+          const fitKey=`${width}|${Math.round(maxHeight)}`;
+          if(!titleCache.has(fitKey))titleCache.set(fitKey,
+            fitSceneCopy(ctx,titleScene,width,maxHeight,type));
+          const title=titleCache.get(fitKey);
+          if(!title)continue;
+          const titleBox={x,y,width:Math.min(width,title.titleWidth+10),
+            height:title.titleHeight+Math.ceil(title.size*.16)+10};
+          if(!insideRect(titleBox,safe)||facesOverlap(titleBox,faces,14)>32)continue;
+          const titleBottom=y+title.titleHeight;
+          const placements=support?[
+            {x,width,y:titleBottom+28,style:'stack'},
+            {x,width,y:titleBottom+58,style:'breathing-room'},
+            {x:safe.x+10,width:usableWidth,y:titleBottom+35,style:'wide-left'},
+            {x:safe.x+10,width:usableWidth,y:bottom-125,style:'footer-left',bottom:true},
+            {x:safe.x+10,width:usableWidth,y:bottom-125,style:'footer-right',bottom:true,right:true},
+            {x:x+title.titleWidth+35,width:right-(x+title.titleWidth+45),
+              y:y+Math.min(60,title.titleHeight*.17),style:'side-by-side'},
+            {x:safe.x+10,width:usableWidth*.52,y:titleBottom+36,style:'narrow-left'},
+            {x:right-10-usableWidth*.52,width:usableWidth*.52,y:titleBottom+36,style:'narrow-right'}
+          ]:[{x,y,style:'title-only'}];
+          for(const place of placements) {
+            const detailW=Math.floor(place.width);
+            if(detailW<180)continue;
+            if(!detailCache.has(detailW))detailCache.set(detailW,
+              fitSimpleLines(ctx,support,detailW,3,size=>sceneFont(type,size,true),44,68,2));
+            const detail=detailCache.get(detailW);
+            if(support&&!detail)continue;
+            const detailStep=detail?Math.round(detail.size*1.32):0;
+            const detailHeight=detail?detail.size+(detail.lines.length-1)*detailStep:0;
+            const detailX=place.right?right-10-detail.width:place.x;
+            const detailY=place.bottom?bottom-detailHeight-10:place.y;
+            const detailBox=detail?{x:Math.round(detailX),y:Math.round(detailY),
+              width:Math.min(detailW,detail.width+9),
+              height:detailHeight+Math.ceil(detail.size*.16)+8}:null;
+            if(detailBox&&(!insideRect(detailBox,safe)||
+              intersects(titleBox,detailBox,18)||facesOverlap(detailBox,faces,12)>24))continue;
+            const ink=detailBox?[titleBox,detailBox]:[titleBox];
+            const busy=quietness(view,titleBox)*1.5+(detailBox?quietness(view,detailBox)*.9:0);
+            const preferred=(mode==='left'&&leftish)||(mode==='right'&&rightish)||
+              (mode==='top'&&y<safe.y+120)||(mode==='bottom'&&y>safe.y+safe.height*.44);
+            const sizePenalty=(124-title.size)*.055+(detail?(68-detail.size)*.052:0);
+            const offset=detailBox?Math.abs(detailBox.x-titleBox.x):0;
+            const cohesion=place.style==='side-by-side'?offset*.003:offset*.012;
+            const gap=detailBox?Math.max(0,detailBox.y-titleBottom):0;
+            const visualBalance=place.style==='stack'?1:place.style==='breathing-room'?.4:0;
+            const score=busy*15+sizePenalty+cohesion+visualBalance+
+              Math.abs(gap-55)*.004+Math.max(0,title.lines.length-3)*2.3+
+              (preferred?-1.4:0)+
+              Math.abs(y-(view.scene.role==='hook'?safe.y+95:safe.y+160))*.002;
+            const copy={...title,detail:detail?.lines||[],detailSize:detail?.size||0,
+              detailStep,detailIndent:0,detailWidth:detail?.width||0,
+              detailX:detailBox?.x||x,detailY:detailBox?.y||0,
+              gap, textHeight:Math.max(title.titleHeight,detailBox?detailBox.y-y+detailHeight:0)};
+            ranked.push({choice:{side:x<safe.x+safe.width*.30?'left':rightish?'right':'center',
+              x,width,y},copy,y,titleBox,detailBox,textBounds:unionRects(ink),
+              bounds:unionRects(ink),score,variant:place.style,overflow:false});
           }
-          const busyArea=quietness(view,textBounds);
-          const subjectSide=view.scene.subject_side;
-          const oppositeSide=(subjectSide==='left'&&choice.side==='right')||
-            (subjectSide==='right'&&choice.side==='left');
-          const sidePenalty=['left','right'].includes(subjectSide)
-            ?oppositeSide?-1.3:['top','bottom'].includes(choice.side)?0.4:1.6:0;
-          const sizePenalty=(124-copy.size)*.049+(64-copy.detailSize)*(copy.detail.length?.025:0);
-          const preference=(mode!=='auto'&&choice.side===mode)?-1.2:0;
-          const balancePenalty=copy.lines.length>2?(copy.lines.length-2)*1.8:0;
-          const positionPenalty=Math.abs(y-(isCta?335:view.scene.role==='hook'?415:485))*.006;
-          const score=busyArea*7+facePenalty+sidePenalty+sizePenalty+balancePenalty+
-            preference+positionPenalty;
-          ranked.push({choice:{...choice,y,width},copy,y,bounds,textBounds,logo,footerY,
-            actionHeight,score,overflow:false});
         }
       }
     }
     ranked.sort((a,b)=>a.score-b.score);
     const selected=ranked[0]||(()=>{
-      // Never cut the copy to satisfy a fixed box. Surface a warning if no layout fits.
-      const width=820,y=350;
-      const actionHeight=isCta?166:0,logoW=isCta?265:0;
-      const logoH=Math.ceil(logoW*logoAspectRatio);
-      const footerHeight=isCta?74+actionHeight+44+logoH:0;
+      // No safe composition: retain all text and disable export rather than cover a face.
+      const width=Math.max(260,safe.width-20),x=safe.x+10,y=safe.y+10;
       const copy=fitSceneCopy(ctx,view.scene,width,Number.POSITIVE_INFINITY,type)||{
         lines:[String(view.scene.headline||'')],detail:[String(view.scene.secondary_text||'')],
-        size:56,detailSize:36,titleStep:67,detailStep:48,titleHeight:56,textHeight:170,detailIndent:26,gap:70,
-        titleWidth:width,detailWidth:width,overflow:true};
-      copy.overflow=true;
-      const footerY=y+copy.textHeight+74;
-      return {choice:{side:'top',x:130,y,width},copy,y,overflow:true,
-        bounds:{x:116,y:y-18,width:width+28,height:copy.textHeight+footerHeight+36},
-        textBounds:{x:130,y,width,height:copy.textHeight},
-        logo:{x:130,y:footerY+actionHeight+44,width:logoW,height:logoH},footerY,
-        actionHeight,score:999};
+        size:54,detailSize:36,titleStep:67,detailStep:48,titleHeight:54,textHeight:170,
+        detailIndent:0,gap:65,titleWidth:width,detailWidth:width};
+      copy.overflow=true;copy.detailX=x;copy.detailY=y+copy.titleHeight+copy.gap;
+      const titleBox={x,y,width:copy.titleWidth,height:copy.titleHeight};
+      const detailBox=copy.detail.length?{x,y:copy.detailY,width:copy.detailWidth,
+        height:copy.detailSize+(copy.detail.length-1)*copy.detailStep}:null;
+      return {choice:{side:'unfitted',x,y,width},copy,y,titleBox,detailBox,
+        textBounds:unionRects(detailBox?[titleBox,detailBox]:[titleBox]),
+        bounds:unionRects(detailBox?[titleBox,detailBox]:[titleBox]),score:Infinity,
+        variant:'unfitted',overflow:true};
     })();
-    view._compositionKey=key;
     selected.type=type;
     selected.palette=photoTextPalette(view,selected);
-    view._composition=selected;
+    view._compositionKey=key;view._composition=selected;
     return selected;
   }
   function drawProductScreenFrame(ctx, view) {
@@ -1477,10 +1555,17 @@
     const progress=(start,duration)=>Math.max(0,Math.min(1,(localTime-start)/duration));
     const brand=transparentBrandLogo()||previewView?.logo;
     const headlineEffect=design.emphasis_effect||'none',phrase=design.emphasis_text||'';
+    const brightPhoto=palette.title==='#183039';
     const draw=(line,x,y,font,color,stroke,shadow,effect='none',emphasis='')=>
       expressiveTextLine(ctx,{line,x,y,font,base:color,outline:stroke,shadow,
-        phrase:emphasis,effect,accent:palette.accent,thickness:3.3});
+        phrase:emphasis,effect,accent:palette.accent,thickness:5.0});
     for(const item of items) {
+      const blockTone=samplePhotoBrightness(view,item);
+      const blockBright=blockTone?(blockTone.mean>=.54||
+        (blockTone.mean>=.46&&blockTone.brightShare>=.70)):brightPhoto;
+      const blockMain=blockBright?'#17313a':'#fffdf6';
+      const blockOutline=blockBright?'rgba(255,251,241,.95)':'rgba(5,22,26,.92)';
+      const blockShadow=blockBright?'rgba(255,255,255,.38)':'rgba(0,0,0,.70)';
       ctx.save();
       ctx.globalAlpha*=item.kind==='logo'?progress(.03,.30):
         item.kind==='headline'?progress(.15,.32):item.kind==='support'?progress(.28,.30):
@@ -1511,36 +1596,29 @@
         const fWidth=ctx.measureText('SEGUI').width;
         const followX=item.align==='center'?item.x+(item.width-fWidth)/2:
           item.align==='right'?item.x+item.width-fWidth:item.x;
-        draw('SEGUI',followX,item.y+item.followSize,followFont,'#f5fff4',
-          'rgba(7,35,23,.94)','rgba(0,0,0,.46)');
+        draw('SEGUI',followX,item.y+item.followSize,followFont,blockMain,
+          blockOutline,blockShadow);
         ctx.font=nameFont;
         const text='OffertaLogica',width=ctx.measureText(text).width;
         const textX=item.align==='center'?item.x+(item.width-width)/2:
           item.align==='right'?item.x+item.width-width:item.x;
         const y=item.y+item.followSize+item.size+12;
         // Contrast between the two brand syllables; visual highlight is chosen by AI.
-        draw(text,textX,y,nameFont,'#fffdf6','rgba(2,27,16,.94)','rgba(0,0,0,.60)',
+        draw(text,textX,y,nameFont,blockMain,blockOutline,blockShadow,
           accent==='brush'?'brush':accent==='underline'?'underline':accent==='color'?'color':'none',
           accent==='none'?'':priority==='site'?'Logica':'OffertaLogica');
-        // The mark's two words remain distinguishable even without a CTA panel.
+        // Keep the brand's secondary accent visible against either photo polarity.
         const firstWidth=ctx.measureText('Offerta').width;
-        draw('Logica',textX+firstWidth,y,nameFont,'#b9ec39','rgba(2,27,16,.94)',
-          'rgba(0,0,0,.54)');
+        draw('Logica',textX+firstWidth,y,nameFont,
+          blockBright?'#276b42':'#b9ec39',blockOutline,blockShadow);
       } else if(item.kind==='domain') {
-        const labelFont=`650 ${item.labelSize}px ${BODY_FONT_STACK}`;
-        const label='SCOPRI DI PIÙ SU';ctx.font=labelFont;
-        const labelW=ctx.measureText(label).width;
-        const labelX=item.align==='center'?item.x+(item.width-labelW)/2:
-          item.align==='right'?item.x+item.width-labelW:item.x;
-        draw(label,labelX,item.y+item.labelSize,labelFont,'#e3f1e0',
-          'rgba(3,27,15,.87)','rgba(0,0,0,.44)');
         const domainFont=`850 ${item.size}px ${CTA_FONT_STACK}`;
         const domainText='OFFERTALOGICA.IT';ctx.font=domainFont;
         const domainW=ctx.measureText(domainText).width;
         const domainX=item.align==='center'?item.x+(item.width-domainW)/2:
           item.align==='right'?item.x+item.width-domainW:item.x;
-        draw(domainText,domainX,item.y+item.labelSize+item.size+16,domainFont,
-          '#ffffff','rgba(2,28,23,.93)','rgba(0,0,0,.57)',
+        draw(domainText,domainX,item.y+item.size,domainFont,
+          blockMain,blockOutline,blockShadow,
           priority==='site'?(accent==='none'?'none':accent):'none',
           priority==='site'?'OFFERTALOGICA.IT':'');
       }
@@ -1592,7 +1670,7 @@
     const detailProgress=progress(scene.role==='hook'?.26:.18,.50);
     const drawLine=(text,x,yy,font,color,outline,shadow,detail=false,alpha=1,offset=0)=>{
       ctx.save();ctx.globalAlpha*=alpha;ctx.font=font;
-      ctx.lineWidth=detail?2.6:3.6;
+      ctx.lineWidth=detail?4.2:5.2;
       ctx.strokeStyle=outline;ctx.strokeText(text,x,yy+offset);
       ctx.shadowColor=shadow;ctx.shadowBlur=detail?7:10;
       ctx.fillStyle=color;ctx.fillText(text,x,yy+offset);
@@ -1605,12 +1683,12 @@
       expressiveTextLine(ctx,{line,x:choice.x,y:baseline+i*copy.titleStep+10*(1-titleProgress),
         font:sceneFont(type,copy.size),base:palette.title,outline:palette.titleOutline,
         shadow:palette.titleShadow,phrase:design.emphasis_text||'',
-        effect:design.emphasis_effect||'none',accent:palette.accent,thickness:3.6});
+        effect:design.emphasis_effect||'none',accent:palette.accent,thickness:5.2});
       ctx.restore();
     });
     if(copy.detail.length) {
-      const detailX=choice.x+copy.detailIndent;
-      const detailTop=y+copy.titleHeight+copy.gap;
+      const detailX=Number.isFinite(copy.detailX)?copy.detailX:choice.x+copy.detailIndent;
+      const detailTop=Number.isFinite(copy.detailY)?copy.detailY:y+copy.titleHeight+copy.gap;
       if(type.mode==='accent_rule') {
         ctx.save();ctx.globalAlpha*=detailProgress;
         ctx.fillStyle=palette.accent;
@@ -2186,9 +2264,13 @@
       if(view.scene.role==='cta') {
         const labels={headline:'Titolo CTA',support:'Supporto CTA',action:'Invito a seguire',
           domain:'Richiamo al sito',logo:'Logo'};
-        for(const item of auto.items||[])objects.push({name:labels[item.kind]||'CTA',rect:item});
-      } else objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
-      if(auto.overflow)objects.push({name:'Testo senza spazio sufficiente',truncated:true});
+        for(const [i,item] of (auto.items||[]).entries())objects.push({
+          name:labels[item.kind]||'CTA',rect:auto.inkBoxes?.[i]||item});
+      } else {
+        objects.push({name:'Titolo',rect:auto.titleBox||auto.textBounds||auto.bounds});
+        if(auto.detailBox)objects.push({name:'Sottotitolo',rect:auto.detailBox});
+      }
+      if(auto.overflow)objects.push({name:'Testo senza spazio sufficiente o posizione sicura',truncated:true});
     }
     return objects.filter(item=>item.truncated||(item.rect&&!rectangleInside(item.rect,zone)))
       .map(item=>item.name);
@@ -2685,7 +2767,10 @@
     const cropHelp=textElement('p',
       'Simulazioni locali: Feed 4:5, profilo Instagram 3:4, prova quadrata 1:1. '+
       'Le guide Reels riprendono i margini delle inserzioni Meta (14% alto, 35% basso, 6% lati); '+
-      'non garantiscono gli overlay dei Reel organici. Controlla anche le anteprime reali nelle app.');
+      'non garantiscono gli overlay dei Reel organici. ' +
+      'I volti sono rilevati solo se il browser supporta FaceDetector; altrimenti il layout ' +
+      'protegge una zona prudenziale stimata dalla descrizione del soggetto, non certificata. ' +
+      'Controlla anche le anteprime reali nelle app.');
     cropHelp.className='ol-muted ol-small';
     cropControls.append(cropLabel,cropRisk,cropAllRisk,cropHelp);
     const guidePanel=document.createElement('div');
