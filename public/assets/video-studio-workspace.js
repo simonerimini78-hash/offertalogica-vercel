@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.10 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
+/* Video Studio v1.3.3.11 — adaptive mobile copy and explicit action; existing photos and drafts retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -980,25 +980,23 @@
     }
     return best;
   }
-  function ctaVariantForScene(scene) {
-    const seed=String(scene?.headline||'')+'|'+String(scene?.secondary_text||'')+'|'+String(scene?.art_direction?.accent_color||'');
-    let hash=0;for(const ch of seed)hash=(hash*31+ch.charCodeAt(0))>>>0;
-    return ['brand','site','signal'][hash%3];
-  }
+  // A shared brand hierarchy, with photo-aware alignments rather than random word hashes.
+  // The existing editable safe-text guide remains the owner's control surface.
   function ctaSafeArea() {
-    const guide=textGuidePixels();
-    return {x:guide.x,y:Math.max(guide.y,390),width:guide.width,height:Math.min(1180,1920-guide.y-250)};
+    const guide=textGuidePixels(),visible=REELS_VISIBLE;
+    const left=Math.max(guide.x,visible.x),top=Math.max(guide.y,visible.y);
+    const right=Math.min(guide.x+guide.width,visible.x+visible.width);
+    const bottom=Math.min(guide.y+guide.height,visible.y+visible.height);
+    return {x:left,y:top,width:Math.max(0,right-left),height:Math.max(0,bottom-top)};
   }
   function cleanCtaSupport(text) {
     const value=String(text||'').trim();
-    if(!value)return '';
-    if(/offertalogica|\.it|vai su|visita/iu.test(value))return '';
-    const words=value.split(/\s+/u).filter(Boolean);
-    return words.length>6?words.slice(0,6).join(' '):value;
+    // Suppress only a complete repetition of an already visible fixed action.
+    return /^(?:segui\s+offertalogica|visita\s+(?:il\s+)?sito|(?:www\.)?offertalogica\.it)[.!]?$/iu.test(value)?'':value;
   }
-  function fitSimpleLines(ctx,text,width,maxLines,fontFn,minSize,maxSize,step=4) {
+  function fitSimpleLines(ctx,text,width,maxLines,fontFn,minSize,maxSize,step=2) {
     const value=String(text||'').trim();
-    if(!value)return null;
+    if(!value || width<=0)return null;
     for(let size=maxSize;size>=minSize;size-=step) {
       ctx.font=fontFn(size);
       const lines=balancedCopyLines(ctx,value,width,maxLines);
@@ -1006,75 +1004,108 @@
     }
     return null;
   }
+  function ctaTextBlock(ctx,kind,text,width,maxLines,fontFn,min,max) {
+    const fitted=fitSimpleLines(ctx,text,width,maxLines,fontFn,min,max);
+    if(!fitted)return null;
+    const step=Math.round(fitted.size*(kind==='support'?1.27:1.13));
+    return {kind,text,width,size:fitted.size,lines:fitted.lines,lineWidth:fitted.width,
+      step,height:fitted.size+(fitted.lines.length-1)*step};
+  }
   function fitCtaComposition(ctx,view) {
-    const safe=ctaSafeArea();
-    const variant=ctaVariantForScene(view.scene);
-    const type=sceneTypeStyle(view);
-    const brand=transparentBrandLogo()||previewView?.logo;
-    const logoAspectRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
-    const paletteBase=photoTextPalette(view,{choice:{x:safe.x,y:safe.y,width:safe.width},copy:{titleWidth:safe.width,titleHeight:120,detail:[],detailWidth:safe.width,detailSize:44,textHeight:220,gap:0,detailIndent:0},y:safe.y});
+    const safe=ctaSafeArea(),type=sceneTypeStyle(view);
     const headline=String(view.scene.headline||'').trim();
     const support=cleanCtaSupport(view.scene.secondary_text);
-    const blocks=[];
-    if(variant==='brand') {
-      blocks.push({kind:'headline',maxLines:2,min:74,max:112,width:safe.width*.82,align:'left'});
-      if(support)blocks.push({kind:'support',maxLines:2,min:36,max:54,width:safe.width*.68,align:'left'});
-      blocks.push({kind:'logo',width:Math.min(420,safe.width*.62)});
-      blocks.push({kind:'domain',maxLines:1,min:48,max:78,width:safe.width*.84,align:'left'});
-    } else if(variant==='site') {
-      blocks.push({kind:'headline',maxLines:2,min:72,max:106,width:safe.width*.78,align:'center'});
-      blocks.push({kind:'domain',maxLines:1,min:50,max:86,width:safe.width*.88,align:'center'});
-      blocks.push({kind:'logo',width:Math.min(360,safe.width*.54)});
-      if(support)blocks.push({kind:'support',maxLines:2,min:34,max:46,width:safe.width*.6,align:'center'});
-    } else {
-      if(support)blocks.push({kind:'support',maxLines:1,min:34,max:52,width:safe.width*.54,align:'right'});
-      blocks.push({kind:'headline',maxLines:2,min:74,max:112,width:safe.width*.76,align:'right'});
-      blocks.push({kind:'logo',width:Math.min(390,safe.width*.56)});
-      blocks.push({kind:'domain',maxLines:1,min:48,max:80,width:safe.width*.78,align:'right'});
+    const brand=transparentBrandLogo()||previewView?.logo;
+    const logoRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
+    const variants=[{variant:'brand',align:'left'},{variant:'site',align:'center'},{variant:'signal',align:'right'}];
+    const preference=scenePlacement(view);
+    const subject=view.scene.subject_side;
+    let best=null;
+    // Never omit a required block when it cannot be fitted: expose overflow instead.
+    for(const layout of variants)for(const scale of [1,.96,.92,.88,.84,.8,.76,.72,.68]) {
+      const margin=18,contentWidth=safe.width-2*margin;
+      if(contentWidth<=0)continue;
+      const textWidth=contentWidth*(layout.align==='center'?.94:.91);
+      const title=ctaTextBlock(ctx,'headline',headline,textWidth,3,
+        size=>`800 ${size}px ${CTA_FONT_STACK}`,Math.round(52*scale),Math.round(96*scale));
+      const detail=support?ctaTextBlock(ctx,'support',support,textWidth,3,
+        size=>`650 ${size}px ${BODY_FONT_STACK}`,Math.round(30*scale),Math.round(46*scale)):null;
+      const actionName=ctaTextBlock(ctx,'action','OffertaLogica',contentWidth-58,1,
+        size=>`800 ${size}px ${CTA_FONT_STACK}`,Math.round(44*scale),Math.round(80*scale));
+      const domainName=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',contentWidth-58,1,
+        size=>`800 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(66*scale));
+      if(!title || (support&&!detail) || !actionName || !domainName)continue;
+      const logoW=Math.min(contentWidth*.42,Math.round(282*scale)),logoH=Math.ceil(logoW*logoRatio);
+      const actionH=Math.round(162*scale),domainH=Math.round(122*scale);
+      const gap=Math.round(15*scale);
+      const heights=[logoH,title.height,...(detail?[detail.height]:[]),actionH,domainH];
+      const total=heights.reduce((a,b)=>a+b,0)+gap*(heights.length-1);
+      if(total>safe.height-16)continue;
+      let y=safe.y+(safe.height-total)/2;
+      const items=[];
+      const alignX=(width)=>layout.align==='left'?safe.x+margin:
+        layout.align==='right'?safe.x+safe.width-margin-width:safe.x+(safe.width-width)/2;
+      const add=(block,width=block.width,height=block.height)=>{
+        const x=alignX(width);items.push({...block,align:layout.align,x,y,width,height});y+=height+gap;
+      };
+      add({kind:'logo'},logoW,logoH);
+      add(title,textWidth);
+      if(detail)add(detail,textWidth);
+      add({...actionName,kind:'action',size:actionName.size},contentWidth,actionH);
+      add({...domainName,kind:'domain',size:domainName.size},contentWidth,domainH);
+      const textObjects=items.filter(item=>item.kind==='headline'||item.kind==='support');
+      const salience=textObjects.reduce((sum,item)=>sum+quietness(view,item),0);
+      const facePenalty=(view._faceBoxes||[]).reduce((sum,face)=>sum+textObjects.reduce((acc,item)=>
+        acc+overlapArea(item,face)/Math.max(1,face.width*face.height),0),0);
+      const preferred=preference==='left'?'left':preference==='right'?'right':
+        preference==='top'||preference==='bottom'?'center':null;
+      const opposite=(subject==='right'&&layout.align==='left')||(subject==='left'&&layout.align==='right');
+      // Text size and contrast are dominant; face avoidance is a small tie-breaker.
+      const score=title.size*.7+actionName.size*.55+domainName.size*.28+
+        (detail?detail.size*.18:0)-salience*18-facePenalty*2+
+        (layout.align===preferred?8:0)+(opposite?3:0)+((layout.align==='center'&&!preferred)?1:0);
+      if(!best||score>best.score)best={items,variant:layout.variant,score,scale};
     }
-    const measured=[];
-    for(const block of blocks) {
-      if(block.kind==='logo') {
-        const width=block.width,height=Math.ceil(width*logoAspectRatio);
-        measured.push({...block,height});
-        continue;
-      }
-      const textValue=block.kind==='headline'?headline:block.kind==='support'?support:'OFFERTALOGICA.IT';
-      const metric=fitSimpleLines(ctx,textValue,block.width,block.maxLines,
-        size=>block.kind==='support'?sceneFont(type,size,true):block.kind==='domain'?`800 ${size}px ${CTA_FONT_STACK}`:sceneFont(type,size,false),
-        block.min,block.max,2);
-      if(!metric)continue;
-      const step=Math.round(metric.size*(block.kind==='support'?1.24:1.14));
-      const height=metric.size+(metric.lines.length-1)*step;
-      measured.push({...block,text:textValue,size:metric.size,lines:metric.lines,step,height,lineWidth:metric.width});
+    if(!best) {
+      // Keep every text present even when the current guide is too narrow; block export.
+      const w=Math.max(1,safe.width-36),x=safe.x+18;
+      const basic=(kind,text,y,size=48)=>({kind,text,x,y,width:w,height:size,
+        size,step:size,align:'left',lines:[text],lineWidth:w});
+      const logoW=Math.max(0,Math.min(220,w));
+      const items=[{kind:'logo',x,y:safe.y,width:logoW,height:logoW*logoRatio,align:'left'},
+        basic('headline',headline,safe.y+135,54),
+        ...(support?[basic('support',support,safe.y+205,34)]:[]),
+        basic('action','OffertaLogica',safe.y+300,58),
+        basic('domain','OFFERTALOGICA.IT',safe.y+430,52)];
+      best={items,variant:'brand',score:-Infinity,scale:.68,failed:true};
     }
-    const totalHeight=measured.reduce((sum,b)=>sum+b.height,0)+Math.max(0,measured.length-1)*46;
-    let y=safe.y+Math.max(0,(safe.height-totalHeight)/2);
-    const items=[];
-    for(const block of measured) {
-      let x=safe.x;
-      if(block.align==='center')x=safe.x+(safe.width-block.width)/2;
-      else if(block.align==='right')x=safe.x+safe.width-block.width;
-      else if(variant==='brand'&&block.kind==='logo')x=safe.x+Math.max(0,safe.width*.02);
-      else if(variant==='signal'&&block.kind==='logo')x=safe.x+safe.width-block.width;
-      else if(block.kind==='logo')x=safe.x+(safe.width-block.width)/2;
-      items.push({...block,x,y,width:block.width});
-      y+=block.height+46;
-    }
-    const logo=items.find(i=>i.kind==='logo')||{x:safe.x,y:safe.y,width:0,height:0};
-    const textItems=items.filter(i=>i.kind!=='logo');
-    const minX=Math.min(...items.map(i=>i.x)); const maxX=Math.max(...items.map(i=>i.x+i.width));
-    const minY=Math.min(...items.map(i=>i.y)); const maxY=Math.max(...items.map(i=>i.y+i.height));
-    const copy={lines:textItems.find(i=>i.kind==='headline')?.lines||[headline],
-      size:textItems.find(i=>i.kind==='headline')?.size||88,titleStep:textItems.find(i=>i.kind==='headline')?.step||100,
-      detail:(textItems.find(i=>i.kind==='support')?.lines)||[],detailSize:textItems.find(i=>i.kind==='support')?.size||42,
-      detailStep:textItems.find(i=>i.kind==='support')?.step||50,detailIndent:0,gap:54,
-      titleHeight:textItems.find(i=>i.kind==='headline')?.height||90,textHeight:maxY-minY,
-      titleWidth:textItems.find(i=>i.kind==='headline')?.lineWidth||safe.width*.8,
-      detailWidth:textItems.find(i=>i.kind==='support')?.lineWidth||0,overflow:false};
-    return {variant,type,palette:paletteBase,safe,choice:{side:'cta',x:safe.x,y:minY,width:safe.width},
-      bounds:{x:minX-12,y:minY-12,width:(maxX-minX)+24,height:(maxY-minY)+24},
-      textBounds:{x:minX,y:minY,width:maxX-minX,height:maxY-minY},logo,items,copy,y:minY,footerY:maxY,actionHeight:0,overflow:false};
+    const items=best.items;
+    const textItems=items.filter(item=>item.kind!=='logo');
+    const logo=items.find(item=>item.kind==='logo');
+    const title=items.find(item=>item.kind==='headline');
+    const detail=items.find(item=>item.kind==='support');
+    const action=items.find(item=>item.kind==='action');
+    const domain=items.find(item=>item.kind==='domain');
+    const minX=Math.min(...items.map(item=>item.x)),minY=Math.min(...items.map(item=>item.y));
+    const maxX=Math.max(...items.map(item=>item.x+item.width));
+    const maxY=Math.max(...items.map(item=>item.y+item.height));
+    const copy={lines:title.lines,size:title.size,titleStep:title.step,
+      detail:detail?.lines||[],detailSize:detail?.size||0,detailStep:detail?.step||0,
+      detailIndent:0,gap:detail?detail.y-title.y-title.height:0,titleHeight:title.height,
+      textHeight:maxY-title.y,titleWidth:title.lineWidth,detailWidth:detail?.lineWidth||0,overflow:false};
+    const palette=photoTextPalette(view,{choice:{x:title.x,y:title.y,width:title.width},copy,y:title.y});
+    const overflow=Boolean(best.failed)||items.some(item=>
+      item.x<safe.x-1||item.y<safe.y-1||item.x+item.width>safe.x+safe.width+1||
+      item.y+item.height>safe.y+safe.height+1);
+    copy.overflow=overflow;
+    return {variant:best.variant,type,palette,safe,items,logo,
+      choice:{side:'cta',x:title.x,y:title.y,width:title.width},
+      bounds:{x:minX,y:minY,width:maxX-minX,height:maxY-minY},
+      textBounds:{x:Math.min(...textItems.map(item=>item.x)),
+        y:Math.min(...textItems.map(item=>item.y)),
+        width:Math.max(...textItems.map(item=>item.x+item.width))-Math.min(...textItems.map(item=>item.x)),
+        height:Math.max(...textItems.map(item=>item.y+item.height))-Math.min(...textItems.map(item=>item.y))},
+      copy,y:title.y,footerY:action.y,actionHeight:action.height,overflow};
   }
   function overlapArea(a,b) {
     const width=Math.max(0,Math.min(a.x+a.width,b.x+b.width)-Math.max(a.x,b.x));
@@ -1083,7 +1114,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.10|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.11|${view.image?.src||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key && view._composition)return view._composition;
     const isCta=view.scene.role==='cta';
     if(isCta) {
@@ -1391,17 +1422,104 @@
         b.width*MONTAGE_WIDTH,b.height*MONTAGE_HEIGHT);ctx.restore();
     }
   }
+  function drawCtaOverlay(ctx,view,composition,localTime) {
+    const {items,palette}=composition;
+    const progress=(start,duration)=>Math.max(0,Math.min(1,(localTime-start)/duration));
+    const brand=transparentBrandLogo()||previewView?.logo;
+    const drawInk=(line,x,y,font,fill,outline,thickness=3)=>{
+      ctx.font=font;ctx.textAlign='left';ctx.textBaseline='alphabetic';
+      ctx.lineJoin='round';ctx.lineWidth=thickness;ctx.strokeStyle=outline;
+      ctx.shadowColor='rgba(0,0,0,.48)';ctx.shadowBlur=9;
+      ctx.strokeText(line,x,y);ctx.fillStyle=fill;ctx.fillText(line,x,y);
+      ctx.shadowBlur=0;
+    };
+    for(const item of items) {
+      ctx.save();
+      ctx.globalAlpha*=item.kind==='logo'?progress(.08,.25):
+        item.kind==='headline'?progress(.16,.30):
+        item.kind==='support'?progress(.28,.28):
+        item.kind==='action'?progress(.40,.33):progress(.64,.35);
+      if(item.kind==='logo') {
+        if(brand&&(brand.width||brand.naturalWidth)) {
+          ctx.shadowColor='rgba(255,255,255,.65)';ctx.shadowBlur=12;
+          ctx.drawImage(brand,item.x,item.y,item.width,item.height);
+        }
+      } else if(item.kind==='headline'||item.kind==='support') {
+        const isSupport=item.kind==='support';
+        const font=isSupport?`650 ${item.size}px ${BODY_FONT_STACK}`:
+          `800 ${item.size}px ${CTA_FONT_STACK}`;
+        ctx.font=font;
+        let yy=item.y+item.size;
+        for(let i=0;i<item.lines.length;i++) {
+          const line=item.lines[i];
+          const width=ctx.measureText(line).width;
+          const x=item.align==='center'?item.x+(item.width-width)/2:
+            item.align==='right'?item.x+item.width-width:item.x;
+          if(!isSupport&&i===item.lines.length-1&&line.includes(' ')) {
+            const cut=line.lastIndexOf(' ')+1;
+            const first=line.slice(0,cut),last=line.slice(cut);
+            drawInk(first,x,yy,font,palette.title,palette.titleOutline,4.5);
+            ctx.font=font;
+            drawInk(last,x+ctx.measureText(first).width,yy,font,'#6bed82','rgba(8,31,20,.94)',4.5);
+          } else drawInk(line,x,yy,font,isSupport?palette.detail:palette.title,
+            isSupport?palette.detailOutline:palette.titleOutline,isSupport?3:4.5);
+          yy+=item.step;
+        }
+      } else if(item.kind==='action') {
+        // One unmistakable follow action; lime brand emphasis, never generic body copy.
+        ctx.shadowColor='rgba(3,29,15,.55)';ctx.shadowBlur=16;
+        ctx.fillStyle='#126e3b';ctx.beginPath();ctx.roundRect(item.x,item.y,item.width,item.height,28);ctx.fill();
+        ctx.shadowBlur=0;ctx.strokeStyle='#b8f15c';ctx.lineWidth=5;
+        ctx.stroke();
+        const followSize=Math.max(27,Math.round(item.size*.64));
+        const followFont=`800 ${followSize}px ${CTA_FONT_STACK}`;
+        const nameFont=`800 ${item.size}px ${CTA_FONT_STACK}`;
+        ctx.font=followFont;
+        const followW=ctx.measureText('SEGUI').width;
+        const x=item.align==='center'?item.x+(item.width-followW)/2:
+          item.align==='right'?item.x+item.width-followW-27:item.x+27;
+        drawInk('SEGUI',x,item.y+followSize+13,followFont,'#ffffff','rgba(6,39,21,.76)',2.4);
+        ctx.font=nameFont;
+        const left='Offerta',right='Logica';
+        const leftW=ctx.measureText(left).width,rightW=ctx.measureText(right).width;
+        const nameX=item.align==='center'?item.x+(item.width-leftW-rightW)/2:
+          item.align==='right'?item.x+item.width-leftW-rightW-27:item.x+27;
+        const nameY=item.y+item.height-18;
+        drawInk(left,nameX,nameY,nameFont,'#ffffff','rgba(6,39,21,.90)',3);
+        drawInk(right,nameX+leftW,nameY,nameFont,'#ccf63e','rgba(6,39,21,.90)',3);
+      } else if(item.kind==='domain') {
+        ctx.fillStyle='rgba(9,32,31,.85)';ctx.strokeStyle='#74db62';
+        ctx.lineWidth=5;ctx.shadowColor='rgba(8,34,22,.62)';ctx.shadowBlur=13;
+        ctx.beginPath();ctx.roundRect(item.x,item.y,item.width,item.height,48);ctx.fill();
+        ctx.shadowBlur=0;ctx.stroke();
+        const labelSize=Math.max(22,Math.round(item.size*.49));
+        const labelFont=`700 ${labelSize}px ${BODY_FONT_STACK}`;
+        ctx.font=labelFont;
+        const label='SCOPRI DI PIÙ SU',w=ctx.measureText(label).width;
+        const labelX=item.x+(item.width-w)/2;
+        drawInk(label,labelX,item.y+labelSize+11,labelFont,'#eaf7e8','rgba(1,17,13,.85)',1.8);
+        const domainFont=`800 ${item.size}px ${CTA_FONT_STACK}`;
+        ctx.font=domainFont;
+        const domainW=ctx.measureText('OFFERTALOGICA.IT').width;
+        drawInk('OFFERTALOGICA.IT',item.x+(item.width-domainW)/2,
+          item.y+item.height-15,domainFont,'#ffffff','rgba(1,17,13,.92)',2.6);
+      }
+      ctx.restore();
+    }
+  }
   function drawCinematicOverlay(ctx,view,localTime=1) {
     const {scene}=view;
     const composition=compositionForScene(ctx,view);
-    const {choice,copy,y,logo,footerY,actionHeight,type,palette}=composition;
-    const art=scene.art_direction;
+    if(scene.role==='cta') {
+      drawCtaOverlay(ctx,view,composition,localTime);
+      return;
+    }
+    const {choice,copy,y,type,palette}=composition;
     ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
     const progress=(delay,duration)=>Math.max(0,Math.min(1,(localTime-delay)/duration));
     const titleProgress=.78+.22*progress(0,.32);
     const detailProgress=progress(scene.role==='hook'?.26:.18,.50);
-    const actionProgress=progress(.28,.40);
     const drawLine=(text,x,yy,font,color,outline,shadow,detail=false,alpha=1,offset=0)=>{
       ctx.save();ctx.globalAlpha*=alpha;ctx.font=font;
       ctx.lineWidth=detail?2.6:3.6;
@@ -1426,60 +1544,6 @@
       copy.detail.forEach((line,i)=>drawLine(line,detailX,detailTop+copy.detailSize+i*copy.detailStep,
         sceneFont(type,copy.detailSize,true),palette.detail,palette.detailOutline,
         palette.detailShadow,true,detailProgress,9*(1-detailProgress)));
-    }
-    if(scene.role==='cta') {
-      const brand=transparentBrandLogo()||previewView?.logo;
-      const items=composition.items||[];
-      const accent=palette.accent||'#23845b';
-      const drawText=(item,alpha=1)=>{
-        if(!item?.lines?.length)return;
-        ctx.save();ctx.globalAlpha*=alpha;
-        ctx.textAlign=item.align==='center'?'center':item.align==='right'?'right':'left';
-        const tx=item.align==='center'?item.x+item.width/2:item.align==='right'?item.x+item.width:item.x;
-        const isSupport=item.kind==='support',isDomain=item.kind==='domain';
-        const color=isDomain?accent:(isSupport?palette.detail:palette.title);
-        const outline=isDomain?'rgba(255,249,239,.62)':(isSupport?palette.detailOutline:palette.titleOutline);
-        const shadow=isDomain?'rgba(0,0,0,.25)':(isSupport?palette.detailShadow:palette.titleShadow);
-        ctx.fillStyle=color;ctx.strokeStyle=outline;ctx.lineJoin='round';
-        ctx.font=isDomain?`800 ${item.size}px ${CTA_FONT_STACK}`:sceneFont(type,item.size,isSupport);
-        let yy=item.y+item.size;
-        for(const line of item.lines) {
-          ctx.lineWidth=isDomain?4.5:(isSupport?3.2:5.5);
-          ctx.strokeText(line,tx,yy);
-          ctx.shadowColor=shadow;ctx.shadowBlur=isSupport?6:10;
-          ctx.fillText(line,tx,yy);
-          ctx.shadowBlur=0;
-          yy+=item.step;
-        }
-        if(isDomain) {
-          const underlineY=item.y+item.height+10;
-          const start=item.align==='right'?item.x+item.width-item.lineWidth:item.align==='center'?tx-item.lineWidth/2:item.x;
-          ctx.strokeStyle=accent;ctx.lineWidth=7;ctx.lineCap='round';
-          ctx.beginPath();ctx.moveTo(start,underlineY);ctx.lineTo(start+item.lineWidth,underlineY);ctx.stroke();
-        }
-        ctx.restore();
-      };
-      items.forEach(item=>{
-        if(item.kind==='headline')drawText(item,progress(.34,.06));
-        else if(item.kind==='support')drawText(item,progress(.48,.20));
-      });
-      const brandItem=items.find(item=>item.kind==='logo');
-      if(brand&&brandItem&&(brand.width||brand.naturalWidth)) {
-        ctx.save();ctx.globalAlpha*=progress(.66,.30);
-        ctx.shadowColor='rgba(0,0,0,.14)';ctx.shadowBlur=6;
-        ctx.drawImage(brand,brandItem.x,brandItem.y,brandItem.width,brandItem.height);
-        ctx.restore();
-      }
-      const domainItem=items.find(item=>item.kind==='domain');
-      if(domainItem)drawText(domainItem,progress(.84,.46));
-      if(domainItem&&composition.variant==='signal') {
-        ctx.save();ctx.globalAlpha*=progress(.88,.55);
-        ctx.strokeStyle=accent;ctx.lineWidth=12;ctx.lineCap='round';
-        const ax=domainItem.align==='right'?domainItem.x+domainItem.width:domainItem.align==='center'?domainItem.x+domainItem.width/2+domainItem.lineWidth*.2:domainItem.x+domainItem.lineWidth;
-        const ay=domainItem.y+domainItem.height+38;
-        ctx.beginPath();ctx.moveTo(ax-60,ay-18);ctx.lineTo(ax,ay);ctx.lineTo(ax-34,ay+28);ctx.stroke();
-        ctx.restore();
-      }
     }
     ctx.restore();
   }
@@ -2043,12 +2107,11 @@
       if(design.logo.visible)objects.push({name:'Logo',rect:textBoxRect({box:constrainLogoBox(design.logo.box)})});
     } else {
       const auto=compositionForScene(ctx,view);
-      objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
       if(view.scene.role==='cta') {
-        objects.push({name:'CTA',rect:{x:auto.choice.x,y:auto.footerY,
-          width:auto.choice.width,height:auto.actionHeight}});
-        objects.push({name:'Logo',rect:auto.logo});
-      }
+        const labels={headline:'Titolo CTA',support:'Supporto CTA',action:'Invito a seguire',
+          domain:'Richiamo al sito',logo:'Logo'};
+        for(const item of auto.items||[])objects.push({name:labels[item.kind]||'CTA',rect:item});
+      } else objects.push({name:'Testo',rect:auto.textBounds||auto.bounds});
       if(auto.overflow)objects.push({name:'Testo senza spazio sufficiente',truncated:true});
     }
     return objects.filter(item=>item.truncated||(item.rect&&!rectangleInside(item.rect,zone)))
