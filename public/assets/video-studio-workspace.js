@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.13 — portrait-aware composition, independent copy zones and mobile-first CTA. */
+/* Video Studio v1.3.3.14 — poster-scale mobile copy, hierarchy-first layout and CTA. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -890,16 +890,20 @@
       }
       mode=samples && warm/samples>24?'editorial_panel':'clean';
     }
+    // Headlines act as the visual hook, not as small editorial captions. A consistent
+    // heavy sans display voice keeps the words clear in a 360–393px mobile preview.
+    // Editorial serif remains an intentional variant, never an italic default support.
     if(mode==='editorial_panel')return {mode,titleFamily:'Georgia, "Times New Roman", serif',
-      titleWeight:700,detailFamily:'"Trebuchet MS", Arial, sans-serif',detailWeight:600,
-      detailItalic:false,detailIndent:30};
+      titleWeight:900,detailFamily:BODY_FONT_STACK,detailWeight:800,
+      detailItalic:false,detailIndent:0};
     if(mode==='accent_rule')return {mode,titleFamily:'"Arial Black", "Trebuchet MS", Arial, sans-serif',
-      titleWeight:800,detailFamily:'"Trebuchet MS", Arial, sans-serif',detailWeight:600,
-      detailItalic:false,detailIndent:28};
-    return {mode,titleFamily:'system-ui, "Segoe UI", Arial, sans-serif',titleWeight:800,
-      detailFamily:'Georgia, "Times New Roman", serif',detailWeight:600,
-      detailItalic:true,detailIndent:26};
+      titleWeight:900,detailFamily:BODY_FONT_STACK,detailWeight:800,
+      detailItalic:false,detailIndent:0};
+    return {mode,titleFamily:'"Arial Black", "Trebuchet MS", "Segoe UI", Arial, sans-serif',
+      titleWeight:900,detailFamily:BODY_FONT_STACK,detailWeight:800,
+      detailItalic:false,detailIndent:0};
   }
+  function headlineHorizontalScale(type) { return type.mode==='editorial_panel'?.94:.87; }
   function sceneFont(type,size,detail=false) {
     return detail?`${type.detailItalic?'italic ':''}${type.detailWeight} ${size}px ${type.detailFamily}`:
       `${type.titleWeight} ${size}px ${type.titleFamily}`;
@@ -981,36 +985,39 @@
     const headline=String(scene.headline||'').trim();
     const secondary=String(scene.secondary_text||'').trim();
     const isCta=scene.role==='cta';
-    const maxTitleSize=isCta?118:scene.role==='hook'?124:116;
+    const maxTitleSize=isCta?132:scene.role==='hook'?152:144;
+    const titleScale=headlineHorizontalScale(type);
     let best=null;
-    for(let size=maxTitleSize;size>=54;size-=4) {
+    for(let size=maxTitleSize;size>=52;size-=4) {
       ctx.font=sceneFont(type,size);
-      const lines=balancedCopyLines(ctx,headline,width,4);
+      // Modest horizontal condensation maintains tall, legible poster-size type
+      // within a narrow negative-space column without moving onto the subject.
+      const lines=balancedCopyLines(ctx,headline,width/titleScale,4);
       if(!lines)continue;
-      const titleStep=Math.round(size*1.22);
+      const titleStep=Math.round(size*1.14);
       const titleHeight=size+(lines.length-1)*titleStep;
-      const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width));
+      const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width))*titleScale;
       if(titleHeight>maxHeight)continue;
-      const detailSizes=secondary?[68,64,60,56,52,48,44]:[0];
+      const detailSizes=secondary?[76,72,68,64,60,56,52,48]:[0];
       for(const detailSize of detailSizes) {
         let detail=[],detailHeight=0,detailWidth=0;
         const detailStep=Math.round(detailSize*1.35);
         const detailIndent=secondary?type.detailIndent:0;
         if(secondary) {
           ctx.font=sceneFont(type,detailSize,true);
-          const result=balancedCopyLines(ctx,secondary,width-detailIndent,3);
+          const result=balancedCopyLines(ctx,secondary,width-detailIndent,4);
           if(!result)continue;
           detail=result;
           detailHeight=detailSize+(detail.length-1)*detailStep;
           detailWidth=Math.max(0,...detail.map(line=>ctx.measureText(line).width));
         }
-        const gap=detail.length?Math.max(82,Math.round(size*.72)):0;
+        const gap=detail.length?Math.max(40,Math.round(size*.38)):0;
         const textHeight=titleHeight+gap+detailHeight;
         if(textHeight>maxHeight)continue;
-        const score=size*.75+detailSize*.45-Math.max(0,lines.length-2)*13-
-          Math.max(0,detail.length-2)*5;
+        const score=size*1.7+detailSize*.42-Math.max(0,lines.length-3)*7-
+          Math.max(0,detail.length-2)*13;
         if(!best||score>best.score)best={lines,size,titleStep,detail,detailSize,detailStep,
-          detailIndent,gap,titleHeight,textHeight,titleWidth,detailWidth,score,
+          detailIndent,gap,titleHeight,textHeight,titleWidth,detailWidth,titleScale,score,
           titleTruncated:false,detailTruncated:false,overflow:false};
       }
     }
@@ -1028,7 +1035,9 @@
   function cleanCtaSupport(text) {
     const value=String(text||'').trim();
     // Suppress only a complete repetition of an already visible fixed action.
-    return /^(?:segui\s+offertalogica|visita\s+(?:il\s+)?sito|(?:www\.)?offertalogica\.it)[.!]?$/iu.test(value)?'':value;
+    // Pure brand reminders add a fifth tiny row but no new information.
+    // Suppress only these exact generic repetitions, never a meaningful CTA promise.
+    return /^(?:segui\s+offertalogica|visita\s+(?:il\s+)?sito|(?:www\.)?offertalogica\.it|approfondisci\s+con\s+offertalogica|scopri\s+di\s+pi[uù]\s+con\s+offertalogica)[.!]?$/iu.test(value)?'':value;
   }
   function fitSimpleLines(ctx,text,width,maxLines,fontFn,minSize,maxSize,step=2) {
     const value=String(text||'').trim();
@@ -1040,12 +1049,41 @@
     }
     return null;
   }
-  function ctaTextBlock(ctx,kind,text,width,maxLines,fontFn,min,max) {
-    const fitted=fitSimpleLines(ctx,text,width,maxLines,fontFn,min,max);
+  function ctaTextBlock(ctx,kind,text,width,maxLines,fontFn,min,max,horizontalScale=1) {
+    const fitted=fitSimpleLines(ctx,text,width/horizontalScale,maxLines,fontFn,min,max);
     if(!fitted)return null;
-    const step=Math.round(fitted.size*(kind==='support'?1.27:1.13));
-    return {kind,text,width,size:fitted.size,lines:fitted.lines,lineWidth:fitted.width,
+    const step=Math.round(fitted.size*(kind==='support'?1.25:1.12));
+    return {kind,text,width,size:fitted.size,lines:fitted.lines,
+      lineWidth:fitted.width*horizontalScale,horizontalScale,
       step,height:fitted.size+(fitted.lines.length-1)*step+Math.ceil(fitted.size*.14)};
+  }
+  // Exact line glyphs are tested against the protected portrait region, rather
+  // than treating a varied-length headline as one oversized opaque rectangle.
+  function ctaInkLines(ctx,item,type,design) {
+    const boxes=[];
+    const horizontal=item.horizontalScale||1;
+    const alignWidth=(ink)=>item.align==='center'?item.x+(item.width-ink)/2:
+      item.align==='right'?item.x+item.width-ink:item.x;
+    const add=(text,font,x,y,size,scale=1)=>{
+      ctx.font=font;
+      const measured=ctx.measureText(text).width*scale;
+      boxes.push({x:x==null?alignWidth(measured):x,y,width:measured,height:size+12});
+    };
+    if(item.kind==='logo')return [{x:item.x,y:item.y,width:item.width,height:item.height}];
+    if(item.kind==='headline'||item.kind==='support') {
+      const font=item.kind==='support'?`800 ${item.size}px ${BODY_FONT_STACK}`:
+        `${type.titleWeight} ${item.size}px ${type.titleFamily}`;
+      for(let i=0;i<item.lines.length;i++)
+        add(item.lines[i],font,null,item.y+i*item.step,item.size,horizontal);
+    } else if(item.kind==='action') {
+      const ffont=design.cta_lettering==='italic'?`italic 800 ${item.followSize}px Georgia, serif`:
+        `900 ${item.followSize}px ${CTA_FONT_STACK}`;
+      add('SEGUI',ffont,null,item.y,item.followSize);
+      add('OffertaLogica',`850 ${item.size}px ${CTA_FONT_STACK}`,null,
+        item.y+item.followSize+12,item.size);
+    } else if(item.kind==='domain')
+      add('OFFERTALOGICA.IT',`850 ${item.size}px ${CTA_FONT_STACK}`,null,item.y,item.size);
+    return boxes;
   }
   // Build a real typographic CTA, not a compulsory pair of buttons.
   // The AI selects the emphasis and priority; Canvas measures every word before export.
@@ -1076,9 +1114,10 @@
       for(const scale of [1,.94,.88,.82,.76,.70,.64]) {
         const title=ctaTextBlock(ctx,'headline',headline,contentWidth,4,
           size=>`${type.titleWeight} ${size}px ${type.titleFamily}`,
-          Math.round(44*scale),Math.round((focus==='site'?76:82)*scale));
+          Math.round(48*scale),Math.round((focus==='site'?108:116)*scale),
+          headlineHorizontalScale(type));
         const detail=support?ctaTextBlock(ctx,'support',support,contentWidth,3,
-          size=>`700 ${size}px ${BODY_FONT_STACK}`,Math.round(32*scale),Math.round(48*scale)):null;
+          size=>`800 ${size}px ${BODY_FONT_STACK}`,Math.round(40*scale),Math.round(60*scale)):null;
         const follow=ctaTextBlock(ctx,'follow','SEGUI',contentWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(68*scale));
         const name=ctaTextBlock(ctx,'name','OffertaLogica',contentWidth,1,
@@ -1106,9 +1145,10 @@
           if(!footFollow||!footName||!footDomain)continue;
           const actionH=footFollow.size+footName.size+Math.round(20*scale);
           const domainH=footDomain.size+Math.round(12*scale);
-          const logoW=Math.min(contentWidth*.48,Math.round(248*scale));
+          // A compact logo grants the actual CTA promise more visual space.
+          const logoW=Math.min(contentWidth*.42,Math.round(192*scale));
           const logoH=Math.ceil(logoW*logoRatio);
-          const gap=Math.round(20*scale);
+          const gap=Math.round(12*scale);
           const blocks={
             logo:{kind:'logo',width:logoW,height:logoH,lineWidth:logoW},
             headline:{...title,kind:'headline',width:contentWidth},
@@ -1137,17 +1177,18 @@
               return {x:item.align==='left'?item.x:item.align==='right'?item.x+item.width-inkWidth:
                 item.x+(item.width-inkWidth)/2,y:item.y,width:inkWidth,height:item.height};
             });
-            if(textBoxes.some(box=>!insideRect(box,safe)))continue;
-            if(textBoxes.some(box=>facesOverlap(box,faces,14)>36))continue;
-            const photoNoise=textBoxes.reduce((sum,box,i)=>sum+quietness(view,box)*
-              (items[i].kind==='logo'?.3:items[i].kind==='headline'?1.25:1),0);
+            const lineBoxes=items.flatMap(item=>ctaInkLines(ctx,item,type,design));
+            if(lineBoxes.some(box=>!insideRect(box,safe)))continue;
+            if(lineBoxes.some(box=>facesOverlap(box,faces,12)>30))continue;
+            const photoNoise=lineBoxes.reduce((sum,box)=>sum+quietness(view,box),0)/
+              Math.max(1,lineBoxes.length);
             const artAlign=['left','center','right'].includes(design.cta_align)?design.cta_align:null;
             const prefer=artAlign||(preference==='left'?'left':preference==='right'?'right':null);
-            const score=footName.size*.83+footDomain.size*1.25+title.size*.60+
-              (detail?detail.size*.55:0)+footFollow.size*.22+
-              logoW*.075-photoNoise*68+(prefer===align?3:0)+
+            const score=title.size*2.2+footName.size*.76+footDomain.size*.70+
+              (detail?detail.size*.30:0)+footFollow.size*.12+
+              logoW*.035-photoNoise*55+(prefer===align?3:0)+
               (align==='center'?-1.5:0)-(anchor==='middle'?0:anchor==='top'?.8:1.4);
-            if(!best||score>best.score)best={items,textBoxes,
+            if(!best||score>best.score)best={items,textBoxes,lineBoxes,
               variant:`editorial-${align}-${anchor}-${span}`,score,scale,focus,failed:false};
           }
         }
@@ -1196,7 +1237,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.13|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.14|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1217,6 +1258,7 @@
       const width=Math.round(usableWidth*fraction);
       if(width<240)continue;
       const xs=[safe.x+10,safe.x+safe.width-width-10,
+        safe.x+2,safe.x+safe.width-width-2,
         safe.x+(safe.width-width)/2,safe.x+(safe.width-width)*.32,
         safe.x+(safe.width-width)*.68];
       for(const x of [...new Set(xs.map(Math.round))]) {
@@ -1232,7 +1274,13 @@
           if(y>bottom-155)continue;
           if(view.layoutPreference==='top'&&y>safe.y+145)continue;
           if(view.layoutPreference==='bottom'&&y<safe.y+safe.height*.43)continue;
-          const maxHeight=bottom-y-10;
+          // The title must leave usable space for the secondary message. In
+          // v1.3.3.13 a large title was fitted first and could consume the entire
+          // quiet column, forcing the support down to an illegible size.
+          const wordCount=support?support.split(/\s+/u).length:0;
+          const supportReserve=!support?0:wordCount>4?310:wordCount>2?240:190;
+          const maxHeight=bottom-y-10-supportReserve;
+          if(maxHeight<120)continue;
           const fitKey=`${width}|${Math.round(maxHeight)}`;
           if(!titleCache.has(fitKey))titleCache.set(fitKey,
             fitSceneCopy(ctx,titleScene,width,maxHeight,type));
@@ -1257,7 +1305,7 @@
             const detailW=Math.floor(place.width);
             if(detailW<180)continue;
             if(!detailCache.has(detailW))detailCache.set(detailW,
-              fitSimpleLines(ctx,support,detailW,3,size=>sceneFont(type,size,true),44,68,2));
+              fitSimpleLines(ctx,support,detailW,4,size=>sceneFont(type,size,true),44,76,2));
             const detail=detailCache.get(detailW);
             if(support&&!detail)continue;
             const detailStep=detail?Math.round(detail.size*1.32):0;
@@ -1273,13 +1321,18 @@
             const busy=quietness(view,titleBox)*1.5+(detailBox?quietness(view,detailBox)*.9:0);
             const preferred=(mode==='left'&&leftish)||(mode==='right'&&rightish)||
               (mode==='top'&&y<safe.y+120)||(mode==='bottom'&&y>safe.y+safe.height*.44);
-            const sizePenalty=(124-title.size)*.055+(detail?(68-detail.size)*.052:0);
+            // Type size is a primary success metric: the previous version valued
+            // quiet photograph regions enough to routinely pick tiny copy.
+            const sizePenalty=(152-title.size)*.29+(detail?(76-detail.size)*.13:0);
             const offset=detailBox?Math.abs(detailBox.x-titleBox.x):0;
-            const cohesion=place.style==='side-by-side'?offset*.003:offset*.012;
+            // Independent copy zones are legitimate when photography benefits:
+            // don't award the same left-aligned stacked paragraph every time.
+            const cohesion=place.style==='side-by-side'?offset*.003:offset*.004;
             const gap=detailBox?Math.max(0,detailBox.y-titleBottom):0;
-            const visualBalance=place.style==='stack'?1:place.style==='breathing-room'?.4:0;
+            const visualBalance=place.style==='stack'?.65:place.style==='breathing-room'?.45:0;
             const score=busy*15+sizePenalty+cohesion+visualBalance+
-              Math.abs(gap-55)*.004+Math.max(0,title.lines.length-3)*2.3+
+              Math.abs(gap-48)*.004+Math.max(0,title.lines.length-3)*2.3+
+              Math.max(0,(detail?.lines.length||0)-2)*2.1+
               (preferred?-1.4:0)+
               Math.abs(y-(view.scene.role==='hook'?safe.y+95:safe.y+160))*.002;
             const copy={...title,detail:detail?.lines||[],detailSize:detail?.size||0,
@@ -1577,17 +1630,20 @@
         }
       } else if(item.kind==='headline'||item.kind==='support') {
         const support=item.kind==='support';
-        const font=support?`650 ${item.size}px ${BODY_FONT_STACK}`:
+        const font=support?`800 ${item.size}px ${BODY_FONT_STACK}`:
           `${composition.type.titleWeight} ${item.size}px ${composition.type.titleFamily}`;
         ctx.font=font;
         for(let i=0;i<item.lines.length;i++) {
-          const line=item.lines[i],width=ctx.measureText(line).width;
+          const line=item.lines[i],horizontal=item.horizontalScale||1;
+          const width=ctx.measureText(line).width*horizontal;
           const x=item.align==='center'?item.x+(item.width-width)/2:
             item.align==='right'?item.x+item.width-width:item.x;
-          draw(line,x,item.y+item.size+i*item.step,font,support?palette.detail:palette.title,
+          ctx.save();ctx.translate(x,0);ctx.scale(horizontal,1);
+          draw(line,0,item.y+item.size+i*item.step,font,support?palette.detail:palette.title,
             support?palette.detailOutline:palette.titleOutline,
             support?palette.detailShadow:palette.titleShadow,
             support?'none':headlineEffect,support?'':phrase);
+          ctx.restore();
         }
       } else if(item.kind==='action') {
         const followFont=design.cta_lettering==='italic'?`italic 800 ${item.followSize}px Georgia, serif`:`900 ${item.followSize}px ${CTA_FONT_STACK}`;
@@ -1680,10 +1736,14 @@
     copy.lines.forEach((line,i)=>{
       const design=scene.text_design||{};
       ctx.save();ctx.globalAlpha*=titleProgress;
-      expressiveTextLine(ctx,{line,x:choice.x,y:baseline+i*copy.titleStep+10*(1-titleProgress),
+      // Scale around the actual ink origin so the measured collision box and
+      // the visible glyphs always represent the same width.
+      const horizontal=copy.titleScale||1;
+      ctx.translate(choice.x,0);ctx.scale(horizontal,1);
+      expressiveTextLine(ctx,{line,x:0,y:baseline+i*copy.titleStep+10*(1-titleProgress),
         font:sceneFont(type,copy.size),base:palette.title,outline:palette.titleOutline,
         shadow:palette.titleShadow,phrase:design.emphasis_text||'',
-        effect:design.emphasis_effect||'none',accent:palette.accent,thickness:5.2});
+        effect:design.emphasis_effect||'none',accent:palette.accent,thickness:Math.max(5.5,copy.size*.066)});
       ctx.restore();
     });
     if(copy.detail.length) {

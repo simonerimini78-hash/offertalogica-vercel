@@ -1,4 +1,4 @@
-// Video Studio-owned image provider; does not invoke or change editorial automations.
+// Video Studio v1.3.3.14 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -19,7 +19,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>4)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
   const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
-  const opposite=side==='left'?'right':side==='right'?'left':'upper';
+  const opposite=side==='left'?'right':side==='right'?'left':'right or left';
   const visual=String(scene.visual_brief||'').slice(0,500);
   const person=String(scene.subject_description||'').slice(0,350);
   const emotion=String(scene.emotion||'').slice(0,160);
@@ -63,7 +63,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Intended emotion: ${emotion||'credible and subtle'}.
   People and clearly visible human faces are welcome when emotionally useful. No exaggerated or stereotyped reactions.
   Place the principal subject on the ${side} side, with head, eyes, hands and important objects fully unobstructed.
-  Reserve generous NATURAL NEGATIVE SPACE toward the ${opposite} side and/or above for separate, large legible typography and authentic branding.
+  Reserve a CONTIGUOUS low-detail, reasonably uniform NATURAL NEGATIVE-SPACE COLUMN on the ${opposite} side covering roughly 50-60% of the usable central frame (approximately y=22%-65% of image height), not a tiny empty triangle or an area interrupted by arms, props, hair or eyes. Large 100-140px separate poster typography must fit there without hiding the action. Keep the human gesture/real-life situation easy to recognize from a phone thumbnail: frame the person and one meaningful action, not a giant empty wall and a tiny subject. For visually stronger storytelling, vary shot size and action meaningfully between scenes instead of repeating the same thoughtful person at the same desk. Do not draw the typography.
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
   Cinematic lighting direction for this specific beat: ${lighting}
   ${strongGuide ? 'Match the guide image photographic character first, including natural light, tonal range and tactile material details; do not force an unrelated stock-photo aesthetic.' : 'Premium visual authorship: deliberate motivated lighting, selective contrast, dimensional layering, authentic surface textures and clear focal hierarchy. Follow THIS scene art direction, not a default domestic-window-light recipe.'} Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or empty cinematic spectacle.
