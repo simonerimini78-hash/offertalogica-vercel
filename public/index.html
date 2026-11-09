@@ -7089,6 +7089,161 @@
     text-align:center !important;
   }
 }
+
+/* V130 — gerarchia tipografica uniforme per tutte le card consumer luce/gas.
+   Solo presentazione mobile: nessun cambiamento a testi, calcoli, URL, eventi o DOM.
+   La i Switcho resta un link fratello della CTA, non un controllo annidato. */
+@media (max-width:720px) {
+  .offer-result-group .partner-vertical-card {
+    padding:11px !important;
+    gap:7px !important;
+  }
+  .offer-result-group .partner-vertical-card .partner-meta { min-width:0; gap:5px !important; }
+  .offer-result-group .partner-vertical-card .partner-title,
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card .partner-title {
+    font-size:18px !important;
+    line-height:1.19 !important;
+    font-weight:850 !important;
+    letter-spacing:.008em !important;
+    overflow-wrap:break-word;
+    text-wrap:pretty;
+  }
+  .offer-result-group .partner-vertical-card .offer-metrics { gap:4px !important; }
+  .offer-result-group .partner-vertical-card .offer-saving-line { padding:8px 9px !important; }
+  .offer-result-group .partner-vertical-card .offer-saving-line .offer-metric-copy b {
+    font-size:15.5px !important;
+    line-height:1.23 !important;
+    letter-spacing:.02em !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-saving-line strong {
+    line-height:1.12 !important;
+    letter-spacing:.008em !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-cost-line { padding:2px 3px !important; }
+  .offer-result-group .partner-vertical-card .offer-cost-line .offer-metric-copy b {
+    font-size:15.5px !important;
+    line-height:1.22 !important;
+    letter-spacing:.012em !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-cost-line strong,
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card .offer-cost-line strong {
+    font-size:17px !important;
+    line-height:1.18 !important;
+    letter-spacing:.004em !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-action-column:not(.is-switcho-panel) {
+    padding:6px 0 !important;
+    gap:5px !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-action-column:not(.is-switcho-panel) [id^="link-partner-"],
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card .offer-action-column:not(.is-switcho-panel) [id^="link-partner-"] {
+    min-width:0 !important;
+    min-height:54px !important;
+    height:auto !important;
+    padding:10px 10px !important;
+    font-size:17px !important;
+    line-height:1.22 !important;
+    font-weight:850 !important;
+    letter-spacing:.008em !important;
+    white-space:normal !important;
+    text-align:center !important;
+  }
+  .offer-result-group .partner-vertical-card > .offer-details-toggle { margin-top:0 !important; padding-top:5px !important; }
+  .offer-result-group .partner-vertical-card > .offer-details-toggle summary,
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card > .offer-details-toggle summary {
+    margin-top:0 !important;
+    padding:5px 6px !important;
+    font-size:16.5px !important;
+    line-height:1.25 !important;
+    letter-spacing:.008em !important;
+  }
+
+  /* Switcho: stessa CTA verde; logo leggibile e info discreta, visivamente integrata. */
+  .offer-result-group .partner-vertical-card .offer-action-column.is-switcho-panel .offer-action-row {
+    position:relative !important;
+    display:grid !important;
+    grid-template-columns:minmax(0,1fr) !important;
+    gap:0 !important;
+    align-items:stretch !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-action-column.is-switcho-panel [id^="link-partner-"] {
+    min-height:58px !important;
+    height:auto !important;
+    padding:10px 9px 10px 43px !important;
+    gap:6px !important;
+    flex-wrap:wrap !important;
+    border-radius:12px !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-cta-title {
+    font-size:17px !important;
+    line-height:1.18 !important;
+    letter-spacing:.01em !important;
+    font-weight:850 !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-cta-brand {
+    min-height:38px !important;
+    padding:3px 8px !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-cta-logo {
+    height:29px !important;
+    max-width:120px !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-info-link:not([hidden]) {
+    position:absolute !important;
+    z-index:2 !important;
+    top:50% !important;
+    left:4px !important;
+    transform:translateY(-50%) !important;
+    display:flex !important;
+    width:36px !important;
+    height:40px !important;
+    min-height:40px !important;
+    padding:0 !important;
+    margin:0 !important;
+    border:0 !important;
+    border-radius:8px !important;
+    background:transparent !important;
+    box-shadow:none !important;
+    color:rgba(255,255,255,.83) !important;
+    align-items:center !important;
+    justify-content:center !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-info-link > span:first-child {
+    width:18px !important;
+    height:18px !important;
+    border:1.5px solid currentColor !important;
+    font-size:12px !important;
+    line-height:1 !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-switcho-info-link:focus-visible {
+    outline:2px solid #fff !important;
+    outline-offset:0 !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-action-column.is-switcho-panel .offer-switcho-bill-note,
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card .offer-action-column.is-switcho-panel .offer-switcho-bill-note {
+    margin:4px 0 0 !important;
+    padding:3px 1px !important;
+    color:#475569 !important;
+    font-size:15.5px !important;
+    line-height:1.32 !important;
+    font-weight:650 !important;
+    letter-spacing:.004em !important;
+    background:transparent !important;
+    border:0 !important;
+    box-shadow:none !important;
+  }
+}
+@media (max-width:360px) {
+  .offer-result-group .partner-vertical-card .partner-title,
+  html.mobile-fast-flow body.mobile-fast-results:not(.social-entry-active) .offer-result-group .partner-vertical-card .partner-title {
+    font-size:17px !important;
+    letter-spacing:.004em !important;
+  }
+  .offer-result-group .partner-vertical-card .offer-action-column.is-switcho-panel [id^="link-partner-"] { padding-left:38px !important; }
+  .offer-result-group .partner-vertical-card .offer-switcho-cta-title { font-size:16px !important; }
+  .offer-result-group .partner-vertical-card .offer-switcho-cta-logo { height:26px !important; max-width:102px !important; }
+  .offer-result-group .partner-vertical-card .offer-switcho-info-link:not([hidden]) { left:2px !important; width:34px !important; }
+}
 </style>
 
 <script>
