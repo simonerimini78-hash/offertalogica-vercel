@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.18 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.19 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -1100,8 +1100,6 @@
       const ffont=design.cta_lettering==='italic'?`italic 800 ${item.followSize}px Georgia, serif`:
         `900 ${item.followSize}px ${CTA_FONT_STACK}`;
       add('SEGUI',ffont,null,item.y,item.followSize);
-      add('OffertaLogica',`850 ${item.size}px ${CTA_FONT_STACK}`,null,
-        item.y+item.followSize+12,item.size);
     } else if(item.kind==='domain')
       add('OFFERTALOGICA.IT',`850 ${item.size}px ${CTA_FONT_STACK}`,null,item.y,item.size);
     return boxes;
@@ -1135,36 +1133,31 @@
       for(const scale of [1,.94,.88,.82,.76,.70,.64]) {
         const title=ctaTextBlock(ctx,'headline',headline,contentWidth,4,
           size=>`${type.titleWeight} ${size}px ${type.titleFamily}`,
-          Math.round(48*scale),Math.round((focus==='site'?108:116)*scale),
+          Math.round(54*scale),Math.round((focus==='site'?128:136)*scale),
           headlineHorizontalScale(type));
         const detail=support?ctaTextBlock(ctx,'support',support,contentWidth,3,
           size=>`800 ${size}px ${BODY_FONT_STACK}`,Math.round(40*scale),Math.round(60*scale)):null;
         const follow=ctaTextBlock(ctx,'follow','SEGUI',contentWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(68*scale));
-        const name=ctaTextBlock(ctx,'name','OffertaLogica',contentWidth,1,
-          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(52*scale),
-          Math.round((focus==='site'?89:106)*scale));
         const domain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',contentWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(39*scale),
           Math.round((focus==='site'?75:70)*scale));
-        if(!title||(support&&!detail)||!follow||!name||!domain)continue;
+        if(!title||(support&&!detail)||!follow||!domain)continue;
         // The generic micro-label above the URL was unreadable on mobile;
         // the fully visible domain already communicates the destination.
         const wideWidth=available;
         const wideFollow=ctaTextBlock(ctx,'follow','SEGUI',wideWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(77*scale));
-        const wideName=ctaTextBlock(ctx,'name','OffertaLogica',wideWidth,1,
-          size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(55*scale),
-          Math.round((focus==='site'?96:113)*scale));
         const wideDomain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',wideWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(44*scale),Math.round(84*scale));
         for(const span of ['column','wide-footer']) {
           const footW=span==='wide-footer'?wideWidth:contentWidth;
           const footFollow=span==='wide-footer'?wideFollow:follow;
-          const footName=span==='wide-footer'?wideName:name;
           const footDomain=span==='wide-footer'?wideDomain:domain;
-          if(!footFollow||!footName||!footDomain)continue;
-          const actionH=footFollow.size+footName.size+Math.round(20*scale);
+          if(!footFollow||!footDomain)continue;
+          // The authentic logo already names the brand: repeating its name below
+          // 'SEGUI' shrank the headline and domain in every CTA.
+          const actionH=footFollow.size+Math.round(14*scale);
           const domainH=footDomain.size+Math.round(12*scale);
           // A compact logo grants the actual CTA promise more visual space.
           const logoW=Math.min(contentWidth*.42,Math.round(192*scale));
@@ -1174,8 +1167,8 @@
             logo:{kind:'logo',width:logoW,height:logoH,lineWidth:logoW},
             headline:{...title,kind:'headline',width:contentWidth},
             ...(detail?{support:{...detail,kind:'support',width:contentWidth}}:{}),
-            action:{...footName,kind:'action',width:footW,height:actionH,
-              lineWidth:Math.max(footFollow.lineWidth,footName.lineWidth),followSize:footFollow.size},
+            action:{...footFollow,kind:'action',width:footW,height:actionH,
+              lineWidth:footFollow.lineWidth,followSize:footFollow.size},
             domain:{...footDomain,kind:'domain',width:footW,height:domainH}
           };
           const ordered=order.map(key=>blocks[key]).filter(Boolean);
@@ -1205,8 +1198,8 @@
               Math.max(1,lineBoxes.length);
             const artAlign=['left','center','right'].includes(design.cta_align)?design.cta_align:null;
             const prefer=artAlign||(preference==='left'?'left':preference==='right'?'right':null);
-            const score=title.size*2.2+footName.size*.76+footDomain.size*.70+
-              (detail?detail.size*.30:0)+footFollow.size*.12+
+            const score=title.size*2.9+footDomain.size*.80+
+              (detail?detail.size*.30:0)+footFollow.size*.35+
               logoW*.035-photoNoise*55+(prefer===align?3:0)+
               (align==='center'?-1.5:0)-(anchor==='middle'?0:anchor==='top'?.8:1.4);
             if(!best||score>best.score)best={items,textBoxes,lineBoxes,
@@ -1225,7 +1218,7 @@
       const items=[{kind:'logo',x,y:safe.y,width:logoW,height:logoW*logoRatio,align:'left'},
         simple('headline',headline,safe.y+140,54),
         ...(support?[simple('support',support,safe.y+218,34)]:[]),
-        {...simple('action','OffertaLogica',safe.y+315,62),followSize:36},
+        {...simple('action','SEGUI',safe.y+315,62),followSize:36},
         simple('domain','OFFERTALOGICA.IT',safe.y+460,48)];
       best={items,textBoxes:items,variant:'unfitted',score:-Infinity,scale:.6,focus,failed:true};
     }
@@ -1258,7 +1251,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.18|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.19|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1613,6 +1606,14 @@
       ctx.quadraticCurveTo(x0+width*.52,y+fontSize*(brush?.14:.115),x0+width-2,y+fontSize*.072);
       ctx.stroke();ctx.restore();
     };
+    // A selective high-contrast word block is a graphic layer, not AI-generated text.
+    // It remains inside the title's measured ink footprint with only small padding.
+    if(matched&&effect==='block'&&width>0) {
+      ctx.save();
+      ctx.fillStyle=accent;
+      ctx.beginPath();ctx.roundRect(x0-3,y-fontSize*.83,width+6,fontSize*.98,Math.min(13,fontSize*.12));ctx.fill();
+      ctx.restore();
+    }
     if(matched&&effect==='brush')mark(true);
     const ink=(str,xx,fill)=>{
       ctx.save();ctx.font=font;ctx.lineJoin='round';ctx.lineWidth=thickness;
@@ -1621,6 +1622,12 @@
     };
     ink(value,x,base);
     if(matched&&effect==='color')ink(value.slice(location,location+query.length),x0,accent);
+    if(matched&&effect==='block') {
+      const raw=accent.replace('#','');
+      const r=parseInt(raw.slice(0,2),16)||0,g=parseInt(raw.slice(2,4),16)||0,b=parseInt(raw.slice(4,6),16)||0;
+      const blockInk=(.2126*r+.7152*g+.0722*b)/255>.61?'#102d33':'#ffffff';
+      ink(value.slice(location,location+query.length),x0,blockInk);
+    }
     if(matched&&effect==='underline')mark();
     ctx.restore();
   }
@@ -1670,26 +1677,14 @@
         }
       } else if(item.kind==='action') {
         const followFont=design.cta_lettering==='italic'?`italic 800 ${item.followSize}px Georgia, serif`:`900 ${item.followSize}px ${CTA_FONT_STACK}`;
-        const nameFont=`850 ${item.size}px ${CTA_FONT_STACK}`;
         ctx.font=followFont;
         const fWidth=ctx.measureText('SEGUI').width;
         const followX=item.align==='center'?item.x+(item.width-fWidth)/2:
           item.align==='right'?item.x+item.width-fWidth:item.x;
         draw('SEGUI',followX,item.y+item.followSize,followFont,blockMain,
           blockOutline,blockShadow);
-        ctx.font=nameFont;
-        const text='OffertaLogica',width=ctx.measureText(text).width;
-        const textX=item.align==='center'?item.x+(item.width-width)/2:
-          item.align==='right'?item.x+item.width-width:item.x;
-        const y=item.y+item.followSize+item.size+12;
-        // Contrast between the two brand syllables; visual highlight is chosen by AI.
-        draw(text,textX,y,nameFont,blockMain,blockOutline,blockShadow,
-          accent==='brush'?'brush':accent==='underline'?'underline':accent==='color'?'color':'none',
-          accent==='none'?'':priority==='site'?'Logica':'OffertaLogica');
-        // Keep the brand's secondary accent visible against either photo polarity.
-        const firstWidth=ctx.measureText('Offerta').width;
-        draw('Logica',textX+firstWidth,y,nameFont,
-          blockBright?'#276b42':'#b9ec39',blockOutline,blockShadow);
+        // The actual brand mark and the domain remain separate, legible layers.
+        // Duplicating the brand name here crowded the CTA on mobile.
       } else if(item.kind==='domain') {
         const domainFont=`850 ${item.size}px ${CTA_FONT_STACK}`;
         const domainText='OFFERTALOGICA.IT';ctx.font=domainFont;
@@ -1801,14 +1796,7 @@
       if (segment.index > 0 && segment.local < 0.28 && !productScreenActive(segment.index - 1)) {
         drawScenePhoto(ctx, segment.index - 1, 1, 1 - segment.local / 0.28);
       }
-      if (sceneViews[segment.index]?.scene?.role === 'cta') {
-        // A subtle golden-hour finishing light on the CTA, not a replacement photo.
-        const glow=ctx.createLinearGradient(0,0,0,MONTAGE_HEIGHT);
-        glow.addColorStop(0,'rgba(245,186,115,0)');
-        glow.addColorStop(1,'rgba(245,171,83,0.12)');
-        ctx.fillStyle=glow;
-        ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
-      }
+      // Preserve the photographic color grade of the CTA: no universal warm filter.
       if (!isIntegratedPoster(sceneViews[segment.index])) {
         if (sceneViews[segment.index]?.layoutPreference === 'manual')
           drawManualOverlay(ctx,sceneViews[segment.index]);

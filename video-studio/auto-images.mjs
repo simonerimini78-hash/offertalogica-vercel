@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.18 image composition; independent of editorial automations.
+// Video Studio v1.3.3.19 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -27,6 +27,14 @@ export function parseImageRevisionNotes(value) {
   if(remainder && !remainder.startsWith('\n'))throw new Error('VIDEO_STUDIO_IMAGE: modalita grafica non valida');
   return {mode:'poster',notes:cleanRevisionNotes(remainder)};
 }
+// Signed references are still verified for continuity/history QA by web-lab.
+// Do not force an image EDIT when an unguided story has no recurring protagonist:
+// this used to pull new scenes back toward the same room and composition.
+export function modelImageReferences(story,referenceImages=[]) {
+  const guide=['guide_image','guide_video'].includes(story?.input_type);
+  const recurring=Boolean(String(story?.protagonist_profile||'').trim());
+  return guide||recurring?referenceImages:[];
+}
 export function photoPrompt({article,scene,index,story=null,revisionNotes='',referenceImages=[],mode='photo'}) {
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>4)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
@@ -40,11 +48,11 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const emotion=String(scene.emotion||'').slice(0,160);
   const notes = cleanRevisionNotes(revisionNotes);
   const strongGuide=['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong';
-  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is ${story?.input_type==='guide_video'?'an editor-supplied early frame sampled from the Reel guide':'the editor-supplied ORIGINAL guide photograph'}. Treat it as the photographic style anchor for this scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. Do not copy any existing text or fabricated brand UI.` : referenceImages.length>0 ? `VISUAL INSPIRATION: use the supplied authentic photo reference(s) for plausible continuity, without copying the same composition, setting, pose, facial expression or action. Allow scene-specific lighting and styling. This is a NEW story moment.` : 'Opening shot: establish the scene-specific subject or context. A human protagonist is NOT required unless the story explicitly calls for one.';
+  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is ${story?.input_type==='guide_video'?'an editor-supplied early frame sampled from the Reel guide':'the editor-supplied ORIGINAL guide photograph'}. Treat it as the photographic style anchor for this scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. Do not copy any existing text or fabricated brand UI.` : referenceImages.length>0 ? `VISUAL INSPIRATION: reference frames exist only to retain recurring identity or recognizable story objects if the plan requires them. DO NOT treat previous frames as a lighting, camera, location, or composition template. Change camera distance, angle, setting and focal object whenever the art direction calls for it. This is a NEW story moment.` : 'Opening shot: establish the scene-specific subject or context. A human protagonist is NOT required unless the story explicitly calls for one.';
   const art=scene?.art_direction&&typeof scene.art_direction==='object'?scene.art_direction:null;
   const referenceCraft=story?.guide_quality_profile?.visual;
   const lighting = art?.photo_lighting ? `Follow the art director: ${String(art.photo_lighting).slice(0,220)}. Keep physics and skin tones plausible; never force a generic golden-hour look.` : strongGuide ? 'Match the reference image lighting character and realistic warm/cool balance; do not change to a generic golden-hour or cooler studio look unless the story truly requires it.' : scene.role === 'cta'
-    ? 'For the concluding/CTA beat, prefer a subtle warmer late-afternoon or golden-hour quality ONLY if consistent with the story location and elapsed time; keep skin tones natural, never oversaturate or invent a sunset.'
+    ? 'Finish with motivated, believable scene lighting rather than a compulsory golden-hour or warm-filter look; preserve natural skin tones and tonal depth.'
     : index === 0
       ? 'Start with credible natural daylight or gently neutral window light appropriate to the problem; avoid artificial orange tint or exaggerated drama.'
       : 'Use believable natural or ambient light with moderate variation; keep continuity with the previous scene and let the story become gradually more reassuring when appropriate.';
@@ -73,15 +81,15 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   Main subject: ${person||'a natural realistic situation relevant to the message'}.
   Stable recurring-protagonist description (if present): ${protagonist || 'No recurring human protagonist is required'}.
   ${referenceGuide}
-  Keep the same protagonist recognizable when relevant, but DO NOT repeat a pose, action, location-and-shot combination or a near-identical composition across scenes.
+  Retain a recognizable protagonist ONLY when the plan requires one; a scene focused on a product, place or meaningful detail may show no face. DO NOT repeat a pose, action, location-and-shot combination or a near-identical composition across scenes.
   This ${poster?'finished advertising frame':'photograph'} must represent ONLY scene ${index+1} of the mini-story, not a collage or multi-panel storyboard.
   Intended emotion: ${emotion||'credible and subtle'}.
   People and clearly visible human faces are welcome when emotionally useful. No exaggerated or stereotyped reactions.
   Place the principal subject on the ${side} side, with head, eyes, hands and important objects fully unobstructed.
-  ${poster ? `CREATIVE LAYOUT: Compose the image and integrated lettering TOGETHER. The headline is the primary advertising subject: give it substantial area in a clean field on the ${opposite} side, generally inside x=9%-91% and y=19%-72% (safe for mobile social overlays). Show the relatable person or real-life action on the ${side}, but NEVER reduce headline size just to keep an oversized portrait. Do not cover faces, eyes, hands or key objects with any text. Choose asymmetrical editorial poster layout, not a small caption in an available corner.` : `Reserve a CONTIGUOUS low-detail, reasonably uniform NATURAL NEGATIVE-SPACE COLUMN on the ${opposite} side covering roughly 50-60% of the usable central frame (approximately y=22%-65% of image height), not a tiny empty triangle or an area interrupted by arms, props, hair or eyes. Large 100-140px separate poster typography must fit there without hiding the action. Keep the human gesture/real-life situation easy to recognize from a phone thumbnail: frame the person and one meaningful action, not a giant empty wall and a tiny subject. For visually stronger storytelling, vary shot size and action meaningfully between scenes instead of repeating the same thoughtful person at the same desk. Do not draw the typography.`}
+  ${poster ? `CREATIVE LAYOUT: Compose the image and integrated lettering TOGETHER. The headline is the primary advertising subject: give it substantial area in a clean field on the ${opposite} side, generally inside x=9%-91% and y=19%-72% (safe for mobile social overlays). Show the relatable person or real-life action on the ${side}, but NEVER reduce headline size just to keep an oversized portrait. Do not cover faces, eyes, hands or key objects with any text. Choose asymmetrical editorial poster layout, not a small caption in an available corner.` : `Compose the photography for LARGE separate display typography in an uncluttered central safe area, approximately x=7%-93%, y=14%-65%. Leave a coherent type zone at least 42% of frame width on the ${opposite} side, but DO NOT manufacture a huge blank wall: use natural depth-of-field, layered light, visual contrast and purposeful framing. The compositor may place a compact high-contrast accent behind one word. Prioritize a recognizable action or object over generic desk portraits; match the plan's specific art direction, shot and setting. Do not draw any typography.`}
   Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
   Cinematic lighting direction for this specific beat: ${lighting}
-  ${strongGuide ? 'Match the guide image photographic character first, including natural light, tonal range and tactile material details; do not force an unrelated stock-photo aesthetic.' : 'Premium visual authorship: deliberate motivated lighting, selective contrast, dimensional layering, authentic surface textures and clear focal hierarchy. Follow THIS scene art direction, not a default domestic-window-light recipe.'} Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or empty cinematic spectacle.
+  ${strongGuide ? 'Match the guide image photographic character first, including natural light, tonal range and tactile material details; do not force an unrelated stock-photo aesthetic.' : 'Premium visual authorship: deliberate motivated lighting, selective contrast, dimensional layering, authentic surface textures and clear focal hierarchy. Follow THIS scene art direction, not a default domestic-window-light recipe. Distinguish this frame from the other shots with the specified setting, camera distance and action.'} Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or empty cinematic spectacle.
   Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
   Generate a NEW original scene from the story, using only authenticated frames from THIS Reel for continuity when supplied. NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
   Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
@@ -101,9 +109,10 @@ export async function generatePhoto({article,scene,index,story=null,revisionNote
   if((index>0 || (index===0 && ['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong')) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
     referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(['guide_image','guide_video'].includes(story?.input_type)&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
-  const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages,mode});
+  const modelReferences=modelImageReferences(story,referenceImages);
+  const prompt = photoPrompt({article,scene,index,story,revisionNotes,referenceImages:modelReferences,mode});
   let response;
-  if(index===0 && referenceImages.length===0) {
+  if(modelReferences.length===0) {
     response=await fetchImpl('https://api.openai.com/v1/images/generations',{
       method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
       body:JSON.stringify({model,prompt,size:'1088x1920',quality:'high',output_format:'png',n:1}),
@@ -118,7 +127,7 @@ export async function generatePhoto({article,scene,index,story=null,revisionNote
     form.append('quality','high');
     form.append('output_format','png');
     form.append('n','1');
-    for(const [i,bytes] of referenceImages.entries()) {
+    for(const [i,bytes] of modelReferences.entries()) {
       form.append('image[]',new Blob([bytes],{type:'image/jpeg'}),`scene-reference-${i+1}.jpg`);
     }
     response=await fetchImpl('https://api.openai.com/v1/images/edits',{
