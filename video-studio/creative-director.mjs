@@ -5,7 +5,16 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.17';
+const CREATIVE_ENGINE_VERSION = '1.3.3.18';
+// Max 300 s for /api; the browser gives a storyboard 265 s.
+// The orchestration has a single 235 s budget across ALL model calls.
+const CREATIVE_TOTAL_BUDGET_MS=235000;
+const CREATIVE_PROVIDER_TIMEOUT_MS=90000;
+const CREATIVE_SAFETY_MS=5000;
+const CREATIVE_MIN_CALL_MS=20000;
+const CREATIVE_MIN_REPAIR_MS=75000;
+// 20k characters can reject a legitimate four/five-scene JSON; keep payload bounded.
+const CREATIVE_MAX_RESPONSE_CHARS=36000;
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -461,17 +470,36 @@ export function validateCreativeResponse(input,response) {
       'Licenze fotografiche e musicali da confermare',
       'Conferma umana del master prima di pubblicare']};
 }
-export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null,guideVideoFrames=[]}={}) {
+export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI_API_KEY,fetchImpl=fetch,guideImageBytes=null,guideVideoFrames=[],clock=Date.now}={}) {
   check(apiKey,'OPENAI_API_KEY mancante; impossibile generare una regia AI autentica');
   const request=buildCreativeRequest(normalized,{guideImageBytes,guideVideoFrames});
-  async function askModel(payload) {
-    const response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
-      method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
-      body:JSON.stringify(payload),signal:AbortSignal.timeout(90000)});
+  const startedAt=clock();
+  const remainingMs=()=>CREATIVE_TOTAL_BUDGET_MS-(clock()-startedAt);
+  function ensureRevisionBudget(problem) {
+    check(remainingMs()>=CREATIVE_MIN_REPAIR_MS,
+      `tempo insufficiente per correzione e QA finale (${Math.ceil(remainingMs()/1000)} s residui). Ultimo QA: ${String(problem).slice(0,90)}`);
+  }
+  async function askModel(payload,{phase='regia',reserveMs=0}={}) {
+    // Do not start a paid call when the mandatory downstream QA cannot fit.
+    const availableMs=remainingMs()-CREATIVE_SAFETY_MS-reserveMs;
+    check(availableMs>=CREATIVE_MIN_CALL_MS,
+      `budget di generazione esaurito prima di ${phase}; nessuna fotografia avviata`);
+    const timeoutMs=Math.min(CREATIVE_PROVIDER_TIMEOUT_MS,Math.floor(availableMs));
+    let response;
+    try {
+      response=await fetchImpl('https://api.openai.com/v1/chat/completions',{
+        method:'POST',headers:{Authorization:`Bearer ${apiKey}`,'Content-Type':'application/json'},
+        body:JSON.stringify(payload),signal:AbortSignal.timeout(timeoutMs)});
+    } catch(error) {
+      if(['AbortError','TimeoutError'].includes(error?.name))
+        throw new Error(`VIDEO_STUDIO_CREATIVE: timeout provider in ${phase} (${Math.ceil(timeoutMs/1000)} s); nessuna fotografia avviata`);
+      throw error;
+    }
     const json=await response.json().catch(()=>null);
-    check(response.ok,`provider regia: HTTP ${response.status}`);
+    check(response.ok,`provider regia in ${phase}: HTTP ${response.status}`);
     const content=json?.choices?.[0]?.message?.content;
-    check(typeof content==='string'&&content.length<20000,'risposta creativa assente o troppo grande');
+    check(typeof content==='string'&&content.length<CREATIVE_MAX_RESPONSE_CHARS,
+      'risposta creativa assente o troppo grande');
     try{return JSON.parse(content);}catch{throw new Error('VIDEO_STUDIO_CREATIVE: JSON risposta non valido');}
   }
   // Both guide modes receive independent analysis: moving-image sampling and static photography are NOT conflated.
@@ -488,7 +516,7 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
           note:'Frames are chronological, NOT a full audiovisual stream.'})},
         ...guideVideoFrames.map(frame=>({type:'image_url',image_url:{url:`data:image/jpeg;base64,${frame.toString('base64')}`,detail:'low'}}))
       ]}],response_format:{type:'json_schema',json_schema:{name:'video_guide_profile_v1',strict:true,schema:guideProfileSchema}}};
-    const profile=await askModel(reviewRequest);
+    const profile=await askModel(reviewRequest,{phase:'analisi guida',reserveMs:60000});
     const section=(value,name)=>{
       check(value&&typeof value==='object',`analisi guida: ${name} mancante`);
       for(const [key,item] of Object.entries(value))clean(item,`analisi guida ${name}.${key}`,null);
@@ -514,13 +542,13 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
                 narrative_action:x.narrative_action,setting:x.setting,shot_type:x.shot_type,
                 art_direction:x.art_direction,text_design:x.text_design}))}})}],
         response_format:{type:'json_schema',json_schema:{name:'video_story_qa_v1',strict:true,schema:semanticReviewSchema}}};
-      const result=await askModel(qa);
+      const result=await askModel(qa,{phase:'QA pubblicitario'});
       check(typeof result?.genuinely_distinct==='boolean'&&typeof result?.art_direction_actionable==='boolean',
         'valutazione semantica non valida');
       advertisingIssue(result); // also validates review structure
       return result;
     };
-    let proposal=await askModel(guidedRequest);
+    let proposal=await askModel(guidedRequest,{phase:'regia con guida',reserveMs:35000});
     for(let attempt=0;attempt<2;attempt++) {
       let issue='';let draft=null;
       // The candidate must not certify its own transcription of the source video.
@@ -550,9 +578,10 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
           'Se le scene copiano azioni o frasi specifiche della guida, cambiale con un nuovo punto di vista, nuove inquadrature e un diverso percorso visivo, rispettando il tema o messaggio richiesto dall’editor. ') +
         'Se il problema e la direzione artistica, fornisci posizionamento e stile per ogni scena. ' +
         'Mantieni tutti i vincoli di schema, sicurezza editoriale e numero scene. Restituisci il JSON completo.';
+      ensureRevisionBudget(issue);
       proposal=await askModel({...guidedRequest,messages:[...guidedRequest.messages,
         {role:'assistant',content:JSON.stringify(proposal)},
-        {role:'user',content:feedback}]});
+        {role:'user',content:feedback}]},{phase:'correzione con guida',reserveMs:30000});
     }
   }
   const reviewUnguided=async draft=>{
@@ -569,9 +598,9 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
             editorial_goal:scene.editorial_goal}))})}],
       response_format:{type:'json_schema',json_schema:{name:'video_advertising_review_v1',strict:true,
         schema:advertisingReviewSchema}}};
-    return advertisingIssue(await askModel(qa));
+    return advertisingIssue(await askModel(qa,{phase:'QA pubblicitario'}));
   };
-  let proposal=await askModel(request);
+  let proposal=await askModel(request,{phase:'regia iniziale',reserveMs:35000});
   for(let attempt=0;attempt<2;attempt++){
     let problem='';let draft=null;
     try{draft=validateCreativeResponse(normalized,proposal);}
@@ -586,9 +615,10 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const correction=`Regia NON approvata prima delle immagini: ${problem}. Correggi il format,
       la specificità del hook, la progressione fra le scene, la CTA e la coerenza con la fonte,
       mantenendo 15 secondi, numero scene e sicurezza editoriale. Restituisci JSON completo.`;
+    ensureRevisionBudget(problem);
     proposal=await askModel({...request,messages:[...request.messages,
       {role:'assistant',content:JSON.stringify(proposal)},
-      {role:'user',content:correction}]});
+      {role:'user',content:correction}]},{phase:'correzione storyboard',reserveMs:30000});
   }
 
 }

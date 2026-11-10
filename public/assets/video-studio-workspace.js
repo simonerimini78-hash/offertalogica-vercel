@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.17 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.18 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -1258,7 +1258,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.17|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.18|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -3227,7 +3227,8 @@
         data.guide_fidelity=brief.input.guide_fidelity;
         data.guide_context=brief.input.guide_context;
       } else data.theme=brief.input.theme;
-      generation = await labRequest('video-studio-storyboard', data, token, ['video','image'].includes(brief.mode)?260000:110000);
+      // The QA has multiple sequential calls; server orchestration is limited to 235 s.
+      generation = await labRequest('video-studio-storyboard', data, token, 265000);
       if (!validSceneCount(generation?.plan?.scenes?.length) ||
         (brief.input.scene_count_preference!=='auto'&&generation.plan.scenes.length!==brief.input.scene_count_preference))
         throw Error('Storyboard generato non valido: numero di scene incoerente con la scelta.');
