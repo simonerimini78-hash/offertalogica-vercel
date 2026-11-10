@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.15 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.16 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -545,6 +545,8 @@
         if(!/\.mp4$/i.test(videoGuideFile.name)||videoGuideFile.size<1000||videoGuideFile.size>60*1024*1024)
           throw Error('Carica un MP4 valido fino a 60 MB.');
         const context=videoGuideContext.value.trim();
+        if(context.length<8 && suggestionsInput.value.trim().length<8)
+          throw Error('Specifica l’argomento del nuovo Reel: il MP4 è solo un riferimento di qualità.');
         base={theme:null,article:null,guide_video_file_name:videoGuideFile.name,
           guide_context:context,guide_fidelity:videoGuideFidelity.value};
       } else {
@@ -1256,7 +1258,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.15|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.16|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -2277,7 +2279,8 @@
     if(review.creative_departure)notes.push(textElement('p',`Differenza proposta rispetto alla guida: ${review.creative_departure}`));
     const profile=plan?.guide_quality_profile;
     if(profile)notes.push(textElement('p',`Principi analizzati ${plan.input_type==='guide_image'?'dalla foto guida':'dal Reel scelto'}: ${(profile.quality_principles||[]).join(' · ')}. ${plan.input_type==='guide_image'?'Analisi di una singola immagine: non sono deducibili storia temporale, movimento e transizioni.':'Analisi basata su fotogrammi campionati, senza audio.'}`));
-    if(plan?.creative_review)notes.push(textElement('p',`Revisione narrativa prima delle foto: ${plan.creative_review.narrative_reason}. Direzione grafica: ${plan.creative_review.graphics_reason}. Valutazione AI, non certificazione estetica.`));
+    if(plan?.creative_review?.narrative_reason)notes.push(textElement('p',`Revisione narrativa prima delle foto: ${plan.creative_review.narrative_reason}. Direzione grafica: ${plan.creative_review.graphics_reason}. Valutazione AI, non certificazione estetica.`));
+    if(plan?.creative_review?.advertising_reviewed)notes.push(textElement('p',`Controllo pubblicitario prima delle foto: ${plan.creative_review.advertising_reason||'superato'}. Non certifica il risultato visivo.`));
     if(Array.isArray(review.observed_headlines)&&review.observed_headlines.length)
       notes.push(textElement('p',`Testi riconosciuti nel riferimento: ${review.observed_headlines.join(' · ')}`));
     if(plan.guide_fidelity==='inspiration' && !review.observed_headlines?.length)
@@ -2974,6 +2977,7 @@
     const card = document.createElement('article');
     card.className = 'ol-vs-scene-card';
     const heading = textElement('h4', `Scena ${index + 1} · ${scene.duration_ms / 1000}s · ${scene.role}`);
+    const beatLabel=scene.format_beat_label?textElement('p',`Funzione nel format: ${scene.format_beat_label}`):null;
     const lead = textElement('p', `${scene.headline}${scene.secondary_text ? ' — ' + scene.secondary_text : ''}`);
     const visual = textElement('p', `Immagine: ${scene.visual_brief}`);
     const subject = textElement('p', `Soggetto: ${scene.subject_description} · Emozione: ${scene.emotion}`);
@@ -3111,7 +3115,7 @@
     });
     updateSceneActionLabel(view);
     actions.append(actionButton,uploadLabel);
-    card.append(heading, lead, visual, subject, side, state, image, posterWrap, posterHint, posterVerifyWrap, layoutWrap, notesWrap, actions, prompt);
+    card.append(heading, ...(beatLabel?[beatLabel]:[]), lead, visual, subject, side, state, image, posterWrap, posterHint, posterVerifyWrap, layoutWrap, notesWrap, actions, prompt);
     sceneHolder.append(card);
     return view;
   }
@@ -3229,6 +3233,7 @@
         throw Error('Storyboard generato non valido: numero di scene incoerente con la scelta.');
       realSummary.append(
         textElement('p', `Concept: ${generation.plan.concept}`),
+        ...(generation.plan.format_id?[textElement('p', `Format pubblicitario: ${generation.plan.format_label||generation.plan.format_id} · ${generation.plan.format_reason||''}`)]:[]),
         textElement('p', `Pubblico: ${generation.plan.audience}`),
         ...(generation.input.input_type==='guide_image'?[textElement('p', `Guida fotografica: ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'}`)]:[]),
         ...(generation.input.input_type==='guide_video'?[textElement('p', `Reel MP4 guida: ${generation.input.guide_video_frame_times_ms.length} fotogrammi campionati · ${generation.input.guide_video_duration_ms/1000} s · ${generation.input.guide_fidelity==='strong'?'Aderenza forte':'Ispirazione libera'} · audio non analizzato`)]:[]),
@@ -3404,6 +3409,7 @@
     setSummary(brief);
     downloadButton.disabled=false;generateButton.disabled=false;
     realSummary.append(textElement('p',`Concept: ${generation.plan.concept}`),
+      ...(generation.plan.format_id?[textElement('p',`Format pubblicitario: ${generation.plan.format_label||generation.plan.format_id} · ${generation.plan.format_reason||''}`)]:[]),
       textElement('p',`Pubblico: ${generation.plan.audience}`),
       ...creativeGuideNotes(generation.plan),
       textElement('p',`Avvertenza editoriale: ${generation.plan.editorial_caution}`));

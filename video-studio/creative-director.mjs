@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.15';
+const CREATIVE_ENGINE_VERSION = '1.3.3.16';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -42,6 +42,38 @@ const durationsByCount=Object.freeze({
   5:[2800,3000,3000,3000,3200],
 });
 const roles=[...new Set(Object.values(rolesByCount).flat())];
+// Formats are reusable advertising mechanisms, not copies of a guide Reel.
+// Every 15-second plan chooses exactly one. The AI writes new content within its beats.
+const advertisingFormats=Object.freeze({
+  problema_soluzione:Object.freeze({label:'Problema → soluzione',beats:{
+    hook:'Rendi evidente un problema quotidiano specifico',
+    context:'Mostra la sua conseguenza concreta, senza allarmismo',
+    development:'Rivela l’ostacolo o il dettaglio che mancava',
+    value:'Mostra un passo utile e praticabile',
+    cta:'Invita a un approfondimento specifico e pertinente'}}),
+  errore_correzione:Object.freeze({label:'Errore → correzione',beats:{
+    hook:'Mostra un errore realistico e riconoscibile',
+    context:'Spiega perché quell’errore è rilevante',
+    development:'Mostra il punto da controllare prima di agire',
+    value:'Mostra la correzione concreta, senza affermare benefici non verificati',
+    cta:'Invita alla guida pratica sull’errore'}}),
+  confronto_criteri:Object.freeze({label:'Confronto ragionato',beats:{
+    hook:'Apri con un dilemma concreto tra scelte',
+    context:'Introduci il primo criterio utile',
+    development:'Mostra un secondo criterio distinto',
+    value:'Mostra come valutare le opzioni usando i criteri',
+    cta:'Invita a un approfondimento su come confrontare'}}),
+  dimostrazione:Object.freeze({label:'Dimostrazione pratica',beats:{
+    hook:'Mostra una situazione o azione concreta che desta curiosità',
+    context:'Mostra il primo passaggio comprensibile',
+    development:'Mostra un passaggio aggiuntivo, distinto dal precedente',
+    value:'Mostra l’esito osservabile, senza inventare risultati',
+    cta:'Invita a vedere i passaggi completi'}})
+});
+const formatIds=Object.keys(advertisingFormats);
+const formatBeatIds=formatIds.flatMap(id=>roles.map(role=>`${id}:${role}`));
+export function advertisingFormatCatalogue(){return formatIds.map(id=>({id,label:advertisingFormats[id].label}));}
+
 export function sceneCountAllowed(value){return value==='auto'||[3,4,5].includes(value);}
 export function sceneRolesForCount(count){return rolesByCount[count]||null;}
 
@@ -68,8 +100,9 @@ export function normalizeInput({theme,article,suggestions='',platform='instagram
       guideVideoFrameTimesMs.every((time,i)=>Number.isInteger(time)&&time>=0&&time<guideVideoDurationMs&&
         (i===0||time>guideVideoFrameTimesMs[i-1])),'sequenza fotogrammi guida non valida');
     check(['strong','inspiration'].includes(guideFidelity),'fedeltà Reel guida non valida');
-    const context=clean(guideContext,'contesto Reel',180,{optional:true});
-    return {input_type:'guide_video',topic:context||'Mini-storia ispirata al Reel guida',
+    const context=clean(guideContext,'argomento del Reel',180,{optional:true});
+    check(context.length>=8 || notes.length>=8, 'Reel guida: specifica un argomento editoriale (non basta il solo riferimento visivo)');
+    return {input_type:'guide_video',topic:context||notes.slice(0,180),
       suggestions:notes,platform,article:null,guide_video_sha256:guideVideoSha256,
       guide_video_duration_ms:guideVideoDurationMs,guide_video_frame_times_ms:guideVideoFrameTimesMs,
       guide_usage:'reference_only',guide_context:context,guide_fidelity:guideFidelity,
@@ -103,21 +136,23 @@ const schema={type:'object',additionalProperties:false,properties:{
   concept:{type:'string'},audience:{type:'string'},editorial_caution:{type:'string'},
   episode_angle:{type:'string'},story_logline:{type:'string'},story_outcome:{type:'string'},
   protagonist_profile:{type:'string'},
+  format_id:{type:'string',enum:formatIds},format_reason:{type:'string'},
   guide_review:{type:'object',additionalProperties:false,properties:{
     observed_headlines:{type:'array',items:{type:'string'}},
     observed_story_angle:{type:'string'},
     creative_departure:{type:'string'}
   },required:['observed_headlines','observed_story_angle','creative_departure']},
   scenes:{type:'array',items:{type:'object',additionalProperties:false,properties:{
-    role:{type:'string',enum:roles},headline:{type:'string'},secondary_text:{type:'string'},
+    role:{type:'string',enum:roles},format_beat:{type:'string',enum:formatBeatIds},
+    headline:{type:'string'},secondary_text:{type:'string'},
     editorial_goal:{type:'string'},visual_brief:{type:'string'},
     subject_description:{type:'string'},emotion:{type:'string'},subject_side:{type:'string',enum:['left','right','center']},
     narrative_action:{type:'string'},continuity_link:{type:'string'},setting:{type:'string'},
     shot_type:{type:'string'},key_object:{type:'string'}
-  },required:['role','headline','secondary_text','editorial_goal','visual_brief','subject_description',
+  },required:['role','format_beat','headline','secondary_text','editorial_goal','visual_brief','subject_description',
     'emotion','subject_side','narrative_action','continuity_link','setting','shot_type','key_object']}}
 },required:['concept','audience','editorial_caution','episode_angle','story_logline','story_outcome',
-  'protagonist_profile','guide_review','scenes']};
+  'protagonist_profile','format_id','format_reason','guide_review','scenes']};
 // A guide is arbitrary user content: extract transferable craft, never hardcode a specific Reel.
 const guideProfileSchema={type:'object',additionalProperties:false,properties:{
   graphic:{type:'object',additionalProperties:false,properties:{
@@ -156,10 +191,29 @@ guidedSceneSchema.properties.scenes.items.properties.art_direction={type:'object
   accent_color:{type:'string'},photo_lighting:{type:'string'},camera_intent:{type:'string'}
 },required:['placement','typography','accent_color','photo_lighting','camera_intent']};
 guidedSceneSchema.properties.scenes.items.required.push('art_direction');
+const advertisingReviewFields={
+  format_coherent:{type:'boolean'},hook_specific:{type:'boolean'},
+  progression_useful:{type:'boolean'},cta_relevant:{type:'boolean'},
+  topic_aligned:{type:'boolean'},advertising_reason:{type:'string'}
+};
+const advertisingReviewSchema={type:'object',additionalProperties:false,
+  properties:advertisingReviewFields,required:Object.keys(advertisingReviewFields)};
+const advertisingReviewSystem=`Sei un revisore indipendente della STRUTTURA PUBBLICITARIA, non un generatore creativo.
+Controlla un format concreto, un hook specifico nei primi 3 secondi, progressione informativa fra scene, CTA con approfondimento concreto e aderenza all'argomento editoriale (se è presente un Reel guida, NON è la fonte del tema).
+Non richiedere la copia di un Reel guida né giudicare la bellezza di fotografie non ancora generate. Non inventare dati o promettere conversioni. Segnala falsi SOLO per difetti identificabili e descrivili indicando scene e testi nella ragione. Restituisci JSON.`;
+function advertisingIssue(review) {
+  const keys=['format_coherent','hook_specific','progression_useful','cta_relevant','topic_aligned'];
+  check(review&&keys.every(key=>typeof review[key]==='boolean')&&typeof review.advertising_reason==='string',
+    'revisione pubblicitaria non valida');
+  if(keys.every(key=>review[key]))return '';
+  return `struttura pubblicitaria insufficiente (${keys.filter(key=>!review[key]).join(', ')}): ${clean(review.advertising_reason,'motivazione QA',500)}`;
+}
 const semanticReviewSchema={type:'object',additionalProperties:false,properties:{
   genuinely_distinct:{type:'boolean'},difference_reason:{type:'string'},
-  art_direction_actionable:{type:'boolean'},art_direction_reason:{type:'string'}
-},required:['genuinely_distinct','difference_reason','art_direction_actionable','art_direction_reason']};
+  art_direction_actionable:{type:'boolean'},art_direction_reason:{type:'string'},
+  ...advertisingReviewFields
+},required:['genuinely_distinct','difference_reason','art_direction_actionable','art_direction_reason',
+  ...Object.keys(advertisingReviewFields)]};
 const guideAnalysisSystem=`Analizza un Reel guida arbitrario usando SOLO i fotogrammi visibili e i loro tempi.
 Estrai principi trasferibili di ALTA QUALITA: posizione e gerarchia dei testi, spazio negativo, contrasto e protezione dal crop, fotografia, inquadrature, ritmo osservabile e meccanismo narrativo.
 In narrative.story_summary descrivi i FATTI e la trama specifica da NON ricopiare in Ispirazione libera. Distingui la struttura efficace dalla trama.
@@ -184,6 +238,12 @@ PROTOCOLLO REEL GUIDA — DOPPIO OBIETTIVO:
 4) Non imporre persone, ambientazioni, azioni, oggetti, successioni narrative o finali predefiniti. Un Reel valido puo usare personaggi, oggetti, grafica, metafore, situazioni diverse oppure nessuna persona. Gli eventuali elementi reali e i claim devono restare verificabili.
 5) In creative_departure spiega che cosa viene conservato come preferenza dell'editor e che cosa cambia concretamente in scene, personaggi, ambienti, inquadrature e testi. Un tema comune non equivale a una scena copiata.
 `;
+const formatCreativeSystem=`FABBRICA DI REEL — scegli UN SOLO format_id dalla libreria qui sotto e spiega in format_reason perché quel meccanismo si adatta al tema.
+Libreria (i ruoli dipendono dal numero di scene, 3, 4 o 5). Per ogni scena format_beat deve valere ESATTAMENTE format_id:role, per esempio errore_correzione:hook, senza assegnare ruoli diversi dalla posizione:
+${formatIds.map(id=>`${id} (${advertisingFormats[id].label}): ${Object.entries(advertisingFormats[id].beats).map(([role,beat])=>`${role}=${beat}`).join('; ')}`).join('\n')}
+Usa SOLO i beat corrispondenti ai ruoli delle scene previste. I beat sono funzioni comunicative, NON immagini o frasi fisse. Varia ambienti, soggetti, composizione, tono e messaggi quando il tema lo permette. Non copiare fotogrammi, testi o personaggi del Reel guida.
+La guida, quando presente, serve a tarare lo standard fotografico/grafico; tema, scopo e fatti devono provenire dall'argomento editoriale, dall'articolo o dalle note dell'editor. Se il tema non offre fatti verificati, formula dubbi, controlli e inviti senza inventare dati.
+Una sola promessa comunicativa per scena: hook specifico, progresso reale in ogni quadro, CTA su un approfondimento pertinente. Non usare la CTA come slogan vuoto. Nessuna generazione di immagini prima della revisione pubblicitaria indipendente.`;
 const system=`Sei il regista di mini-storie audiovisive per Reel italiani OffertaLogica da 15 secondi.
 Se input_type=guide_image, usa la FOTO ALLEGATA come fonte primaria di soli elementi visivamente osservabili e come riferimento della direzione visiva; UNA FOTO non contiene una trama nel tempo. In Ispirazione libera inventa una NUOVA storia pertinente a OffertaLogica; in Aderenza forte sviluppa la scena fotografica in modo coerente. NON inventare fatti o parole non presenti nella foto. Se guide_fidelity=strong, conserva in ogni scena luce, temperatura colore, palette, materiali, texture, resa fotografica e atmosfera della foto guida; cambia deliberatamente l'azione e il taglio di ripresa per raccontare una storia senza replicare la medesima composizione. Se guide_fidelity=inspiration, mantieni soltanto un legame stilistico generale, lasciando maggiore libertà di ambientazione e illuminazione. Non leggere o inferire dalla fotografia fatti non visibili (identità, cifre, diritti, tariffe). La foto guida NON è una fonte verificata di dati. Se guide_usage=first_scene, la prima scena deve essere rappresentata dalla foto originale caricata dall'editor: descrivi ciò che vi è realmente visibile e pianifica SOLO le scene successive come nuovi momenti. Se guide_usage=reference_only, la fotografia guida dà soggetto/stile ma non impone che compaia come fotogramma.
 
@@ -239,7 +299,7 @@ export function buildCreativeRequest(input,{guideImageBytes=null,guideVideoFrame
       creative_rule:'La fonte e una foto singola: trasferisci principi grafici e fotografici osservabili, non un arco narrativo inventato.'})},
     {type:'image_url',image_url:{url:`data:image/jpeg;base64,${guideImageBytes.toString('base64')}`,detail:'high'}}
   ] : guided ? JSON.stringify({input,quality_profile:guideProfile,
-    creative_rule:'La guida e un riferimento di qualita richiesto per questo progetto. Non riprodurre testi o scene specifiche; conserva gli aspetti di stile, contenuto e struttura richiesti nelle note dell’editor.'})
+    creative_rule:'La guida fissa soltanto lo standard di cura visiva. Il TEMA E VINCOLANTE ed è input.topic/guide_context/suggestions; NON inventare un tema partendo dai fotogrammi. Seleziona il format pubblicitario idoneo senza copiare scene o messaggi.'})
   : input.input_type==='guide_image' ? [
     {type:'text',text:JSON.stringify(input)},
     {type:'image_url',image_url:{url:`data:image/jpeg;base64,${guideImageBytes.toString('base64')}`,detail:'high'}}
@@ -249,7 +309,7 @@ export function buildCreativeRequest(input,{guideImageBytes=null,guideVideoFrame
       url:`data:image/jpeg;base64,${frame.toString('base64')}`,detail:'low'}}))
   ] : JSON.stringify(input);
   return {...modelOptions(0.65,'medium'),
-    messages:[{role:'system',content:guided?system+guidedCreativeSystem+(input.input_type==='guide_image'?guidedImageCreativeSystem:''):system},{role:'user',content:userContent}],
+    messages:[{role:'system',content:(guided?system+guidedCreativeSystem+(input.input_type==='guide_image'?guidedImageCreativeSystem:''):system)+'\n\n'+formatCreativeSystem},{role:'user',content:userContent}],
     response_format:{type:'json_schema',json_schema:{name:guided?'video_studio_creative_v5':'video_studio_creative_v5',
       strict:true,schema:guided?guidedSceneSchema:schema}}};
 }
@@ -260,6 +320,9 @@ export function validateCreativeResponse(input,response) {
   check(input.scene_count_preference==='auto'||input.scene_count_preference==null||
     count===input.scene_count_preference,'numero scene diverso dalla preferenza manuale');
   const sceneRoles=sceneRolesForCount(count),durations=durationsByCount[count];
+  check(formatIds.includes(response.format_id),'format pubblicitario non riconosciuto');
+  const formatReason=clean(response.format_reason,'motivazione format',420);
+  check(formatReason.length>=25,'motivazione del format insufficiente');
   const concept=clean(response.concept,'concept',500);
   const audience=clean(response.audience,'audience',500);
   const editorialCaution=clean(response.editorial_caution,'editorial_caution',500);
@@ -280,7 +343,9 @@ export function validateCreativeResponse(input,response) {
   const scenes=response.scenes.map((s,i)=>{
     // Il ruolo è una proprietà strutturale della posizione: non dipende dall'etichetta AI.
     // Testi, azioni, continuità e unicità rimangono soggetti a validazione rigorosa.
-    check(s && roles.includes(s.role),`scena ${i+1}: ruolo narrativo non valido`);
+    check(s && s.role===sceneRoles[i],`scena ${i+1}: ruolo narrativo incompatibile con la posizione`);
+    check(s.format_beat===`${response.format_id}:${sceneRoles[i]}`,
+      `scena ${i+1}: beat del format non coerente`);
     const title=clean(s.headline,'headline',110);
     check(title.split(/\s+/u).length<=6,`scena ${i+1}: titolo troppo lungo`);
     const secondary=clean(s.secondary_text,'secondary_text',100,{optional:true});
@@ -335,7 +400,9 @@ export function validateCreativeResponse(input,response) {
     const signature=[narrativeAction,setting,shotType,keyObject].map(comparable).join('|');
     check(!sceneKeys.has(signature),`scena ${i+1}: situazione visiva duplicata`);
     sceneKeys.add(signature);
-    return {id:`scene_${i+1}`,duration_ms:durations[i],role:sceneRoles[i],headline:title,
+    return {id:`scene_${i+1}`,duration_ms:durations[i],role:sceneRoles[i],
+      format_beat:s.format_beat,format_beat_label:advertisingFormats[response.format_id].beats[sceneRoles[i]],
+      headline:title,
       secondary_text:secondary,editorial_goal:editorialGoal,visual_brief:visualBrief,
       subject_description:subjectDescription,emotion,subject_side:s.subject_side,
       narrative_action:narrativeAction,continuity_link:continuityLink,setting,shot_type:shotType,
@@ -372,7 +439,8 @@ export function validateCreativeResponse(input,response) {
   return {creative_schema_version:2,engine_version:CREATIVE_ENGINE_VERSION,input_type:input.input_type,
     guide_fidelity:['guide_image','guide_video'].includes(input.input_type)?(input.guide_fidelity||'inspiration'):null,
     input_fingerprint:sha(JSON.stringify(input)),source_fingerprint:input.source_fingerprint,
-    concept,audience,editorial_caution:editorialCaution,
+    format_id:response.format_id,format_label:advertisingFormats[response.format_id].label,
+    format_reason:formatReason,concept,audience,editorial_caution:editorialCaution,
     episode_angle:episodeAngle,story_logline:storyLogline,story_outcome:storyOutcome,
     protagonist_profile:protagonistProfile,
     guide_review:{observed_headlines:observedHeadlines,observed_story_angle:observedStoryAngle,
@@ -428,18 +496,20 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const compare=async candidate=>{
       const qa={...modelOptions(0.1,'low'),
         messages:[{role:'system',content:isPhoto?
-          `Sei un revisore indipendente di storyboard creati da UNA FOTOGRAFIA, non da un video. Non inventare una trama originale da attribuire alla foto. In Ispirazione libera verifica che le nuove scene siano originali, narrative e distinte, senza ripetere per 15 secondi la foto; il soggetto o il messaggio generale della guida possono essere mantenuti se richiesti nelle note. Se guide_usage=first_scene e CORRETTO che la prima scena corrisponda alla foto; valuta le successive. Valuta se art_direction e text_design sono applicabili al renderer, con testo leggibile, parole realmente presenti nell'headline e gerarchia CTA chiara; non certificare bellezza di foto non generate. Restituisci JSON.` :
-          `Sei un revisore INDIPENDENTE di storyboard. Confronta le SCENE SPECIFICHE e i testi del Reel guida con quelli della proposta. In Ispirazione libera richiedi nuove azioni, immagini e headline, non solo aggettivi sostituiti; NON penalizzare la conservazione di un tema generale, di un messaggio o di una struttura efficace richiesti dall'editor. In Aderenza forte una narrativa affine e ammessa. Valuta se art_direction e text_design possono rendere la grammatica grafica scelta, senza imporre pannelli e senza nascondere la CTA; non certificare bellezza di foto non generate. Restituisci JSON.`},
-          {role:'user',content:JSON.stringify({guide_fidelity:normalized.guide_fidelity,
+          advertisingReviewSystem+'\n'+`Sei un revisore indipendente di storyboard creati da UNA FOTOGRAFIA, non da un video. Non inventare una trama originale da attribuire alla foto. In Ispirazione libera verifica che le nuove scene siano originali, narrative e distinte, senza ripetere per 15 secondi la foto; il soggetto o il messaggio generale della guida possono essere mantenuti se richiesti nelle note. Se guide_usage=first_scene e CORRETTO che la prima scena corrisponda alla foto; valuta le successive. Valuta se art_direction e text_design sono applicabili al renderer, con testo leggibile, parole realmente presenti nell'headline e gerarchia CTA chiara; non certificare bellezza di foto non generate. Restituisci JSON.` :
+          advertisingReviewSystem+'\n'+`Sei un revisore INDIPENDENTE di storyboard. Confronta le SCENE SPECIFICHE e i testi del Reel guida con quelli della proposta. In Ispirazione libera richiedi nuove azioni, immagini e headline, non solo aggettivi sostituiti; NON penalizzare la conservazione di un tema generale, di un messaggio o di una struttura efficace richiesti dall'editor. In Aderenza forte una narrativa affine e ammessa. Valuta se art_direction e text_design possono rendere la grammatica grafica scelta, senza imporre pannelli e senza nascondere la CTA; non certificare bellezza di foto non generate. Restituisci JSON.`},
+          {role:'user',content:JSON.stringify({editorial_topic:normalized.topic,format_spec:advertisingFormats[candidate.format_id]||null,guide_fidelity:normalized.guide_fidelity,
             guide_usage:normalized.guide_usage||'reference_only',guide_story:profile.narrative,guide_headlines:profile.observed_headlines,
-            new_story:{concept:candidate.concept,episode_angle:candidate.episode_angle,
-              story_logline:candidate.story_logline,scenes:candidate.scenes.map(x=>({headline:x.headline,
+            new_story:{format_id:candidate.format_id,format_reason:candidate.format_reason,
+              concept:candidate.concept,episode_angle:candidate.episode_angle,
+              story_logline:candidate.story_logline,scenes:candidate.scenes.map(x=>({role:x.role,format_beat:x.format_beat,headline:x.headline,
                 narrative_action:x.narrative_action,setting:x.setting,shot_type:x.shot_type,
                 art_direction:x.art_direction,text_design:x.text_design}))}})}],
         response_format:{type:'json_schema',json_schema:{name:'video_story_qa_v1',strict:true,schema:semanticReviewSchema}}};
       const result=await askModel(qa);
       check(typeof result?.genuinely_distinct==='boolean'&&typeof result?.art_direction_actionable==='boolean',
         'valutazione semantica non valida');
+      advertisingIssue(result); // also validates review structure
       return result;
     };
     let proposal=await askModel(guidedRequest);
@@ -459,12 +529,14 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
           issue=`narrazione troppo vicina alla guida: ${clean(qa.difference_reason,'motivazione QA',500)}`;
         else if(!qa.art_direction_actionable)
           issue=`direzione artistica non applicabile: ${clean(qa.art_direction_reason,'motivazione QA',500)}`;
+        else if(advertisingIssue(qa))issue=advertisingIssue(qa);
         else return {...draft,guide_quality_profile:profile,
           creative_review:{narrative_original:qa.genuinely_distinct,
             narrative_reason:qa.difference_reason,graphics_actionable:qa.art_direction_actionable,
-            graphics_reason:qa.art_direction_reason,reviewed_before_photos:true}};
+            graphics_reason:qa.art_direction_reason,advertising_reason:qa.advertising_reason,
+            advertising_reviewed:true,reviewed_before_photos:true}};
       }
-      if(attempt===1)check(false,`Ispirazione libera: proposta non approvata dopo una revisione: ${issue}`);
+      if(attempt===1)check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${issue}`);
       const feedback=`Lo storyboard e stato BLOCCATO prima delle fotografie: ${issue}. `+
         (isPhoto?'La guida e una foto, NON un video e NON una trama. Inventa una progressione nuova; se guide_usage=first_scene conserva soltanto la prima scena fotografica originale. ':
           'Se le scene copiano azioni o frasi specifiche della guida, cambiale con un nuovo punto di vista, nuove inquadrature e un diverso percorso visivo, rispettando il tema o messaggio richiesto dall’editor. ') +
@@ -475,32 +547,42 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
         {role:'user',content:feedback}]});
     }
   }
-  const first=await askModel(request);
-  try{return validateCreativeResponse(normalized,first);}
-  catch(error) {
-    // Never bypass originality checks. Repair one rejected creative proposal before
-    // expensive photo generation, but do not retry other validation/provider failures.
-    const message=String(error?.message||'');
-    const duplicate=message.startsWith('VIDEO_STUDIO_CREATIVE: Ispirazione libera: scena ')&&
-      message.includes(' ripete il testo della guida;');
-    const canRepair=['guide_image','guide_video'].includes(normalized.input_type)&&
-      normalized.guide_fidelity==='inspiration'&&duplicate;
-    if(!canRepair)throw error;
-    const correction=`La proposta precedente e stata rifiutata dal controllo di originalita: ${message}. `+
-      'Non limitarti a cambiare parole o sinonimi nella scena segnalata. ' +
-      'Scegli un PROBLEMA EDITORIALE diverso da quello osservato nella guida, ' +
-      'un nuovo angolo narrativo e un nuovo percorso fra hook, spiegazione utile e CTA. ' +
-      'Riprogetta tutte le scene necessarie con azioni e ambienti coerenti, evitando ' +
-      'di ripetere qualsiasi frase elencata in guide_review.observed_headlines, ' +
-      'salvo il nome del brand nella CTA finale. ' +
-      'Mantieni la preferenza sul numero di scene, i 15 secondi e tutti i vincoli editoriali. ' +
-      'Restituisci solo un nuovo JSON completo conforme allo schema.';
-    const repaired=await askModel({...request,messages:[...request.messages,
-      {role:'assistant',content:JSON.stringify(first)},
+  const reviewUnguided=async draft=>{
+    const qa={...modelOptions(0.1,'low'),
+      messages:[{role:'system',content:advertisingReviewSystem},
+        {role:'user',content:JSON.stringify({editorial_topic:normalized.topic,
+          editorial_article:normalized.article?{title:normalized.article.title,
+            content:normalized.article.content.slice(0,6000)}:null,
+          format_spec:advertisingFormats[draft.format_id],format_id:draft.format_id,
+          format_reason:draft.format_reason,concept:draft.concept,
+          scenes:draft.scenes.map(scene=>({role:scene.role,format_beat:scene.format_beat,
+            format_beat_label:scene.format_beat_label,headline:scene.headline,
+            secondary_text:scene.secondary_text,narrative_action:scene.narrative_action,
+            editorial_goal:scene.editorial_goal}))})}],
+      response_format:{type:'json_schema',json_schema:{name:'video_advertising_review_v1',strict:true,
+        schema:advertisingReviewSchema}}};
+    return advertisingIssue(await askModel(qa));
+  };
+  let proposal=await askModel(request);
+  for(let attempt=0;attempt<2;attempt++){
+    let problem='';let draft=null;
+    try{draft=validateCreativeResponse(normalized,proposal);}
+    catch(error){problem=String(error?.message||error).slice(0,600);}
+    if(draft){
+      problem=await reviewUnguided(draft);
+      if(!problem)return {...draft,creative_review:{advertising_reviewed:true,
+        advertising_reason:'Controlli pubblicitari indipendenti superati prima delle fotografie; la resa estetica resta da verificare.',
+        reviewed_before_photos:true}};
+    }
+    if(attempt===1)check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${problem}`);
+    const correction=`Regia NON approvata prima delle immagini: ${problem}. Correggi il format,
+      la specificità del hook, la progressione fra le scene, la CTA e la coerenza con la fonte,
+      mantenendo 15 secondi, numero scene e sicurezza editoriale. Restituisci JSON completo.`;
+    proposal=await askModel({...request,messages:[...request.messages,
+      {role:'assistant',content:JSON.stringify(proposal)},
       {role:'user',content:correction}]});
-    // A second failure remains a hard stop: no photographs are generated.
-    return validateCreativeResponse(normalized,repaired);
   }
+
 }
 
 export function candidateArticles(articles,{processedIds=[]}={}) {
