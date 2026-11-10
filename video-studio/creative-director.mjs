@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.16';
+const CREATIVE_ENGINE_VERSION = '1.3.3.17';
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -206,7 +206,15 @@ function advertisingIssue(review) {
   check(review&&keys.every(key=>typeof review[key]==='boolean')&&typeof review.advertising_reason==='string',
     'revisione pubblicitaria non valida');
   if(keys.every(key=>review[key]))return '';
-  return `struttura pubblicitaria insufficiente (${keys.filter(key=>!review[key]).join(', ')}): ${clean(review.advertising_reason,'motivazione QA',500)}`;
+  return `struttura pubblicitaria insufficiente (${keys.filter(key=>!review[key]).join(', ')}): ${conciseQaReason(review.advertising_reason)}`;
+}
+// QA prose is feedback, not a fixed-size creative field: preserve the verdict
+// and bound the explanation used for the next revision instead of aborting.
+function conciseQaReason(value) {
+  const reason=clean(value,'motivazione QA');
+  if(reason.length<=500)return reason;
+  const boundary=reason.lastIndexOf(' ',497);
+  return `${reason.slice(0,boundary>=320?boundary:497).trimEnd()}...`;
 }
 const semanticReviewSchema={type:'object',additionalProperties:false,properties:{
   genuinely_distinct:{type:'boolean'},difference_reason:{type:'string'},
@@ -526,9 +534,9 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
         // Provider failures are NOT creative defects: propagate instead of paying for another generation.
         const qa=await compare(draft);
         if(normalized.guide_fidelity==='inspiration'&&!qa.genuinely_distinct)
-          issue=`narrazione troppo vicina alla guida: ${clean(qa.difference_reason,'motivazione QA',500)}`;
+          issue=`narrazione troppo vicina alla guida: ${conciseQaReason(qa.difference_reason)}`;
         else if(!qa.art_direction_actionable)
-          issue=`direzione artistica non applicabile: ${clean(qa.art_direction_reason,'motivazione QA',500)}`;
+          issue=`direzione artistica non applicabile: ${conciseQaReason(qa.art_direction_reason)}`;
         else if(advertisingIssue(qa))issue=advertisingIssue(qa);
         else return {...draft,guide_quality_profile:profile,
           creative_review:{narrative_original:qa.genuinely_distinct,
