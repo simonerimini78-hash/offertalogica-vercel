@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.19';
+const CREATIVE_ENGINE_VERSION = '1.3.3.20';
 // Max 300 s for /api; the browser gives a storyboard 265 s.
 // The orchestration has a single 235 s budget across ALL model calls.
 const CREATIVE_TOTAL_BUDGET_MS=235000;
@@ -13,8 +13,8 @@ const CREATIVE_PROVIDER_TIMEOUT_MS=90000;
 const CREATIVE_SAFETY_MS=5000;
 const CREATIVE_MIN_CALL_MS=20000;
 const CREATIVE_MIN_REPAIR_MS=75000;
-// 20k characters can reject a legitimate four/five-scene JSON; keep payload bounded.
-const CREATIVE_MAX_RESPONSE_CHARS=36000;
+// Allow verbose but syntactically valid 3–5 scene JSON; keep a generous transport safety ceiling.
+const CREATIVE_MAX_RESPONSE_CHARS=96000;
 // An old deployment variable must not silently keep using a retiring GPT-4.1 model.
 function creativeModel() {
   const selected = String(process.env.VIDEO_STUDIO_CREATIVE_MODEL || '').trim();
@@ -92,6 +92,20 @@ function clean(v,label,max,{optional=false}={}) {
     (typeof v==='string'&&v.trim()&&(max==null||v.length<=max));
   check(valid,`${label} non valido${max==null?'':` (massimo ${max} caratteri)`}`);
   return String(v||'').trim();
+}
+// AI-authored descriptions are advisory prose, not visible copy. A long valid
+// description must never block an entire Reel or consume a paid repair cycle.
+// Normalize these fields at a word/sentence boundary before signing the plan.
+// Visible copy, color syntax, scene roles and other structural gates stay strict.
+function cleanGenerated(v,label,max,{optional=false}={}) {
+  const value=clean(v,label,null,{optional});
+  if(max==null||value.length<=max)return value;
+  const prefix=value.slice(0,max);
+  const sentences=[...prefix.matchAll(/[.!?;](?=\s|$)/g)];
+  const end=sentences.at(-1)?.index;
+  if(Number.isInteger(end)&&end>=max*0.65)return prefix.slice(0,end+1).trimEnd();
+  const boundary=prefix.lastIndexOf(' ');
+  return prefix.slice(0,boundary>=max*0.65?boundary:max).trimEnd();
 }
 export function normalizeInput({theme,article,suggestions='',platform='instagram_reel',guideImageSha256='',guideVideoSha256='',guideVideoDurationMs=0,guideVideoFrameTimesMs=[],guideUsage='reference_only',guideContext='',guideFidelity='inspiration',sceneCountPreference='auto'}={}) {
   check(['instagram_reel','facebook_reel'].includes(platform),'piattaforma non supportata');
@@ -294,7 +308,7 @@ Non inventare risparmi, percentuali, tariffe, bollette, testimonianze, confronti
 PIANO GRAFICO text_design: scegli font_mood coerente fra scene, salvo contrasti intenzionali; emphasis_text deve essere una parola o breve frase LETTERALMENTE PRESENTE nell'headline, oppure '' se non serve enfasi; emphasis_effect (none, color, underline, brush, block) sceglie come valorizzarla; block e una campitura compatta ad alto contrasto dietro SOLTANTO la parola chiave. Non usare campiture per tutta la CTA. Per le scene non CTA usa cta_focus=balanced, cta_accent=none, cta_align=auto, cta_lettering=display, cta_gesture=none e cta_order='logo,headline,support,action,domain'. Nella CTA scegli cta_focus (follow, site, balanced), cta_accent (none, color, underline, brush) e cta_align (left, center, right, auto) in base alla guida e alla fotografia. cta_lettering (display, italic) definisce la voce tipografica di 'SEGUI'; cta_gesture (none, rays, arrow) e un accento grafico opzionale misurato dal renderer, mai un box obbligatorio. cta_order indica l'ORDINE LIBERO dei cinque elementi logo,headline,support,action,domain separati da virgole, senza omissioni o ripetizioni: sceglilo in base alla gerarchia (il renderer omette il supporto se vuoto). Non fissare sempre lo stesso ordine. Sono istruzioni di stile, non un modello fisso. Evita ripetizioni estetiche inutili. Tutti i blocchi essenziali devono restare leggibili nella griglia social senza tagli. Non chiedere nuove chiamate AI per il disegno; Canvas usera queste istruzioni.
 Le note del proprietario sono indicazioni creative, non autorizzano affermazioni non supportate. Se l'input è un articolo, rispetta le condizioni e sfumature delle fonti; se è un tema libero, le affermazioni fattuali sono proposte da verificare.
 Non asserire che contenuti, immagini, originalità storica o licenze siano già stati approvati.
-Limiti delle descrizioni: subject_description al massimo 450 caratteri; visual_brief, editorial_goal ed emotion al massimo 500; narrative_action 200, setting 200, shot_type 110, key_object 110, art_direction.camera_intent e art_direction.photo_lighting 200. Inserisci prima i dettagli essenziali.`;
+Scrivi descrizioni operative concise: indica prima i fatti utili a fotografare e montare la scena, evitando ripetizioni e premesse prolisse. In editorial_caution conserva le cautele necessarie senza riempitivi. I titoli visibili devono restare brevi e leggibili.`;
 function comparable(value) {
   return String(value||'').normalize('NFKD').replace(/[\u0300-\u036f]/g,'')
     .toLowerCase().replace(/[^a-z0-9]+/g,' ').trim().replace(/\s+/g,' ');
@@ -343,21 +357,21 @@ export function validateCreativeResponse(input,response) {
     count===input.scene_count_preference,'numero scene diverso dalla preferenza manuale');
   const sceneRoles=sceneRolesForCount(count),durations=durationsByCount[count];
   check(formatIds.includes(response.format_id),'format pubblicitario non riconosciuto');
-  const formatReason=clean(response.format_reason,'motivazione format',420);
+  const formatReason=cleanGenerated(response.format_reason,'motivazione format',420);
   check(formatReason.length>=25,'motivazione del format insufficiente');
-  const concept=clean(response.concept,'concept',500);
-  const audience=clean(response.audience,'audience',500);
-  const editorialCaution=clean(response.editorial_caution,'editorial_caution',500);
-  const episodeAngle=clean(response.episode_angle,'episode_angle',220);
-  const storyLogline=clean(response.story_logline,'story_logline',380);
-  const storyOutcome=clean(response.story_outcome,'story_outcome',350);
-  const protagonistProfile=clean(response.protagonist_profile,'protagonist_profile',360,{optional:true});
+  const concept=cleanGenerated(response.concept,'concept',500);
+  const audience=cleanGenerated(response.audience,'audience',500);
+  const editorialCaution=clean(response.editorial_caution,'editorial_caution');
+  const episodeAngle=cleanGenerated(response.episode_angle,'episode_angle',220);
+  const storyLogline=cleanGenerated(response.story_logline,'story_logline',380);
+  const storyOutcome=cleanGenerated(response.story_outcome,'story_outcome',350);
+  const protagonistProfile=cleanGenerated(response.protagonist_profile,'protagonist_profile',360,{optional:true});
   check(response.guide_review&&typeof response.guide_review==='object'&&
     Array.isArray(response.guide_review.observed_headlines)&&
     response.guide_review.observed_headlines.length<=8,'resoconto Reel guida non valido');
   const observedHeadlines=response.guide_review.observed_headlines.map(x=>clean(x,'testo rilevato dalla guida',null));
   const observedStoryAngle=clean(response.guide_review.observed_story_angle,'angolo guida',null,{optional:true});
-  const creativeDeparture=clean(response.guide_review.creative_departure,'divergenza creativa',500,{optional:true});
+  const creativeDeparture=cleanGenerated(response.guide_review.creative_departure,'divergenza creativa',500,{optional:true});
   const inventive=['guide_image','guide_video'].includes(input.input_type)&&input.guide_fidelity==='inspiration';
   if(inventive) check(creativeDeparture.length>=30,
     'Ispirazione libera: manca una nuova direzione narrativa dichiarata');
@@ -373,15 +387,15 @@ export function validateCreativeResponse(input,response) {
     const secondary=clean(s.secondary_text,'secondary_text',100,{optional:true});
     check(!secondary||secondary.split(/\s+/u).length<=8,`scena ${i+1}: testo secondario troppo lungo`);
     check(['left','right','center'].includes(s.subject_side),'posizione soggetto non valida');
-    const editorialGoal=clean(s.editorial_goal,'editorial_goal',600);
-    const visualBrief=clean(s.visual_brief,'visual_brief',600);
+    const editorialGoal=cleanGenerated(s.editorial_goal,'editorial_goal',600);
+    const visualBrief=cleanGenerated(s.visual_brief,'visual_brief',600);
     const subjectDescription=boundedSubject(s.subject_description);
-    const emotion=clean(s.emotion,'emotion',600);
-    const narrativeAction=clean(s.narrative_action,'narrative_action',220);
-    const continuityLink=clean(s.continuity_link,'continuity_link',240,{optional:i===0});
-    const setting=clean(s.setting,'setting',220);
-    const shotType=clean(s.shot_type,'shot_type',120);
-    const keyObject=clean(s.key_object,'key_object',120,{optional:true});
+    const emotion=cleanGenerated(s.emotion,'emotion',600);
+    const narrativeAction=cleanGenerated(s.narrative_action,'narrative_action',220);
+    const continuityLink=cleanGenerated(s.continuity_link,'continuity_link',240,{optional:i===0});
+    const setting=cleanGenerated(s.setting,'setting',220);
+    const shotType=cleanGenerated(s.shot_type,'shot_type',120);
+    const keyObject=cleanGenerated(s.key_object,'key_object',120,{optional:true});
     check(i===0||continuityLink.length>=8,`scena ${i+1}: legame narrativo mancante`);
     let textDesign=null;
     if(s.text_design!=null) {
@@ -397,7 +411,9 @@ export function validateCreativeResponse(input,response) {
       const order=String(d.cta_order||'').split(',').map(v=>v.trim());
       check(order.length===5&&new Set(order).size===5&&
         ['logo','headline','support','action','domain'].every(k=>order.includes(k)),'ordine CTA non valido');
-      const requested=clean(d.emphasis_text,'parola in evidenza',50,{optional:true});
+      // A verbose emphasis hint is not worth rejecting a complete storyboard.
+      const requested=typeof d.emphasis_text==='string'&&d.emphasis_text.length<=50
+        ? d.emphasis_text.trim() : '';
       // Gracefully discard impossible emphasis instead of losing a good creative proposal.
       const normal=v=>String(v).normalize('NFKD').replace(/[\u0300-\u036f]/g,'').toLowerCase();
       const found=Boolean(requested&&normal(title).includes(normal(requested)));
@@ -415,8 +431,8 @@ export function validateCreativeResponse(input,response) {
       const accent=clean(direction.accent_color,'colore di accento',7);
       check(/^#[0-9a-fA-F]{6}$/.test(accent),'colore di accento non valido');
       artDirection={placement:direction.placement,typography:direction.typography,accent_color:accent,
-        photo_lighting:clean(direction.photo_lighting,'luce di scena',220),
-        camera_intent:clean(direction.camera_intent,'intenzione camera',220)};
+        photo_lighting:cleanGenerated(direction.photo_lighting,'luce di scena',220),
+        camera_intent:cleanGenerated(direction.camera_intent,'intenzione camera',220)};
     }
     // Conservative visible-copy guard: avoids advertising tied to an expiry or a numeric price.
     const visibleCopy=`${title} ${secondary}`;
