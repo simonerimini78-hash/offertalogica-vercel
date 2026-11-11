@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, sceneRolesForCount} from './creative-director.mjs';
 import {generatePhoto, photoPrompt, parseImageRevisionNotes, modelImageReferences} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.22';
+export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.23';
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};

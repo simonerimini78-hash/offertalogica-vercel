@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.22 image composition; independent of editorial automations.
+// Video Studio v1.3.3.23 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
