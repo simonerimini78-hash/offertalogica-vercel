@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.21';
+const CREATIVE_ENGINE_VERSION = '1.3.3.22';
 // Max 300 s for /api; the browser gives a storyboard 265 s.
 // The orchestration has a single 235 s budget across ALL model calls.
 const CREATIVE_TOTAL_BUDGET_MS=235000;
@@ -227,9 +227,22 @@ const advertisingReviewSchema={type:'object',additionalProperties:false,
 const advertisingReviewSystem=`Sei un revisore indipendente della STRUTTURA PUBBLICITARIA, non un generatore creativo.
 Controlla un format concreto, un hook specifico nei primi 3 secondi, progressione informativa fra scene, CTA con approfondimento concreto e aderenza all'argomento editoriale (se è presente un Reel guida, NON è la fonte del tema).
 Verifica progression_useful anche come COERENZA TESTO-IMMAGINE: per ogni quadro confronta headline + secondary_text con emotion, visual_brief e narrative_action. La scritta deve chiarire il problema che il volto fa sentire, poi una scoperta o una via d\'uscita mostrata da un gesto concreto e infine una CTA accessibile allo spettatore. Rifiuta sequenze di cartelli informativi senza legame emotivo o immagini che raccontano un\'altra cosa. Non pretendere sentimenti simulati o sorrisi finti. Verifica visual_variety: le azioni e le inquadrature descritte sono davvero differenti, non la stessa persona allo stesso tavolo con gesti lievemente modificati. Se esiste un protagonista ricorrente, valuta la continuita' della sua evoluzione emotiva: dubbio riconoscibile, comprensione e sollievo proporzionato; NON chiedere di sostituirlo con estranei o spostarlo in stanze inutili. Verifica evergreen_suitable: il testo NON dipende da prezzi, tariffe, bonus, date, scadenze promozionali o attualita; consigli condizionali possono restare validi nel tempo. Non promettere che sia garantito visibile per sempre.
+Per CTA valuta ESCLUSIVAMENTE l'ultima scena e il suo rapporto con il problema narrato e l'argomento. Il compositore aggiunge automaticamente logo autentico, 'SEGUI' e 'OFFERTALOGICA.IT': NON dichiarare cta_relevant=false perche questi elementi mancano dalla headline. Una headline breve che promette un approfondimento pertinente e concreto e valida anche senza un imperativo. Se cta_relevant=false, advertising_reason DEVE citare fra virgolette la headline CTA esatta e spiegare esattamente cosa non funziona rispetto all'argomento o all'esito della storia; una valutazione positiva delle scene precedenti non e una spiegazione della bocciatura CTA.
 Non richiedere la copia di un Reel guida né giudicare la bellezza di fotografie non ancora generate. Non inventare dati o promettere conversioni. Segnala falsi SOLO per difetti identificabili e descrivili indicando scene e testi nella ragione. Restituisci JSON.`;
+const advertisingReviewKeys=['format_coherent','hook_specific','progression_useful','cta_relevant','topic_aligned','visual_variety','evergreen_suitable'];
+function failedAdvertisingKeys(review) {
+  return advertisingReviewKeys.filter(key=>!review[key]);
+}
+function qaCtaContext(draft) {
+  const last=draft.scenes.at(-1);
+  return {headline:last.headline,secondary_text:last.secondary_text,
+    story_outcome:draft.story_outcome,
+    // These are always drawn by the local renderer, NOT written by the AI.
+    renderer_action:'SEGUI',renderer_domain:'OFFERTALOGICA.IT',
+    logo_authentic:true};
+}
 function advertisingIssue(review) {
-  const keys=['format_coherent','hook_specific','progression_useful','cta_relevant','topic_aligned','visual_variety','evergreen_suitable'];
+  const keys=advertisingReviewKeys;
   check(review&&keys.every(key=>typeof review[key]==='boolean')&&typeof review.advertising_reason==='string',
     'revisione pubblicitaria non valida');
   if(keys.every(key=>review[key]))return '';
@@ -629,6 +642,7 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
             content:normalized.article.content.slice(0,6000)}:null,
           format_spec:advertisingFormats[draft.format_id],format_id:draft.format_id,
           format_reason:draft.format_reason,concept:draft.concept,
+          cta_context:qaCtaContext(draft),
           scenes:draft.scenes.map(scene=>({role:scene.role,format_beat:scene.format_beat,
             format_beat_label:scene.format_beat_label,headline:scene.headline,
             secondary_text:scene.secondary_text,narrative_action:scene.narrative_action,emotion:scene.emotion,
@@ -636,27 +650,61 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
             editorial_goal:scene.editorial_goal}))})}],
       response_format:{type:'json_schema',json_schema:{name:'video_advertising_review_v1',strict:true,
         schema:advertisingReviewSchema}}};
-    return advertisingIssue(await askModel(qa,{phase:'QA pubblicitario'}));
+    const review=await askModel(qa,{phase:'QA pubblicitario'});
+    return {issue:advertisingIssue(review),failedKeys:failedAdvertisingKeys(review),
+      reason:review.advertising_reason};
   };
   let proposal=await askModel(request,{phase:'regia iniziale',reserveMs:35000});
   for(let attempt=0;attempt<2;attempt++){
-    let problem='';let draft=null;
+    let problem='';let draft=null;let failedKeys=[];let reviewReason='';
     try{draft=validateCreativeResponse(normalized,proposal);}
     catch(error){problem=String(error?.message||error).slice(0,600);}
     if(draft){
-      problem=await reviewUnguided(draft);
+      const review=await reviewUnguided(draft);
+      problem=review.issue;failedKeys=review.failedKeys;reviewReason=review.reason;
       if(!problem)return {...draft,creative_review:{advertising_reviewed:true,
         advertising_reason:'Controlli pubblicitari indipendenti superati prima delle fotografie; la resa estetica resta da verificare.',
         reviewed_before_photos:true}};
     }
-    if(attempt===1)check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${problem}`);
-    const correction=`Regia NON approvata prima delle immagini: ${problem}. Correggi il format,
-      la specificità del hook, la progressione fra le scene, la CTA e la coerenza con la fonte,
-      mantenendo 15 secondi, numero scene e sicurezza editoriale. Restituisci JSON completo.`;
+    // CTA-only problems must never trigger a rewrite of an otherwise accepted Reel.
+    const onlyCta=Boolean(draft&&failedKeys.length===1&&failedKeys[0]==='cta_relevant');
+    const ctaHeadline=draft?.scenes.at(-1)?.headline||'';
+    if(attempt===1){
+      if(onlyCta){
+        const grounded=comparable(reviewReason).includes(comparable(ctaHeadline));
+        check(false,`CTA non approvata (headline: "${ctaHeadline}"): ${grounded?'':'motivazione QA non riferita alla CTA; '}${problem}`);
+      }
+      check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${problem}`);
+    }
+    const correction=onlyCta ?
+      `L'UNICO problema segnalato dal QA e la CTA finale: ${problem}. `+
+      `L'ultima headline e "${ctaHeadline}". Il renderer aggiunge GIA logo, SEGUI e OFFERTALOGICA.IT. `+
+      `Modifica SOLO l'ultima scena, per mostrare una promessa breve di approfondimento `+
+      `specifico sull'argomento ${JSON.stringify(normalized.topic)} e coerente con la soluzione della storia. `+
+      `Non inventare servizi disponibili, tariffe o risultati. Conserva IDENTICI format, protagonista, `+
+      `scene precedenti, durata, tono e contenuti approvati. Restituisci il JSON completo.` :
+      `Regia NON approvata prima delle immagini: ${problem}. Correggi ESCLUSIVAMENTE i difetti `+
+      `indicati dalla revisione, mantenendo intatte le parti gia valide, 15 secondi, numero scene `+
+      `e sicurezza editoriale. Restituisci JSON completo.`;
     ensureRevisionBudget(problem);
-    proposal=await askModel({...request,messages:[...request.messages,
+    const previous=proposal;
+    const revised=await askModel({...request,messages:[...request.messages,
       {role:'assistant',content:JSON.stringify(proposal)},
-      {role:'user',content:correction}]},{phase:'correzione storyboard',reserveMs:30000});
+      {role:'user',content:correction}]},{phase:onlyCta?'correzione mirata CTA':'correzione storyboard',reserveMs:30000});
+    if(onlyCta){
+      check(Array.isArray(previous?.scenes)&&Array.isArray(revised?.scenes)&&
+        revised.scenes.length===previous.scenes.length,
+        'correzione CTA non valida: numero scene alterato');
+      // Protect the rest of the film even if the language model rewrites it.
+      // Accept only fields belonging to the last scene; structural roles remain fixed.
+      const allowed=['headline','secondary_text','editorial_goal','visual_brief',
+        'subject_description','emotion','subject_side','narrative_action','continuity_link',
+        'setting','shot_type','key_object','art_direction','text_design'];
+      const i=previous.scenes.length-1;
+      const cta={...previous.scenes[i]};
+      for(const key of allowed)if(Object.hasOwn(revised.scenes[i]||{},key))cta[key]=revised.scenes[i][key];
+      proposal={...previous,scenes:previous.scenes.map((scene,index)=>index===i?cta:scene)};
+    }else proposal=revised;
   }
 
 }
