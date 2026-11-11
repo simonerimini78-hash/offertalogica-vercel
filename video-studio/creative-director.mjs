@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.23';
+const CREATIVE_ENGINE_VERSION = '1.3.3.24';
 // Max 300 s for /api; the browser gives a storyboard 265 s.
 // The orchestration has a single 235 s budget across ALL model calls.
 const CREATIVE_TOTAL_BUDGET_MS=235000;
@@ -240,12 +240,21 @@ const artDirectionSchema={type:'object',additionalProperties:false,properties:{
 schema.properties.scenes.items.properties.art_direction=artDirectionSchema;
 schema.properties.scenes.items.required.push('art_direction');
 const guidedSceneSchema=JSON.parse(JSON.stringify(schema));
+const advertisingReviewKeys=['format_coherent','hook_specific','progression_useful','cta_relevant','topic_aligned','visual_variety','curiosity_sustained','payoff_specific','evergreen_suitable'];
 const advertisingReviewFields={
   format_coherent:{type:'boolean'},hook_specific:{type:'boolean'},
   progression_useful:{type:'boolean'},cta_relevant:{type:'boolean'},
   topic_aligned:{type:'boolean'},visual_variety:{type:'boolean'},
   curiosity_sustained:{type:'boolean'},payoff_specific:{type:'boolean'},
-  evergreen_suitable:{type:'boolean'},advertising_reason:{type:'string'}
+  evergreen_suitable:{type:'boolean'},advertising_reason:{type:'string'},
+  // One concrete, individually actionable finding per failed criterion.
+  // A positive-sounding overall explanation must never mask a negative verdict.
+  findings:{type:'array',items:{type:'object',additionalProperties:false,properties:{
+    criterion:{type:'string',enum:advertisingReviewKeys},
+    scene_number:{type:'integer'},
+    defect:{type:'string'},
+    requested_change:{type:'string'}
+  },required:['criterion','scene_number','defect','requested_change']}}
 };
 const advertisingReviewSchema={type:'object',additionalProperties:false,
   properties:advertisingReviewFields,required:Object.keys(advertisingReviewFields)};
@@ -254,9 +263,9 @@ Controlla un format concreto, un hook specifico nei primi 3 secondi, progression
 Verifica curiosity_sustained: il primo quadro deve aprire una curiosita SPECIFICA che motivi a vedere almeno il quadro successivo. Una domanda prevedibile con risposta gia nota, un'etichetta di argomento o un semplice "lo sapevi?" NON bastano. Non richiedere shock, paura, sensazionalismo o suspense artificiale. La curiosita puo nascere da un quiz, un dettaglio non spiegato, un contrasto o un gesto concreto: valuta il meccanismo effettivamente scelto.
 Verifica payoff_specific: un quadro successivo deve offrire una scoperta, una risposta o una nuova prospettiva IDENTIFICABILE che ripaghi l'aspettativa aperta dal hook. Una sequenza di consigli attesi e didascalie corrette ma prevedibili NON supera questo criterio. La risposta non deve inventare risultati, fatti o condizioni commerciali; la CTA deve essere coerente con quanto emerso, non sostituire il payoff.
 Verifica progression_useful anche come COERENZA TESTO-IMMAGINE: confronta headline + secondary_text con emotion, visual_brief e narrative_action. Il testo deve accrescere il significato dell'immagine: quando c'e una persona rispetta il gesto e l'espressione; quando ci sono oggetti o metafore non pretendere un volto o emozioni fittizie. Rifiuta cartelli informativi scollegati dalle immagini o scene che non aggiungono nulla. Verifica visual_variety: azioni, punti di vista e inquadrature sono davvero differenti, non la stessa persona nello stesso posto con gesti minimi. Un protagonista puo restare riconoscibile per tutte le scene, senza cambi arbitrari di stanza. Verifica evergreen_suitable: le scritte non dipendono da prezzi, tariffe, bonus, date, promozioni o attualita; affermazioni variabili richiedono controllo editoriale prima del riutilizzo.
-Per cta_relevant valuta ESCLUSIVAMENTE l'ultima scena e la coerenza con il payoff e l'argomento. Il compositore aggiunge logo autentico, 'SEGUI' e 'OFFERTALOGICA.IT': NON bocciare perche questi elementi mancano dalla headline. La CTA deve offrire un motivo pertinente per seguire o approfondire, senza affermare che sul sito esista gia una guida o un servizio non verificato. Se cta_relevant=false, advertising_reason DEVE citare fra virgolette la headline CTA esatta e spiegarne il difetto specifico.
-Non richiedere la copia di un Reel guida né giudicare la bellezza di fotografie non ancora generate. Non inventare dati o promettere conversioni. Segnala falsi SOLO per difetti identificabili e descrivili indicando scene e testi nella ragione. Restituisci JSON.`;
-const advertisingReviewKeys=['format_coherent','hook_specific','progression_useful','cta_relevant','topic_aligned','visual_variety','curiosity_sustained','payoff_specific','evergreen_suitable'];
+Per cta_relevant valuta ESCLUSIVAMENTE l'ultima scena e la coerenza con il payoff e l'argomento. Il compositore aggiunge logo autentico, 'SEGUI' e 'OFFERTALOGICA.IT': NON bocciare perche questi elementi mancano dalla headline. La CTA deve offrire un motivo pertinente per seguire o approfondire, senza affermare che sul sito esista gia una guida o un servizio non verificato. Se cta_relevant=false, indica il difetto specifico della headline CTA.
+Non richiedere la copia di un Reel guida né giudicare la bellezza di fotografie non ancora generate. Non inventare dati o promettere conversioni.
+Per OGNI criterio false inserisci ESATTAMENTE un elemento in findings, con criterion identico alla chiave booleana, scene_number da 1 al numero di scene, defect che spiega cosa manca citando la headline esatta della scena e requested_change che descrive UNA correzione osservabile. Per curiosity_sustained indica la scena dell'hook; per payoff_specific indica una scena NON-CTA dove manca la ricompensa. Non aggiungere findings per criteri true. Se non puoi identificare un difetto preciso, non marcare il criterio false. advertising_reason e solo un riepilogo: se ci sono criteri false NON scrivere un riepilogo soltanto elogiativo, e non contraddire i findings. Restituisci JSON.`;
 function failedAdvertisingKeys(review) {
   return advertisingReviewKeys.filter(key=>!review[key]);
 }
@@ -268,12 +277,53 @@ function qaCtaContext(draft) {
     renderer_action:'SEGUI',renderer_domain:'OFFERTALOGICA.IT',
     logo_authentic:true};
 }
+function validatedQaFindings(review,draft) {
+  check(Array.isArray(review?.findings),'diagnostica QA mancante');
+  const failed=failedAdvertisingKeys(review);
+  return failed.map(key=>{
+    const matches=review.findings.filter(f=>f?.criterion===key);
+    const finding=matches.length===1?matches[0]:null;
+    const sceneNumber=finding?.scene_number;
+    const validScene=Number.isInteger(sceneNumber)&&sceneNumber>=1&&
+      sceneNumber<=draft.scenes.length&&
+      !(key==='payoff_specific'&&sceneNumber===draft.scenes.length)&&
+      !(key==='curiosity_sustained'&&sceneNumber!==1)&&
+      !(key==='cta_relevant'&&sceneNumber!==draft.scenes.length);
+    const defect=typeof finding?.defect==='string'?finding.defect.trim():'';
+    const change=typeof finding?.requested_change==='string'?finding.requested_change.trim():'';
+    // Never approve a false criterion because the reviewer provided vague evidence.
+    // Report missing diagnostics explicitly and keep the negative verdict.
+    return {criterion:key,scene_number:validScene?sceneNumber:
+      (key==='curiosity_sustained'||key==='hook_specific'?1:
+        key==='cta_relevant'?draft.scenes.length:
+        key==='payoff_specific'?draft.scenes.length-1:1),
+      defect:validScene&&defect?defect:'motivazione QA non specifica',
+      requested_change:validScene&&change?change:'indicare e correggere un difetto concreto nel testo e nella scena'};
+  });
+}
+function qaFeedback(findings,draft) {
+  return findings.map(item=>{
+    const headline=draft.scenes[item.scene_number-1]?.headline||'';
+    return `${item.criterion}, scena ${item.scene_number}, headline "${headline}": ${item.defect}. Correzione richiesta: ${item.requested_change}`;
+  }).join(' | ');
+}
+function qaShortError(findings,draft) {
+  const labels={curiosity_sustained:'curiosita',payoff_specific:'payoff',cta_relevant:'CTA'};
+  const parts=findings.map(item=>{
+    const defect=item.defect.replace(/\s+/g,' ').slice(0,46);
+    return `${labels[item.criterion]||item.criterion} s${item.scene_number}: ${defect}`;
+  });
+  // /api truncates error messages at 200 chars; keep the useful scene/criterion data visible.
+  const prefix='QA non superata: ';
+  const value=parts.join('; ');
+  return prefix+(value.length<=150?value:value.slice(0,147).trimEnd()+'...');
+}
 function advertisingIssue(review) {
   const keys=advertisingReviewKeys;
-  check(review&&keys.every(key=>typeof review[key]==='boolean')&&typeof review.advertising_reason==='string',
-    'revisione pubblicitaria non valida');
+  check(review&&keys.every(key=>typeof review[key]==='boolean')&&typeof review.advertising_reason==='string'&&
+    Array.isArray(review.findings),'revisione pubblicitaria non valida');
   if(keys.every(key=>review[key]))return '';
-  return `struttura pubblicitaria insufficiente (${keys.filter(key=>!review[key]).join(', ')}): ${conciseQaReason(review.advertising_reason)}`;
+  return `struttura pubblicitaria insufficiente (${failedAdvertisingKeys(review).join(', ')}): ${conciseQaReason(review.advertising_reason)}`;
 }
 // QA prose is feedback, not a fixed-size creative field: preserve the verdict
 // and bound the explanation used for the next revision instead of aborting.
@@ -620,7 +670,7 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
               story_logline:candidate.story_logline,scenes:candidate.scenes.map(x=>({role:x.role,format_beat:x.format_beat,headline:x.headline,
                 narrative_action:x.narrative_action,emotion:x.emotion,visual_brief:x.visual_brief,secondary_text:x.secondary_text,continuity_link:x.continuity_link,setting:x.setting,shot_type:x.shot_type,
                 art_direction:x.art_direction,text_design:x.text_design}))}})}],
-        response_format:{type:'json_schema',json_schema:{name:'video_story_qa_v1',strict:true,schema:semanticReviewSchema}}};
+        response_format:{type:'json_schema',json_schema:{name:'video_story_qa_v2',strict:true,schema:semanticReviewSchema}}};
       const result=await askModel(qa,{phase:'QA pubblicitario'});
       check(typeof result?.genuinely_distinct==='boolean'&&typeof result?.art_direction_actionable==='boolean',
         'valutazione semantica non valida');
@@ -677,20 +727,21 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
             secondary_text:scene.secondary_text,narrative_action:scene.narrative_action,emotion:scene.emotion,
             visual_brief:scene.visual_brief,continuity_link:scene.continuity_link,setting:scene.setting,shot_type:scene.shot_type,art_direction:scene.art_direction,
             editorial_goal:scene.editorial_goal,text_design:scene.text_design}))})}],
-      response_format:{type:'json_schema',json_schema:{name:'video_advertising_review_v1',strict:true,
+      response_format:{type:'json_schema',json_schema:{name:'video_advertising_review_v2',strict:true,
         schema:advertisingReviewSchema}}};
     const review=await askModel(qa,{phase:'QA pubblicitario'});
-    return {issue:advertisingIssue(review),failedKeys:failedAdvertisingKeys(review),
-      reason:review.advertising_reason};
+    const issue=advertisingIssue(review);
+    return {issue,failedKeys:failedAdvertisingKeys(review),
+      findings:validatedQaFindings(review,draft),reason:review.advertising_reason};
   };
   let proposal=await askModel(request,{phase:'regia iniziale',reserveMs:35000});
   for(let attempt=0;attempt<2;attempt++){
-    let problem='';let draft=null;let failedKeys=[];let reviewReason='';
+    let problem='';let draft=null;let failedKeys=[];let reviewFindings=[];
     try{draft=validateCreativeResponse(normalized,proposal);}
     catch(error){problem=String(error?.message||error).slice(0,600);}
     if(draft){
       const review=await reviewUnguided(draft);
-      problem=review.issue;failedKeys=review.failedKeys;reviewReason=review.reason;
+      problem=review.issue;failedKeys=review.failedKeys;reviewFindings=review.findings;
       if(!problem)return {...draft,creative_review:{advertising_reviewed:true,
         advertising_reason:'Controlli pubblicitari indipendenti superati prima delle fotografie; la resa estetica resta da verificare.',
         reviewed_before_photos:true}};
@@ -699,20 +750,18 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const onlyCta=Boolean(draft&&failedKeys.length===1&&failedKeys[0]==='cta_relevant');
     const ctaHeadline=draft?.scenes.at(-1)?.headline||'';
     if(attempt===1){
-      if(onlyCta){
-        const grounded=comparable(reviewReason).includes(comparable(ctaHeadline));
-        check(false,`CTA non approvata (headline: "${ctaHeadline}"): ${grounded?'':'motivazione QA non riferita alla CTA; '}${problem}`);
-      }
+      if(draft&&reviewFindings.length)check(false,qaShortError(reviewFindings,draft));
       check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${problem}`);
     }
+    const specificFeedback=draft&&reviewFindings.length?qaFeedback(reviewFindings,draft):problem;
     const correction=onlyCta ?
-      `L'UNICO problema segnalato dal QA e la CTA finale: ${problem}. `+
+      `L'UNICO problema segnalato dal QA e la CTA finale: ${specificFeedback}. `+
       `L'ultima headline e "${ctaHeadline}". Il renderer aggiunge GIA logo, SEGUI e OFFERTALOGICA.IT. `+
       `Modifica SOLO l'ultima scena, per mostrare una promessa breve di approfondimento `+
       `specifico sull'argomento ${JSON.stringify(normalized.topic)} e coerente con la soluzione della storia. `+
       `Non inventare servizi disponibili, tariffe o risultati. Conserva IDENTICI format, protagonista, `+
       `scene precedenti, durata, tono e contenuti approvati. Restituisci il JSON completo.` :
-      `Regia NON approvata prima delle immagini: ${problem}. Correggi ESCLUSIVAMENTE i difetti `+
+      `Regia NON approvata prima delle immagini: ${specificFeedback}. Correggi ESCLUSIVAMENTE i difetti `+
       `indicati dalla revisione, mantenendo intatte le parti gia valide, 15 secondi, numero scene `+
       `e sicurezza editoriale. Restituisci JSON completo.`;
     ensureRevisionBudget(problem);
@@ -733,6 +782,11 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
       const cta={...previous.scenes[i]};
       for(const key of allowed)if(Object.hasOwn(revised.scenes[i]||{},key))cta[key]=revised.scenes[i][key];
       proposal={...previous,scenes:previous.scenes.map((scene,index)=>index===i?cta:scene)};
+    }else if(draft&&failedKeys.length&&!failedKeys.includes('cta_relevant')&&
+      Array.isArray(revised?.scenes)&&revised.scenes.length===previous.scenes.length){
+      // Preserve a CTA that QA already accepted when only narrative beats failed.
+      const last=previous.scenes.length-1;
+      proposal={...revised,scenes:revised.scenes.map((scene,index)=>index===last?previous.scenes[last]:scene)};
     }else proposal=revised;
   }
 
