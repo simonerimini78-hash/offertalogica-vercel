@@ -5,7 +5,7 @@ import {createHash} from 'node:crypto';
 import {freezeArticle} from './core.mjs';
 
 const sha=v=>createHash('sha256').update(v).digest('hex');
-const CREATIVE_ENGINE_VERSION = '1.3.3.24';
+const CREATIVE_ENGINE_VERSION = '1.3.3.25';
 // Max 300 s for /api; the browser gives a storyboard 265 s.
 // The orchestration has a single 235 s budget across ALL model calls.
 const CREATIVE_TOTAL_BUDGET_MS=235000;
@@ -258,6 +258,12 @@ const advertisingReviewFields={
 };
 const advertisingReviewSchema={type:'object',additionalProperties:false,
   properties:advertisingReviewFields,required:Object.keys(advertisingReviewFields)};
+// Compact final CTA repair: never pay to regenerate an already-approved narrative.
+const ctaTextRepairSchema={type:'object',additionalProperties:false,properties:{
+  headline:{type:'string'},secondary_text:{type:'string'},
+  emphasis_text:{type:'string'},emphasis_effect:{type:'string',
+    enum:['none','color','underline','brush','block']}
+},required:['headline','secondary_text','emphasis_text','emphasis_effect']};
 const advertisingReviewSystem=`Sei un revisore indipendente della STRUTTURA PUBBLICITARIA, non un generatore creativo.
 Controlla un format concreto, un hook specifico nei primi 3 secondi, progressione fra scene, CTA con motivo concreto per seguire il brand e aderenza all'argomento editoriale (se è presente un Reel guida, NON è la fonte del tema).
 Verifica curiosity_sustained: il primo quadro deve aprire una curiosita SPECIFICA che motivi a vedere almeno il quadro successivo. Una domanda prevedibile con risposta gia nota, un'etichetta di argomento o un semplice "lo sapevi?" NON bastano. Non richiedere shock, paura, sensazionalismo o suspense artificiale. La curiosita puo nascere da un quiz, un dettaglio non spiegato, un contrasto o un gesto concreto: valuta il meccanismo effettivamente scelto.
@@ -310,10 +316,13 @@ function qaFeedback(findings,draft) {
 function qaShortError(findings,draft) {
   const labels={curiosity_sustained:'curiosita',payoff_specific:'payoff',cta_relevant:'CTA'};
   const parts=findings.map(item=>{
-    const defect=item.defect.replace(/\s+/g,' ').slice(0,46);
-    return `${labels[item.criterion]||item.criterion} s${item.scene_number}: ${defect}`;
+    const headline=draft.scenes[item.scene_number-1]?.headline||'';
+    const change=item.requested_change.replace(/\s+/g,' ').trim();
+    return `${labels[item.criterion]||item.criterion} s${item.scene_number} `+
+      `«${headline.slice(0,36)}»: ${change.slice(0,64)}`;
   });
-  // /api truncates error messages at 200 chars; keep the useful scene/criterion data visible.
+  // /api truncates at 200 chars. Show an actionable request, not the start
+  // of a long defect which may contain only the quoted headline.
   const prefix='QA non superata: ';
   const value=parts.join('; ');
   return prefix+(value.length<=150?value:value.slice(0,147).trimEnd()+'...');
@@ -734,6 +743,50 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     return {issue,failedKeys:failedAdvertisingKeys(review),
       findings:validatedQaFindings(review,draft),reason:review.advertising_reason};
   };
+  const approvedUnguidedPlan=draft=>({...draft,creative_review:{advertising_reviewed:true,
+    advertising_reason:'Controlli pubblicitari indipendenti superati prima delle fotografie; la resa estetica resta da verificare.',
+    reviewed_before_photos:true}});
+  // This is a *conditional* rescue, not an unconditional extra model call:
+  // if the CTA is the only remaining defect, it gets ONE compact last chance.
+  // A further negative independent QA still blocks the storyboard.
+  const repairLastCta=async(draft,findings)=>{
+    check(remainingMs()>=65000,
+      `tempo insufficiente per correzione mirata CTA e QA finale (${Math.ceil(remainingMs()/1000)} s residui); nessuna fotografia avviata`);
+    const previous=draft.scenes.at(-1);
+    const specificFeedback=qaFeedback(findings,draft);
+    const output=await askModel({...modelOptions(0.1,'low'),
+      messages:[{role:'system',content:`Sei un copywriter pubblicitario italiano. Correggi SOLO il testo della CTA finale di un Reel da 15 secondi. Il resto dello storyboard ha GIA superato una QA indipendente e non va modificato. La headline deve offrire un motivo editoriale SPECIFICO per seguire OffertaLogica, collegato alla scoperta delle scene precedenti; non limitarti a riformulare il loro consiglio, non usare un generico slogan motivazionale. La CTA contiene gia logo, SEGUI e OFFERTALOGICA.IT disegnati dal compositore. Headline breve, normalmente 2-4 parole; secondary_text vuoto salvo se aggiunge davvero un elemento concreto. Usa emphasis_text letteralmente presente nella nuova headline, oppure '' con emphasis_effect=none. Non promettere guide, strumenti, offerte o contenuti esistenti sul sito senza verifica; non inventare prezzi, risparmi o condizioni. Rispondi con SOLO il JSON richiesto.`},
+        {role:'user',content:JSON.stringify({topic:normalized.topic,format_id:draft.format_id,
+          story_outcome:draft.story_outcome,
+          preceding_scenes:draft.scenes.slice(0,-1).map(scene=>({headline:scene.headline,
+            secondary_text:scene.secondary_text,role:scene.role,narrative_action:scene.narrative_action})),
+          final_scene:{headline:previous.headline,secondary_text:previous.secondary_text,
+            visual_brief:previous.visual_brief,narrative_action:previous.narrative_action},
+          qa_feedback:specificFeedback,
+          renderer_action:'SEGUI',renderer_domain:'OFFERTALOGICA.IT'})}],
+      response_format:{type:'json_schema',json_schema:{name:'video_cta_text_repair_v1',strict:true,
+        schema:ctaTextRepairSchema}}},{phase:'recupero finale CTA',reserveMs:30000});
+    check(output&&typeof output.headline==='string'&&typeof output.secondary_text==='string'&&
+      typeof output.emphasis_text==='string'&&typeof output.emphasis_effect==='string',
+      'correzione finale CTA non valida');
+    check(comparable(output.headline)!==comparable(previous.headline),
+      'correzione finale CTA non valida: headline invariata');
+    check(!draft.scenes.slice(0,-1).some(scene=>comparable(scene.headline)===comparable(output.headline)),
+      'correzione finale CTA non valida: headline gia usata');
+    const repaired={...draft,scenes:draft.scenes.map((scene,index)=>index===draft.scenes.length-1?{
+      ...scene,headline:output.headline,secondary_text:output.secondary_text,
+      text_design:{...scene.text_design,emphasis_text:output.emphasis_text,
+        emphasis_effect:output.emphasis_effect}}:scene)};
+    // Revalidate the complete plan and re-run the *independent* advertising QA;
+    // neither the copywriter nor this helper can self-approve the revision.
+    const validated=validateCreativeResponse(normalized,repaired);
+    const qa=await reviewUnguided(validated);
+    if(qa.issue){
+      if(qa.findings.length)check(false,qaShortError(qa.findings,validated));
+      check(false,`Storyboard bloccato dopo recupero CTA: ${qa.issue}`);
+    }
+    return approvedUnguidedPlan(validated);
+  };
   let proposal=await askModel(request,{phase:'regia iniziale',reserveMs:35000});
   for(let attempt=0;attempt<2;attempt++){
     let problem='';let draft=null;let failedKeys=[];let reviewFindings=[];
@@ -742,14 +795,16 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     if(draft){
       const review=await reviewUnguided(draft);
       problem=review.issue;failedKeys=review.failedKeys;reviewFindings=review.findings;
-      if(!problem)return {...draft,creative_review:{advertising_reviewed:true,
-        advertising_reason:'Controlli pubblicitari indipendenti superati prima delle fotografie; la resa estetica resta da verificare.',
-        reviewed_before_photos:true}};
+      if(!problem)return approvedUnguidedPlan(draft);
     }
     // CTA-only problems must never trigger a rewrite of an otherwise accepted Reel.
     const onlyCta=Boolean(draft&&failedKeys.length===1&&failedKeys[0]==='cta_relevant');
     const ctaHeadline=draft?.scenes.at(-1)?.headline||'';
     if(attempt===1){
+      // The only remaining issue may be CTA after either a narrative or a CTA
+      // rewrite. Permit ONE compact final repair, then demand another independent QA.
+      if(onlyCta&&reviewFindings.length)
+        return await repairLastCta(draft,reviewFindings);
       if(draft&&reviewFindings.length)check(false,qaShortError(reviewFindings,draft));
       check(false,`Storyboard bloccato dopo revisione pubblicitaria: ${problem}`);
     }
@@ -757,8 +812,9 @@ export async function generateCreativePlan(normalized,{apiKey=process.env.OPENAI
     const correction=onlyCta ?
       `L'UNICO problema segnalato dal QA e la CTA finale: ${specificFeedback}. `+
       `L'ultima headline e "${ctaHeadline}". Il renderer aggiunge GIA logo, SEGUI e OFFERTALOGICA.IT. `+
-      `Modifica SOLO l'ultima scena, per mostrare una promessa breve di approfondimento `+
-      `specifico sull'argomento ${JSON.stringify(normalized.topic)} e coerente con la soluzione della storia. `+
+      `Modifica SOLO l'ultima scena, per dare un motivo editoriale SPECIFICO per seguire: `+
+      `non ripetere con sinonimi il consiglio del payoff e non usare uno slogan generico. `+
+      `Ricollega il beneficio al tema ${JSON.stringify(normalized.topic)} e alla scoperta della storia. `+
       `Non inventare servizi disponibili, tariffe o risultati. Conserva IDENTICI format, protagonista, `+
       `scene precedenti, durata, tono e contenuti approvati. Restituisci il JSON completo.` :
       `Regia NON approvata prima delle immagini: ${specificFeedback}. Correggi ESCLUSIVAMENTE i difetti `+
