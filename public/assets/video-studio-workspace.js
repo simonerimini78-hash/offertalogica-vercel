@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.20 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.21 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -789,10 +789,13 @@
   function scenePlacement(view) {
     const requested = view?.layoutPreference || 'auto';
     if (requested !== 'auto') return requested;
-    const guided=view?.scene?.art_direction?.placement;
-    if(['top','bottom','left','right'].includes(guided)) return guided;
+    // A recurring protagonist's face must not be covered by the automatic
+    // advertising layout. The scene's subject side takes precedence over AI
+    // art-direction placement. Explicit editor overrides still win above.
     if (view?.scene?.subject_side === 'left') return 'right';
     if (view?.scene?.subject_side === 'right') return 'left';
+    const guided=view?.scene?.art_direction?.placement;
+    if(['top','bottom','left','right'].includes(guided)) return guided;
     return 'auto';
   }
   function photoSalience(view) {
@@ -1002,6 +1005,31 @@
   }
   // Fit COMPLETE editorial copy with real breathing room; title and support are
   // two independently measured typographic levels, never a compressed paragraph.
+  // Prefer a dedicated line for a short key phrase, preserving exact copy.
+  // This is a line-break treatment, not a text rewrite.
+  function heroHeadlineLines(ctx,headline,width,emphasis,maxLines=4) {
+    const target=String(emphasis||'').trim(),text=String(headline||'').trim();
+    if(!target||target.split(/\s+/u).length>2||target.length>17)return null;
+    const at=text.toLocaleLowerCase('it').indexOf(target.toLocaleLowerCase('it'));
+    if(at<0 || (at>0&&/[\p{L}\p{N}]/u.test(text[at-1])) ||
+      (at+target.length<text.length&&/[\p{L}\p{N}]/u.test(text[at+target.length])))return null;
+    const before=text.slice(0,at).trim();
+    let keyword=text.slice(at,at+target.length).trim();
+    let after=text.slice(at+target.length).trim();
+    // Keep terminal punctuation with its word. A lonely '?' read as an entire
+    // fourth advertising line in the previous renderer.
+    const suffix=after.match(/^[!?.,:;…]+(?=\s|$)/u);
+    if(suffix){keyword+=suffix[0];after=after.slice(suffix[0].length).trim();}
+    if(!before&&!after)return null;
+    const chunks=[before,keyword,after].filter(Boolean);
+    const lines=[];
+    for(const part of chunks) {
+      const result=balancedCopyLines(ctx,part,width,Math.max(1,maxLines-lines.length));
+      if(!result)return null;
+      lines.push(...result);
+    }
+    return lines.length<=maxLines?lines:null;
+  }
   function fitSceneCopy(ctx,scene,width,maxHeight,type) {
     const headline=String(scene.headline||'').trim();
     const secondary=String(scene.secondary_text||'').trim();
@@ -1013,8 +1041,11 @@
       ctx.font=sceneFont(type,size);
       // Modest horizontal condensation maintains tall, legible poster-size type
       // within a narrow negative-space column without moving onto the subject.
-      const lines=balancedCopyLines(ctx,headline,width/titleScale,4);
-      if(!lines)continue;
+      const normal=balancedCopyLines(ctx,headline,width/titleScale,4);
+      if(!normal)continue;
+      const hero=heroHeadlineLines(ctx,headline,width/titleScale,
+        scene.text_design?.emphasis_text,4);
+      const lines=hero && (hero.length<=normal.length+1) ? hero : normal;
       const titleStep=Math.round(size*1.14);
       const titleHeight=size+(lines.length-1)*titleStep;
       const titleWidth=Math.max(0,...lines.map(line=>ctx.measureText(line).width))*titleScale;
@@ -1106,7 +1137,64 @@
   }
   // Build a real typographic CTA, not a compulsory pair of buttons.
   // The AI selects the emphasis and priority; Canvas measures every word before export.
+  // Responsive, face-aware brand ending. Unlike the generic fitter, the CTA
+  // dedicates predictable space to the actual mark, one editorial promise,
+  // one follow action and the real domain (never a tiny article caption).
+  function fitBrandCtaStage(ctx,view) {
+    const scene=view.scene||{},support=cleanCtaSupport(scene.secondary_text);
+    if(support)return null; // Never discard meaningful copy to force this variant.
+    const safe=ctaSafeArea(),type=sceneTypeStyle(view);
+    if(safe.width<600||safe.height<640)return null;
+    const label=String(scene.headline||'').trim();
+    const brand=transparentBrandLogo()||previewView?.logo;
+    const logoRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
+    const stageRight=scenePlacement(view)==='right';
+    const width=Math.min(Math.round(safe.width*.60),560);
+    const x=stageRight?safe.x+safe.width-width-20:safe.x+20;
+    const logoW=Math.round(Math.min(255,safe.width*.31)),logoH=Math.ceil(logoW*logoRatio);
+    const logoY=safe.y+16,headlineY=logoY+logoH+22;
+    const domain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',width,1,
+      size=>`900 ${size}px ${CTA_FONT_STACK}`,42,69);
+    if(!domain)return null;
+    let best=null;
+    for(const maxTitle of [124,116,108,100,92,84,76]) {
+      const headline=ctaTextBlock(ctx,'headline',label,width,3,
+        size=>`${type.titleWeight} ${size}px ${type.titleFamily}`,
+        Math.max(68,maxTitle-8),maxTitle,headlineHorizontalScale(type));
+      if(!headline)continue;
+      const actionSize=Math.max(59,Math.min(82,Math.round(safe.height*.095)));
+      const actionY=headlineY+headline.height+23;
+      const domainY=actionY+actionSize+32;
+      const end=domainY+domain.height;
+      if(end>safe.y+safe.height-12)continue;
+      const items=[
+        {kind:'logo',x,y:logoY,width:logoW,height:logoH,align:'left'},
+        {...headline,kind:'headline',x,y:headlineY,width,align:'left'},
+        {kind:'action',x,y:actionY,width,height:actionSize+13,align:'left',followSize:actionSize},
+        {...domain,kind:'domain',x,y:domainY,width,align:'left'}
+      ];
+      const lineBoxes=items.flatMap(item=>ctaInkLines(ctx,item,type,scene.text_design||{}));
+      if(items.some(item=>!insideRect(item,safe)) || lineBoxes.some(rect=>!insideRect(rect,safe)))continue;
+      // Real browser face detections take priority over descriptive side hints.
+      if(Array.isArray(view._faceBoxes)&&view._faceBoxes.length &&
+        lineBoxes.some(rect=>facesOverlap(rect,protectedPortraits(view),7)>40))continue;
+      const titleBox={x,y:headlineY,width:headline.lineWidth,height:headline.height};
+      const copy={lines:headline.lines,size:headline.size,titleStep:headline.step,
+        detail:[],detailSize:0,detailStep:0,gap:0,titleHeight:headline.height,
+        titleWidth:headline.lineWidth,detailWidth:0,textHeight:headline.height,overflow:false};
+      best={variant:'brand-stage',stageRight,type,safe,items,inkBoxes:lineBoxes,
+        logo:items[0],titleBox,detailBox:null,choice:{side:'cta',x,y:headlineY,width},
+        bounds:unionRects(items),textBounds:unionRects(items.slice(1)),
+        copy,y:headlineY,footerY:actionY,actionHeight:actionSize+13,overflow:false};
+      break;
+    }
+    if(!best)return null;
+    best.palette=photoTextPalette(view,best);
+    return best;
+  }
   function fitCtaComposition(ctx,view) {
+    const brandStage=fitBrandCtaStage(ctx,view);
+    if(brandStage)return brandStage;
     const safe=ctaSafeArea(),type=sceneTypeStyle(view);
     const design=view.scene?.text_design||{};
     const focus=['follow','site','balanced'].includes(design.cta_focus)?design.cta_focus:'follow';
@@ -1251,7 +1339,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.20|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.21|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1639,6 +1727,24 @@
     const brand=transparentBrandLogo()||previewView?.logo;
     const headlineEffect=design.emphasis_effect||'none',phrase=design.emphasis_text||'';
     const brightPhoto=palette.title==='#183039';
+    if(composition.variant==='brand-stage') {
+      // A soft full-frame vignette has no visible box edge. The intended subject
+      // remains on the opposite side; the text side receives local contrast.
+      const safe=composition.safe,right=composition.stageRight;
+      const cx=right?MONTAGE_WIDTH*.96:MONTAGE_WIDTH*.04;
+      const cy=safe.y+safe.height*.46;
+      const radius=Math.max(800,safe.width*1.04);
+      const grad=ctx.createRadialGradient(cx,cy,100,cx,cy,radius);
+      grad.addColorStop(0,'rgba(9,35,37,.87)');
+      grad.addColorStop(.42,'rgba(9,35,37,.68)');
+      grad.addColorStop(.80,'rgba(9,35,37,.22)');
+      grad.addColorStop(1,'rgba(9,35,37,0)');
+      ctx.save();ctx.fillStyle=grad;
+      ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
+      ctx.fillStyle='#55c77a';
+      ctx.fillRect(composition.choice.x,composition.safe.y+196,116,8);
+      ctx.restore();
+    }
     const draw=(line,x,y,font,color,stroke,shadow,effect='none',emphasis='')=>
       expressiveTextLine(ctx,{line,x,y,font,base:color,outline:stroke,shadow,
         phrase:emphasis,effect,accent:palette.accent,thickness:5.0});
@@ -1646,9 +1752,10 @@
       const blockTone=samplePhotoBrightness(view,item);
       const blockBright=blockTone?(blockTone.mean>=.54||
         (blockTone.mean>=.46&&blockTone.brightShare>=.70)):brightPhoto;
-      const blockMain=blockBright?'#17313a':'#fffdf6';
-      const blockOutline=blockBright?'rgba(255,251,241,.95)':'rgba(5,22,26,.92)';
-      const blockShadow=blockBright?'rgba(255,255,255,.38)':'rgba(0,0,0,.70)';
+      const brandStage=composition.variant==='brand-stage';
+      const blockMain=brandStage?'#ffffff':blockBright?'#17313a':'#fffdf6';
+      const blockOutline=brandStage?'rgba(3,18,23,.46)':blockBright?'rgba(255,251,241,.95)':'rgba(5,22,26,.92)';
+      const blockShadow=brandStage?'rgba(2,14,16,.25)':blockBright?'rgba(255,255,255,.38)':'rgba(0,0,0,.70)';
       ctx.save();
       ctx.globalAlpha*=item.kind==='logo'?progress(.03,.30):
         item.kind==='headline'?progress(.15,.32):item.kind==='support'?progress(.28,.30):
@@ -1669,9 +1776,10 @@
           const x=item.align==='center'?item.x+(item.width-width)/2:
             item.align==='right'?item.x+item.width-width:item.x;
           ctx.save();ctx.translate(x,0);ctx.scale(horizontal,1);
-          draw(line,0,item.y+item.size+i*item.step,font,support?palette.detail:palette.title,
-            support?palette.detailOutline:palette.titleOutline,
-            support?palette.detailShadow:palette.titleShadow,
+          draw(line,0,item.y+item.size+i*item.step,font,
+            composition.variant==='brand-stage'?'#ffffff':support?palette.detail:palette.title,
+            composition.variant==='brand-stage'?'rgba(5,28,30,.38)':support?palette.detailOutline:palette.titleOutline,
+            composition.variant==='brand-stage'?'rgba(5,28,30,.20)':support?palette.detailShadow:palette.titleShadow,
             support?'none':headlineEffect,support?'':phrase);
           ctx.restore();
         }
@@ -1729,6 +1837,37 @@
       ctx.restore();
     }
   }
+  // Contrast is designed into the photographed frame instead of relying on a
+  // white caption with an outline. No hard opaque panel is required.
+  function drawHeadlineStage(ctx,view,composition,progress=1) {
+    if(!composition?.choice || !composition?.copy || composition.overflow)return;
+    const {choice,copy,y,type,palette}=composition;
+    const x=choice.x;
+    const titleEnd=y+copy.titleHeight;
+    const textBottom=copy.detail.length?copy.detailY+copy.detailSize*copy.detail.length:titleEnd;
+    const cx=Math.max(0,Math.min(MONTAGE_WIDTH,x+copy.titleWidth*.45));
+    const cy=(y+textBottom)/2;
+    const radius=Math.max(230,Math.min(620,Math.max(copy.titleWidth*.83,(textBottom-y)*1.18)));
+    ctx.save();ctx.globalAlpha*=Math.min(1,Math.max(0,progress));
+    const lightInk=palette.title!=='#183039';
+    const grad=ctx.createRadialGradient(cx,cy,32,cx,cy,radius);
+    if(lightInk){grad.addColorStop(0,'rgba(7,25,28,.72)');grad.addColorStop(.55,'rgba(9,31,35,.36)');}
+    else{grad.addColorStop(0,'rgba(253,250,241,.76)');grad.addColorStop(.52,'rgba(253,250,241,.31)');}
+    grad.addColorStop(1,'rgba(0,0,0,0)');
+    ctx.fillStyle=grad;
+    ctx.fillRect(Math.max(0,cx-radius),Math.max(0,cy-radius),
+      Math.min(MONTAGE_WIDTH,cx+radius)-Math.max(0,cx-radius),
+      Math.min(MONTAGE_HEIGHT,cy+radius)-Math.max(0,cy-radius));
+    const accent=palette.accent||'#248358';
+    if(type.mode==='accent_rule') {
+      ctx.fillStyle=accent;
+      ctx.fillRect(x,Math.max(REELS_VISIBLE.y+5,y-29),Math.min(112,choice.width*.23),8);
+    } else if(type.mode==='editorial_panel') {
+      ctx.fillStyle=accent;
+      ctx.fillRect(Math.max(REELS_VISIBLE.x,x-17),y+9,7,Math.min(copy.titleHeight+9,330));
+    }
+    ctx.restore();
+  }
   function drawCinematicOverlay(ctx,view,localTime=1) {
     const {scene}=view;
     const composition=compositionForScene(ctx,view);
@@ -1737,6 +1876,7 @@
       return;
     }
     const {choice,copy,y,type,palette}=composition;
+    drawHeadlineStage(ctx,view,composition,Math.min(1,localTime/.24));
     ctx.save();ctx.textAlign='left';ctx.textBaseline='alphabetic';
     ctx.lineJoin='round';ctx.miterLimit=2;
     const progress=(delay,duration)=>Math.max(0,Math.min(1,(localTime-delay)/duration));
@@ -1773,9 +1913,11 @@
         ctx.fillRect(detailX,detailTop-Math.round(copy.gap*.53),78,6);
         ctx.restore();
       }
+      const supportInk=palette.title==='#183039'?'#17343c':'#ffffff';
+      const supportOutline=palette.titleOutline;
       copy.detail.forEach((line,i)=>drawLine(line,detailX,detailTop+copy.detailSize+i*copy.detailStep,
-        sceneFont(type,copy.detailSize,true),palette.detail,palette.detailOutline,
-        palette.detailShadow,true,detailProgress,9*(1-detailProgress)));
+        sceneFont(type,copy.detailSize,true),supportInk,supportOutline,
+        palette.titleShadow,true,detailProgress,9*(1-detailProgress)));
     }
     ctx.restore();
   }
