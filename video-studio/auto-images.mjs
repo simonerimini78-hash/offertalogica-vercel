@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.27 image composition; independent of editorial automations.
+// Video Studio v1.3.3.28 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -73,6 +73,13 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
       ? 'The attached crop supplies ONLY the recurring adult’s visual identity, not its pose, setting, lighting or composition.'
       : 'No image reference is attached. Invent an original scene without imitating a previous advertisement.';
   const light=cap(art.photo_lighting,220)||'Bright, believable, motivated light with natural skin tones, rich but clear midtones and readable facial expressions.';
+  // A video guide is analyzed for photography in creative-director, but its frames
+  // are intentionally not passed as image edits in inspiration mode. Transfer the
+  // observed photographic craft as TEXT without copying subjects or layouts.
+  const observed=story?.guide_quality_profile?.visual;
+  const guideLook=observed&&typeof observed==='object'
+    ? [cap(observed.lighting,230),cap(observed.palette,180),cap(observed.camera,220)]
+      .filter(Boolean).join(' | ') : '';
   const common=[
     'CREATE EXACTLY ONE ORIGINAL VERTICAL 9:16 FRAME FOR AN ITALIAN MOBILE AD.',
     `OUTPUT TYPE: ${poster?'FINISHED ADVERTISING POSTER WITH THE SPECIFIED TEXT DRAWN INSIDE THE IMAGE':'CLEAN PHOTOGRAPH ONLY; ALL TEXT IS ADDED LATER BY THE COMPOSITOR'}.`,
@@ -90,8 +97,10 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
     next?`NEXT BEAT (prepare without depicting it): ${cap(next.narrative_action||next.editorial_goal,120)}.`:'Final beat of this story.',
     `REFERENCE: ${references}`,
     `LIGHT AND COLOR: ${light}`,
-    'PHOTO DIRECTION: premium, clear commercial photography; authentic micro-expressions and meaningful gestures when people are present; plausible textures, depth and clean focal hierarchy. Avoid gloomy underexposure, generic stock posing, fake smiles, sterile showrooms and artificial orange grading. Preserve the chosen setting and mood: not every scene needs sunshine or a human portrait.',
-    'TRUTHFULNESS: never fabricate readable device screens, tariffs, brand interfaces, receipts, charts or quantified outcomes. Show devices from the rear or an angle that conceals screen contents. Do not borrow frames, logos, people or distinctive compositions from other ads.'
+    ...(guideLook?[`OBSERVED GUIDE PHOTOGRAPHIC CRAFT (descriptive notes, NOT an attached reference image): ${guideLook}. Transfer the lighting, tonal clarity and lens depth; invent a new scene, people and framing.`]:[]),
+    'ADVERTISING FRAME: stage a single decisive moment, not a documentary snapshot of a routine. The headline and visual action must work together: an immediate emotional reaction, an unmistakable visual comparison or a meaningful gesture with consequence. Give the subject a striking but credible point of view, clean hierarchy, and intentional camera distance. If people appear, their expression must communicate the beat without fake posing; if objects dominate, the contrast must be visible without labels. Not every scene needs a portrait.',
+    'PHOTO DIRECTION: refined bright commercial photography when appropriate to the story, lively but believable skin tones, clean midtones, tactile textures and layered depth. Avoid gloomy underexposure, stock poses, fake smiles, sterile showrooms, overprocessed saturation and artificial orange grading. Preserve a plausible setting and motivated light rather than forcing generic sunshine.',
+    'TRUTHFULNESS AND PIXEL TEXT: never fabricate readable device screens, bills, receipts, charts, tariffs, brand interfaces or quantified outcomes. If the described prop refers to printed words or numbers, show the object without readable markings and express its meaning through the action and separate headline. Do not borrow frames, logos, people or distinctive compositions from other ads.'
   ];
   const textContract=poster ? [
     'TEXT CONTRACT — POSTER MODE: the following words MUST be visibly rendered INSIDE THIS FRAME. No separate overlay will supply them.',
