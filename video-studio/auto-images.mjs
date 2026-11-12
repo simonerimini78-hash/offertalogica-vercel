@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.26 image composition; independent of editorial automations.
+// Video Studio v1.3.3.27 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -46,75 +46,68 @@ export async function identityOnlyReference(bytes,previousSide,sharp) {
   const top=Math.min(info.height-height,Math.round(info.height*.10));
   return sharp(bytes).extract({left,top,width,height}).resize(220,280,{fit:'cover'}).jpeg({quality:76}).toBuffer();
 }
+// A single image contract for both modes. Never pass the storyboard's visual_brief
+// or camera_intent verbatim: they may prescribe Canvas lettering even when this
+// invocation is POSTER, or embedded lettering when it is PHOTO. Structured scene
+// facts below are sufficient to stage the action without conflicting render rules.
 export function photoPrompt({article,scene,index,story=null,revisionNotes='',referenceImages=[],mode='photo'}) {
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>4)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
   if(!['photo','poster'].includes(mode) || (mode==='poster' && (scene.role==='cta'||!String(scene.headline||'').trim())))
     throw new Error('VIDEO_STUDIO_IMAGE: modalita grafica non valida per questa scena');
+
   const poster=mode==='poster';
+  const cap=(value,max)=>String(value||'').trim().slice(0,max);
+  const notes=cleanRevisionNotes(revisionNotes);
+  const art=scene.art_direction&&typeof scene.art_direction==='object'?scene.art_direction:{};
+  const hasProtagonist=Boolean(cap(story?.protagonist_profile||scene.protagonist_profile,360));
+  const protagonist=cap(story?.protagonist_profile||scene.protagonist_profile,360);
   const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
-  const opposite=side==='left'?'right':side==='right'?'left':'right or left';
-  const visual=String(scene.visual_brief||'').slice(0,500);
-  const person=String(scene.subject_description||'').slice(0,350);
-  const emotion=String(scene.emotion||'').slice(0,160);
-  const notes = cleanRevisionNotes(revisionNotes);
-  const strongGuide=['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong';
-  const referenceGuide = strongGuide ? `STRONG VISUAL ANCHOR: Input image 1 is ${story?.input_type==='guide_video'?'an editor-supplied early frame sampled from the Reel guide':'the editor-supplied ORIGINAL guide photograph'}. Treat it as the photographic style anchor for this scene. Preserve its natural color temperature, light softness and direction, tonal palette, texture, material realism, lens character and overall atmosphere. ${referenceImages.length>1?'Input image 2 is the immediately previous scene for continuity of a recurring person or setting.':'Generate a distinct story beat while retaining the reference style.'} Invent a NEW framing, gesture and event, not a near-duplicate. Do not copy any existing text or fabricated brand UI.` : referenceImages.length>0 ? `IDENTITY REFERENCE ONLY: Input image 1 is a cropped portrait from the preceding scene of THIS story, not a scene to recreate. Match the recurring adult's facial features, age and recognizable appearance as closely as possible. Ignore the crop's room, furniture, light, camera angle, expression and framing: create a fresh independently staged moment. The hero's emotion must evolve according to THIS scene. Do not reuse old backgrounds or poses.` : 'Opening shot: establish the scene-specific subject or context. A human protagonist is NOT required unless the story explicitly calls for one.';
-  const art=scene?.art_direction&&typeof scene.art_direction==='object'?scene.art_direction:null;
-  const referenceCraft=story?.guide_quality_profile?.visual;
-  const lighting = art?.photo_lighting ? `Follow the art director: ${String(art.photo_lighting).slice(0,220)}. Keep physics and skin tones plausible; never force a generic golden-hour look.` : strongGuide ? 'Match the reference image lighting character and realistic warm/cool balance; do not change to a generic golden-hour or cooler studio look unless the story truly requires it.' : scene.role === 'cta'
-    ? 'Finish with motivated, believable scene lighting rather than a compulsory golden-hour or warm-filter look; preserve natural skin tones and tonal depth.'
-    : index === 0
-      ? 'Start with credible natural daylight or gently neutral window light appropriate to the problem; avoid artificial orange tint or exaggerated drama.'
-      : 'Use believable natural or ambient light with moderate variation; keep continuity with the previous scene and let the story become gradually more reassuring when appropriate.';
-  const protagonist = String(story?.protagonist_profile || scene.protagonist_profile || '').slice(0,360);
-  const episodeAngle = String(story?.episode_angle || '').slice(0,220);
-  const logline = String(story?.story_logline || '').slice(0,380);
-  const outcome = String(story?.story_outcome || '').slice(0,350);
-  const sequence = Array.isArray(story?.scenes) && story.scenes.length>=3 && story.scenes.length<=5
-    ? story.scenes.map((beat,i)=>`${i+1}: ${String(beat.narrative_action||beat.editorial_goal||'').slice(0,220)}; ${String(beat.shot_type||'').slice(0,120)}`).join(' | ')
-    : '';
-  return `Generate ONE original photorealistic vertical 9:16 ${poster?'FINISHED ADVERTISING CREATIVE WITH TYPOGRAPHY EMBEDDED IN THE IMAGE':'editorial photograph'} for an Italian Reel.
-  Topic: ${article.title.slice(0,180)}.
-  Single-story narrative: ${logline || 'A concrete problem evolves into a credible, proportionate solution'}.
-  Episode angle: ${episodeAngle || 'Follow the proposed episode angle'}.
-  Realistic final outcome: ${outcome || 'An actionable insight, not a guaranteed result'}.
-  Other scenes and their camera shots (for DISTINCT framing, not copying): ${sequence || 'Preserve a clear progression from problem to solution'}.
-  Story scene ${index+1}, purpose: ${scene.editorial_goal.slice(0,220)}.
-  ACTUAL WORDS THE VIEWER WILL READ AS A SEPARATE OVERLAY: headline=${JSON.stringify(String(scene.headline||'').trim())}; secondary=${JSON.stringify(String(scene.secondary_text||'').trim())}. These words MUST NOT be drawn in the photograph. Their meaning must be visible in the protagonist's own expression and action in THIS frame. For the hook, the person experiences exactly the problem named by the headline; for the next beats, the gesture/expression must visibly explain the discovery or decision mentioned by the overlay, not an unrelated lifestyle action. Let the words clarify an observed human feeling, never compensate for an image with no narrative action. CTA: show earned understanding or cautious hope WITHOUT implying that a product or outcome was already obtained.
-  Visible action THIS scene: ${String(scene.narrative_action||scene.editorial_goal).slice(0,220)}.
-  Reason it follows the previous scene: ${String(scene.continuity_link||'Opening the story').slice(0,240)}.
-  Setting: ${String(scene.setting||'suitable editorial environment').slice(0,220)}; camera shot: ${String(scene.shot_type||'varied documentary framing').slice(0,120)}.
-  Key visual object: ${String(scene.key_object||'none required').slice(0,120)}.
-  Art director's camera/visual intent: ${String(art?.camera_intent||'').slice(0,220)}.
-  Intentional light and color for THIS scene: ${String(art?.photo_lighting||'').slice(0,220)}.
-  Reference's TRANSFERABLE craft only (never the plot or people): ${String(referenceCraft?.lighting||'').slice(0,250)}; ${String(referenceCraft?.camera||'').slice(0,250)}; ${String(referenceCraft?.palette||'').slice(0,250)}.
-  Visual scene: ${visual}.
-  Main subject: ${person||'a natural realistic situation relevant to the message'}.
-  Stable recurring-protagonist description (if present): ${protagonist || 'No recurring human protagonist is required'}.
-  ${referenceGuide}
-  Retain a recognizable protagonist ONLY when the plan requires one; a scene focused on a product, place or meaningful detail may show no face. DO NOT repeat a pose, action, location-and-shot combination or a near-identical composition across scenes.
-  This ${poster?'finished advertising frame':'photograph'} must represent ONLY scene ${index+1} of the mini-story, not a collage or multi-panel storyboard.
-  Intended emotion: ${emotion||'credible and subtle'}.
-  HUMAN CONNECTION: When the story has a recurring adult, let their face, eyes, posture and small spontaneous gesture carry the meaning of this beat. Make the emotion legible at phone size: a natural troubled pause, a moment of attention, an understanding look, a quietly hopeful expression as the narrative progresses. NO frozen stock-photo smile, no exaggerated acting. Frame as a lived human moment at a candid documentary distance, often a close or medium close-up where the expression can be read. The protagonist is the through-line, not the room. Natural skin texture, imperfect lived-in belongings, truthful light and shallow depth of field; glimpses of a home are enough. Avoid empty blank plaster walls, decorative artificial plants, sterile staged apartments, conspicuously symmetrical furniture, or spotless unhandled props. Do not force plants, walls or furniture to fill type space.
-  People and clearly visible human faces are welcome when emotionally useful. No exaggerated or stereotyped reactions.
-  Use the ${side} as a COMPOSITION HINT only. The main visual can be a person, a meaningful object, an environment or a close detail. Do not invent a human model just to fill a fixed side of the frame. Keep eyes, hands and the factual action readable.
-  ${poster ? `CREATIVE LAYOUT: Compose the image and integrated lettering TOGETHER. The headline is the primary advertising subject: give it substantial area in a clean field on the ${opposite} side, generally inside x=9%-91% and y=19%-72% (safe for mobile social overlays). Show the relatable person or real-life action on the ${side}, but NEVER reduce headline size just to keep an oversized portrait. Do not cover faces, eyes, hands or key objects with any text. Choose asymmetrical editorial poster layout, not a small caption in an available corner.` : `Compose the photography for LARGE separate display typography in an uncluttered central safe area, approximately x=7%-93%, y=14%-65%. Leave sufficient contrast for the compositor's dominant headline in the ${opposite} field, but DO NOT manufacture a blank wall or repeat a half-body portrait beside empty plaster. The compositor can add a shaped translucent gradient and a single editorial accent behind the lettering, so real layered photography is welcome. Prioritize a recognizable action or object over generic desk portraits; match the plan's specific art direction, shot and setting. Do not draw any typography.`}
-  Preserve the scene intent faithfully. When a recurring protagonist is specified, aim for believable visual consistency; exact identity cannot be guaranteed without a reference image.
-  Cinematic lighting direction for this specific beat: ${lighting}
-  ${strongGuide ? 'Match the guide image photographic character first, including natural light, tonal range and tactile material details; do not force an unrelated stock-photo aesthetic.' : 'Premium visual authorship: deliberate motivated lighting, selective contrast, dimensional layering, authentic surface textures and clear focal hierarchy. Follow THIS scene art direction, not a default domestic-window-light recipe. Distinguish this frame from the other shots with the specified setting, camera distance and action.'} Select a subject and camera position that make the story understandable even on a small mobile screen; avoid stock-like desk arrangements, artificial orange filters or empty cinematic spectacle. A human face or gesture can be more original and persuasive than a different room. Keep people consistent, change meaningful actions and viewpoints, and let the environment stay softly implied.
-  Cinematic yet believable photography: expressive natural lighting, visual depth and a clear subject, with varied camera shots. Every important prop and action must directly support the specific topic; never prioritize cinematic spectacle over factual relevance. No imitation of existing advertising photographs.
-  Generate a NEW original scene from the story, using only authenticated frames from THIS Reel for continuity when supplied. NEVER reuse, copy, trace or imitate images from the editorial article, social post, or a prior Reel.
-  Visual similarity to previously generated images is NOT verified by this prompt: this candidate still needs an independent image/history similarity gate and human review.
-  CRITICAL PRODUCT AUTHENTICITY: Never depict a front-facing phone, tablet or computer screen with any visible contents, symbols, dashboards, offers, graphs or imaginary brand UI.
-  If the scene involves someone using a device, show the BACK of the display, an oblique angle that does not reveal the screen, or the device outside the frame.
-  If a real OffertaLogica interface is needed, the editor will place an editor-supplied, genuine screenshot as a SEPARATE layer in the video compositor; do not approximate it or create plausible substitute pixels.
-  ${poster ? `MANDATORY TYPOGRAPHY INSIDE THE GENERATED IMAGE. Create ONE complete premium mobile-first advertising frame, not a plain photograph. Render the following Italian words with EXACT spelling, punctuation, capitalization and accents. Do not paraphrase, add or omit words:
-  HEADLINE (LARGEST, extremely bold, high-contrast, generous lettering, preferably only 2-3 readable lines): ${JSON.stringify(String(scene.headline||'').trim())}
-  ${String(scene.secondary_text||'').trim()?`SUPPORT (visible and secondary but never tiny or pale): ${JSON.stringify(String(scene.secondary_text).trim())}`:'NO supporting words: keep only the headline.'}
-  Use decisive modern poster-scale typography, clear separation of headline and support, and excellent contrast against actual pixels. Follow the art director's mood ${String(art?.typography||scene?.text_design?.font_mood||'bold editorial').slice(0,80)} and subtle accent ${String(art?.accent_color||'#39704b').slice(0,7)} when suitable, but readability wins. No type hidden behind a person. Make the headline readable immediately when the image is reduced to a 390px-wide smartphone screen. Leave TOP and BOTTOM social interface safety margins; never place words in the outermost 9% of the vertical frame. Never copy text from previous-scene reference images; they are photographic continuity references ONLY. Do NOT generate OffertaLogica branding, logo, domain, CTA, additional writing, watermarks, speech bubbles, fake receipts, legible document contents, charts or invented interface elements. Output one fully designed ad image.` : `IMPORTANT: Output ONE standalone clean photo only. NO collage, storyboard, grid, multiple panels, timestamps, UI, speech bubbles, titles, captions, letters, printed legible text, numbers, logos, watermarks, fake receipts, bills with readable values, charts or fictitious screens. Do not render the slogan, logo or any text inside the picture. All typography and branding will be added by the compositor later.`}
-  ${notes ? `Human revision guidance: ${notes}. Respect these requested corrections while keeping the scene editorially coherent.` : 'No additional human revision guidance for this attempt.'}
-  Proposed unreviewed visual asset only.`;
+  const opposite=side==='left'?'right':side==='right'?'left':'an open area beside the subject';
+  const strongGuide=['guide_image','guide_video'].includes(story?.input_type)&&story.guide_fidelity==='strong';
+  const previous=Array.isArray(story?.scenes)?story.scenes[index-1]:null;
+  const next=Array.isArray(story?.scenes)?story.scenes[index+1]:null;
+  const references=strongGuide
+    ? `Reference image 1 supplies VISUAL STYLE ONLY: lighting, tonal range, lens feel, textures and palette; invent new people, framing, action and words. ${referenceImages.length>1?'Reference image 2 supplies recurring-character continuity.':''}`
+    : referenceImages.length
+      ? 'The attached crop supplies ONLY the recurring adult’s visual identity, not its pose, setting, lighting or composition.'
+      : 'No image reference is attached. Invent an original scene without imitating a previous advertisement.';
+  const light=cap(art.photo_lighting,220)||'Bright, believable, motivated light with natural skin tones, rich but clear midtones and readable facial expressions.';
+  const common=[
+    'CREATE EXACTLY ONE ORIGINAL VERTICAL 9:16 FRAME FOR AN ITALIAN MOBILE AD.',
+    `OUTPUT TYPE: ${poster?'FINISHED ADVERTISING POSTER WITH THE SPECIFIED TEXT DRAWN INSIDE THE IMAGE':'CLEAN PHOTOGRAPH ONLY; ALL TEXT IS ADDED LATER BY THE COMPOSITOR'}.`,
+    'Not a storyboard, collage, contact sheet, split-screen or sequence. Depict one continuous instant only.',
+    `TOPIC: ${cap(article.title,180)}.`,
+    `STORY DIRECTION: ${cap(story?.story_logline,280)||'Show a credible, concrete situation and meaningful development.'}`,
+    `SCENE ${index+1} (${cap(scene.role,24)}): ${cap(scene.editorial_goal,200)}.`,
+    `VISIBLE ACTION: ${cap(scene.narrative_action||scene.editorial_goal,220)}.`,
+    `SUBJECT: ${cap(scene.subject_description,270)||'An authentic subject directly relevant to this scene'}.`,
+    `EMOTION: ${cap(scene.emotion,120)||'Natural and legible, never exaggerated'}.`,
+    `PLACE: ${cap(scene.setting,180)||'A credible real-world setting'}; CAMERA: ${cap(scene.shot_type,120)||'An intentional, readable shot'}.`,
+    `IMPORTANT OBJECT: ${cap(scene.key_object,100)||'None required'}.`,
+    hasProtagonist?`RECURRING PERSON: ${protagonist}. Keep their distinguishing features consistent across scenes.`:'A human face is optional; do not invent a person just to fill the frame.',
+    previous?`PREVIOUS BEAT (do not recreate): ${cap(previous.narrative_action||previous.editorial_goal,140)}.`:'Opening beat of this story.',
+    next?`NEXT BEAT (prepare without depicting it): ${cap(next.narrative_action||next.editorial_goal,120)}.`:'Final beat of this story.',
+    `REFERENCE: ${references}`,
+    `LIGHT AND COLOR: ${light}`,
+    'PHOTO DIRECTION: premium, clear commercial photography; authentic micro-expressions and meaningful gestures when people are present; plausible textures, depth and clean focal hierarchy. Avoid gloomy underexposure, generic stock posing, fake smiles, sterile showrooms and artificial orange grading. Preserve the chosen setting and mood: not every scene needs sunshine or a human portrait.',
+    'TRUTHFULNESS: never fabricate readable device screens, tariffs, brand interfaces, receipts, charts or quantified outcomes. Show devices from the rear or an angle that conceals screen contents. Do not borrow frames, logos, people or distinctive compositions from other ads.'
+  ];
+  const textContract=poster ? [
+    'TEXT CONTRACT — POSTER MODE: the following words MUST be visibly rendered INSIDE THIS FRAME. No separate overlay will supply them.',
+    `HEADLINE (exact Italian spelling, punctuation and accents; the largest element): ${JSON.stringify(cap(scene.headline,180))}.`,
+    cap(scene.secondary_text,180)?`SUPPORT (exact and subordinate but still legible): ${JSON.stringify(cap(scene.secondary_text,180))}.`:'No supporting line: only the headline.',
+    `DESIGN: Integrate decisive display lettering and the photography as ONE mobile-first composition. Keep the subject/action around the ${side} and large high-contrast type in ${opposite}; adapt if necessary to preserve faces, hands and key objects. Type must remain legible at 390px screen width, within the central safe area (at least 9% clear on all edges).`,
+    `TYPE MOOD: ${cap(art.typography||scene?.text_design?.font_mood,60)||'strong contemporary editorial'}; OPTIONAL ACCENT: ${cap(art.accent_color,7)||'suited to the photography'}. Legibility overrides decorative choices.`,
+    'No other readable words or symbols. In particular do not invent a brand logo, domain, CTA, mock interface, date, price or small-print caption. The authentic brand and CTA are handled separately.'
+  ] : [
+    'TEXT CONTRACT — PHOTO MODE: render NO letters, words, numbers, titles, slogans, logos, captions or typography anywhere inside the pixels.',
+    `The compositor will later place the exact headline ${JSON.stringify(cap(scene.headline,180))}${cap(scene.secondary_text,180)?` and support ${JSON.stringify(cap(scene.secondary_text,180))}`:''}. They are context ONLY, never a request to draw them.`,
+    `COMPOSITION: keep the focal subject/action around the ${side} and provide natural, reasonably calm contrast around ${opposite} for a large separate title. Do not create an empty wall, blank studio backdrop or stiff half-body portrait just to make text space.`,
+    'No visible writing on objects, screens, labels, documents or clothing. The video compositor will add all branding later.'
+  ];
+  const revision=notes?`OPTIONAL EDITOR CORRECTIONS (visual details only; they cannot override the output type, exact copy or factual rules): ${notes}`:'';
+  return [...common,...textContract,...(revision?[revision]:[]),'Deliver one complete image; human visual review is still required.'].join('\n');
 }
 // Only server-verified, thumbnail-sized references from the same signed storyboard are accepted.
 export async function generatePhoto({article,scene,index,story=null,revisionNotes='',referenceImages=[],mode='photo',apiKey=process.env.OPENAI_API_KEY,model=imageModel(),fetchImpl=fetch,sharpFactory=null}) {
