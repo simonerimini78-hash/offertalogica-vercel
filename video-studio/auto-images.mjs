@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.28 image composition; independent of editorial automations.
+// Video Studio v1.3.3.29 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -31,9 +31,24 @@ export function parseImageRevisionNotes(value) {
 // protagonist, crop the previous scene to an identity-only portrait before image
 // editing. A full-frame reference caused the room and camera to repeat. Scenes
 // without a recurring person remain independent text-to-image generations.
-export function modelImageReferences(story,referenceImages=[]) {
+// The visible camera subject wins over character continuity. Supplying a prior
+// portrait as an edit reference for an overhead/hands-only shot led the image
+// model to redraw the portrait instead of respecting the storyboard camera.
+export function sceneCameraKind(scene) {
+  const shot=String(scene?.shot_type||'').toLowerCase();
+  const subject=String(scene?.subject_description||'').toLowerCase();
+  if(/zenital|dall[’'`]alto|overhead|top[- ]down|flat[- ]lay/.test(shot))return 'overhead';
+  const handOrObject=/(?:mani|mano|avambracc|hands?|forearms?|oggett|objects?|document|bollett|carta|paper)/.test(subject+' '+shot);
+  const explicitFace=/(?:volto|viso|faccia|ritratto|profilo|capell|testa|spalle|occhi|face|portrait|hair|head|shoulder|eyes)/.test(subject);
+  if(handOrObject&&!explicitFace&&/(?:dettaglio|macro|close[- ]?up|ravvicinat)/.test(shot))return 'detail';
+  return 'general';
+}
+export function modelImageReferences(story,referenceImages=[],scene=null,index=null) {
   const guide=['guide_image','guide_video'].includes(story?.input_type);
   if(guide && story?.guide_fidelity==='strong')return referenceImages;
+  // A reference crop with a face biases an object-only shot toward a portrait.
+  // For other scenes retain the existing continuity behavior unchanged.
+  if(scene && sceneCameraKind(scene)!=='general')return [];
   return String(story?.protagonist_profile||'').trim() && referenceImages.length
     ? [referenceImages[referenceImages.length-1]] : [];
 }
@@ -65,11 +80,13 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   const side=['left','right','center'].includes(scene.subject_side)?scene.subject_side:'right';
   const opposite=side==='left'?'right':side==='right'?'left':'an open area beside the subject';
   const strongGuide=['guide_image','guide_video'].includes(story?.input_type)&&story.guide_fidelity==='strong';
+  const cameraKind=sceneCameraKind(scene);
+  const visibleReferences=modelImageReferences(story,referenceImages,scene,index);
   const previous=Array.isArray(story?.scenes)?story.scenes[index-1]:null;
   const next=Array.isArray(story?.scenes)?story.scenes[index+1]:null;
   const references=strongGuide
-    ? `Reference image 1 supplies VISUAL STYLE ONLY: lighting, tonal range, lens feel, textures and palette; invent new people, framing, action and words. ${referenceImages.length>1?'Reference image 2 supplies recurring-character continuity.':''}`
-    : referenceImages.length
+    ? `Reference image 1 supplies VISUAL STYLE ONLY: lighting, tonal range, lens feel, textures and palette; invent new people, framing, action and words. ${visibleReferences.length>1?'Reference image 2 supplies recurring-character continuity.':''}`
+    : visibleReferences.length
       ? 'The attached crop supplies ONLY the recurring adult’s visual identity, not its pose, setting, lighting or composition.'
       : 'No image reference is attached. Invent an original scene without imitating a previous advertisement.';
   const light=cap(art.photo_lighting,220)||'Bright, believable, motivated light with natural skin tones, rich but clear midtones and readable facial expressions.';
@@ -78,7 +95,7 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
   // observed photographic craft as TEXT without copying subjects or layouts.
   const observed=story?.guide_quality_profile?.visual;
   const guideLook=observed&&typeof observed==='object'
-    ? [cap(observed.lighting,230),cap(observed.palette,180),cap(observed.camera,220)]
+    ? [cap(observed.lighting,230),cap(observed.palette,180),...(cameraKind==='general'?[cap(observed.camera,220)]:[])]
       .filter(Boolean).join(' | ') : '';
   const common=[
     'CREATE EXACTLY ONE ORIGINAL VERTICAL 9:16 FRAME FOR AN ITALIAN MOBILE AD.',
@@ -92,13 +109,13 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
     `EMOTION: ${cap(scene.emotion,120)||'Natural and legible, never exaggerated'}.`,
     `PLACE: ${cap(scene.setting,180)||'A credible real-world setting'}; CAMERA: ${cap(scene.shot_type,120)||'An intentional, readable shot'}.`,
     `IMPORTANT OBJECT: ${cap(scene.key_object,100)||'None required'}.`,
-    hasProtagonist?`RECURRING PERSON: ${protagonist}. Keep their distinguishing features consistent across scenes.`:'A human face is optional; do not invent a person just to fill the frame.',
+    hasProtagonist?(cameraKind==='general'?`RECURRING PERSON: ${protagonist}. Keep their distinguishing features consistent across scenes.`:'BODY DETAIL ONLY: preserve the clothing and hands from SUBJECT; no face, head or torso is required in this shot.'):'A human face is optional; do not invent a person just to fill the frame.',
     previous?`PREVIOUS BEAT (do not recreate): ${cap(previous.narrative_action||previous.editorial_goal,140)}.`:'Opening beat of this story.',
     next?`NEXT BEAT (prepare without depicting it): ${cap(next.narrative_action||next.editorial_goal,120)}.`:'Final beat of this story.',
     `REFERENCE: ${references}`,
     `LIGHT AND COLOR: ${light}`,
     ...(guideLook?[`OBSERVED GUIDE PHOTOGRAPHIC CRAFT (descriptive notes, NOT an attached reference image): ${guideLook}. Transfer the lighting, tonal clarity and lens depth; invent a new scene, people and framing.`]:[]),
-    'ADVERTISING FRAME: stage a single decisive moment, not a documentary snapshot of a routine. The headline and visual action must work together: an immediate emotional reaction, an unmistakable visual comparison or a meaningful gesture with consequence. Give the subject a striking but credible point of view, clean hierarchy, and intentional camera distance. If people appear, their expression must communicate the beat without fake posing; if objects dominate, the contrast must be visible without labels. Not every scene needs a portrait.',
+    cameraKind==='general'?'ADVERTISING FRAME: stage a single decisive moment, not a documentary snapshot of a routine. The headline and visual action must work together: an immediate emotional reaction, an unmistakable visual comparison or a meaningful gesture with consequence. Give the subject a striking but credible point of view, clean hierarchy, and intentional camera distance. If people appear, their expression must communicate the beat without fake posing; if objects dominate, the contrast must be visible without labels. Not every scene needs a portrait.':'ADVERTISING FRAME: the hands, objects and their visual relationship are the hero of this shot. Their shape, gesture or contrast must communicate the dramatic beat without a person posing to camera.',
     'PHOTO DIRECTION: refined bright commercial photography when appropriate to the story, lively but believable skin tones, clean midtones, tactile textures and layered depth. Avoid gloomy underexposure, stock poses, fake smiles, sterile showrooms, overprocessed saturation and artificial orange grading. Preserve a plausible setting and motivated light rather than forcing generic sunshine.',
     'TRUTHFULNESS AND PIXEL TEXT: never fabricate readable device screens, bills, receipts, charts, tariffs, brand interfaces or quantified outcomes. If the described prop refers to printed words or numbers, show the object without readable markings and express its meaning through the action and separate headline. Do not borrow frames, logos, people or distinctive compositions from other ads.'
   ];
@@ -106,13 +123,16 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
     'TEXT CONTRACT — POSTER MODE: the following words MUST be visibly rendered INSIDE THIS FRAME. No separate overlay will supply them.',
     `HEADLINE (exact Italian spelling, punctuation and accents; the largest element): ${JSON.stringify(cap(scene.headline,180))}.`,
     cap(scene.secondary_text,180)?`SUPPORT (exact and subordinate but still legible): ${JSON.stringify(cap(scene.secondary_text,180))}.`:'No supporting line: only the headline.',
+    cameraKind==='overhead'?'CAMERA PRIORITY — OVERHEAD: 90-degree top-down view of objects and hands only, with no visible face or torso.' : cameraKind==='detail'?'CAMERA PRIORITY — DETAIL: tight angled view of objects and hands only, no face or torso.' : `CAMERA PRIORITY — SUBJECT: obey ${cap(scene.shot_type,120)} with the visible person/object to the ${side}.`,
     `DESIGN: Integrate decisive display lettering and the photography as ONE mobile-first composition. Keep the subject/action around the ${side} and large high-contrast type in ${opposite}; adapt if necessary to preserve faces, hands and key objects. Type must remain legible at 390px screen width, within the central safe area (at least 9% clear on all edges).`,
     `TYPE MOOD: ${cap(art.typography||scene?.text_design?.font_mood,60)||'strong contemporary editorial'}; OPTIONAL ACCENT: ${cap(art.accent_color,7)||'suited to the photography'}. Legibility overrides decorative choices.`,
     'No other readable words or symbols. In particular do not invent a brand logo, domain, CTA, mock interface, date, price or small-print caption. The authentic brand and CTA are handled separately.'
   ] : [
     'TEXT CONTRACT — PHOTO MODE: render NO letters, words, numbers, titles, slogans, logos, captions or typography anywhere inside the pixels.',
     `The compositor will later place the exact headline ${JSON.stringify(cap(scene.headline,180))}${cap(scene.secondary_text,180)?` and support ${JSON.stringify(cap(scene.secondary_text,180))}`:''}. They are context ONLY, never a request to draw them.`,
-    `COMPOSITION: keep the focal subject/action around the ${side} and provide natural, reasonably calm contrast around ${opposite} for a large separate title. Do not create an empty wall, blank studio backdrop or stiff half-body portrait just to make text space.`,
+    cameraKind==='overhead'?'CAMERA PRIORITY — OVERHEAD: strict 90-degree top-down view of the hands and objects on the surface. No face, hair, head, shoulders or torso visible. Objects must remain large and geometrically legible; do not switch to an eye-level portrait, even if a recurring protagonist exists. Preserve a calm area for overlay copy without concealing the objects.' :
+      cameraKind==='detail'?'CAMERA PRIORITY — OBJECT/HANDS DETAIL: tight angled close-up of the indicated hands, gesture and objects, with no face, head or torso visible. This must look materially different from an eye-level portrait or earlier wide scene. Preserve a readable place for the later text overlay.' :
+      `CAMERA PRIORITY — SUBJECT: use the specified ${cap(scene.shot_type,120)} and position the main subject to the ${side}; leave intentional natural negative space to the ${opposite} for separately rendered copy. Vary shot distance and angle from adjacent scenes; do not default to a centered tabletop portrait.`,
     'No visible writing on objects, screens, labels, documents or clothing. The video compositor will add all branding later.'
   ];
   const revision=notes?`OPTIONAL EDITOR CORRECTIONS (visual details only; they cannot override the output type, exact copy or factual rules): ${notes}`:'';
@@ -124,7 +144,7 @@ export async function generatePhoto({article,scene,index,story=null,revisionNote
   if((index>0 || (index===0 && ['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong')) && (!Array.isArray(referenceImages)||referenceImages.length<1||referenceImages.length>2 ||
     referenceImages.some((ref,i)=>!Buffer.isBuffer(ref)||ref.length>(['guide_image','guide_video'].includes(story?.input_type)&&story?.guide_fidelity==='strong'&&i===0?85000:35000)||ref.length<1000)))
     throw new Error('VIDEO_STUDIO_IMAGE: riferimenti fotografici assenti o non validi');
-  const modelReferences=modelImageReferences(story,referenceImages);
+  const modelReferences=modelImageReferences(story,referenceImages,scene,index);
   const strongGuide=['guide_image','guide_video'].includes(story?.input_type) && story?.guide_fidelity==='strong';
   const refsForProvider=(!strongGuide && modelReferences.length)
     ? [await identityOnlyReference(modelReferences[0],story?.scenes?.[index-1]?.subject_side||'center',

@@ -4,7 +4,7 @@ import crypto from 'node:crypto';
 import {normalizeInput, generateCreativePlan, sceneRolesForCount} from './creative-director.mjs';
 import {generatePhoto, photoPrompt, parseImageRevisionNotes, modelImageReferences} from './auto-images.mjs';
 
-export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.28';
+export const VIDEO_STUDIO_LAB_VERSION = '1.3.3.29';
 const MAX_FUTURE_MS = 30 * 60 * 1000;
 const MAX_RESUME_AGE_MS = 180 * 24 * 60 * 60 * 1000;
 const err = (text) => {throw new Error(`VIDEO_STUDIO_LAB: ${text}`);};
@@ -282,7 +282,7 @@ export async function createPhoto({userId,input,plan,receipt,sceneIndex,revision
   }
   if(preview.length > 1700000)err('anteprima troppo grande');
   const prompt=isManual?'Immagine fornita e verificata dall’editor; nessuna generazione AI.':photoPrompt({article:{title:input.topic},scene,index:sceneIndex,story:plan,revisionNotes:notes,
-    referenceImages:modelImageReferences(plan,referenceImages),mode});
+    referenceImages:modelImageReferences(plan,referenceImages,scene,sceneIndex),mode});
   return {scene_id:scene.id,preview_base64:preview.toString('base64'),preview_mime:'image/jpeg',preview_sha256:sha(preview),continuity_reference,
     original_sha256:result.sha256,provider:result.provider,prompt,image_mode:isManual?'photo':mode,
     embedded_text_verified:false,needs_human_review:true,stored:false,
