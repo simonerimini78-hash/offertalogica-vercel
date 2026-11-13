@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.30 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.31 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -708,12 +708,13 @@
   function layerText(view,kind) {
     if(kind==='title')return String(view.scene.headline||'').trim();
     if(kind==='subtitle')return String(view.scene.secondary_text||'').trim();
-    if(kind==='cta')return 'VISITA IL SITO';
+    if(kind==='cta')return 'SEGUI';
+    if(kind==='domain')return 'OFFERTALOGICA.IT';
     return String(layerFor(view,kind)?.text||'').trim();
   }
   function manualKinds(view) {
     const design=initializeManualCopy(view);
-    return ['title','subtitle',...(view.scene.role==='cta'?['cta']:[]),
+    return ['title','subtitle',...(view.scene.role==='cta'?['cta',...(design.domain?['domain']:[])]:[]),
       ...design.extras.map(layer=>layer.id),'logo'];
   }
   function initializeManualCopy(view) {
@@ -729,6 +730,28 @@
     const titleH=auto?.copy?.titleHeight||210;
     const secondaryY=Number.isFinite(auto?.copy?.detailY)?auto.copy.detailY:titleY+titleH+33;
     const secondaryX=Number.isFinite(auto?.copy?.detailX)?auto.copy.detailX:choice.x;
+    if(view.scene.role==='cta' && auto?.items && !auto.overflow) {
+      const byKind=kind=>auto.items.find(item=>item.kind===kind);
+      const palette=auto.palette||{};
+      const textColor=palette.title==='#183039'?'#183039':'#ffffff';
+      const toBox=(item,kind)=>constrainTextBox({
+        x:item.x/MONTAGE_WIDTH,y:item.y/MONTAGE_HEIGHT,
+        width:item.width/MONTAGE_WIDTH,height:Math.max(item.height+24,110)/MONTAGE_HEIGHT
+      },kind);
+      const toText=(kind,item,size,background=false)=>({box:toBox(item,kind),
+        style:{...defaultTextStyle(kind),size,weight:850,color:textColor,background,
+          shadow:true,align:item.align||'left',padding:5}});
+      const title=byKind('headline'),support=byKind('support'),action=byKind('action'),
+        domain=byKind('domain'),logo=byKind('logo');
+      if(title&&action&&domain&&logo)return (view.textDesign={
+        title:toText('title',title,title.size),
+        subtitle:toText('subtitle',support||title,support?.size||44),
+        cta:toText('cta',action,action.followSize||62),
+        domain:toText('domain',domain,domain.size||48),
+        extras:[],logo:{visible:true,opacity:1,box:constrainLogoBox({
+          x:logo.x/MONTAGE_WIDTH,y:logo.y/MONTAGE_HEIGHT,width:logo.width/MONTAGE_WIDTH})}
+      });
+    }
     return (view.textDesign={
       title:{box:constrainTextBox({x:choice.x/MONTAGE_WIDTH,y:titleY/MONTAGE_HEIGHT,
         width:choice.width/MONTAGE_WIDTH,height:Math.max(150,titleH+22)/MONTAGE_HEIGHT},'title'),
@@ -1211,7 +1234,9 @@
       ['logo','headline','support','action','domain']);
     let best=null;
     const available=Math.max(0,safe.width-28);
-    for(const fraction of [1,.86,.73,.64,.57,.51])for(const align of ['left','right','center']) {
+    // Narrow quiet columns (e.g. a portrait on the right) require <50% of the safe width.
+    // Otherwise the fitter rejects every CTA and the editor falls back to unsafe manual text.
+    for(const fraction of [1,.86,.73,.64,.57,.51,.46,.42,.38])for(const align of ['left','right','center']) {
       if(['left','right'].includes(view.layoutPreference)&&align!==view.layoutPreference)continue;
       const contentWidth=Math.round(available*fraction);
       if(contentWidth<300)continue;
@@ -1348,7 +1373,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.30|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.31|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1684,6 +1709,34 @@
         b.width*MONTAGE_WIDTH,b.height*MONTAGE_HEIGHT);ctx.restore();
     }
   }
+  // The editor retains manual control for safe layouts. Older drafts saved
+  // before the manual domain field existed, or layouts that significantly
+  // cover the portrait, use the measured adaptive CTA in preview AND export.
+  // This avoids a silently missing website or a white headline over the face.
+  function needsCtaRescue(view) {
+    if(view?.scene?.role!=='cta'||view.layoutPreference!=='manual')return false;
+    const design=view.textDesign;
+    if(!design?.cta||!design?.domain||!design.logo?.visible)return true;
+    const faces=protectedPortraits(view);
+    const fields=['title','subtitle','cta','domain'].filter(kind=>
+      kind!=='subtitle'||String(view.scene.secondary_text||'').trim());
+    return [...fields.map(kind=>{
+      const layer=design[kind];return layer?.box?textBoxRect({box:constrainTextBox(layer.box,kind)}):null;
+    }),textBoxRect({box:constrainLogoBox(design.logo.box)})]
+      .filter(Boolean).some(box=>facesOverlap(box,faces,6)>Math.max(1000,box.width*box.height*.065));
+  }
+  function safeCtaRescue(ctx,view) {
+    const key=[view._imageEpoch||0,view.result?.preview_sha256||'',view.scene.headline,
+      view.scene.secondary_text,JSON.stringify(view.scene.text_design||{}),
+      (view._faceBoxes||[]).map(face=>[face.x,face.y,face.width,face.height]),
+      textGuide.left,textGuide.top,textGuide.right,textGuide.bottom].join('|');
+    if(view._ctaRescueKey===key)return view._ctaRescue;
+    const proxy={...view,layoutPreference:'auto'};
+    const result=fitCtaComposition(ctx,proxy);
+    view._ctaRescueKey=key;
+    view._ctaRescue=result&&!result.overflow?result:null;
+    return view._ctaRescue;
+  }
   function expressiveTextLine(ctx,{line,x,y,font,base,outline,shadow,phrase,effect,accent,thickness=3}) {
     ctx.save();ctx.font=font;ctx.textAlign='left';ctx.textBaseline='alphabetic';
     const value=String(line||''),query=String(phrase||'').trim();
@@ -1947,9 +2000,12 @@
       }
       // Preserve the photographic color grade of the CTA: no universal warm filter.
       if (!isIntegratedPoster(sceneViews[segment.index])) {
-        if (sceneViews[segment.index]?.layoutPreference === 'manual')
-          drawManualOverlay(ctx,sceneViews[segment.index]);
-        else drawCinematicOverlay(ctx, sceneViews[segment.index],segment.local);
+        const view=sceneViews[segment.index];
+        if(view?.layoutPreference==='manual') {
+          const rescued=needsCtaRescue(view)?safeCtaRescue(ctx,view):null;
+          if(rescued)drawCtaOverlay(ctx,view,rescued,segment.local);
+          else drawManualOverlay(ctx,view);
+        } else drawCinematicOverlay(ctx,view,segment.local);
       }
     }
     // Thin timeline belongs to the editing PREVIEW only, not the exported video.
@@ -2299,6 +2355,7 @@
     const overflowScenes=sceneViews.filter(view=>{
       if(isIntegratedPoster(view))return false;
       if(view.layoutPreference!=='manual')return compositionForScene(ctx,view).overflow;
+      if(needsCtaRescue(view) && safeCtaRescue(ctx,view))return false;
       const design=initializeManualCopy(view);
       return manualKinds(view).some(kind=>kind!=='logo'&&layerText(view,kind)&&
         (()=>{const layer=layerFor(view,kind),b=constrainTextBox(layer.box,kind);
@@ -2435,6 +2492,11 @@
   }
   function editorWarning(view) {
     if (!view || view.layoutPreference!=='manual') return '';
+    if(needsCtaRescue(view)) {
+      const ctx=previewView?.canvas?.getContext('2d');
+      if(ctx&&safeCtaRescue(ctx,view))return 'La CTA manuale non protegge il volto oppure manca il dominio: anteprima e bozza usano la disposizione automatica sicura. Per personalizzarla, scegli Automatica e poi Manuale.';
+      return 'ATTENZIONE: la CTA manuale è incompleta o vicina al volto e non è disponibile una disposizione automatica sicura. Regola gli elementi prima di esportare.';
+    }
     if (productScreenActive(view.index))
       return 'Schermata verificata: il layout dedicato rimane fisso per non coprire la UI autentica.';
     const t=initializeManualCopy(view),warnings=[];
@@ -2478,7 +2540,13 @@
       ?(view.layoutPreference==='manual'?textGuidePixels():REELS_VISIBLE)
       :(option.safe||option);
     const objects=[];
-    if(view.layoutPreference==='manual') {
+    const rescued=needsCtaRescue(view)?safeCtaRescue(ctx,view):null;
+    if(rescued) {
+      const labels={headline:'Titolo CTA',support:'Supporto CTA',action:'Invito a seguire',
+        domain:'Richiamo al sito',logo:'Logo'};
+      for(const [i,item] of rescued.items.entries())objects.push({
+        name:labels[item.kind]||'CTA',rect:rescued.inkBoxes?.[i]||item});
+    } else if(view.layoutPreference==='manual') {
       const design=initializeManualCopy(view);
       for(const kind of manualKinds(view)) {
         if(kind==='logo'||!layerText(view,kind))continue;
@@ -2559,7 +2627,8 @@
   function editorBoxLabel(kind,view) {
     if(kind==='title')return 'Titolo';
     if(kind==='subtitle')return 'Sottotitolo';
-    if(kind==='cta')return 'CTA';
+    if(kind==='cta')return 'SEGUI';
+    if(kind==='domain')return 'Sito OffertaLogica';
     if(kind==='logo')return 'Logo OffertaLogica';
     const position=initializeManualCopy(view).extras.findIndex(layer=>layer.id===kind)+1;
     return `Testo ${position}`;
@@ -2742,7 +2811,13 @@
       ['top','In alto'],['left','A sinistra'],['right','A destra'],['bottom','In basso'],
     ],()=>{
       const view=currentTextView();if(!view||busy()||previewPlaying||isIntegratedPoster(view))return;
-      if(mode.select.value==='manual')initializeManualCopy(view);
+      if(mode.select.value==='manual') {
+        // Old imported CTA layouts had no editable domain field. Re-entering
+        // manual mode rebuilds only that incomplete CTA from the safe auto fit.
+        if(view.scene.role==='cta'&&view.textDesign&&!view.textDesign.domain)
+          view.textDesign=null;
+        initializeManualCopy(view);
+      }
       view.layoutPreference=mode.select.value;
       if(view.layoutSelect)view.layoutSelect.value=view.layoutPreference;
       view._compositionKey=null;updateManualDesign();
