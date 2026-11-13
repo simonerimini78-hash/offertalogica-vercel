@@ -1,4 +1,4 @@
-/* Video Studio v1.3.3.29 — experimental AI poster images with embedded type; legacy compositor retained. */
+/* Video Studio v1.3.3.30 — experimental AI poster images with embedded type; legacy compositor retained. */
 (() => {
   'use strict';
   const root = document.querySelector('[data-vs-workspace]');
@@ -1137,9 +1137,8 @@
   }
   // Build a real typographic CTA, not a compulsory pair of buttons.
   // The AI selects the emphasis and priority; Canvas measures every word before export.
-  // Responsive, face-aware brand ending. Unlike the generic fitter, the CTA
-  // dedicates predictable space to the actual mark, one editorial promise,
-  // one follow action and the real domain (never a tiny article caption).
+  // Rare fallback when the measured adaptive CTA cannot fit. Unlike the former
+  // default, this does not darken the photograph; the normal compositor wins.
   function fitBrandCtaStage(ctx,view) {
     const scene=view.scene||{},support=cleanCtaSupport(scene.secondary_text);
     if(support)return null; // Never discard meaningful copy to force this variant.
@@ -1149,9 +1148,11 @@
     const brand=transparentBrandLogo()||previewView?.logo;
     const logoRatio=brand?.naturalWidth?(brand.naturalHeight||brand.height)/(brand.naturalWidth||brand.width):353/640;
     const stageRight=scenePlacement(view)==='right';
-    const width=Math.min(Math.round(safe.width*.60),560);
+    const width=Math.min(Math.round(safe.width*.51),480);
     const x=stageRight?safe.x+safe.width-width-20:safe.x+20;
-    const logoW=Math.round(Math.min(255,safe.width*.31)),logoH=Math.ceil(logoW*logoRatio);
+    const logoW=Math.round(Math.min(255,width*.62)),logoH=Math.ceil(logoW*logoRatio);
+    const align=stageRight?'right':'left';
+    const logoX=stageRight?x+width-logoW:x;
     const logoY=safe.y+16,headlineY=logoY+logoH+22;
     const domain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',width,1,
       size=>`900 ${size}px ${CTA_FONT_STACK}`,42,69);
@@ -1168,21 +1169,22 @@
       const end=domainY+domain.height;
       if(end>safe.y+safe.height-12)continue;
       const items=[
-        {kind:'logo',x,y:logoY,width:logoW,height:logoH,align:'left'},
-        {...headline,kind:'headline',x,y:headlineY,width,align:'left'},
-        {kind:'action',x,y:actionY,width,height:actionSize+13,align:'left',followSize:actionSize},
-        {...domain,kind:'domain',x,y:domainY,width,align:'left'}
+        {kind:'logo',x:logoX,y:logoY,width:logoW,height:logoH,align},
+        {...headline,kind:'headline',x,y:headlineY,width,align},
+        {kind:'action',x,y:actionY,width,height:actionSize+13,align,followSize:actionSize},
+        {...domain,kind:'domain',x,y:domainY,width,align}
       ];
       const lineBoxes=items.flatMap(item=>ctaInkLines(ctx,item,type,scene.text_design||{}));
       if(items.some(item=>!insideRect(item,safe)) || lineBoxes.some(rect=>!insideRect(rect,safe)))continue;
       // Real browser face detections take priority over descriptive side hints.
       if(Array.isArray(view._faceBoxes)&&view._faceBoxes.length &&
         lineBoxes.some(rect=>facesOverlap(rect,protectedPortraits(view),7)>40))continue;
-      const titleBox={x,y:headlineY,width:headline.lineWidth,height:headline.height};
+      const titleBox={x:stageRight?x+width-headline.lineWidth:x,y:headlineY,
+        width:headline.lineWidth,height:headline.height};
       const copy={lines:headline.lines,size:headline.size,titleStep:headline.step,
         detail:[],detailSize:0,detailStep:0,gap:0,titleHeight:headline.height,
         titleWidth:headline.lineWidth,detailWidth:0,textHeight:headline.height,overflow:false};
-      best={variant:'brand-stage',stageRight,type,safe,items,inkBoxes:lineBoxes,
+      best={variant:'brand-fallback',stageRight,type,safe,items,inkBoxes:lineBoxes,
         logo:items[0],titleBox,detailBox:null,choice:{side:'cta',x,y:headlineY,width},
         bounds:unionRects(items),textBounds:unionRects(items.slice(1)),
         copy,y:headlineY,footerY:actionY,actionHeight:actionSize+13,overflow:false};
@@ -1193,8 +1195,6 @@
     return best;
   }
   function fitCtaComposition(ctx,view) {
-    const brandStage=fitBrandCtaStage(ctx,view);
-    if(brandStage)return brandStage;
     const safe=ctaSafeArea(),type=sceneTypeStyle(view);
     const design=view.scene?.text_design||{};
     const focus=['follow','site','balanced'].includes(design.cta_focus)?design.cta_focus:'follow';
@@ -1238,7 +1238,10 @@
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(42*scale),Math.round(77*scale));
         const wideDomain=ctaTextBlock(ctx,'domain','OFFERTALOGICA.IT',wideWidth,1,
           size=>`850 ${size}px ${CTA_FONT_STACK}`,Math.round(44*scale),Math.round(84*scale));
-        for(const span of ['column','wide-footer']) {
+        // A wide footer can cross a person's body even when face boxes are clear.
+        // Reserve it for object-only or centered compositions; keep human CTAs
+        // inside the quiet column opposite the protagonist.
+        for(const span of (['left','right'].includes(view.scene?.subject_side)?['column']:['column','wide-footer'])) {
           const footW=span==='wide-footer'?wideWidth:contentWidth;
           const footFollow=span==='wide-footer'?wideFollow:follow;
           const footDomain=span==='wide-footer'?wideDomain:domain;
@@ -1248,7 +1251,7 @@
           const actionH=footFollow.size+Math.round(14*scale);
           const domainH=footDomain.size+Math.round(12*scale);
           // A compact logo grants the actual CTA promise more visual space.
-          const logoW=Math.min(contentWidth*.42,Math.round(192*scale));
+          const logoW=Math.min(contentWidth*.72,Math.round(316*scale));
           const logoH=Math.ceil(logoW*logoRatio);
           const gap=Math.round(12*scale);
           const blocks={
@@ -1270,7 +1273,11 @@
             const items=ordered.map(block=>{
               const column=(block.kind==='action'||block.kind==='domain')&&span==='wide-footer'
                 ?{x:safe.x+14,width:wideWidth}: {x,width:contentWidth};
-              const item={...block,x:column.x,y,align};
+              // A logo is an image, not aligned text: place its actual bounding
+              // rectangle at the chosen column edge to protect the subject.
+              const logoX=align==='right'?column.x+column.width-block.width:
+                align==='center'?column.x+(column.width-block.width)/2:column.x;
+              const item={...block,x:block.kind==='logo'?logoX:column.x,y,align};
               y+=block.height+gap;
               return item;
             });
@@ -1288,7 +1295,7 @@
             const prefer=artAlign||(preference==='left'?'left':preference==='right'?'right':null);
             const score=title.size*2.9+footDomain.size*.80+
               (detail?detail.size*.30:0)+footFollow.size*.35+
-              logoW*.035-photoNoise*55+(prefer===align?3:0)+
+              logoW*.035-photoNoise*55+(prefer===align?18:0)+
               (align==='center'?-1.5:0)-(anchor==='middle'?0:anchor==='top'?.8:1.4);
             if(!best||score>best.score)best={items,textBoxes,lineBoxes,
               variant:`editorial-${align}-${anchor}-${span}`,score,scale,focus,failed:false};
@@ -1297,6 +1304,8 @@
       }
     }
     if(!best) {
+      const fallback=fitBrandCtaStage(ctx,view);
+      if(fallback)return fallback;
       // Unsafe layouts are never silently accepted or silently truncated.
       // Keep every semantic block and trigger the existing export overflow gate.
       const w=Math.max(1,safe.width-28),x=safe.x+14;
@@ -1339,7 +1348,7 @@
   }
   function compositionForScene(ctx,view) {
     const faceSignature=(view._faceBoxes||[]).map(f=>[f.x,f.y,f.width,f.height].map(Math.round).join(',')).join(';');
-    const key=`1.3.3.29|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
+    const key=`1.3.3.30|${view._imageEpoch||0}|${view.result?.preview_sha256||''}|${view.layoutPreference}|${view.scene.headline}|${view.scene.secondary_text}|${view.scene.subject_side||''}|${view.scene.subject_description||''}|${view.scene.art_direction?.placement||''}|${view.scene.art_direction?.typography||''}|${view.scene.art_direction?.accent_color||''}|${JSON.stringify(view.scene.text_design||{})}|${faceSignature}|${textGuide.left}|${textGuide.top}|${textGuide.right}|${textGuide.bottom}`;
     if(view._compositionKey===key&&view._composition)return view._composition;
     if(view.scene.role==='cta') {
       const cta=fitCtaComposition(ctx,view);
@@ -1727,22 +1736,21 @@
     const brand=transparentBrandLogo()||previewView?.logo;
     const headlineEffect=design.emphasis_effect||'none',phrase=design.emphasis_text||'';
     const brightPhoto=palette.title==='#183039';
-    if(composition.variant==='brand-stage') {
-      // A soft full-frame vignette has no visible box edge. The intended subject
-      // remains on the opposite side; the text side receives local contrast.
-      const safe=composition.safe,right=composition.stageRight;
-      const cx=right?MONTAGE_WIDTH*.96:MONTAGE_WIDTH*.04;
-      const cy=safe.y+safe.height*.46;
-      const radius=Math.max(800,safe.width*1.04);
-      const grad=ctx.createRadialGradient(cx,cy,100,cx,cy,radius);
-      grad.addColorStop(0,'rgba(9,35,37,.87)');
-      grad.addColorStop(.42,'rgba(9,35,37,.68)');
-      grad.addColorStop(.80,'rgba(9,35,37,.22)');
-      grad.addColorStop(1,'rgba(9,35,37,0)');
-      ctx.save();ctx.fillStyle=grad;
-      ctx.fillRect(0,0,MONTAGE_WIDTH,MONTAGE_HEIGHT);
-      ctx.fillStyle='#55c77a';
-      ctx.fillRect(composition.choice.x,composition.safe.y+196,116,8);
+    // Preserve the underlying photographic grade. Only a restrained, local
+    // halo behind the CTA headline supports contrast; never darken the full frame.
+    if(composition.titleBox && !composition.overflow) {
+      const box=composition.titleBox;
+      const cx=box.x+box.width*.50,cy=box.y+box.height*.52;
+      const radius=Math.max(160,Math.min(570,Math.max(box.width*.73,box.height*.82)));
+      const glow=ctx.createRadialGradient(cx,cy,4,cx,cy,radius);
+      const inkDark=palette.title==='#183039';
+      glow.addColorStop(0,inkDark?'rgba(253,251,246,.29)':'rgba(9,30,31,.30)');
+      glow.addColorStop(.60,inkDark?'rgba(253,251,246,.11)':'rgba(9,30,31,.12)');
+      glow.addColorStop(1,'rgba(0,0,0,0)');
+      ctx.save();ctx.fillStyle=glow;
+      ctx.fillRect(Math.max(0,cx-radius),Math.max(0,cy-radius),
+        Math.min(MONTAGE_WIDTH,cx+radius)-Math.max(0,cx-radius),
+        Math.min(MONTAGE_HEIGHT,cy+radius)-Math.max(0,cy-radius));
       ctx.restore();
     }
     const draw=(line,x,y,font,color,stroke,shadow,effect='none',emphasis='')=>
@@ -1752,10 +1760,9 @@
       const blockTone=samplePhotoBrightness(view,item);
       const blockBright=blockTone?(blockTone.mean>=.54||
         (blockTone.mean>=.46&&blockTone.brightShare>=.70)):brightPhoto;
-      const brandStage=composition.variant==='brand-stage';
-      const blockMain=brandStage?'#ffffff':blockBright?'#17313a':'#fffdf6';
-      const blockOutline=brandStage?'rgba(3,18,23,.46)':blockBright?'rgba(255,251,241,.95)':'rgba(5,22,26,.92)';
-      const blockShadow=brandStage?'rgba(2,14,16,.25)':blockBright?'rgba(255,255,255,.38)':'rgba(0,0,0,.70)';
+      const blockMain=blockBright?'#17313a':'#fffdf6';
+      const blockOutline=blockBright?'rgba(255,251,241,.95)':'rgba(5,22,26,.92)';
+      const blockShadow=blockBright?'rgba(255,255,255,.38)':'rgba(0,0,0,.70)';
       ctx.save();
       ctx.globalAlpha*=item.kind==='logo'?progress(.03,.30):
         item.kind==='headline'?progress(.15,.32):item.kind==='support'?progress(.28,.30):
@@ -1777,9 +1784,9 @@
             item.align==='right'?item.x+item.width-width:item.x;
           ctx.save();ctx.translate(x,0);ctx.scale(horizontal,1);
           draw(line,0,item.y+item.size+i*item.step,font,
-            composition.variant==='brand-stage'?'#ffffff':support?palette.detail:palette.title,
-            composition.variant==='brand-stage'?'rgba(5,28,30,.38)':support?palette.detailOutline:palette.titleOutline,
-            composition.variant==='brand-stage'?'rgba(5,28,30,.20)':support?palette.detailShadow:palette.titleShadow,
+            support?palette.detail:palette.title,
+            support?palette.detailOutline:palette.titleOutline,
+            support?palette.detailShadow:palette.titleShadow,
             support?'none':headlineEffect,support?'':phrase);
           ctx.restore();
         }
