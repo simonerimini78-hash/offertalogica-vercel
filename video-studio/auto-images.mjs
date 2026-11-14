@@ -1,4 +1,4 @@
-// Video Studio v1.3.3.32 image composition; independent of editorial automations.
+// Video Studio v1.3.3.33 image composition; independent of editorial automations.
 import {createHash} from 'node:crypto';
 const SHA = v=>createHash('sha256').update(v).digest('hex');
 // Keep existing deployment overrides except retired/older image-model defaults.
@@ -61,10 +61,36 @@ export async function identityOnlyReference(bytes,previousSide,sharp) {
   const top=Math.min(info.height-height,Math.round(info.height*.10));
   return sharp(bytes).extract({left,top,width,height}).resize(220,280,{fit:'cover'}).jpeg({quality:76}).toBuffer();
 }
-// A single image contract for both modes. Never pass the storyboard's visual_brief
-// or camera_intent verbatim: they may prescribe Canvas lettering even when this
-// invocation is POSTER, or embedded lettering when it is PHOTO. Structured scene
-// facts below are sufficient to stage the action without conflicting render rules.
+// Translate signed storyboard descriptions into photographic facts, not into
+// renderer instructions. Splitting into clauses protects the scene geometry
+// while excluding requests for headline positions, logos, overlays and UI.
+const RENDER_ONLY = /(?:\b(?:headline|headlines|titolo|titoli|sottotitolo|sottotitoli|supporto|copy|caption|cta|logo|loghi|dominio|domain|font|tipografia|tipografico|lettering|scritte|scritta|testi|testo|overlay|renderer|canvas|pannello grafico|interfaccia)\b|\bx\s*\d{2,4}\s*[-–]\s*\d|\by\s*\d{2,4}\s*[-–]\s*\d)/i;
+function photographicFacts(value,limit) {
+  const clauses=String(value||'').replace(/\s+/g,' ').trim().split(/(?<=[.!?])\s+|;\s+/);
+  const filtered=clauses.map(part=>part
+    // Keep the physical action in mixed clauses (e.g. "... , leaving space for title").
+    .replace(/(?:,\s*|\s+e\s+)(?:lasciando|riservando|riservare|proteggendo|evitando|senza coprire|con spazio per)[^.!?]*\b(?:headline|titolo|titoli|testi|testo|logo|cta|interfaccia)\b[^.!?]*/i,'')
+    .replace(/[.!?]+$/,'').trim()).filter(part=>part&&!RENDER_ONLY.test(part));
+  return filtered.join('. ').slice(0,limit);
+}
+function recurringPropRule(story,scene,index) {
+  if(index<1||!Array.isArray(story?.scenes)||!story.scenes[0]?.key_object)return '';
+  const first=story.scenes[0];
+  const keyWords=String(first.key_object).toLocaleLowerCase('it').match(/[a-zà-ÿ]{4,}/g)||[];
+  const skip=new Set(['questa','questo','quella','quello','della','delle','degli','color','colore','grande','piccola','piccolo','stesso','stessa','sulla','sullo','nelle','negli','dalla','dalle','primo','prima','scena','circa','anche','visivo','oggetto','oggetti','fatto','fatti','due']);
+  const key=keyWords.find(word=>!skip.has(word));
+  const current=String([scene?.visual_brief,scene?.key_object,scene?.continuity_link].filter(Boolean).join(' ')).toLocaleLowerCase('it');
+  if(!key||!new RegExp(`(?:^|[^a-zà-ÿ])${key}(?:$|[^a-zà-ÿ])`,'i').test(current))return '';
+  const firstFacts=photographicFacts(first.visual_brief,780);
+  const firstClause=firstFacts.split('. ').find(part=>part.toLocaleLowerCase('it').includes(key))||'';
+  const start=firstClause.toLocaleLowerCase('it').indexOf(key);
+  // Keep only the object's physical description, never its first-scene position.
+  const physical=(start>=0?firstClause.slice(start):'').split(/[:;]|\s(?:siede|occupa|viene|sta|giace|compare|domina|tiene|sposta|guarda|tocca|si trova|è posizionata)\b/i)[0].trim();
+  const keyObject=String(first.key_object).trim().replace(/[.!?]+$/,'').slice(0,150);
+  return `RECURRING PROP — physical identity only: ${keyObject}${physical?`; initial physical specification: ${physical.slice(0,170)}`:''}. Preserve its material, color, silhouette and REAL-WORLD SIZE/PROPORTIONS whenever it is visible. This scene's placement, action and camera OVERRIDE the first scene's staging. Only textual continuity is supplied; no separate prop photo is attached.`;
+}
+// Never forward visual_brief/camera_intent verbatim: their Canvas directions
+// conflict with clean-photo mode. Preserve the actual geometry and prop scale.
 export function photoPrompt({article,scene,index,story=null,revisionNotes='',referenceImages=[],mode='photo'}) {
   if(!article?.title||!scene?.editorial_goal||!Number.isInteger(index)||index<0||index>4)
     throw new Error('VIDEO_STUDIO_IMAGE: brief incompleto');
@@ -108,7 +134,10 @@ export function photoPrompt({article,scene,index,story=null,revisionNotes='',ref
     `SUBJECT: ${cap(scene.subject_description,270)||'An authentic subject directly relevant to this scene'}.`,
     `EMOTION: ${cap(scene.emotion,120)||'Natural and legible, never exaggerated'}.`,
     `PLACE: ${cap(scene.setting,180)||'A credible real-world setting'}; CAMERA: ${cap(scene.shot_type,120)||'An intentional, readable shot'}.`,
-    `IMPORTANT OBJECT: ${cap(scene.key_object,100)||'None required'}.`,
+    `IMPORTANT OBJECT: ${cap(scene.key_object,160)||'None required'}.`,
+    ...(photographicFacts(scene.visual_brief,850)?[`SCENOGRAPHY — physical objects, scale, geometry and relations (NOT text layout): ${photographicFacts(scene.visual_brief,850)}`]:[]),
+    ...(photographicFacts(art.camera_intent,260)?[`VISUAL CAMERA PURPOSE (NOT text layout): ${photographicFacts(art.camera_intent,260)}`]:[]),
+    ...(recurringPropRule(story,scene,index)?[recurringPropRule(story,scene,index)]:[]),
     hasProtagonist?(cameraKind==='general'?`RECURRING PERSON: ${protagonist}. Keep their distinguishing features consistent across scenes.`:'BODY DETAIL ONLY: preserve the clothing and hands from SUBJECT; no face, head or torso is required in this shot.'):'A human face is optional; do not invent a person just to fill the frame.',
     previous?`PREVIOUS BEAT (do not recreate): ${cap(previous.narrative_action||previous.editorial_goal,140)}.`:'Opening beat of this story.',
     next?`NEXT BEAT (prepare without depicting it): ${cap(next.narrative_action||next.editorial_goal,120)}.`:'Final beat of this story.',
