@@ -269,8 +269,28 @@
         .ol-informa-item strong { display:block; font-size:13px; line-height:1.35; }
         .ol-informa-item small { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; }
         .ol-informa-thumb { width:64px; height:64px; flex:0 0 64px; object-fit:cover; border:1px solid rgba(203,213,225,.58); border-radius:10px; background:rgba(241,245,249,.8); }
-        /* OFFERTALOGICA_HOME_EDITORIAL_EGRESS_GUARD_V1_20261122: nessun download di immagini Storage in homepage. */
-        .ol-informa-thumb.ol-informa-monogram { display:grid; place-items:center; font-size:24px; font-weight:850; color:#0f766e; background:linear-gradient(145deg,#ecfdf5,#dbeafe); }
+        /* OFFERTALOGICA_HOME_EDITORIAL_COVER_THUMBS_V3_20261122:
+           Copertine reali, miniature WebP 176px servite da una CDN di ottimizzazione.
+           Non scaricare i PNG originali di Supabase nella homepage, salvo errore del proxy. */
+        .ol-informa-visual { width:64px; height:64px; flex:0 0 64px; display:block;
+          object-fit:cover; object-position:center; overflow:hidden;
+          border:1px solid rgba(15,118,110,.13); border-radius:12px;
+          background:linear-gradient(145deg,#e0f2fe,#d1fae5); }
+        .ol-informa-monogram { display:grid; place-items:center; font-size:22px;
+          font-weight:850; color:#0f766e; }
+        /* Impostazione mobile-first: una scheda per riga, copertina a sinistra. */
+        @media (max-width:680px) {
+          .ol-informa-list { grid-template-columns:minmax(0,1fr); gap:10px; }
+          .ol-informa-item.has-thumb { flex-direction:row-reverse; justify-content:flex-end;
+            gap:14px; min-height:108px; padding:12px; align-items:center; }
+          .ol-informa-visual { width:84px; height:84px; flex:0 0 84px; border-radius:14px; }
+          .ol-informa-item strong { font-size:14px; line-height:1.4; }
+          .ol-informa-item small { font-size:12px; margin-top:6px; }
+        }
+        @media (max-width:355px) {
+          .ol-informa-item.has-thumb { gap:10px; padding:10px; }
+          .ol-informa-visual { width:70px; height:70px; flex-basis:70px; }
+        }
         .ol-business-entry { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:15px; min-height:72px; padding:15px 17px; border:1px solid rgba(134,239,172,.48); border-radius:17px; background:linear-gradient(145deg,rgba(240,253,244,.82),rgba(255,255,255,.64)); color:var(--text-color); text-decoration:none; }
         .ol-business-entry strong { font-size:14px; }
         .ol-business-entry span { display:block; margin-top:3px; color:var(--text-muted); font-size:11.5px; }
@@ -23173,9 +23193,22 @@ if (document.readyState === "loading") {
   const lists=[...document.querySelectorAll('[data-informa-list]')];
   const cfg=window.OFFERTALOGICA_EDITORIAL_CONFIG;
   if(lists.length&&cfg?.supabaseUrl&&cfg?.supabaseAnonKey){
-    // Le miniature 64x64 non devono scaricare originali PNG da 2 MB per ogni visita.
-    // La resa grafica rimane leggera anche per futuri articoli, senza modificare l'Autopilota.
-    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at&order=published_at.desc&limit=3';
+    // Una sola URL ottimizzata per copertina (WebP 176px), cache CDN anche per i nuovi articoli.
+    // Solo immagini pubbliche del bucket editorial-images: mai file Premium o URL firmate.
+    // Non viene modificato alcun processo dell'Autopilota.
+    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at,featured_image_url&order=published_at.desc&limit=3';
+    const sourceHost=new URL(cfg.supabaseUrl).host;
+    const coverThumb=source=>{
+      try{
+        const original=new URL(String(source||''));
+        if(original.protocol!=='https:' || original.host!==sourceHost ||
+           !original.pathname.startsWith('/storage/v1/object/public/editorial-images/') ||
+           !/\.(?:png|jpe?g|webp)$/i.test(original.pathname) || original.search || original.hash) return '';
+        // Il proxy prende l'originale soltanto nei cache miss e restituisce un'immagine piccola.
+        return 'https://wsrv.nl/?url='+encodeURIComponent(original.href)+
+          '&w=176&h=176&fit=cover&output=webp&q=72';
+      }catch{return '';}
+    };
     fetch(cfg.supabaseUrl+q,{headers:{apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+cfg.supabaseAnonKey}}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
       if(!Array.isArray(rows)||!rows.length)return;
       const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -23184,11 +23217,26 @@ if (document.readyState === "loading") {
         const title=escapeHtml(titleText);
         const slug=encodeURIComponent(row.slug||'');
         const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):'';
+        const original=String(row.featured_image_url||'');
+        const proxy=coverThumb(original);
         const initial=escapeHtml(Array.from(titleText.trim())[0]?.toLocaleUpperCase('it-IT')||'A');
-        const thumb=`<span class="ol-informa-thumb ol-informa-monogram" aria-hidden="true">${initial}</span>`;
+        // In caso di malfunzionamento del proxy, il browser prova l'immagine originale.
+        // La richiesta diretta a Supabase è solo un fallback, non il percorso normale.
+        const thumb=proxy
+          ? `<img class="ol-informa-visual" src="${escapeHtml(proxy)}" data-cover-original="${escapeHtml(original)}" alt="Copertina: ${title}" width="84" height="84" loading="lazy" decoding="async" referrerpolicy="no-referrer">`
+          : `<span class="ol-informa-visual ol-informa-monogram" aria-hidden="true">${initial}</span>`;
         return `<a class="ol-informa-item has-thumb" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><span class="ol-informa-copy"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</span>${thumb}</a>`;
       }).join('');
-      lists.forEach(list=>{ list.innerHTML=html; list.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:'informa-articolo',destination:a.getAttribute('href'),placement:a.closest('.ol-landing-discovery')?'landing':'calculator'}))); });
+      lists.forEach(list=>{
+        list.innerHTML=html;
+        list.querySelectorAll('img[data-cover-original]').forEach(img=>{
+          img.addEventListener('error',()=>{
+            const original=img.dataset.coverOriginal;
+            if(original && img.src!==original) img.src=original;
+          },{once:true});
+        });
+        list.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:'informa-articolo',destination:a.getAttribute('href'),placement:a.closest('.ol-landing-discovery')?'landing':'calculator'})));
+      });
     }).catch(()=>{});
   }
 })();
