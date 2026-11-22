@@ -269,6 +269,8 @@
         .ol-informa-item strong { display:block; font-size:13px; line-height:1.35; }
         .ol-informa-item small { display:block; margin-top:5px; color:var(--text-muted); font-size:11px; }
         .ol-informa-thumb { width:64px; height:64px; flex:0 0 64px; object-fit:cover; border:1px solid rgba(203,213,225,.58); border-radius:10px; background:rgba(241,245,249,.8); }
+        /* OFFERTALOGICA_HOME_EDITORIAL_EGRESS_GUARD_V1_20261122: nessun download di immagini Storage in homepage. */
+        .ol-informa-thumb.ol-informa-monogram { display:grid; place-items:center; font-size:24px; font-weight:850; color:#0f766e; background:linear-gradient(145deg,#ecfdf5,#dbeafe); }
         .ol-business-entry { margin-top:12px; display:flex; align-items:center; justify-content:space-between; gap:15px; min-height:72px; padding:15px 17px; border:1px solid rgba(134,239,172,.48); border-radius:17px; background:linear-gradient(145deg,rgba(240,253,244,.82),rgba(255,255,255,.64)); color:var(--text-color); text-decoration:none; }
         .ol-business-entry strong { font-size:14px; }
         .ol-business-entry span { display:block; margin-top:3px; color:var(--text-muted); font-size:11.5px; }
@@ -23171,12 +23173,21 @@ if (document.readyState === "loading") {
   const lists=[...document.querySelectorAll('[data-informa-list]')];
   const cfg=window.OFFERTALOGICA_EDITORIAL_CONFIG;
   if(lists.length&&cfg?.supabaseUrl&&cfg?.supabaseAnonKey){
-    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at,featured_image_url&order=published_at.desc&limit=3';
+    // Le miniature 64x64 non devono scaricare originali PNG da 2 MB per ogni visita.
+    // La resa grafica rimane leggera anche per futuri articoli, senza modificare l'Autopilota.
+    const q='/rest/v1/editorial_public_articles?select=slug,title,published_at&order=published_at.desc&limit=3';
     fetch(cfg.supabaseUrl+q,{headers:{apikey:cfg.supabaseAnonKey,Authorization:'Bearer '+cfg.supabaseAnonKey}}).then(r=>r.ok?r.json():Promise.reject()).then(rows=>{
       if(!Array.isArray(rows)||!rows.length)return;
       const escapeHtml=value=>String(value??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
-      const safeHttpsUrl=value=>{ try{ const url=new URL(String(value||'')); return url.protocol==='https:'?url.href:''; }catch{return '';} };
-      const html=rows.map(row=>{ const title=escapeHtml(row.title||'Articolo'); const slug=encodeURIComponent(row.slug||''); const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):''; const imageUrl=safeHttpsUrl(row.featured_image_url); const thumb=imageUrl?`<img class="ol-informa-thumb" src="${escapeHtml(imageUrl)}" alt="" loading="lazy" decoding="async" width="64" height="64">`:''; return `<a class="ol-informa-item${imageUrl?' has-thumb':''}" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><span class="ol-informa-copy"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</span>${thumb}</a>`; }).join('');
+      const html=rows.map(row=>{
+        const titleText=String(row.title||'Articolo');
+        const title=escapeHtml(titleText);
+        const slug=encodeURIComponent(row.slug||'');
+        const date=row.published_at?new Intl.DateTimeFormat('it-IT',{day:'numeric',month:'short',year:'numeric'}).format(new Date(row.published_at)):'';
+        const initial=escapeHtml(Array.from(titleText.trim())[0]?.toLocaleUpperCase('it-IT')||'A');
+        const thumb=`<span class="ol-informa-thumb ol-informa-monogram" aria-hidden="true">${initial}</span>`;
+        return `<a class="ol-informa-item has-thumb" href="/articolo.html?slug=${slug}" data-discovery-link="informa-articolo"><span class="ol-informa-copy"><strong>${title}</strong>${date?`<small>${date}</small>`:''}</span>${thumb}</a>`;
+      }).join('');
       lists.forEach(list=>{ list.innerHTML=html; list.querySelectorAll('[data-discovery-link]').forEach(a=>a.addEventListener('click',()=>trackEvent?.('home_discovery_clicked',{item:'informa-articolo',destination:a.getAttribute('href'),placement:a.closest('.ol-landing-discovery')?'landing':'calculator'}))); });
     }).catch(()=>{});
   }
