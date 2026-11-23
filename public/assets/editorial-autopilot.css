@@ -142,3 +142,77 @@
 @media(max-width:620px){.ol-decision-image-buttons .ol-button{width:100%}}
 
 .ol-decision-image-caution{font-size:11px;color:#845b18!important;border-left:3px solid #e5bc62;padding-left:8px}
+
+/* Editoriale UI v0.12.122: lavorazione diretta dei post e comandi progressivi per le fotografie. */
+.ol-social-workspace{display:grid;gap:12px;min-width:0;margin:14px 0 18px;padding:16px;border:1px solid #b9d7c4;border-radius:12px;background:#fff}
+.ol-social-workspace-heading{display:flex;justify-content:space-between;align-items:start;gap:12px}
+.ol-social-workspace-heading h3{margin:0 0 4px;font-size:19px;line-height:1.3}
+.ol-social-workspace-heading p{margin:0;color:#526579;font-size:13px;line-height:1.5}
+.ol-social-workspace-tag{display:inline-flex;align-items:center;padding:6px 10px;border-radius:999px;color:#175a36;background:#e9f6ee;font-size:11px;font-weight:800;white-space:nowrap}
+.ol-social-quick-list{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:8px}
+.ol-social-quick-action{display:flex;justify-content:space-between;align-items:center;gap:9px;text-align:left;min-width:0;padding:11px 12px;border:1px solid #bcd9c6;border-radius:9px;background:#f4faf6;color:#143c26;cursor:pointer;font:inherit}
+.ol-social-quick-action:hover,.ol-social-quick-action:focus-visible{border-color:#15723f;background:#ecf8f1;outline-offset:3px}
+.ol-social-quick-action>span{min-width:0}.ol-social-quick-action strong{display:block;font-size:13px;line-height:1.3}
+.ol-social-quick-action small{display:block;margin-top:2px;color:#526579;font-size:11px;line-height:1.4;overflow-wrap:anywhere}
+.ol-social-quick-action em{flex:0 0 auto;color:#175a36;font-style:normal;font-size:11px;font-weight:800}
+.ol-social-post>.ol-cycle-row-body{display:grid;gap:14px;padding:13px;background:#fff}
+.ol-social-post>.ol-cycle-row-summary{min-height:52px;padding:12px}
+.ol-social-post>.ol-cycle-row-summary strong{font-size:14px}
+.ol-social-copy-workflow,.ol-social-image-workflow{display:grid;gap:10px;min-width:0;border:1px solid #dce8e0;border-radius:9px;background:#fff;padding:13px}
+.ol-social-section-heading{display:flex;justify-content:space-between;align-items:start;gap:10px;flex-wrap:wrap}
+.ol-social-section-heading h5{margin:0;font-size:15px;color:#163c27;line-height:1.3}
+.ol-social-section-heading small{color:#526579;font-size:12px;overflow-wrap:anywhere}
+.ol-social-image-state{color:#566b60;font-size:11px;line-height:1.5;font-weight:700}
+.ol-social-copy-workflow .ol-field,.ol-social-photo-method-panel .ol-field{display:grid;gap:5px}
+.ol-social-copy-workflow textarea{width:100%;min-height:108px;box-sizing:border-box}
+.ol-social-copy-grid{display:grid;grid-template-columns:minmax(0,1.5fr) minmax(170px,1fr);gap:12px;align-items:start}
+.ol-social-save-actions{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:8px}
+.ol-social-dirty-message{margin:0;padding:6px 9px;border:1px solid #f0ce8b;border-radius:7px;background:#fff9e9;color:#78520d;font-size:12px;font-weight:800}
+.ol-social-dirty-message[hidden],.ol-social-photo-method-panel[hidden]{display:none!important}
+.ol-social-inline-note{margin:0;color:#536779;font-size:12px;line-height:1.5}
+.ol-social-image-preview{display:grid;gap:4px;max-width:360px;margin:0}
+.ol-social-image-preview img,.ol-social-preview-extra img{display:block;width:100%;max-width:360px;height:auto;max-height:270px;object-fit:contain;object-position:left center;border-radius:8px;background:#f5f7f6}
+.ol-social-image-preview figcaption{font-size:12px;color:#536779;line-height:1.4}
+.ol-social-candidate{display:grid;gap:9px;padding:12px;border:1px solid #9cc5a9;border-radius:9px;background:#f3fbf6}
+.ol-social-candidate>strong{font-size:13px;color:#135e35}
+.ol-social-candidate small{font-size:12px;color:#526579}
+.ol-social-photo-change,.ol-social-preview-extra,.ol-social-diagnostics,.ol-social-danger-zone{min-width:0;border:1px solid #dbe7df;border-radius:9px;background:#f8fbf9}
+.ol-social-photo-change>summary,.ol-social-preview-extra>summary,.ol-social-diagnostics>summary,.ol-social-danger-zone>summary{cursor:pointer;padding:11px 12px;font-size:13px;font-weight:800;color:#244934;line-height:1.4}
+.ol-social-photo-change>summary span{display:block;margin-top:2px;font-weight:400;color:#536779;font-size:11px}
+.ol-social-photo-choice-body{display:grid;gap:12px;padding:12px;border-top:1px solid #e4eee6}
+.ol-social-photo-choice-body>p{margin:0;color:#526579;font-size:12px;line-height:1.45}
+.ol-social-photo-methods{display:flex;flex-wrap:wrap;gap:8px}
+.ol-social-photo-methods label{display:inline-flex;align-items:center;gap:7px;padding:9px 10px;border:1px solid #cdded1;border-radius:8px;background:#fff;font-size:12px;font-weight:750;cursor:pointer}
+.ol-social-photo-methods label:has(input:checked){border-color:#228653;background:#edf9f0;color:#134e2c}
+.ol-social-photo-method-panel{display:grid;justify-items:start;gap:10px;padding:12px;border:1px solid #dce8e0;border-radius:8px;background:#fff;min-width:0;width:100%;box-sizing:border-box}
+.ol-social-photo-method-panel>label,.ol-social-photo-method-panel .ol-field label{font-size:12px;font-weight:700}
+.ol-social-photo-method-panel input[type=file]{display:block;width:100%;min-width:0;max-width:500px}
+.ol-social-photo-method-panel textarea{width:100%;max-width:600px;min-width:0;box-sizing:border-box}
+.ol-social-photo-method-panel>p{margin:0;color:#526579;font-size:12px}
+.ol-social-photo-method-panel small{font-size:12px;color:#526579}
+.ol-social-ai-options{width:100%;max-width:620px;border:1px solid #dbe7df;border-radius:8px;background:#f8fbf9}
+.ol-social-ai-options>summary{padding:9px 10px;font-size:12px;font-weight:700;cursor:pointer}
+.ol-social-ai-options>.ol-field,.ol-social-ai-checkbox{display:block;padding:10px}
+.ol-social-ai-checkbox{font-size:12px}
+.ol-social-preview-extra>img,.ol-social-preview-extra img{margin:0 12px 12px;max-width:calc(100% - 24px)}
+.ol-social-diagnostics>p,.ol-social-danger-zone>p{margin:0 12px 11px;font-size:12px;color:#536779;line-height:1.5}
+.ol-social-diagnostics>.ol-article-history-section,.ol-social-diagnostics>.ol-article-run-log{margin:0 11px 12px}
+.ol-social-danger-zone{border-color:#efcf94;background:#fff9ed}
+.ol-social-danger-zone>summary{color:#80520b}
+.ol-social-danger-zone>.ol-button{margin:0 12px 12px}
+.ol-social-workspace [data-social-plan-message]{line-height:1.5}
+@media(max-width:700px){
+ .ol-social-workspace{padding:11px}.ol-social-workspace-heading{display:block}.ol-social-workspace-tag{margin-top:8px}
+ .ol-social-quick-list{grid-template-columns:1fr}.ol-social-quick-action{align-items:start}
+ .ol-social-post>.ol-cycle-row-body,.ol-social-copy-workflow,.ol-social-image-workflow{padding:10px}
+ .ol-social-copy-grid{grid-template-columns:1fr}.ol-social-save-actions .ol-button{width:100%}
+ .ol-social-photo-methods{display:grid;grid-template-columns:1fr}.ol-social-photo-method-panel>.ol-button{width:100%}
+}
+/* La scheda decisionale mostra solo i due stati effettivi; simulazione e diagnostica non invadono la schermata. */
+.ol-autopilot-research-panel .ol-decision-grid{grid-template-columns:repeat(2,minmax(0,1fr))}
+.ol-autopilot-research-panel .ol-decision-card-primary{grid-column:auto;grid-row:auto}
+.ol-decision-advanced{border-top:1px solid #dce8e0;padding-top:9px}
+.ol-decision-advanced>summary{cursor:pointer;font-size:12px;font-weight:750;color:#4d6657;padding:7px 0}
+.ol-decision-advanced>.ol-decision-actions{margin:10px 0}
+.ol-decision-advanced>.ol-decision-card{margin-top:9px}
+@media(max-width:620px){.ol-autopilot-research-panel .ol-decision-grid{grid-template-columns:1fr}}

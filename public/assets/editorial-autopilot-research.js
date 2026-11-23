@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.121";
+  const VERSION = "0.12.122";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -25,6 +25,12 @@
   let lastResearchRadarPayload = null;
   const expandedOpportunityIds = new Set();
   let socialPlanItems = [];
+  const socialPlanDrafts = new Map();
+  window.addEventListener("beforeunload", (event) => {
+    if (!socialPlanDrafts.size) return;
+    event.preventDefault();
+    event.returnValue = "";
+  });
   let socialChannels = [];
   let automationRuns = [];
   let schedulerGlobalHeartbeat = null;
@@ -89,26 +95,36 @@
   function cardMarkup() {
     return `
       <div class="ol-autopilot-card-heading ol-decision-heading">
-        <div><h3>Centro decisionale editoriale</h3><p>Prima la risposta: qual è il prossimo articolo? Poi i candidati, le ricerche e lo storico tecnico.</p></div>
+        <div><h3>Il prossimo articolo</h3><p>Controlla il tema scelto e l'articolo in lavorazione. Tutte le verifiche avanzate restano disponibili su richiesta.</p></div>
       </div>
       <section class="ol-decision-hub" aria-label="Quadro della decisione editoriale">
-        <div class="ol-decision-path" aria-label="Percorso editoriale"><span>1 · Ricerca: trova candidati</span><span>2 · Decisione: conferma il tema</span><span>3 · Produzione: crea l'articolo</span></div>
         <div class="ol-decision-grid">
+          <article class="ol-decision-card ol-decision-card-primary" aria-label="Tema selezionato"><h4>Prossimo tema confermato</h4><div data-decision-selection><p>Verifica della scelta…</p></div></article>
           <article class="ol-decision-card" aria-label="Articolo in produzione"><h4>Articolo in produzione</h4><div data-decision-production><p>Verifica dello stato…</p></div></article>
-          <article class="ol-decision-card ol-decision-card-primary" aria-label="Tema selezionato"><h4>Prossimo articolo · decisione effettiva</h4><div data-decision-selection><p>Verifica della scelta…</p></div></article>
-          <article class="ol-decision-card" aria-label="Previsione non vincolante"><h4>Previsione planner · simulazione</h4><div data-decision-preview><p>Calcolo della previsione…</p></div></article>
         </div>
         <p class="ol-decision-warning" data-decision-warning role="status" aria-live="polite" hidden></p>
         <div class="ol-decision-actions">
-          <button class="ol-button ol-button-primary ol-button-small" type="button" data-decision-target="opportunities">Valuta o cambia tema</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="research">Apri ricerche</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="ideas">Aggiungi idea</button>
-          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="refresh">Aggiorna quadro</button>
+          <button class="ol-button ol-button-primary ol-button-small" type="button" data-decision-target="opportunities">Scegli o cambia tema</button>
+          <button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="ideas">Proponi un'idea</button>
         </div>
+        <details class="ol-decision-advanced"><summary>Ricerca, simulazione e aggiornamento dati</summary>
+          <div class="ol-decision-actions"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="research">Apri ricerche</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-target="refresh">Aggiorna il quadro</button></div>
+          <div class="ol-decision-card" aria-label="Previsione non vincolante"><h4>Previsione planner · simulazione, non conferma</h4><div data-decision-preview><p>Calcolo della previsione…</p></div></div>
+        </details>
+      </section>
+
+      <section class="ol-social-workspace" aria-label="Post e follow-up">
+        <div class="ol-social-workspace-heading">
+          <div><h3>Post e follow-up</h3><p>Apri il post da completare, modifica testo e canali, scegli la foto e salva. Pubblicazione e orari restano gestiti dal sistema esistente.</p></div>
+          <span class="ol-social-workspace-tag">Lavorazione</span>
+        </div>
+        <div class="ol-social-quick-list" data-social-action-list aria-live="polite"><p class="ol-muted">Caricamento post…</p></div>
+        <p class="ol-autopilot-save-state" data-social-plan-message role="status" aria-live="polite">Caricamento piano post…</p>
+        <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento post…</p></div>
       </section>
 
       <div class="ol-autopilot-workflow">
-        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-opportunity-stage open>
+        <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-opportunity-stage>
           <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">1</span><div><h4>Candidati e scelta editoriale</h4><p>Qui si conferma il prossimo articolo. Le proposte salvate non sono scelte finché non le selezioni.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
           <div class="ol-autopilot-stage-body">
             <p class="ol-autopilot-save-state" data-opportunity-message>Caricamento opportunità…</p>
@@ -285,14 +301,13 @@
         </details>
 
         <details class="ol-autopilot-stage ol-autopilot-stage-collapsible" data-cycle-stage>
-          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Produzione e storico tecnico</h4><p>Stato dettagliato, articoli monitorati, post e registri dello scheduler.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
+          <summary class="ol-autopilot-stage-heading"><span class="ol-autopilot-stage-number">4</span><div><h4>Controlli e storico tecnico</h4><p>Solo se serve: avanzamento dettagliato e registri. I post si gestiscono sopra.</p></div><span class="ol-autopilot-stage-action" aria-hidden="true">Apri</span></summary>
           <div class="ol-autopilot-stage-body">
           <div class="ol-cycle-overview" data-cycle-overview><strong>Caricamento stato ciclo…</strong></div>
           <div class="ol-autopilot-pair">
             <div class="ol-autopilot-pane">
-              <h5>Articoli monitorati</h5>
-              <p class="ol-autopilot-save-state" data-social-plan-message>Caricamento piano post…</p>
-              <div class="ol-autopilot-archive-list ol-cycle-compact-list" data-social-plan-list><p class="ol-muted">Caricamento…</p></div>
+              <h5>Stato del ciclo</h5>
+              <p class="ol-muted">Lavorazione dei post e follow-up: usa la sezione immediatamente sopra. Qui restano i dettagli di controllo.</p>
             </div>
             <div class="ol-autopilot-pane">
               <h5>Ultimi cicli Autopilota</h5>
@@ -335,6 +350,8 @@
     section.addEventListener("click", handleAnalysisNavigation);
     section.addEventListener("click", handleOpportunityAction);
     section.addEventListener("change", handleOpportunityChange);
+    section.addEventListener("change", handleSocialWorkflowChange);
+    section.addEventListener("input", handleSocialDraftInput);
     statusLoaded = false;
     loadStatus(section);
     loadAnalysis(section, true);
@@ -769,17 +786,6 @@
       productionBox.innerHTML = '<span class="ol-decision-state">Nessuna bozza identificata</span><p>Non risulta un articolo attivo nelle informazioni di produzione caricate. Controlla lo storico per gli articoli precedenti.</p>';
     }
 
-    if (socialPlanLoaded) {
-      const pendingPhotoItems = socialPlanItems.filter((row) => ["article_followup", "related"].includes(String(row.post_type || ""))
-        && ["draft", "approved"].includes(String(row.status || ""))).slice(0, 4);
-      if (pendingPhotoItems.length) {
-        productionBox.insertAdjacentHTML("beforeend", `<div class="ol-decision-image-controls" style="margin-top:12px">
-          <strong>Fotografie dei prossimi post social</strong>
-          <p>Apri il post per caricare o approvare una tua fotografia, senza passare dalla generazione AI.</p>
-          <div class="ol-decision-image-buttons">${pendingPhotoItems.map((row) => `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-decision-open-social-photo="${esc(row.id)}">Foto ${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}${row.social_asset?.manual_image_candidate?.url ? " · da approvare" : ""}</button>`).join("")}</div>
-        </div>`);
-      }
-    }
 
     const selected = opportunitiesLoaded ? opportunityRows.filter((row) => row?.status === "selected" && !row?.target_article_id) : [];
     const confirmedFromPlanner = plannerLoaded && plannerDecision?.status === "selected"
@@ -1650,47 +1656,62 @@
     const canCorrectCandidate = candidateQa === "failed" && candidateAttempts < 3;
     const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
     const imageMarkup = (socialImageUrl || articleImageUrl || canRegeneratePhoto) ? `
-      <div class="ol-autopilot-archive-item" style="margin-top:10px">
-        <strong>Immagine del post ${esc(row.post_type === "related" ? "OffertaLogica" : "follow-up")}</strong>
-        <small>Stato: ${esc(imageState)}${imageAttempt ? ` · tentativo ${imageAttempt}` : ""}${imageSource ? ` · sorgente ${esc(imageSource)}` : ""}</small>
-        ${imageReason ? `<small>${esc(imageReason)}</small>` : ""}
-        ${socialImageUrl ? `<div style="margin-top:8px"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Anteprima immagine social")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px"></div>` : '<small>Nessuna immagine social corrente: carica una tua foto; non verrà riutilizzata automaticamente quella dell’articolo.</small>'}
-        ${canReview ? `<div class="ol-toolbar-group" style="margin-top:8px">
-          ${socialImageUrl && imageQaStatus !== "passed" ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">Valuta e approva questa immagine</button>` : ""}
-          ${canUseArticleImage ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Usa immagine articolo</button>` : ""}
+      <section class="ol-social-image-workflow" aria-label="Fotografia del post">
+        <div class="ol-social-section-heading"><h5>2 · Immagine del post</h5><span class="ol-social-image-state">${esc(imageState)}</span></div>
+        ${socialImageUrl ? `<figure class="ol-social-image-preview"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Immagine corrente del post")}" loading="lazy"><figcaption>Immagine attuale${imageReason ? ` · ${esc(imageReason)}` : ""}</figcaption></figure>` : '<p class="ol-social-inline-note">Non è ancora disponibile una foto del post. La copertina dell’articolo non viene riutilizzata automaticamente.</p>'}
+        ${socialImageUrl && canReview && imageQaStatus !== "passed" ? `<div class="ol-social-primary-action"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">${imageQaStatus === "failed" ? "Valuta manualmente la foto (QA fallita)" : "Approva l’immagine attuale e prepara la card"}</button></div>` : ""}
+        ${candidateUrl && canRegeneratePhoto ? `<div class="ol-social-candidate" role="group" aria-label="Anteprima da approvare"><strong>Nuova foto in attesa della tua decisione</strong><figure class="ol-social-image-preview"><img src="${esc(candidateUrl)}" alt="Nuova foto candidata" loading="lazy"><figcaption>${esc(candidateManualFile ? "Foto caricata da te" : candidateQa === "passed" ? "Verifica AI superata" : candidateQa === "failed" ? "Verifica estetica non superata" : "Verifica necessaria")}${candidateQa !== "" && !candidateManualFile ? ` · tentativo ${candidateAttempts}/3` : ""}</figcaption></figure>${candidate?.qa?.reason ? `<p class="ol-social-inline-note">${esc(candidate.qa.reason)}</p>` : ""}
+          <div class="ol-toolbar-group">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">Approva foto e prepara card</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi foto con AI</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta questa foto</button></div>
+          ${!canApproveCandidate ? `<small>${socialAsset?.brief?.cover_ready !== true ? "La card non è pronta: l'approvazione sarà disponibile dopo la preparazione del testo." : "La foto non è validata per l'approvazione: correggi oppure scarta."}</small>` : ""}
         </div>` : ""}
-        ${canRegeneratePhoto ? `<div class="ol-autopilot-archive-item" style="margin-top:10px">
-          <strong>Alternativa fotografica (senza ripubblicare)</strong>
-          <small>La tua fotografia può essere caricata e approvata senza QA estetica AI. La generazione AI è facoltativa; la foto corrente resta invariata fino alla conferma.</small>
-          <div class="ol-field" style="margin-top:8px"><label>Indicazioni per la nuova foto (facoltative)</label><textarea data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Es. non ripetere la donna anziana seduta in cucina; preferisci un altro gesto o una scena credibile diversa"></textarea></div>
-          <div class="ol-field" style="margin-top:8px"><label>Foto di riferimento per generazione AI (facoltativa)</label><input data-social-reference-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB. La foto guida la nuova generazione, ma non viene pubblicata automaticamente.</small></div>
-          ${articleImageUrl ? `<div class="ol-field" style="margin-top:8px"><label><input data-social-article-reference="${esc(id)}" type="checkbox"> Usa l'immagine approvata dell'articolo come riferimento AI</label><small>Alternativa al file guida: la foto dell'articolo orienta la nuova generazione, senza essere semplicemente riutilizzata.</small></div>` : ""}
-          <div class="ol-field" style="margin-top:8px"><label>Foto da usare direttamente (senza generazione AI)</label><input data-social-manual-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"><small>JPG, PNG o WebP fino a 5 MB; l'immagine viene prima mostrata come candidata.</small></div>
-          <div class="ol-toolbar-group"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}" ${socialImageUrl && socialAsset?.brief?.cover_ready === true ? "" : "disabled title=\"Generazione AI disponibile dopo la preparazione dell’asset social\""}>Genera alternativa con AI</button><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-upload="${esc(id)}">Carica foto personale</button></div>
-          ${candidateUrl && socialAsset?.brief?.cover_ready !== true ? '<small>Foto acquisita. Il testo della card non è ancora pronto: l’approvazione sarà disponibile appena completata la preparazione del post.</small>' : ""}
-          ${candidateUrl ? `<div style="margin-top:8px"><small><b>Nuova anteprima:</b> ${esc(candidateManualFile ? "File personale pronto da approvare" : candidateQa === "passed" ? "QA superata" : candidateQa === "failed" ? "QA estetica non superata: puoi decidere se approvare, se i controlli di sicurezza sono superati" : "Verifica necessaria")} · tentativo ${candidateAttempts}/3</small>${candidate?.qa?.reason ? `<small>${esc(candidate.qa.reason)}</small>` : ""}<img src="${esc(candidateUrl)}" alt="Nuova immagine candidata" loading="lazy" style="display:block;max-width:320px;width:100%;border-radius:10px;margin-top:8px"></div>
-          <div class="ol-toolbar-group" style="margin-top:8px">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">${candidateManualFile ? "Approva file e componi card (senza QA AI)" : "Approva nuova foto e card"}</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi usando la QA</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta anteprima</button></div>${!canApproveCandidate ? `<small>Approvazione non disponibile: il file non e' validato oppure la fotografia generata non supera i controlli minimi di pertinenza e sicurezza. Correggi o scarta l'anteprima.</small>` : ""}` : ""}
-          <small data-social-image-message="${esc(id)}">La fotografia corrente resta invariata fino all'approvazione. Non cambia l'orario di pubblicazione.</small>
-        </div>` : ""}
-        ${!canReview ? '<small>Post già avviato o pubblicato: non è possibile sostituire la fotografia su Instagram/Facebook. Una nuova pubblicazione richiede una procedura separata per evitare duplicati.</small>' : ""}
-        ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details style="margin-top:8px"><summary>Confronta con immagine articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
-        ${socialCardUrl ? `<details style="margin-top:8px"><summary>Apri card OL Informa composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OL Informa" loading="lazy" style="display:block;max-width:320px;width:100%;height:auto;border-radius:10px;margin-top:8px"></details>` : ""}
-      </div>` : "";
+        ${canRegeneratePhoto ? `<details class="ol-social-photo-change" data-social-photo-workflow="${esc(id)}" ${!socialImageUrl && !candidateUrl ? "open" : ""}>
+          <summary>${socialImageUrl ? "Cambia immagine" : "Scegli un’immagine"}<span>Caricamento personale, AI o foto articolo</span></summary>
+          <div class="ol-social-photo-choice-body">
+            <p>Seleziona <b>un solo metodo</b>. La foto attuale cambia soltanto quando approvi la nuova anteprima.</p>
+            <div class="ol-social-photo-methods" role="group" aria-label="Metodo per la nuova fotografia">
+              <label><input type="radio" name="social-photo-method-${esc(id)}" data-social-photo-method="${esc(id)}" value="upload" checked> Carica una mia foto</label>
+              <label><input type="radio" name="social-photo-method-${esc(id)}" data-social-photo-method="${esc(id)}" value="ai"> Genera con AI</label>
+              ${canUseArticleImage ? `<label><input type="radio" name="social-photo-method-${esc(id)}" data-social-photo-method="${esc(id)}" value="article"> Usa foto articolo</label>` : ""}
+            </div>
+            <div class="ol-social-photo-method-panel" data-social-photo-panel="upload" data-social-photo-for="${esc(id)}">
+              <label for="social-manual-${esc(id)}">Seleziona una foto (JPG, PNG, WebP · max 5 MB)</label>
+              <input id="social-manual-${esc(id)}" data-social-manual-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp">
+              <button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-upload="${esc(id)}">Carica e mostra anteprima</button>
+            </div>
+            <div class="ol-social-photo-method-panel" data-social-photo-panel="ai" data-social-photo-for="${esc(id)}" hidden>
+              <div class="ol-field"><label for="social-guidance-${esc(id)}">Che immagine vuoi? (facoltativo)</label><textarea id="social-guidance-${esc(id)}" data-social-image-guidance="${esc(id)}" maxlength="600" rows="2" placeholder="Descrivi la scena, evitando di ripetere quella dell’articolo"></textarea></div>
+              <details class="ol-social-ai-options"><summary>Riferimento fotografico (facoltativo)</summary>
+                <div class="ol-field"><label for="social-ref-${esc(id)}">Carica una foto guida (max 5 MB)</label><input id="social-ref-${esc(id)}" data-social-reference-file="${esc(id)}" type="file" accept="image/jpeg,image/png,image/webp"></div>
+                ${articleImageUrl ? `<label class="ol-social-ai-checkbox"><input data-social-article-reference="${esc(id)}" type="checkbox"> Usa la foto dell’articolo come guida, senza copiarla</label>` : ""}
+              </details>
+              <button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-generate="${esc(id)}" ${socialImageUrl && socialAsset?.brief?.cover_ready === true ? "" : 'disabled title="Generazione disponibile solo dopo la preparazione dell’asset social"'}>Genera e mostra anteprima</button>
+              ${socialImageUrl && socialAsset?.brief?.cover_ready === true ? "" : '<small>La generazione AI sarà disponibile dopo la preparazione dell’asset del post.</small>'}
+            </div>
+            ${canUseArticleImage ? `<div class="ol-social-photo-method-panel" data-social-photo-panel="article" data-social-photo-for="${esc(id)}" hidden><p>Riutilizza la copertina già approvata per l’articolo, senza generare una foto.</p><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="use_article_image">Conferma uso foto articolo</button></div>` : ""}
+          </div>
+        </details>` : ""}
+        ${!canReview ? '<p class="ol-social-inline-note">Post già in pubblicazione o pubblicato: sostituire la foto non modifica il post già visibile sui social.</p>' : ""}
+        <p class="ol-social-inline-note" data-social-image-message="${esc(id)}" role="status" aria-live="polite">La pubblicazione e il calendario non cambiano quando prepari un’anteprima.</p>
+        ${socialCardUrl ? `<details class="ol-social-preview-extra"><summary>Vedi card social composta</summary><img src="${esc(socialCardUrl)}" alt="Anteprima card OffertaLogica" loading="lazy"></details>` : ""}
+        ${articleImageUrl && articleImageUrl !== socialImageUrl ? `<details class="ol-social-preview-extra"><summary>Confronta con la foto dell’articolo</summary><img src="${esc(articleImageUrl)}" alt="${esc(row.source_article?.featured_image_alt || "Immagine articolo")}" loading="lazy"></details>` : ""}
+      </section>` : "";
 
-    return `<details class="ol-cycle-row ol-cycle-row-nested" data-social-plan-item="${esc(id)}">
+    return `<details class="ol-cycle-row ol-cycle-row-nested ol-social-post" data-social-plan-item="${esc(id)}">
       <summary class="ol-cycle-row-summary">
-        <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(destination)}</small></span>
+        <span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(row.theme || destination)}</small></span>
         <span class="ol-cycle-status-badge ol-cycle-status-${esc(String(row.status || "draft"))}">${esc(socialPlanStatusLabel(row.status))}</span>
       </summary>
       <div class="ol-cycle-row-body">
-        <small>${esc(row.theme || "")}</small>
-        ${articleTakeaway ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Sintesi editoriale usata dal post</strong><small>${esc(articleTakeaway)}</small>${copyQaReason ? `<small><b>QA copy:</b> ${esc(copyQaReason)}</small>` : ""}</div>` : ""}
-        ${destinationSolution ? `<div class="ol-autopilot-archive-item" style="margin-top:10px"><strong>Funzione OffertaLogica usata nel post</strong><small>${esc(destinationSolution)}</small></div>` : ""}
+        <section class="ol-social-copy-workflow">
+          <div class="ol-social-section-heading"><h5>1 · Testo e destinazione</h5><small>${esc(destination)}</small></div>
+          <div class="ol-field"><label for="social-text-${esc(id)}">Testo del post</label><textarea id="social-text-${esc(id)}" data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
+          <div class="ol-social-copy-grid"><div class="ol-field"><label>Pubblica su</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
+          ${editable ? `<div class="ol-field"><label for="social-status-${esc(id)}">Decisione editoriale</label><select id="social-status-${esc(id)}" data-social-plan-status="${esc(id)}">${statusOptions}</select></div>` : ""}</div>
+          ${editable ? `<div class="ol-social-save-actions"><p class="ol-social-dirty-message" data-social-plan-dirty="${esc(id)}" role="status" hidden>Modifiche al post non salvate</p><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva testo, canali e stato</button></div>` : ""}
+        </section>
         ${imageMarkup}
-        <div class="ol-field" style="margin-top:8px"><label>Testo canonico</label><textarea data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
-        <div class="ol-field" style="margin-top:8px"><label>Canali espliciti</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
-        ${editable ? `<div class="ol-autopilot-fields" style="margin-top:8px"><div class="ol-field"><label>Stato editoriale</label><select data-social-plan-status="${esc(id)}">${statusOptions}</select></div></div><div class="ol-toolbar-group" style="margin-top:8px"><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva post</button></div>` : ""}
-        ${["article_followup", "related"].includes(String(row.post_type || "")) && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<div class="ol-social-regenerate-box"><small>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social, per evitare duplicati.</small><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card OL Informa e ripubblica</button></div>` : ""}
+        ${articleTakeaway || destinationSolution || copyQaReason ? `<details class="ol-social-diagnostics"><summary>Dettagli del brief e controlli del testo</summary>${articleTakeaway ? `<p><strong>Sintesi:</strong> ${esc(articleTakeaway)}</p>` : ""}${destinationSolution ? `<p><strong>Soluzione:</strong> ${esc(destinationSolution)}</p>` : ""}${copyQaReason ? `<p><strong>Verifica testo:</strong> ${esc(copyQaReason)}</p>` : ""}</details>` : ""}
+        ${["article_followup", "related"].includes(String(row.post_type || "")) && ["approved", "published", "failed"].includes(String(row.status || "")) ? `<details class="ol-social-danger-zone"><summary>Operazioni straordinarie · Ripubblicazione</summary><p>Usa questa funzione solo dopo aver eliminato manualmente le vecchie pubblicazioni social. Potrebbe creare duplicati.</p><button class="ol-button ol-button-warning ol-button-small" type="button" data-social-plan-regenerate="${esc(id)}">Rigenera card e ripubblica</button></details>` : ""}
       </div>
     </details>`;
   }
@@ -1714,7 +1735,20 @@
     // aveva aperto: deve poter confrontare e approvare senza cercare la card.
     const openArticles = new Set([...list.querySelectorAll("details[open][data-article-history]")].map((node) => node.dataset.articleHistory));
     const openPlanItems = new Set([...list.querySelectorAll("details[open][data-social-plan-item]")].map((node) => node.dataset.socialPlanItem));
+    const openPhotoTools = new Set([...list.querySelectorAll("details[open][data-social-photo-workflow]")].map((node) => node.dataset.socialPhotoWorkflow));
+    const openArticleTechnical = new Set([...list.querySelectorAll("details[open][data-article-technical]")].map((node) => node.closest("[data-article-history]")?.dataset.articleHistory));
     const records = articleHistoryRecords();
+    const shortcuts = section.querySelector("[data-social-action-list]");
+    if (shortcuts) {
+      const renderedPosts = new Set(records.flatMap((record) => record.planItems.map((post) => String(post.id || ""))));
+      const pending = socialPlanItems.filter((row) => renderedPosts.has(String(row.id || ""))
+        && ["article_followup", "related"].includes(String(row.post_type || ""))
+        && ["draft", "approved", "failed"].includes(String(row.status || "")));
+      pending.sort((a, b) => Number(Boolean(b?.social_asset?.manual_image_candidate?.url)) - Number(Boolean(a?.social_asset?.manual_image_candidate?.url)));
+      shortcuts.innerHTML = pending.length
+        ? pending.slice(0, 6).map((row) => `<button class="ol-social-quick-action" type="button" data-decision-open-social-photo="${esc(row.id)}"><span><strong>${esc(row.post_type === "related" ? "Post OffertaLogica" : "Follow-up")}</strong><small>${esc(row.theme || row.source_article?.title || "Articolo collegato")}</small></span><em>${row.social_asset?.manual_image_candidate?.url ? "Foto da approvare" : esc(socialPlanStatusLabel(row.status))}</em></button>`).join("")
+        : '<p class="ol-social-inline-note">Nessun follow-up o post OffertaLogica in lavorazione tra quelli caricati. Puoi consultare lo storico sotto.</p>';
+    }
     if (!records.length) {
       list.innerHTML = '<p class="ol-muted">Nessun articolo ancora monitorato.</p>';
       message.textContent = "Lo storico si popolerà quando il primo articolo avrà una bozza o un post collegato.";
@@ -1740,19 +1774,36 @@
         <div class="ol-cycle-row-body">
           ${articleTimelineMarkup(record)}
           ${carryover ? `<div class="ol-cycle-carryover-note"><strong>Da chiudere:</strong> il Post OffertaLogica di questo articolo non risulta ancora completato.</div>` : ""}
+          ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati · Apri quello da lavorare</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : '<p class="ol-social-inline-note">Nessun post collegato a questo articolo.</p>'}
+          ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
+          <details class="ol-social-diagnostics" data-article-technical><summary>Ricerca, testo dell’articolo e registro tecnico</summary>
           ${articleResearchMarkup(record)}
           ${articleDraftMarkup(record)}
-          ${publicUrl ? `<div class="ol-toolbar-group"><a class="ol-button ol-button-secondary ol-button-small" href="${esc(publicUrl)}" target="_blank" rel="noopener">Apri articolo pubblico</a></div>` : ""}
-          ${(record.planItems || []).length ? `<div class="ol-article-plan-group"><small class="ol-article-plan-title">Post collegati</small>${record.planItems.map((row) => planItemEditorMarkup(row)).join("")}</div>` : ""}
           ${compactAutomationRuns(record.runs || []).length ? `<div class="ol-article-run-log"><small class="ol-article-plan-title">Registro del ciclo</small>${compactAutomationRuns(record.runs || []).slice(0, 8).map((run) => { const state = runStateLabelFromRun(run); return `<div class="ol-article-run-log-item"><strong>${esc(automationRunTypeLabel(run.run_type))}</strong><span>${esc(dateIt(run.started_at || run.created_at))}</span><em class="ol-cycle-status-inline ol-cycle-status-inline-${esc(state.tone)}">${esc(state.label)}</em></div>`; }).join("")}</div>` : ""}
+          </details>
         </div>
       </details>`;
     }).join("");
     for (const node of list.querySelectorAll("[data-article-history]")) {
       if (openArticles.has(node.dataset.articleHistory)) node.open = true;
+      const technical = node.querySelector("[data-article-technical]");
+      if (technical && openArticleTechnical.has(node.dataset.articleHistory)) technical.open = true;
+    }
+    for (const tool of list.querySelectorAll("[data-social-photo-workflow]")) {
+      if (openPhotoTools.has(tool.dataset.socialPhotoWorkflow)) tool.open = true;
     }
     for (const node of list.querySelectorAll("[data-social-plan-item]")) {
-      if (openPlanItems.has(node.dataset.socialPlanItem)) node.open = true;
+      const id = node.dataset.socialPlanItem;
+      if (openPlanItems.has(id)) node.open = true;
+      const draft = socialPlanDrafts.get(id);
+      if (!draft) continue;
+      const textField = node.querySelector("[data-social-plan-text]");
+      const statusField = node.querySelector("[data-social-plan-status]");
+      if (textField) textField.value = draft.text;
+      if (statusField) statusField.value = draft.status;
+      node.querySelectorAll("[data-social-plan-platform]").forEach((field) => { if (!field.disabled) field.checked = draft.platforms.includes(field.value); });
+      const notice = node.querySelector("[data-social-plan-dirty]");
+      if (notice) notice.hidden = false;
     }
     message.textContent = `${numberIt(records.length)} articoli monitorati. Clicca una riga per vedere lo stato completo del ciclo di quell’articolo.`;
     renderCycleOverview(section);
@@ -1872,6 +1923,8 @@
       socialPlanLoaded = false;
       socialPlanLoadError = `Piano post non disponibile: ${error.message}`;
       if (message) message.textContent = socialPlanLoadError;
+      const quickActions = section?.querySelector("[data-social-action-list]");
+      if (quickActions) quickActions.innerHTML = '<p class="ol-social-inline-note">Non riesco ad aggiornare i post. Riprova il caricamento prima di intervenire.</p><button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-retry>Riprova caricamento post</button>';
       renderDecisionHub(section);
     }
   }
@@ -2180,6 +2233,34 @@
     }
   }
 
+  function rememberSocialPostEdit(target) {
+    const node = target?.closest?.("[data-social-plan-item]");
+    if (!node || !target.matches("[data-social-plan-text], [data-social-plan-status], [data-social-plan-platform]")) return;
+    const id = node.dataset.socialPlanItem;
+    if (!id) return;
+    socialPlanDrafts.set(id, {
+      text: node.querySelector("[data-social-plan-text]")?.value || "",
+      status: node.querySelector("[data-social-plan-status]")?.value || "draft",
+      platforms: [...node.querySelectorAll("[data-social-plan-platform]:checked")].map((input) => input.value),
+    });
+    const notice = node.querySelector("[data-social-plan-dirty]");
+    if (notice) notice.hidden = false;
+  }
+
+  function handleSocialDraftInput(event) { rememberSocialPostEdit(event.target); }
+
+  function handleSocialWorkflowChange(event) {
+    rememberSocialPostEdit(event.target);
+    const radio = event.target.closest("[data-social-photo-method]");
+    if (!radio || !radio.checked) return;
+    const id = radio.dataset.socialPhotoMethod;
+    const node = radio.closest("[data-social-plan-item]");
+    if (!node || node.dataset.socialPlanItem !== id) return;
+    node.querySelectorAll("[data-social-photo-panel]").forEach((panel) => {
+      panel.hidden = panel.dataset.socialPhotoPanel !== radio.value;
+    });
+  }
+
   function handleOpportunityChange(event) {
     const profileSelect = event.target.closest("[data-article-image-profile]");
     if (!profileSelect) return;
@@ -2205,6 +2286,13 @@
     const uploadImageButton = event.target.closest("[data-article-image-upload]");
     const approveImageButton = event.target.closest("[data-article-image-approve]");
     const discardImageButton = event.target.closest("[data-article-image-discard]");
+    const socialPlanRetryButton = event.target.closest("[data-social-plan-retry]");
+    if (socialPlanRetryButton) {
+      if (socialPlanRetryButton.disabled) return;
+      socialPlanRetryButton.disabled = true;
+      await loadSocialPlan(section);
+      return;
+    }
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
     const socialImageGenerateButton = event.target.closest("[data-social-image-generate]");
     const socialImageUploadButton = event.target.closest("[data-social-image-upload]");
@@ -2304,7 +2392,8 @@
       if (post) {
         post.open = true;
         post.scrollIntoView({ behavior: "smooth", block: "center" });
-        post.querySelector(`[data-social-manual-file="${id}"]`)?.focus({ preventScroll: true });
+        (post.querySelector(`[data-social-image-candidate][data-social-candidate-decision="approve"]`)
+          || post.querySelector(`[data-social-plan-text="${id}"]`))?.focus({ preventScroll: true });
       } else {
         const note = section.querySelector("[data-social-plan-message]");
         if (note) note.textContent = "Il post non è presente nello storico caricato: aggiorna il piano social.";
@@ -2807,6 +2896,7 @@
           method: "POST",
           body: { id, canonical_text: textArea.value, status: statusSelect?.value || "draft", platforms },
         });
+        socialPlanDrafts.delete(id);
         if (planMessage) planMessage.textContent = "Post salvato. Nessuna pubblicazione è stata eseguita.";
         await loadSocialPlan(section);
       } catch (error) {
