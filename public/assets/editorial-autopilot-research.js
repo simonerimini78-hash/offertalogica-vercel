@@ -1,7 +1,7 @@
 (() => {
   "use strict";
 
-  const VERSION = "0.12.122";
+  const VERSION = "0.12.123";
   const SESSION_KEY = "offertalogica.editorial.session.v1";
   const WINDOWS = [7, 28, 90];
   const ANALYSIS_PAGE_SIZE = 10;
@@ -1652,7 +1652,8 @@
     const candidateQa = String(candidate?.qa?.status || "");
     const candidateAttempts = Number(candidate?.attempt_count || 1);
     const candidateManualFile = candidate?.source === "manual_upload";
-    const canApproveCandidate = candidate?.manual_approval_allowed === true && socialAsset?.brief?.cover_ready === true;
+    // Anche senza cover pronta il backend puo' comporla durante l'approvazione manuale.
+    const canApproveCandidate = candidate?.manual_approval_allowed === true;
     const canCorrectCandidate = candidateQa === "failed" && candidateAttempts < 3;
     const canUseArticleImage = Boolean(articleImageUrl && articleImageUrl !== socialImageUrl && canReview);
     const imageMarkup = (socialImageUrl || articleImageUrl || canRegeneratePhoto) ? `
@@ -1661,8 +1662,8 @@
         ${socialImageUrl ? `<figure class="ol-social-image-preview"><img src="${esc(socialImageUrl)}" alt="${esc(socialAsset?.image?.alt_text || "Immagine corrente del post")}" loading="lazy"><figcaption>Immagine attuale${imageReason ? ` · ${esc(imageReason)}` : ""}</figcaption></figure>` : '<p class="ol-social-inline-note">Non è ancora disponibile una foto del post. La copertina dell’articolo non viene riutilizzata automaticamente.</p>'}
         ${socialImageUrl && canReview && imageQaStatus !== "passed" ? `<div class="ol-social-primary-action"><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-review="${esc(id)}" data-social-image-decision="approve">${imageQaStatus === "failed" ? "Valuta manualmente la foto (QA fallita)" : "Approva l’immagine attuale e prepara la card"}</button></div>` : ""}
         ${candidateUrl && canRegeneratePhoto ? `<div class="ol-social-candidate" role="group" aria-label="Anteprima da approvare"><strong>Nuova foto in attesa della tua decisione</strong><figure class="ol-social-image-preview"><img src="${esc(candidateUrl)}" alt="Nuova foto candidata" loading="lazy"><figcaption>${esc(candidateManualFile ? "Foto caricata da te" : candidateQa === "passed" ? "Verifica AI superata" : candidateQa === "failed" ? "Verifica estetica non superata" : "Verifica necessaria")}${candidateQa !== "" && !candidateManualFile ? ` · tentativo ${candidateAttempts}/3` : ""}</figcaption></figure>${candidate?.qa?.reason ? `<p class="ol-social-inline-note">${esc(candidate.qa.reason)}</p>` : ""}
-          <div class="ol-toolbar-group">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">Approva foto e prepara card</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi foto con AI</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta questa foto</button></div>
-          ${!canApproveCandidate ? `<small>${socialAsset?.brief?.cover_ready !== true ? "La card non è pronta: l'approvazione sarà disponibile dopo la preparazione del testo." : "La foto non è validata per l'approvazione: correggi oppure scarta."}</small>` : ""}
+          <div class="ol-toolbar-group">${canApproveCandidate ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="approve">Approva testo, foto e prepara card</button>` : ""}${canCorrectCandidate ? `<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-correct="${esc(id)}">Correggi foto con AI</button>` : ""}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-image-candidate="${esc(id)}" data-social-candidate-decision="discard">Scarta questa foto</button></div>
+          ${!canApproveCandidate ? '<small>La foto non supera i controlli minimi: correggila oppure scartala.</small>' : !socialAsset?.brief?.cover_ready ? '<small>Il testo della card manca: verrà preparato a partire dall’articolo e dalla destinazione verificata quando approvi.</small>' : ""}
         </div>` : ""}
         ${canRegeneratePhoto ? `<details class="ol-social-photo-change" data-social-photo-workflow="${esc(id)}" ${!socialImageUrl && !candidateUrl ? "open" : ""}>
           <summary>${socialImageUrl ? "Cambia immagine" : "Scegli un’immagine"}<span>Caricamento personale, AI o foto articolo</span></summary>
@@ -1706,8 +1707,9 @@
           <div class="ol-social-section-heading"><h5>1 · Testo e destinazione</h5><small>${esc(destination)}</small></div>
           <div class="ol-field"><label for="social-text-${esc(id)}">Testo del post</label><textarea id="social-text-${esc(id)}" data-social-plan-text="${esc(id)}" rows="4" maxlength="4000" ${editable ? "" : "disabled"}>${esc(row.canonical_text || "")}</textarea></div>
           <div class="ol-social-copy-grid"><div class="ol-field"><label>Pubblica su</label><div class="ol-autopilot-sources">${platformChoicesMarkup(id, row.platforms || [], "data-social-plan-platform")}</div></div>
-          ${editable ? `<div class="ol-field"><label for="social-status-${esc(id)}">Decisione editoriale</label><select id="social-status-${esc(id)}" data-social-plan-status="${esc(id)}">${statusOptions}</select></div>` : ""}</div>
-          ${editable ? `<div class="ol-social-save-actions"><p class="ol-social-dirty-message" data-social-plan-dirty="${esc(id)}" role="status" hidden>Modifiche al post non salvate</p><button class="ol-button ol-button-primary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva testo, canali e stato</button></div>` : ""}
+          ${editable ? `<div class="ol-field"><label for="social-status-${esc(id)}">Stato bozza (non è un comando Pubblica)</label><select id="social-status-${esc(id)}" data-social-plan-status="${esc(id)}">${statusOptions}</select></div>` : ""}</div>
+          ${editable ? `<div class="ol-social-save-actions"><p class="ol-social-dirty-message" data-social-plan-dirty="${esc(id)}" role="status" hidden>Modifiche al post non salvate</p>${(!candidateUrl || !canApproveCandidate) ? `<button class="ol-button ol-button-primary ol-button-small" type="button" data-social-plan-finalize="${esc(id)}">Approva la bozza</button>` : ''}<button class="ol-button ol-button-secondary ol-button-small" type="button" data-social-plan-save="${esc(id)}">Salva modifiche</button></div>` : ""}
+          <p class="ol-social-inline-note">${row.status === "approved" ? "Testo approvato: la pubblicazione dipende dagli asset pronti, dalla modalità e dallo slot del calendario." : "La bozza salvata non è una pubblicazione. In modalità automatica il calendario può pubblicare quando la card è pronta; in modalità approvazione o bozza non pubblica."}</p>
         </section>
         ${imageMarkup}
         ${articleTakeaway || destinationSolution || copyQaReason ? `<details class="ol-social-diagnostics"><summary>Dettagli del brief e controlli del testo</summary>${articleTakeaway ? `<p><strong>Sintesi:</strong> ${esc(articleTakeaway)}</p>` : ""}${destinationSolution ? `<p><strong>Soluzione:</strong> ${esc(destinationSolution)}</p>` : ""}${copyQaReason ? `<p><strong>Verifica testo:</strong> ${esc(copyQaReason)}</p>` : ""}</details>` : ""}
@@ -2294,6 +2296,7 @@
       return;
     }
     const socialPlanSaveButton = event.target.closest("[data-social-plan-save]");
+    const socialPlanFinalizeButton = event.target.closest("[data-social-plan-finalize]");
     const socialImageGenerateButton = event.target.closest("[data-social-image-generate]");
     const socialImageUploadButton = event.target.closest("[data-social-image-upload]");
     const socialImageCandidateButton = event.target.closest("[data-social-image-candidate]");
@@ -2819,22 +2822,37 @@
       if (decision === "approve") {
         const candidate = socialPlanItems.find((item) => item.id === id)?.social_asset?.manual_image_candidate;
         const warning = candidate?.source === "manual_upload"
-          ? "Approvare il file caricato senza una QA fotografica AI e ricomporre la card? Non ripubblica il post."
+          ? "Confermi testo, canali e foto caricata senza QA estetica AI? La card viene preparata. Non pubblica subito, ma in modalità automatica può essere pubblicata allo slot previsto."
           : candidate?.qa?.status === "failed"
-          ? `La QA estetica non ha approvato la fotografia: ${candidate.qa.reason || "qualita' discutibile"}. Vuoi approvarla comunque come scelta editoriale? La decisione sara' registrata. Non cambia il calendario ne' pubblica subito.`
-          : "Approvare la nuova fotografia e ricomporre la card? Non ripubblica il post e non modifica il calendario.";
+          ? `La QA estetica non ha approvato la fotografia: ${candidate.qa.reason || "qualità discutibile"}. Confermi comunque testo, canali e foto? La card non viene pubblicata subito, ma la modalità automatica può pubblicarla allo slot previsto.`
+          : "Confermi testo, canali e foto? La card viene preparata; la pubblicazione segue modalità e calendario, non è immediata.";
         if (!window.confirm(warning)) return;
       }
       socialImageCandidateButton.disabled = true;
       const message = section.querySelector("[data-social-plan-message]");
-      if (message) message.textContent = decision === "approve" ? "Composizione della nuova card…" : "Scarto della fotografia candidata…";
+      if (message) message.textContent = decision === "approve" ? "Salvataggio testo e composizione card…" : "Scarto della fotografia candidata…";
+      let textSaved = false;
       try {
+        if (decision === "approve") {
+          const post = socialImageCandidateButton.closest("[data-social-plan-item]");
+          const text = post?.querySelector("[data-social-plan-text]")?.value || "";
+          const platforms = [...(post?.querySelectorAll("[data-social-plan-platform]:checked") || [])].map((input) => input.value);
+          await endpoint("update-editorial-social-plan-item", {
+            method: "POST", body: { id, canonical_text: text, platforms, status: "approved" },
+          });
+          textSaved = true;
+          socialPlanDrafts.delete(id);
+        }
         await endpoint("decide-editorial-social-image-candidate", { method: "POST", body: { id, decision } });
         await loadSocialPlan(section);
-        if (message) message.textContent = decision === "approve" ? "Nuova foto e card approvate. Nessuna ripubblicazione eseguita." : "Anteprima scartata: la foto originale e' rimasta invariata.";
+        const freshMessage = section.querySelector("[data-social-plan-message]");
+        if (freshMessage) freshMessage.textContent = decision === "approve"
+          ? "Testo e foto approvati, card pronta. La pubblicazione dipende dalla modalità e dal calendario, non parte subito."
+          : "Anteprima scartata: la foto originale è rimasta invariata.";
       } catch (error) {
         socialImageCandidateButton.disabled = false;
-        if (message) message.textContent = `Operazione non eseguita: ${error.message}`;
+        if (message) message.textContent = `${textSaved ? "Testo approvato, ma foto non ancora approvata" : "Operazione non eseguita"}: ${error.message}. La foto resta disponibile per riprovare.`;
+        if (textSaved) await loadSocialPlan(section).catch(() => {});
       }
       return;
     }
@@ -2878,6 +2896,31 @@
       } catch (error) {
         if (socialMessage) socialMessage.textContent = `Rigenerazione non avviata: ${error.message}`;
         socialPlanRegenerateButton.disabled = false;
+      }
+      return;
+    }
+
+    if (socialPlanFinalizeButton) {
+      const id = socialPlanFinalizeButton.dataset.socialPlanFinalize || "";
+      const post = socialPlanFinalizeButton.closest("[data-social-plan-item]");
+      const text = post?.querySelector("[data-social-plan-text]")?.value || "";
+      const platforms = [...(post?.querySelectorAll("[data-social-plan-platform]:checked") || [])].map((input) => input.value);
+      if (!id || socialPlanFinalizeButton.disabled) return;
+      if (!window.confirm("Approvare testo e canali di questo post? Non pubblica subito: il calendario e la modalità configurata determinano la pubblicazione.")) return;
+      socialPlanFinalizeButton.disabled = true;
+      const message = section.querySelector("[data-social-plan-message]");
+      if (message) message.textContent = "Approvazione del testo del post…";
+      try {
+        await endpoint("update-editorial-social-plan-item", {
+          method: "POST", body: { id, canonical_text: text, platforms, status: "approved" },
+        });
+        socialPlanDrafts.delete(id);
+        await loadSocialPlan(section);
+        const nextMessage = section.querySelector("[data-social-plan-message]");
+        if (nextMessage) nextMessage.textContent = "Bozza approvata. La pubblicazione non è immediata: serve la card pronta e una modalità di pubblicazione abilitata.";
+      } catch (error) {
+        socialPlanFinalizeButton.disabled = false;
+        if (message) message.textContent = `Bozza non approvata: ${error.message}`;
       }
       return;
     }

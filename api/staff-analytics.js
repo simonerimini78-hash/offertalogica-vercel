@@ -3,7 +3,7 @@ import { json, requireAllowedBrowserOrigin } from "../lib/http.js";
 import { enforceRateLimit } from "../lib/rateLimit.js";
 import { recordEditorialArticleAiEconomicEvent, recordEditorialImageAiEconomicEvent, recordEditorialSupportAiEconomicEvent } from "../lib/editorialAiEconomics.js";
 
-const VERSION = "0.12.121";
+const VERSION = "0.12.123";
 const SEARCH_CONSOLE_SCOPE = "https://www.googleapis.com/auth/webmasters.readonly";
 const SEARCH_CONSOLE_TOKEN_URL = "https://oauth2.googleapis.com/token";
 const SEARCH_CONSOLE_API = "https://www.googleapis.com/webmasters/v3";
@@ -6627,10 +6627,40 @@ async function decideEditorialSocialImageCandidate(user, payload = {}) {
     throw new Error("Immagine non approvabile: controlli minimi di sicurezza/pertinenza non soddisfatti.");
   }
   if (candidate.source === "manual_upload") await editorialSocialUploadedImage(user, candidate.url);
-  if (!editorialSocialBriefHasCover(asset.brief)) throw new Error("Testo della card non ancora pronto: il file resta salvato come candidata.");
+  if (String(item.status || "") !== "approved") {
+    throw new Error("Approva prima il testo e i canali del post. La fotografia caricata rimane salvata.");
+  }
+
+  // Approvazione manuale: la fotografia non deve restare bloccata quando la
+  // preparazione automatica del titolo/sommario della card non e' terminata.
+  // Crea SOLO il testo della card da fonti gia' disponibili; non tocca il ciclo
+  // automatico, non pubblica e non aggira i controlli di sicurezza dell'upload.
+  let cardBrief = asset.brief && typeof asset.brief === "object" ? asset.brief : {};
+  if (!editorialSocialBriefHasCover(cardBrief)) {
+    const target = await editorialSocialAssetTarget(item);
+    const targetContext = item.post_type === "related"
+      ? (asset.target_context || await editorialSocialTargetContext(target)) : null;
+    if (item.post_type === "related" && !cleanEditorialText([
+      targetContext?.content, targetContext?.description, targetContext?.h1, targetContext?.title,
+    ].filter(Boolean).join(" "), 1200)) {
+      throw new Error("Testo card non preparabile: la destinazione OffertaLogica non e' verificabile. Foto conservata.");
+    }
+    const takeaway = cleanEditorialText(cardBrief.article_takeaway, 900)
+      || editorialFallbackSentences(editorialFallbackSourceText(
+        [article.content, article.excerpt, article.title].filter(Boolean).join(" "),
+      ), 520, 3);
+    const destinationSolution = cleanEditorialText(cardBrief.destination_solution, 1000)
+      || (targetContext ? editorialFallbackSentences(editorialFallbackSourceText(
+        [targetContext.content, targetContext.description, targetContext.h1, targetContext.title].filter(Boolean).join(" "),
+      ), 620, 3) : "");
+    cardBrief = { ...cardBrief, ...editorialFallbackCoverText(article, item, target, takeaway, destinationSolution) };
+    if (!editorialSocialBriefHasCover(cardBrief)) {
+      throw new Error("Testo della card insufficiente: completa prima l'articolo. Foto conservata.");
+    }
+  }
   const card = await renderAndUploadEditorialSocialCard({
     article, sourceImageUrl: candidate.url, postType: item.post_type,
-    title: asset.brief.cover_title, summary: asset.brief.cover_summary,
+    title: cardBrief.cover_title, summary: cardBrief.cover_summary,
     label: editorialSocialCoverLabel(item.post_type), storageSegment: `${itemId}-card`,
   });
   // Ricontrolla prima della sostituzione: non aggiornare card di post gia' pubblicati.
@@ -6645,6 +6675,16 @@ async function decideEditorialSocialImageCandidate(user, payload = {}) {
   if (!current || String(current.manual_image_candidate?.url || "") !== String(candidate.url)) {
     throw new Error("La candidata e' cambiata: aggiorna la pagina e riprova");
   }
+  // Se il ciclo ha prodotto un testo differente mentre componevamo la card,
+  // non sovrascriverlo con una versione precedente.
+  if (editorialSocialBriefHasCover(current.brief)
+      && (cleanEditorialText(current.brief.cover_title, 220) !== cleanEditorialText(cardBrief.cover_title, 220)
+        || cleanEditorialText(current.brief.cover_summary, 420) !== cleanEditorialText(cardBrief.cover_summary, 420))) {
+    throw new Error("Testo della card aggiornato nel frattempo: ricarica il post e riprova.");
+  }
+  const nextBrief = editorialSocialBriefHasCover(current.brief) ? current.brief
+    : { ...(current.brief && typeof current.brief === "object" ? current.brief : {}),
+      cover_title: cardBrief.cover_title, cover_summary: cardBrief.cover_summary };
   const now = new Date().toISOString();
   const originalQaStatus = candidate.qa.status;
   const image = { ...candidate, qa: {
@@ -6660,7 +6700,7 @@ async function decideEditorialSocialImageCandidate(user, payload = {}) {
   } };
   delete image.guidance;
   latestState.items[itemId] = {
-    ...current, image, card, manual_image_candidate: null, status: "ready", updated_at: now,
+    ...current, brief: nextBrief, image, card, manual_image_candidate: null, status: "ready", updated_at: now,
     history: current.image?.url ? [...(Array.isArray(current.history) ? current.history : []), { ...current.image, outcome: "replaced_by_editor", archived_at: now }].slice(-4) : current.history,
     card_history: current.card?.url ? [...(Array.isArray(current.card_history) ? current.card_history : []), { ...current.card, outcome: "replaced_by_editor", archived_at: now }].slice(-3) : current.card_history,
   };
