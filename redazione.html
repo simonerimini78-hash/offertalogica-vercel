@@ -7,7 +7,7 @@
   <meta name="referrer" content="no-referrer">
   <title>Redazione | OffertaLogica</title>
   <link rel="icon" type="image/png" href="/assets/logo-offertalogica-icon.png">
-  <link rel="stylesheet" href="/assets/editorial.css?v=0.12.44">
+  <link rel="stylesheet" href="/assets/editorial.css?v=0.12.82">
   <link rel="stylesheet" href="/assets/editorial-autopilot.css?v=0.12.120">
   <link rel="stylesheet" href="/assets/video-studio-workspace.css?v=1.2.2">
 </head>
@@ -25,7 +25,7 @@
     <div class="ol-shell">
       <div class="ol-eyebrow">Pannello redazione</div>
       <h1>Redazione OffertaLogica</h1>
-      <p>Articoli, Autopilota, ricerca, gestione e Video Studio sono separati in aree operative distinte.</p>
+      <p>Parti dagli articoli. Usa le altre sezioni solo quando ti servono: piano editoriale, automazione, gestione e Video Studio.</p>
     </div>
   </section>
 
@@ -56,14 +56,14 @@
         </div>
 
         <nav class="ol-editorial-sections ol-editorial-sections-five" aria-label="Sezioni operative della Redazione">
-          <a class="ol-editorial-section-link" href="#editorial-articles"><span>1</span><strong>Articoli</strong><small>Scrivi, revisiona e pubblica</small></a>
+          <a class="ol-editorial-section-link ol-editorial-section-link-current" href="#editorial-articles"><span>1</span><strong>Articoli</strong><small>Scrivi, revisiona e pubblica</small></a>
           <a class="ol-editorial-section-link" href="#editorial-autopilot"><span>2</span><strong>Autopilota</strong><small>Regole, calendario e destinazioni</small></a>
-          <a class="ol-editorial-section-link ol-editorial-section-link-current" href="#editorial-research"><span>3</span><strong>Centro editoriale</strong><small>Tema scelto e candidati</small></a>
+          <a class="ol-editorial-section-link" href="#editorial-research"><span>3</span><strong>Centro editoriale</strong><small>Tema scelto e candidati</small></a>
           <a class="ol-editorial-section-link" href="#editorial-management"><span>4</span><strong>Gestione</strong><small>Profilo, persone e categorie</small></a>
           <a class="ol-editorial-section-link" href="#editorial-video-studio"><span>5</span><strong>Video Studio</strong><small>Reel e suggerimenti creativi</small></a>
         </nav>
 
-        <details class="ol-editorial-block ol-editorial-block-main ol-editorial-block-collapsible" id="editorial-articles">
+        <details class="ol-editorial-block ol-editorial-block-main ol-editorial-block-collapsible" id="editorial-articles" open>
           <summary class="ol-editorial-block-head">
             <span class="ol-editorial-block-number">1</span>
             <div><p class="ol-editorial-block-kicker">Area operativa</p><h2>Articoli</h2><p>Qui lavori sui contenuti: selezione, scrittura, revisione e pubblicazione.</p></div>
@@ -101,6 +101,7 @@
                 <div><dt>Inviato</dt><dd data-review-submitted>—</dd></div>
                 <div><dt>Aggiornato</dt><dd data-review-updated>—</dd></div>
               </dl>
+              <p class="ol-review-unsaved" data-review-unsaved role="status" aria-live="polite" hidden>Modifiche non salvate. Salva l’articolo prima di uscire o passare a un altro contenuto.</p>
               <div class="ol-alert ol-alert-success" role="status" aria-live="polite" data-review-save-message hidden></div>
               <div class="ol-alert ol-alert-danger" role="alert" aria-live="assertive" data-review-validation hidden></div>
 
@@ -174,7 +175,7 @@
           <div class="ol-editorial-block-body" data-editorial-autopilot-host><p class="ol-muted">Sezione disponibile agli amministratori.</p></div>
         </details>
 
-        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-research" open>
+        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-research">
           <summary class="ol-editorial-block-head">
             <span class="ol-editorial-block-number">3</span>
             <div><p class="ol-editorial-block-kicker">Decisione e piano</p><h2>Centro editoriale</h2><p>Vedi subito il tema confermato del prossimo articolo, distinto dalle ricerche e dalle simulazioni.</p></div>
@@ -183,11 +184,12 @@
           <div class="ol-editorial-block-body" data-editorial-research-host><p class="ol-muted">Sezione disponibile agli amministratori.</p></div>
         </details>
 
-        <section class="ol-editorial-block" id="editorial-management">
-          <header class="ol-editorial-block-head">
+        <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-management">
+          <summary class="ol-editorial-block-head">
             <span class="ol-editorial-block-number">4</span>
             <div><p class="ol-editorial-block-kicker">Amministrazione</p><h2>Gestione</h2><p>Profilo autore, persone abilitate, inviti e categorie. Non interferisce con il lavoro sugli articoli.</p></div>
-          </header>
+            <span class="ol-editorial-block-action" aria-hidden="true">Apri</span>
+          </summary>
           <div class="ol-editorial-block-body">
             <div class="ol-management-shortcuts ol-management-shortcuts-ordered">
         <details class="ol-panel ol-collapsible-panel ol-author-profile-panel" data-own-author-profile hidden>
@@ -275,7 +277,7 @@
         </details>
             </div>
           </div>
-        </section>
+        </details>
 
         <details class="ol-editorial-block ol-editorial-block-collapsible" id="editorial-video-studio" data-vs-workspace>
           <summary class="ol-editorial-block-head">
@@ -358,7 +360,7 @@
 
 <footer class="ol-footer"><div class="ol-shell">Pannello redazione OffertaLogica · accesso riservato</div></footer>
 <script src="/assets/editorial-config.js?v=0.12.15"></script>
-<script src="/assets/editorial.js?v=0.12.81" defer></script>
+<script src="/assets/editorial.js?v=0.12.82" defer></script>
 <script src="/assets/editorial-autopilot.js?v=0.12.45" defer></script>
 <script src="/assets/editorial-autopilot-research.js?v=0.12.120" defer></script>
 <script src="/assets/video-studio-workspace.js?v=1.3.3.33" defer></script>

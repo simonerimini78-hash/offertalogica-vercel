@@ -135,3 +135,11 @@ body[data-editorial-view="review"] .ol-button-danger{background:#b91c1c;color:#f
 body[data-editorial-view="review"] .ol-button-danger:hover{background:#991b1b;border-color:#991b1b;color:#fff}
 body[data-editorial-view="review"] .ol-collapsible-action{background:#2f855a;color:#fff;border-color:#2f855a}
 body[data-editorial-view="review"] .ol-collapsible-panel[open] .ol-collapsible-action{background:#23834c;color:#fff;border-color:#23834c}
+
+/* Redazione v0.12.82: sezioni coerenti, accesso per ruolo e stato bozza. */
+body[data-editorial-view="review"] .ol-editorial-section-link[hidden],
+body[data-editorial-view="review"] .ol-editorial-block[hidden],
+body[data-editorial-view="review"] .ol-review-unsaved[hidden]{display:none!important}
+body[data-editorial-view="review"] .ol-review-unsaved{margin:0;padding:9px 12px;border:1px solid #f3c36d;border-radius:8px;background:#fff7e6;color:#75470b;font-size:13px;font-weight:750}
+@media(min-width:1101px){body[data-editorial-view="review"] .ol-editorial-sections{grid-template-columns:repeat(5,minmax(0,1fr))}}
+@media(max-width:620px){body[data-editorial-view="review"] .ol-editorial-sections{grid-template-columns:repeat(2,minmax(0,1fr))}body[data-editorial-view="review"] .ol-editorial-section-link{grid-template-columns:30px minmax(0,1fr);column-gap:7px;padding:9px}body[data-editorial-view="review"] .ol-editorial-section-link small{display:none}body[data-editorial-view="review"] .ol-editorial-section-link>span{width:28px;height:28px}body[data-editorial-view="review"] .ol-editorial-section-link strong{font-size:12px}}
