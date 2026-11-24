@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <script src="/assets/ol-landing-average-recovery.js?v=0.10.137" data-ol-average-recovery defer></script>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.139" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -21868,7 +21868,6 @@ function ottimizzaRisultatiMobile() {
 }
 
 let OL_LANDING_RECOVERY_RETURN_HANDLED = false;
-let OL_LANDING_RECOVERY_RENDERED = false;
 
 function percorsoMediaDirettoLanding() {
   const params = new URLSearchParams(window.location.search || "");
@@ -21906,17 +21905,13 @@ function nascondiPromptMediaLanding(stop = false) {
 }
 
 function aggiornaPromptBollettaDopoOfferte() {
-  if (!percorsoMediaDirettoLanding()) {
-    if (modalitaCalcolo !== "media" || isGuidedView() || LEAD_STATE.customerType !== "privato") window.OLLandingAverageRecovery?.cancel();
-    return;
-  }
+  if (!percorsoMediaDirettoLanding()) return;
   const average = !SOCIAL_ENTRY_STATE.active && !staffModeAttiva() && LEAD_STATE.customerType === "privato"
     && modalitaCalcolo === "media" && !isGuidedView();
   const first = average ? primaCardMediaLanding() : null;
   riordinaBlocchiMediaLanding(Boolean(first));
   document.body.classList.toggle("ol-landing-average-results", Boolean(first));
   if (!first) return;
-  OL_LANDING_RECOVERY_RENDERED = true;
   document.getElementById("ol-external-average-status")?.remove();
   if (new URLSearchParams(location.search).get("ol_personalize") === "1" && !OL_LANDING_RECOVERY_RETURN_HANDLED) {
     OL_LANDING_RECOVERY_RETURN_HANDLED = true;
@@ -22059,9 +22054,7 @@ function collegaEventiUX() {
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
   window.OLLandingAverageRecovery?.configure({
     element: () => document.getElementById("offers-personalize-prompt"),
-    notReady: () => percorsoMediaDirettoLanding() && !OL_LANDING_RECOVERY_RENDERED,
-    ineligible: () => staffModeAttiva() || LEAD_STATE.customerType === "business" || SOCIAL_ENTRY_STATE.personalizationDismissed
-      || isGuidedView() || (percorsoMediaDirettoLanding() && OL_LANDING_RECOVERY_RENDERED && (modalitaCalcolo !== "media" || document.body.classList.contains("mobile-fast-mode-pdf") || document.body.classList.contains("mobile-fast-mode-manual"))),
+    ineligible: () => staffModeAttiva(),
     accept: () => {
       if (percorsoMediaDirettoLanding() && primaCardMediaLanding()) apriPersonalizzazioneDaPromptLanding();
       else window.OLLandingAverageRecovery.returnToPersonalization();
