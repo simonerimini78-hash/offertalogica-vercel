@@ -3300,6 +3300,32 @@
             color: #0f172a;
         }
         .offers-personalize-prompt[hidden] { display: none !important; }
+        /* OFFERTALOGICA_PUBLIC_V134: solo presentazione del percorso autonomia dalla landing. */
+        body.ol-landing-average-loading #mobile-fast-start,
+        body.ol-landing-average-loading .segment-switch,
+        html body.ol-landing-average-loading.mobile-fast-mode-average #comparison-submit-button,
+        body.ol-landing-average-loading.unified-comparison-flow.mobile-fast-mode-average #comparison-submit-button,
+        body.ol-landing-average-loading #average-ranking-filters-setup { display: none !important; }
+        body.ol-landing-average-results:not(.social-entry-active) #offers-personalize-prompt:not([hidden]),
+        html.mobile-fast-flow body.ol-landing-average-results.mobile-fast-results:not(.social-entry-active) #offers-personalize-prompt:not([hidden]) {
+            display: block !important;
+            position: fixed;
+            z-index: 990;
+            bottom: max(12px, env(safe-area-inset-bottom));
+            left: 12px;
+            width: min(420px, calc(100% - 24px));
+            max-height: 38vh;
+            overflow: auto;
+            box-sizing: border-box;
+            margin: 0;
+            padding: 10px 12px;
+            box-shadow: 0 6px 24px rgba(15,23,42,.18);
+        }
+        body.ol-landing-average-results #offers-personalize-prompt strong { font-size: 15px; line-height: 1.25; }
+        body.ol-landing-average-results #offers-personalize-prompt p { margin-bottom: 8px; font-size: 13px; line-height: 1.3; }
+        body.ol-landing-average-results #offers-personalize-prompt .offers-personalize-actions button {
+            min-height: 44px; padding: 7px 8px; font-size: 14px; line-height: 1.2;
+        }
         .offers-personalize-prompt strong { display: block; margin-bottom: 4px; font-size: 16px; }
         .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
         .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
@@ -15001,8 +15027,14 @@ window.avviaComparazioneDati = function avviaComparazioneDati(options = {}) {
         ? [...group.querySelectorAll(".offer-group-cards .partner-vertical-card")]
             .find(card => window.getComputedStyle(card).display !== "none")
         : null;
-      (firstGuidedOffer || group).scrollIntoView({
-        behavior: movimentoRidottoAttivo() ? "auto" : "smooth",
+      const directAverage = percorsoMediaDirettoLanding() && modalitaCalcolo === "media" && !isGuidedView();
+      const firstLandingOffer = directAverage ? primaCardMediaLanding() : null;
+      const firstAction = firstLandingOffer?.querySelector('[id^="link-partner-"]');
+      const viewportHeight = window.visualViewport?.height || window.innerHeight;
+      const target = firstAction && firstAction.getBoundingClientRect().bottom - group.getBoundingClientRect().top > viewportHeight
+        ? firstLandingOffer : (firstGuidedOffer || group);
+      target.scrollIntoView({
+        behavior: directAverage ? "instant" : (movimentoRidottoAttivo() ? "auto" : "smooth"),
         block: "start"
       });
     }, 100);
@@ -21725,11 +21757,12 @@ function preparaRisparmioIngressoSocialMobile() {
   }
 }
 
-function urlCalcolatoreDaLanding() {
+function urlCalcolatoreDaLanding(average = false) {
   const current = new URLSearchParams(window.location.search || "");
   const target = new URL("/index.html", window.location.origin);
   target.searchParams.set("landing", "0");
   target.searchParams.set("from", "landing");
+  if (average) target.searchParams.set("compare_start", "average");
   ["utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term", "source"].forEach((key) => {
     const value = current.get(key);
     if (value) target.searchParams.set(key, value);
@@ -21745,7 +21778,7 @@ function apriCalcolatoreDaLanding() {
     destinationType: "calculator",
     redirect: true,
   });
-  window.location.assign(urlCalcolatoreDaLanding());
+  window.location.assign(urlCalcolatoreDaLanding(true));
 }
 
 function apriPercorsoAssistitoDaLanding() {
@@ -21788,7 +21821,7 @@ function ottimizzaRisultatiMobile() {
 
   document.body.classList.add("mobile-fast-results");
   const prompt = document.getElementById("offers-personalize-prompt");
-  if (prompt) prompt.hidden = true;
+  if (prompt && !percorsoMediaDirettoLanding()) prompt.hidden = true;
 
   const metodo = modalitaCalcolo === "media"
     ? metodologiaProfiloConfronto()
@@ -21826,25 +21859,134 @@ function ottimizzaRisultatiMobile() {
     window.__OL_MOBILE_FAST_RESULTS_PENDING__ = false;
     // Three-question results use the dedicated scroll to the first offer card.
     // Do not start a competing scroll to the ranking header.
-    if (!isGuidedView()) {
+    if (!isGuidedView() && !(percorsoMediaDirettoLanding() && modalitaCalcolo === "media")) {
       window.setTimeout(() => group.scrollIntoView({ behavior: "smooth", block: "start" }), 80);
     }
+  }
+}
+
+const OL_LANDING_AVERAGE_PROMPT = { timer: null, elapsed: 0, last: null, firstId: "", shown: false };
+const OL_LANDING_AVERAGE_PROMPT_KEY = "olLandingAveragePromptV134Shown";
+
+function percorsoMediaDirettoLanding() {
+  const params = new URLSearchParams(window.location.search || "");
+  return params.get("landing") === "0" && params.get("from") === "landing" && params.get("compare_start") === "average";
+}
+
+function primaCardMediaLanding() {
+  const group = document.getElementById("offerte-ranking-group");
+  if (!group || !group.getClientRects().length) return null;
+  return [...group.querySelectorAll(".offer-group-cards .partner-vertical-card")]
+    .find(card => card.getClientRects().length && getComputedStyle(card).visibility !== "hidden") || null;
+}
+
+function riordinaBlocchiMediaLanding(active) {
+  const group = document.getElementById("offerte-ranking-group");
+  const cards = group?.querySelector(".offer-group-cards");
+  if (!cards) return;
+  // Spostiamo i nodi esistenti: nessun testo, filtro o card viene ricreato.
+  const blocks = [".average-ranking-filters", ".offers-media-context", ".offers-contact-trust"]
+    .map(selector => group.querySelector(selector)).filter(Boolean);
+  const heading = group.querySelector(".offers-list-heading");
+  if (!heading) return;
+  const order = active && primaCardMediaLanding()
+    ? (document.documentElement.classList.contains("mobile-fast-flow") ? [cards, ...blocks]
+      : [blocks[1], cards, blocks[0], blocks[2]].filter(Boolean))
+    : [...blocks, cards];
+  let anchor = heading;
+  order.forEach(block => { if (anchor.nextElementSibling !== block) anchor.after(block); anchor = block; });
+}
+
+function bloccoVisibilePromptMediaLanding() {
+  return [...document.querySelectorAll('[aria-modal="true"], #tariffa-modal, #ol-menu-backdrop, #guided-assistant-panel.is-open, #iubenda-cs-banner')]
+    .some(element => {
+      const rect = element.getBoundingClientRect();
+      const style = getComputedStyle(element);
+      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight
+        && style.visibility !== "hidden" && style.opacity !== "0";
+    });
+}
+
+function nascondiPromptMediaLanding(stop = false) {
+  const prompt = document.getElementById("offers-personalize-prompt");
+  if (prompt) {
+    prompt.hidden = true;
+    prompt.setAttribute("aria-hidden", "true");
+  }
+  if (stop) {
+    clearInterval(OL_LANDING_AVERAGE_PROMPT.timer);
+    OL_LANDING_AVERAGE_PROMPT.timer = null;
+    OL_LANDING_AVERAGE_PROMPT.last = null;
   }
 }
 
 function aggiornaPromptBollettaDopoOfferte() {
   const prompt = document.getElementById("offers-personalize-prompt");
   if (!prompt) return;
-  // V100: il prompt superiore resta solo per compatibilita interna e non viene mostrato.
-  // La scelta bolletta / percorso assistito avviene dalla CTA della singola offerta.
-  prompt.hidden = true;
-  prompt.setAttribute("aria-hidden", "true");
+  if (!percorsoMediaDirettoLanding()) {
+    nascondiPromptMediaLanding(true);
+    return;
+  }
+  const average = !SOCIAL_ENTRY_STATE.active && !staffModeAttiva() && LEAD_STATE.customerType === "privato"
+    && modalitaCalcolo === "media" && !isGuidedView();
+  const first = average ? primaCardMediaLanding() : null;
+  riordinaBlocchiMediaLanding(Boolean(first));
+  document.body.classList.toggle("ol-landing-average-results", Boolean(first));
+  if (first) document.getElementById("ol-external-average-status")?.remove();
+  if (!first || SOCIAL_ENTRY_STATE.personalizationDismissed) {
+    nascondiPromptMediaLanding(true);
+    return;
+  }
+  const state = OL_LANDING_AVERAGE_PROMPT;
+  if (state.shown || state.timer !== null) return;
+  try { if (sessionStorage.getItem(OL_LANDING_AVERAGE_PROMPT_KEY) === "1") return; } catch {}
+  state.timer = window.setInterval(() => {
+    const card = primaCardMediaLanding();
+    const now = performance.now();
+    if (SOCIAL_ENTRY_STATE.personalizationDismissed || modalitaCalcolo !== "media" || isGuidedView()
+      || LEAD_STATE.customerType !== "privato" || document.body.classList.contains("mobile-fast-mode-pdf")
+      || document.body.classList.contains("mobile-fast-mode-manual")) {
+      nascondiPromptMediaLanding(true);
+      return;
+    }
+    const blocked = bloccoVisibilePromptMediaLanding();
+    if (state.shown) {
+      // Non sovrapporre il prompt ad altri percorsi e non riproporlo dopo averlo chiuso.
+      if (blocked || !card || prompt.hidden) nascondiPromptMediaLanding(true);
+      return;
+    }
+    const firstId = String(LEAD_STATE.firstOfferId || "");
+    if (state.firstId !== firstId) { state.firstId = firstId; state.elapsed = 0; state.last = null; }
+    const rect = card?.getBoundingClientRect();
+    const height = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
+    const top = window.visualViewport?.offsetTop || 0;
+    const visible = rect && rect.height > 0 && Math.min(rect.bottom, top + height) - Math.max(rect.top, top) >= Math.min(rect.height, height) * 0.5;
+    if (document.visibilityState !== "visible" || blocked || !visible) { state.last = null; return; }
+    if (state.last !== null) state.elapsed += Math.min(now - state.last, 300);
+    state.last = now;
+    if (state.elapsed < 15000) return;
+    state.shown = true;
+    try { sessionStorage.setItem(OL_LANDING_AVERAGE_PROMPT_KEY, "1"); } catch {}
+    prompt.hidden = false;
+    prompt.setAttribute("aria-hidden", "false");
+  }, 250);
+}
+
+function apriPersonalizzazioneDaPromptLanding() {
+  if (!percorsoMediaDirettoLanding()) return caricaBollettaDaOfferte({ source: "offers_personalization" });
+  SOCIAL_ENTRY_STATE.personalizationDismissed = true;
+  nascondiPromptMediaLanding(true);
+  impostaOrigineCaricamentoPdf("offers_personalization");
+  trackEvent("offers_bill_prompt_clicked", { dataOrigin: LEAD_STATE.dataOrigin, ...trackingOrigineCaricamentoPdf(true) });
+  // Mostra i tre metodi gia presenti, senza aprire automaticamente PDF o fotocamera.
+  const panel = document.querySelector(".mobile-fast-personalized-panel");
+  panel?.scrollIntoView({ behavior: movimentoRidottoAttivo() ? "auto" : "smooth", block: "start" });
+  document.getElementById("mobile-fast-photo")?.focus({ preventScroll: true });
 }
 
 function continuaConStimaMedia() {
   SOCIAL_ENTRY_STATE.personalizationDismissed = true;
-  const prompt = document.getElementById("offers-personalize-prompt");
-  if (prompt) prompt.hidden = true;
+  nascondiPromptMediaLanding(true);
   trackEvent("offers_bill_prompt_dismissed", { dataOrigin: LEAD_STATE.dataOrigin });
 }
 
@@ -21956,8 +22098,24 @@ function collegaEventiUX() {
   document.getElementById("landing-assisted")?.addEventListener("click", apriPercorsoAssistitoDaLanding);
   document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
-  document.getElementById("offers-upload-bill")?.addEventListener("click", () => caricaBollettaDaOfferte({ source: "offers_personalization" }));
+  document.getElementById("offers-upload-bill")?.addEventListener("click", apriPersonalizzazioneDaPromptLanding);
   document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
+  if (percorsoMediaDirettoLanding()) {
+    document.addEventListener("click", (event) => {
+      if (event.target?.closest?.("#mobile-fast-photo, #mobile-fast-pdf, #mobile-fast-manual, #btn-segmento-business, #btn-attiva-precisi")) {
+        SOCIAL_ENTRY_STATE.personalizationDismissed = true;
+        nascondiPromptMediaLanding(true);
+        if (event.target?.closest?.("#mobile-fast-manual, #btn-segmento-business, #btn-attiva-precisi")
+          && PDF_UPLOAD_SOURCE_STATE.pending?.source === "offers_personalization") PDF_UPLOAD_SOURCE_STATE.pending = null;
+      } else if (event.target?.closest?.('#offerte-ranking-group [id^="link-partner-"]') && OL_LANDING_AVERAGE_PROMPT.shown) {
+        nascondiPromptMediaLanding(true);
+      }
+    }, true);
+    document.addEventListener("keydown", (event) => {
+      const prompt = document.getElementById("offers-personalize-prompt");
+      if (event.key === "Escape" && prompt && !prompt.hidden && !bloccoVisibilePromptMediaLanding()) continuaConStimaMedia();
+    });
+  }
   // OFFERTALOGICA_PUBLIC_V115_20260928: ogni nuovo PDF selezionato avvia subito l'analisi
   // su mobile e desktop. Il pulsante manuale resta solo come fallback tecnico.
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
@@ -23665,18 +23823,30 @@ if (document.readyState === "loading") {
           window.setTimeout(() => target?.focus({ preventScroll: true }), 180);
         }, 90);
       } else if (externalFastStart === "average") {
+        const directLanding = percorsoMediaDirettoLanding();
+        if (directLanding) {
+          document.body.classList.add("ol-landing-average-loading");
+          setMobileFastMode("average", "average");
+        }
         let attempts = 0;
         const startAverageComparison = () => {
           attempts += 1;
           if (typeof DATI_UFFICIALI_CONFRONTO_PRONTI !== "undefined" && DATI_UFFICIALI_CONFRONTO_PRONTI) {
             btnMedi?.click();
             window.setTimeout(() => {
+              if (directLanding) tracciaSceltaPercorsoConfronto("average", "comparison_method_choice");
               window.__OL_A11Y_RESULTS_PENDING__ = true;
-              window.avviaComparazioneDati?.();
+              try { window.avviaComparazioneDati?.(); }
+              finally {
+                if (directLanding) {
+                  document.body.classList.remove("ol-landing-average-loading");
+                  document.getElementById("ol-external-average-status")?.remove();
+                }
+              }
             }, 40);
             return;
           }
-          if (attempts === 80) {
+          if (attempts === 80 || (directLanding && attempts === 1)) {
             let status = document.getElementById("ol-external-average-status");
             if (!status) {
               status = document.createElement("p");
@@ -23691,6 +23861,7 @@ if (document.readyState === "loading") {
             window.setTimeout(startAverageComparison, 125);
             return;
           }
+          if (directLanding) document.body.classList.remove("ol-landing-average-loading");
           const status = document.getElementById("ol-external-average-status");
           if (status) status.textContent = "Il caricamento sta richiedendo più del previsto. Tocca Usa il profilo medio per riprovare senza perdere la pagina.";
           scrollFast(btnAverage || submit, "center");
