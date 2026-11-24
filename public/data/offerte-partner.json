@@ -1,9 +1,109 @@
 {
-  "versioneDati": "partner-menu-2026-11-23-v1",
+  "versioneDati": "partner-menu-2026-11-24-v1",
   "schemaVersion": 1,
   "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; le offerte con condizioni economiche incomplete sono pubblicate separatamente e restano escluse dal ranking.",
-  "aggiornatoIl": "2026-11-23",
+  "aggiornatoIl": "2026-11-24",
   "offerte": [
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "fisso",
+      "nome": "LA STESSA GAS NATURALE",
+      "codice": "027184GSFML01XXXXX2611DOGFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-29",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "",
+      "prezzo": 0.92,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE",
+        "sourceDocument": "04_11_2026__30_11_2026__027184GSFML01XXXXX2611DOGFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "04_11_2026__30_11_2026__027184GSFML01XXXXX2611DOGFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|gas|027184GSFML01XXXXX2611DOGFIXCANA",
+        "sourceFile": "04_11_2026__30_11_2026__027184GSFML01XXXXX2611DOGFIXCANA.pdf",
+        "sourceHash": "ef9a03d52cce4ef741f4d7bb5a4c123ca8d72af91d3277bb06b802c025cf561e",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.92,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|gas|027184GSFML01XXXXX2611DOGFIXCANA"
+    },
     {
       "providerKey": "greenius",
       "providerLabel": "Greenius",
@@ -59,7 +159,7 @@
         "commercialFamily": "casa giada",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESI",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESI.pdf",
-        "sourceHash": "3e1c432916b39c2098a0c98ae94d3aa2aa4b9640b798e5302ee518c35a030805",
+        "sourceHash": "b1f8b9e8cdc5efeb402aaa4570f036931acdcf9ba631ea1115a46bb97771fdbe",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -159,7 +259,7 @@
         "commercialFamily": "casa zaffiro",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESK",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESK.pdf",
-        "sourceHash": "ebf17e21fd8fee6e410b93d3d694faaa968d387155d4d5aa40b2708b19d3e774",
+        "sourceHash": "39ed8f9f41e874fa8f75d83b215666a1377861068946845949d6304c9c40a375",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -259,7 +359,7 @@
         "commercialFamily": "casa rubino",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESL",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESL.pdf",
-        "sourceHash": "a2013b36203065be5182aed4a622dcb13813c8dd4457f0463a2e32f0b79e304b",
+        "sourceHash": "75a95f5ea773dad778c4f252771488792316f43c28e6a70ba5f51782e67f76fb",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -359,7 +459,7 @@
         "commercialFamily": "casa ambra",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESM",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESM.pdf",
-        "sourceHash": "3533226ca9511c3157083884887fc339724a333b378c4ae5b53634010840c393",
+        "sourceHash": "34cab4c1a6699722a0c1115094938e296f974f2d8fbbc08a005d6c5c5d613ccf",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -459,7 +559,7 @@
         "commercialFamily": "casa opale",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609DOGPSVRESN.pdf",
-        "sourceHash": "972d8c480b7f8f01425a2f4ed5fe8711e756620befb92ba5c84de494c41c234a",
+        "sourceHash": "362b0bc09c659f9241d33632cb0364d854e0a5760f691f2ad20665bfe7ef24c8",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -503,6 +603,106 @@
       ],
       "commercialFamily": "casa opale",
       "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609DOGPSVRESN"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "gas",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA",
+      "codice": "027184GNVML01XXXXX2611DOGCAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-25",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "psv",
+      "prezzo": 0.985,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread, CAP)",
+        "sourceDocument": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2611DOGCAPRES2",
+        "sourceFile": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf",
+        "sourceHash": "ee49a11351a385ad38bd50be5e912770aad4eac327db70c4e4c1a9179a08cd9f",
+        "economics": {
+          "indexName": "PSV",
+          "indexValueAtProjection": 0.945436,
+          "fixedPrice": null,
+          "spread": 0.165,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": null
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.985,
+            "unit": "EUR/Smc",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2611DOGCAPRES2"
     },
     {
       "providerKey": "greenius",
@@ -559,7 +759,7 @@
         "commercialFamily": "casa smeraldo",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609DOGPSVRESJ",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609DOGPSVRESJ.pdf",
-        "sourceHash": "8f278294229c411755c44ac415eab916fef9af08a7fb012022b08287baa5aed8",
+        "sourceHash": "8e699b63f26c11e81fec455da47afbeb2228e9139c1e68abb1c555f1e2eeebe6",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -603,6 +803,198 @@
       ],
       "commercialFamily": "casa smeraldo",
       "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609DOGPSVRESJ"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "fisso",
+      "nome": "LA STESSA ENERGIA ELETTRICA 24 MESI",
+      "codice": "027184ESFML01XXB2611DOE0FFIXCANA",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-29",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": 24,
+      "indiceRiferimento": "",
+      "prezzo": 0.2123,
+      "quotaFissaAnnua": 144.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "prezzo fisso CTE comprensivo perdite",
+        "sourceDocument": "04_11_2026__30_11_2026__027184ESFML01XXB2611DOE0FFIXCANA.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "04_11_2026__30_11_2026__027184ESFML01XXB2611DOE0FFIXCANA.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "la stessa",
+        "canonicalKey": "04362490403|luce|027184ESFML01XXB2611DOE0FFIXCANA",
+        "sourceFile": "04_11_2026__30_11_2026__027184ESFML01XXB2611DOE0FFIXCANA.pdf",
+        "sourceHash": "622b620b0836ffc2096ce95749ac580b3e68a08461692afb31b57a59bcdb9577",
+        "economics": {
+          "indexName": null,
+          "indexValueAtProjection": null,
+          "fixedPrice": 0.2123,
+          "spread": null,
+          "annualFixedFee": 144.0,
+          "networkLosses": {
+            "rankingPriceConvention": "included"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": []
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": true,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "la stessa",
+      "canonicalKey": "04362490403|luce|027184ESFML01XXB2611DOE0FFIXCANA"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "IN CONTROL CASA 24 MESI",
+      "codice": "027184ENVML01XXB2611DOEF0CAPRES2",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2026-11-25",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.235,
+      "quotaFissaAnnua": 168.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "min(indice corrente + spread netto perdite, CAP)",
+        "sourceDocument": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "in control casa",
+        "canonicalKey": "04362490403|luce|027184ENVML01XXB2611DOEF0CAPRES2",
+        "sourceFile": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf",
+        "sourceHash": "9f2a5204fbc59251782edb1c29f9943337b7e86a89153e21af9ba765513c3695",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.230817,
+          "fixedPrice": null,
+          "spread": 0.0295,
+          "annualFixedFee": 168.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": true,
+            "value": 0.235,
+            "unit": "EUR/kWh",
+            "validForMonths": 12,
+            "rule": "min(indice + spread, cap)"
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "in control casa",
+      "canonicalKey": "04362490403|luce|027184ENVML01XXB2611DOEF0CAPRES2"
     },
     {
       "providerKey": "greenius",
@@ -659,7 +1051,7 @@
         "commercialFamily": "casa giada",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESI",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESI.pdf",
-        "sourceHash": "552d53f15b5aa68babd830d8c3761faf6b2b1ff5d4d49bc801fbfe8be0d0726d",
+        "sourceHash": "10ead6d48d9069bacba744e018cab9ed6308fbbb3279e6bda78f5e5c0605c918",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -759,7 +1151,7 @@
         "commercialFamily": "casa zaffiro",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESK",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESK.pdf",
-        "sourceHash": "cc12f8b6f7073b99bdda0308e6545dc06c15a453cb71dbac5dccdfeedf03ddc8",
+        "sourceHash": "6c2d3dd7dd026bd2d2e9bea6c8f95115fe3135f080121919a173ef832186082d",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -859,7 +1251,7 @@
         "commercialFamily": "casa rubino",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESL",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESL.pdf",
-        "sourceHash": "6a997463a419d2ad41b8cf2d3d8807e24fcdaaf05d787c3bfc5515df7e15d450",
+        "sourceHash": "1f8561115f69352b54b8822f33809eb4b35e6cbd1de9e14c1233ce84ca3e2216",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -959,7 +1351,7 @@
         "commercialFamily": "casa ambra",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESM",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESM.pdf",
-        "sourceHash": "29c15e0b11d0b47323fdf34f1113f981eff834587de73deedffc359fe34e268b",
+        "sourceHash": "4558a3f4f14c78837e0ce1d5e6b806dcee42e72cb63990e7162908770a6be80b",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -1059,7 +1451,7 @@
         "commercialFamily": "casa opale",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609DOE01PORRESN",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609DOE01PORRESN.pdf",
-        "sourceHash": "372bf417695745095a57dde3d6a09c58d80da4058e0663053b4c375cc1354c3b",
+        "sourceHash": "c848d6eff9317889bff2cc274172f5341d2af5cb5615eddf0ede9d97f9a5e782",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -1159,7 +1551,7 @@
         "commercialFamily": "casa pun",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4",
         "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRES4.pdf",
-        "sourceHash": "a97bd5f899e8a0c8ee0d44da58b3fa00c60fe31d47d284b74735deed36ebfe87",
+        "sourceHash": "32ed1d9d930e23cc24e944529159a9b3b1b3650e694ae71cbd13f915e5d414c8",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -1203,6 +1595,106 @@
       ],
       "commercialFamily": "casa pun",
       "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRES4"
+    },
+    {
+      "providerKey": "greenius",
+      "providerLabel": "Greenius",
+      "fornitore": "Greenius",
+      "commodity": "luce",
+      "tipo": "variabile",
+      "nome": "CASA SMERALDO",
+      "codice": "027184ESVOL01XXX2609DOE01PORRESJ",
+      "pivaVenditore": "04362490403",
+      "dataInizio": "",
+      "dataFine": "2027-01-12",
+      "customerType": "domestico",
+      "tipoClienteCodice": "PARTNER_DIRECT",
+      "tipoOffertaCodice": "PARTNER_DIRECT",
+      "durataMesi": null,
+      "indiceRiferimento": "pun",
+      "prezzo": 0.242817,
+      "quotaFissaAnnua": 132.0,
+      "url": "#",
+      "fonte": "CTE partner diretta GREENIUS",
+      "score": 900,
+      "qualitaPrezzo": "partner_cte_validata",
+      "provenienzaPrezzo": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "projectionRule": "indice corrente + spread netto perdite",
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ.pdf"
+      },
+      "provenienzaQuotaFissa": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "sourceDocument": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ.pdf"
+      },
+      "sconti": [],
+      "dettagliTecnici": {
+        "sourceType": "partner_direct",
+        "partnerKey": "greenius",
+        "partnerKeys": [
+          "greenius"
+        ],
+        "partners": [
+          {
+            "partnerKey": "greenius",
+            "partnerLabel": "GREENIUS"
+          }
+        ],
+        "commercialFamily": "casa smeraldo",
+        "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ",
+        "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609DOE01PORRESJ.pdf",
+        "sourceHash": "ce555db924d9c7e1806b0a3869cfb0ce662ed6b7080a3ecbc7452ec7ceeaffa0",
+        "economics": {
+          "indexName": "PUN",
+          "indexValueAtProjection": 0.230817,
+          "fixedPrice": null,
+          "spread": 0.012,
+          "annualFixedFee": 132.0,
+          "networkLosses": {
+            "rankingPriceConvention": "net"
+          },
+          "variableComponents": [],
+          "fixedComponents": [],
+          "cap": {
+            "enabled": false,
+            "value": null,
+            "unit": null,
+            "validForMonths": null,
+            "rule": null
+          },
+          "discounts": [
+            {
+              "name": "Bonus SDD",
+              "value": 12.0,
+              "unit": "EUR/anno",
+              "condition": "Pagamento tramite SDD",
+              "includedInRanking": false
+            }
+          ]
+        },
+        "requirements": {
+          "sdd": true,
+          "digitalInvoice": null,
+          "powerConstraints": null,
+          "geographicConstraints": null,
+          "other": []
+        }
+      },
+      "sourceType": "partner_direct",
+      "partnerKey": "greenius",
+      "partnerKeys": [
+        "greenius"
+      ],
+      "commercialFamily": "casa smeraldo",
+      "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609DOE01PORRESJ"
     },
     {
       "providerKey": "liongreen",
@@ -1829,7 +2321,7 @@
         "commercialFamily": "zaffiro business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN3",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN3.pdf",
-        "sourceHash": "353e400effa9be8021c267f120aa77079b908b849788c3b83e77e94cac90d8b8",
+        "sourceHash": "7e22bbb6520dd29c688401292cf75bb54d0541d69512a2270320b1e3128a0563",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -1942,7 +2434,7 @@
         "commercialFamily": "rubino business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN4",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN4.pdf",
-        "sourceHash": "85d2a56f8d8706b5572570abfb7b5190dcd6e75f747146fb27ce59599a68feda",
+        "sourceHash": "a4b146bef72b3467dd8d140c35b30a0892e40aae1f190804b2695deef2583372",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2055,7 +2547,7 @@
         "commercialFamily": "ambra business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN5",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN5.pdf",
-        "sourceHash": "eae389cdcca2a1aa0e586b240a6ee12089ee4e2f3bd8cf7dce62ceae87b0db72",
+        "sourceHash": "0c787d92bf478fb513e658dc61deca9ffde28055a68f98a895740b500e2a733b",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2168,7 +2660,7 @@
         "commercialFamily": "ametista business",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSN6",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSN6.pdf",
-        "sourceHash": "6252df352d869ea0c9598c5ba065eb3cd095189dc41f5de403bc4c4d63547958",
+        "sourceHash": "4c54799e9f1e83f6955d709a9097b3d364ed64e3c2b7dca26a59d72662c28fa0",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2281,7 +2773,7 @@
         "commercialFamily": "smeraldo business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP1",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP1.pdf",
-        "sourceHash": "8bdef185925e92a44a294487b7448eca35a6e166f6bce04347eed45f1d655c84",
+        "sourceHash": "81f40b013fa2f9da17c4dd847f778f33cb30b59aae448249d8bff2e2dd2124fd",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2407,7 +2899,7 @@
         "commercialFamily": "onice business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP2",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP2.pdf",
-        "sourceHash": "e206d361bdc056d8ea0ad7e5e297aebb8582dcf0e7900f9f087268248a6b0cf3",
+        "sourceHash": "a102061c0ee94945c6be83504abedb6cc5756f3e8458215d99ef5b137e056cc0",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2533,7 +3025,7 @@
         "commercialFamily": "zaffiro business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP3",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP3.pdf",
-        "sourceHash": "936d7d8d8cbd8d63dc09db0bd4dedbdcabd352c842f6dccc7769e8e6d11d195f",
+        "sourceHash": "4c16604c8233a14fb869153bef3cba34ac1d6e88e4168b7706c76d2c20085894",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2659,7 +3151,7 @@
         "commercialFamily": "rubino business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP4",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP4.pdf",
-        "sourceHash": "9d14222432ed1ddf20385ebefdeae55179d0d9889a3caef1ca03804ac8413f75",
+        "sourceHash": "8a9fdeaef9d2b6e88c09df175cfa005e7bfe0a279f6a60f0a6e6181705a95650",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2785,7 +3277,7 @@
         "commercialFamily": "ambra business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP5",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP5.pdf",
-        "sourceHash": "8fe2661ba1f4be8a1048d51f6a840c7d7449d71d360fd530eeefbcffc74743f5",
+        "sourceHash": "1c5d8feeb2c95634534f2959316e5f6ea98a1002f49e6f0a38c8820d319551f2",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -2911,7 +3403,7 @@
         "commercialFamily": "ametista business plus",
         "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2609AUGPSVBSP6",
         "sourceFile": "09_09_2026__17_01_2027__027184GNVML01XXXXX2609AUGPSVBSP6.pdf",
-        "sourceHash": "1129934b81ceedc32305c6e52829d2174f4af62744cd668f8a685e8ba6486e66",
+        "sourceHash": "1c123983028a3d2ac67f9b7a9a8d3006b8de3e2ef51aa4bcbeb1922951c6dc3e",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -3037,7 +3529,7 @@
         "commercialFamily": "smeraldo business",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN1",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN1.pdf",
-        "sourceHash": "d7f3087d442d5aa89ee8475bdd5c81d17204a244f5d4843fa77f7e01d583a325",
+        "sourceHash": "dbf1f71a24dd7ad640454030d669eccad175053ea25723f1a49b8d68e3475290",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -3150,7 +3642,7 @@
         "commercialFamily": "onice business",
         "canonicalKey": "04362490403|gas|027184GSVML01XXXXX2609AUGPSVBSN2",
         "sourceFile": "09_09_2026__17_01_2027__027184GSVML01XXXXX2609AUGPSVBSN2.pdf",
-        "sourceHash": "41007587aa2b0b9eeaa4a8e2a0f9f1127f93046a01269100ce9937a5715f2eff",
+        "sourceHash": "7319db593256791c3c758ec78a4c1c457a60ab1360a906c6969afaa5ea3adbff",
         "economics": {
           "indexName": "PSV",
           "indexValueAtProjection": 0.945436,
@@ -3263,7 +3755,7 @@
         "commercialFamily": "zaffiro business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN3",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN3.pdf",
-        "sourceHash": "040b022aa07a2aae68d78696b519b96da5b69dca9ebcfa4195af65196f4336a0",
+        "sourceHash": "dc54040b7736d1ad24770bb8458f747d21fada94e877244570f8d2d1f6864fdb",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3370,7 +3862,7 @@
         "commercialFamily": "ambra business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN5",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN5.pdf",
-        "sourceHash": "67da8f1866fc071dff72370b44850adc08724e364af892c55ed7e5ae2b750c9e",
+        "sourceHash": "1b6b16e0914f1ee1dc2e8c935780050ac1291b8d72a711c38c1b27b67b24a583",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3477,7 +3969,7 @@
         "commercialFamily": "ametista business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN6",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN6.pdf",
-        "sourceHash": "ab771be20e7e55e4e457a4306dc2859e24d2ca320578320fb8029f1ed0e69d29",
+        "sourceHash": "3efd5d432b635ad3c1fb71924b317d7a8bb65dc7633c4b1cf1cfbbf8760836fc",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3584,7 +4076,7 @@
         "commercialFamily": "opale business",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSN7",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSN7.pdf",
-        "sourceHash": "10c7152722cbdb2e74a424d92e89ccf20e32fdda77ff94098cc3a56abbdd5f2f",
+        "sourceHash": "b95939588488b0b98bb3672f03f283f36464d3e234b6b03b6adad946ed6b5746",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3691,7 +4183,7 @@
         "commercialFamily": "smeraldo business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP1",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP1.pdf",
-        "sourceHash": "adb02eb61410858a1231b734768909b294bd5ba090b140f3a5efc60acb7fa646",
+        "sourceHash": "8622c7a017a3c5ac1963e05dba6dbdb7a91481e705989177a9da2ed43e3572bf",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3804,7 +4296,7 @@
         "commercialFamily": "onice business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP2",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP2.pdf",
-        "sourceHash": "489ca79f3b37bb8a27a86103dc4ffe5afe21baf5ef1a86a4fce8aa06ec955c8c",
+        "sourceHash": "6aaf7371f9942f098c7fc7e28f7d08b8fc7538b66d93e9bf7b7aa55a68824fde",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -3917,7 +4409,7 @@
         "commercialFamily": "zaffiro business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP3",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP3.pdf",
-        "sourceHash": "1c2b074c80784a119695087c59a40e4213260f98fa01ef20edc865c61db96e2e",
+        "sourceHash": "1c86202ed5a110b2856c1edf9d98ecdf462a5d4f9118bed7ab54236c24630518",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4030,7 +4522,7 @@
         "commercialFamily": "rubino business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP4",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP4.pdf",
-        "sourceHash": "e62818e6fbe1cb63ea2b35e039550e3dae6831c31c2e95806f25292361a567a3",
+        "sourceHash": "21c8ebc77d36a90144ce589aff7d70caeefc07bae8c173485c004ae653466cea",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4143,7 +4635,7 @@
         "commercialFamily": "ambra business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP5",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP5.pdf",
-        "sourceHash": "56f5102e9d481116bde817409174cb38f800ca225da6752d4b6a1e4139e0c52f",
+        "sourceHash": "ea945dcdcac3af25fd2fe0788b409be048934b7719fea85fbfcd44ef896648e5",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4256,7 +4748,7 @@
         "commercialFamily": "ametista business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP6",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP6.pdf",
-        "sourceHash": "24928c500f1faa7374461c028db9a9571a45180a3ed060968508f7a96a248df4",
+        "sourceHash": "bd2c472201c3e4879636f45d2b421c281915f8a896441941bfe2dd1080c0e19e",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4369,7 +4861,7 @@
         "commercialFamily": "opale business plus",
         "canonicalKey": "04362490403|luce|027184ENVOL01XXX2609AUE01PORBSP7",
         "sourceFile": "09_09_2026__17_01_2027__027184ENVOL01XXX2609AUE01PORBSP7.pdf",
-        "sourceHash": "1d0ba91232d3adc8820e57983e70e3c4cd8e415e268cffbc02096412a032b282",
+        "sourceHash": "d03754ebf5d56d74e5bfa88eee493136eff7189c3daed054b10d2b3dcc39daaf",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4482,7 +4974,7 @@
         "commercialFamily": "smeraldo business",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN1",
         "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN1.pdf",
-        "sourceHash": "ba0c2ef65e697725a049267c4baa51b7ee0591ba7ca68bb8299750db2a430076",
+        "sourceHash": "0644a92e201b5760ad4e989525407397cccb72ee1edc76653368998c0948fcc3",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4589,7 +5081,7 @@
         "commercialFamily": "onice business",
         "canonicalKey": "04362490403|luce|027184ESVOL01XXX2609AUE01PORBSN2",
         "sourceFile": "09_09_2026__17_01_2027__027184ESVOL01XXX2609AUE01PORBSN2.pdf",
-        "sourceHash": "d99ea10cb600584da3c07634efd39767df35975d412c27d87d256e89942a32f9",
+        "sourceHash": "ebb0f4e5a5f6dfe4dc35ecb535dac23bcf09c08fe34f5bc901f674af6830ad94",
         "economics": {
           "indexName": "PUN",
           "indexValueAtProjection": 0.230817,
@@ -4965,8 +5457,8 @@
     }
   ],
   "statistiche": {
-    "fileAttiviLetti": 51,
-    "offertePrivateAttive": 17,
+    "fileAttiviLetti": 56,
+    "offertePrivateAttive": 22,
     "offerteBusinessAttive": 25,
     "offerteParzialiAttive": 4,
     "offerteScaduteEscluse": 5
