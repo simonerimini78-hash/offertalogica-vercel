@@ -153,6 +153,7 @@
     guided_three_questions_started: "Percorso 3 domande avviato",
     guided_three_questions_completed: "Percorso 3 domande completato",
     offers_rendered: "Offerte generate",
+    offers_reached: "Classifica raggiunta (viewport)",
     offers_viewed: "Offerta visibile (viewport)",
     offers_unlocked: "Offerte sbloccate",
     offers_bill_prompt_dismissed: "Invito bolletta chiuso",
@@ -1852,7 +1853,11 @@
     ["pdfSelected", "PDF"],
     ["manualSelected", "Manuale"],
     ["comparisons", "Confronto completato"],
-    ["offersGenerated", "Classifiche generate"],
+    ["offersLegacy", "Arrivo offerte (criterio storico)"],
+    ["newSelfService", "Clic autonomia (nuovo tracking)"],
+    ["newReachedAfterClick", "Classifica raggiunta dopo clic"],
+    ["newViewedAfterClick", "Offerte viste dopo arrivo"],
+    ["offersReached", "Classifica raggiunta (tutti i percorsi)"],
     ["offersViewed", "Offerte viste (viewport)"],
     ["cardClicked", "Card cliccate"],
     ["billPersonalizationFromOffer", "Personalizzazione da card"],
@@ -1874,7 +1879,12 @@
       const count = Number(funnel[key] || 0);
       const offersViewed = Number(funnel.offersViewed || 0);
       const cardClickedStandard = Number(funnel.cardClickedStandard || 0);
-      const detail = key === "entries"
+      const detail = key === "offersLegacy" ? "Criterio precedente: classifica generata"
+        : key === "newSelfService" ? "Solo clic con nuovo tracking"
+        : key === "newReachedAfterClick" ? (funnel.newSelfService ? `${formatNumber(count / funnel.newSelfService * 100, 1)}% dei clic con nuovo tracking` : "—")
+        : key === "newViewedAfterClick" ? (funnel.newReachedAfterClick ? `${formatNumber(count / funnel.newReachedAfterClick * 100, 1)}% degli arrivi misurati dopo clic` : "—")
+        : key === "offersReached" || key === "offersViewed" ? "Solo eventi misurati"
+        : key === "entries"
         ? "Sessioni uniche"
         : key === "cardClicked"
           ? (offersViewed ? `${formatNumber((Number(funnel.cardClickedWithView || 0) / offersViewed) * 100, 1)}% delle sessioni che hanno visto offerte` : "— delle sessioni che hanno visto offerte")
@@ -2015,7 +2025,7 @@
   const EXPECTED_ANALYTICS_EVENT_TYPES = [
     "landing_view", "calculator_view", "landing_self_service_click", "landing_assisted_click",
     "landing_free_app_click", "landing_premium_app_click",
-    "comparison_started", "comparison_completed", "comparison_path_selected", "offers_rendered", "offers_viewed",
+    "comparison_started", "comparison_completed", "comparison_path_selected", "offers_rendered", "offers_reached", "offers_viewed",
     "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed",
     "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted",
     "bill_photo_camera_opened", "bill_photo_gallery_opened", "bill_photo_selected", "bill_photo_analysis_started",
@@ -2319,7 +2329,7 @@
   const SESSION_MAIN_EVENT_TYPES = new Set([
     "landing_view", "landing_self_service_click", "landing_assisted_click", "landing_free_app_click", "landing_premium_app_click",
     "home_discovery_viewed", "home_discovery_opened", "home_discovery_clicked", "navigation_link_clicked", "site_page_view", "site_action_clicked",
-    "calculator_view", "comparison_path_selected", "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed", "comparison_started", "comparison_completed", "offers_rendered", "offers_viewed",
+    "calculator_view", "comparison_path_selected", "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed", "comparison_started", "comparison_completed", "offers_rendered", "offers_reached", "offers_viewed",
     "offers_bill_prompt_clicked", "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed", "pdf_analysis_interrupted", "pdf_data_confirmed",
     "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
     "offer_card_clicked", "offer_click_locked", "offer_consent_opened", "offer_partner_consent_missing", "offer_partner_consent_confirmed",
@@ -2449,7 +2459,9 @@
     if (has("otp_verified")) return { label: `${analyticsVerificationCopy(rows).stage} completata, passaggio successivo non registrato`, tone: "ok" };
     if (has("offer_card_clicked")) return { label: "Card offerta consultata, nessun percorso commerciale avviato", tone: "info" };
     if (has("offers_viewed")) return { label: "Offerta vista, nessuna card cliccata", tone: "warn" };
-    if (has("offers_rendered")) return { label: "Offerte generate, visione non confermata", tone: "info" };
+    if (has("offers_reached")) return { label: "Classifica raggiunta", tone: "info" };
+    if (rows.some(item => item.eventType === "offers_rendered" && item.payload?.offersMeasurementVersion !== "141" && item.dataOrigin !== "landing_average_profile")) return { label: "Arrivo offerte (criterio storico)", tone: "info" };
+    if (has("offers_rendered")) return { label: "Confronto completato", tone: "info" };
     const latestPdfEvent = [...rows].reverse().find(item => ["pdf_analysis_completed", "pdf_analysis_interrupted"].includes(String(item.eventType || "")));
     const pdfStatus = String(latestPdfEvent?.analysisStatus || (latestPdfEvent?.eventType === "pdf_analysis_interrupted" ? "interrupted" : "")).toLowerCase();
     if (pdfStatus === "failed") return { label: "PDF: errore tecnico", tone: "warn" };
@@ -2491,6 +2503,8 @@
       const pathEvent = [...ordered].reverse().find(item => String(item.eventType || "") === "comparison_path_selected");
       const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
       const offers = has("offers_viewed");
+      const reached = has("offers_reached");
+      const legacy = ordered.some(item => item.eventType === "offers_rendered" && item.payload?.offersMeasurementVersion !== "141" && item.dataOrigin !== "landing_average_profile");
       const selectedEvent = analyticsCardClickedEvent(ordered) || analyticsSelectedOfferEvent(ordered);
       const provider = String(selectedEvent?.provider || [...ordered].reverse().find(item => item.provider)?.provider || "").trim();
       const verificationSeen = has("lead_modal_opened") || has("otp_request_started") || has("otp_sent") || has("otp_verify_started") || has("otp_verified");
@@ -2510,7 +2524,8 @@
         { label: choiceLabel, state: (selfService || assisted) ? "done" : (landing ? "miss" : "idle"), note: selfService ? "continua da solo" : assisted ? "percorso guidato" : "scelta non registrata" },
         { label: pathLabel, state: pathEvent ? "done" : (comparison ? "skip" : "idle"), note: pathEvent ? analyticsPathChoiceLabel(pathEvent.pathChoice).toLowerCase() : comparison ? "modalità non distinta" : "non raggiunti" },
         { label: "Confronto", state: comparison ? "done" : (pathEvent ? "miss" : "idle"), note: comparison ? "completato / avviato" : "non raggiunto" },
-        { label: "Offerte", state: offers ? "done" : (comparison ? "miss" : "idle"), note: offers ? "visione registrata" : has("offers_rendered") ? "generate; visione non confermata" : "non raggiunte" },
+        { label: "Classifica", state: reached || legacy ? "done" : "idle", note: reached ? "arrivo registrato" : legacy ? "criterio storico" : "arrivo non registrato" },
+        { label: "Offerte viste", state: offers ? "done" : "idle", note: offers ? "visione registrata" : "nessun evento di visione" },
         { label: provider || "Offerta", state: selectedEvent ? "done" : (offers ? "miss" : "idle"), note: selectedEvent ? "card selezionata" : "nessuna selezione" },
         { label: verification.stage, state: verified ? "done" : (verificationSeen ? "miss" : "idle"), note: verified ? "completata" : verificationSent ? "codice inviato, in attesa di verifica" : verificationSeen ? "non completata" : "non richiesta" },
         { label: `Funnel ${provider || "fornitore"}`, state: externalState, note: externalNote },
@@ -2523,11 +2538,14 @@
     const choice = has("landing_self_service_click") || has("landing_assisted_click");
     const comparison = has("comparison_started") || has("comparison_completed") || has("offers_rendered");
     const offers = has("offers_viewed");
+      const reached = has("offers_reached");
+      const legacy = ordered.some(item => item.eventType === "offers_rendered" && item.payload?.offersMeasurementVersion !== "141" && item.dataOrigin !== "landing_average_profile");
     return [
       { label: "Landing", state: landing ? "done" : (comparison || choice ? "skip" : "idle"), note: landing ? "raggiunta" : "non registrata" },
       { label: "CTA", state: choice ? "done" : (landing ? "miss" : "idle"), note: choice ? "scelta" : "nessuna scelta" },
       { label: "Confronto", state: comparison ? "done" : (assistedOnly ? "skip" : (choice || has("calculator_view") ? "miss" : "idle")), note: assistedOnly ? "non previsto" : (comparison ? "avviato" : "non raggiunto") },
-      { label: "Offerte", state: offers ? "done" : (assistedOnly ? "skip" : (comparison ? "miss" : "idle")), note: assistedOnly ? "non previste" : (offers ? "visione registrata" : has("offers_rendered") ? "generate; visione non confermata" : "non raggiunte") },
+      { label: "Classifica", state: reached || legacy ? "done" : assistedOnly ? "skip" : "idle", note: reached ? "arrivo registrato" : legacy ? "criterio storico" : "arrivo non registrato" },
+      { label: "Offerte viste", state: offers ? "done" : assistedOnly ? "skip" : "idle", note: offers ? "visione registrata" : "nessun evento di visione" },
       { label: "Partner", state: commercial ? "done" : ((offers || assistedOnly) ? "miss" : "idle"), note: commercial ? "avviato" : ((offers || assistedOnly) ? "nessun passaggio" : "non raggiunto") },
     ];
   }
@@ -2629,6 +2647,7 @@
       comparison_path_selected: `Ha scelto ${item.pathChoice === "pdf" ? "il percorso PDF" : item.pathChoice === "manual" ? "l’inserimento manuale" : item.pathChoice === "average" ? "il profilo medio ARERA" : "una modalità di confronto"}`,
       comparison_started: origin ? `Confronto avviato con ${origin}` : "Confronto avviato",
       comparison_completed: Number.isFinite(saving) && Math.abs(saving) > 0 ? `Confronto completato · risparmio stimato ${formatMoney(saving)}` : "Confronto completato",
+      offers_reached: "Classifica effettivamente entrata nel viewport",
       offers_viewed: `Nome e prezzo visibili per almeno 1 s ciascuno${providerOffer ? ` · ${providerOffer}` : ""}`,
       offers_rendered: `${Number.isFinite(offers) && offers > 0 ? `${offers} offerte generate` : "Classifica generata"}${providerOffer ? ` · migliore: ${providerOffer}` : ""}${Number.isFinite(saving) && Math.abs(saving) > 0 ? ` · miglior risparmio ${formatMoney(saving)}` : ""}`,
       assistance_prompt_shown: "Suggerimento automatico di assistenza mostrato",
@@ -2745,7 +2764,7 @@
     if ([
       "landing_view", "landing_self_service_click", "landing_assisted_click", "calculator_view", "comparison_path_selected",
       "manual_known_consumption_selected", "guided_three_questions_started", "guided_three_questions_completed",
-      "comparison_started", "comparison_completed", "offers_rendered", "offers_viewed", "pdf_analysis_completed", "pdf_data_confirmed",
+      "comparison_started", "comparison_completed", "offers_rendered", "offers_reached", "offers_viewed", "pdf_analysis_completed", "pdf_data_confirmed",
       "offer_card_clicked", "offer_click_locked", "lead_modal_opened", "otp_request_started", "otp_sent", "otp_verified",
       "offer_verified_direct_redirect", "offers_unlocked", "offer_partner_consent_confirmed", "offer_request_recorded", "offer_switcho_redirect",
       "switcho_landing_opened", "provider_site_redirect", "offer_redirect", "partner_funnel_opened"
@@ -2886,7 +2905,7 @@
 
       const duringPdf = ordered.filter(item => {
         const type = String(item.eventType || "");
-        if (!["comparison_started", "comparison_completed", "offers_rendered", "offers_viewed", "comparison_path_selected"].includes(type)) return false;
+        if (!["comparison_started", "comparison_completed", "offers_rendered", "offers_reached", "offers_viewed", "comparison_path_selected"].includes(type)) return false;
         const at = analyticsEventTime(item.clientTimestamp || item.createdAt);
         return startMs !== null && endMs !== null && at !== null && at > startMs && at < endMs;
       });
@@ -3092,6 +3111,7 @@
       return Number.isFinite(value) && value > max ? value : max;
     }, 0);
     return { attempts, counts, comparisons: comparisons.length, completed: completed.length,
+      offerLegacy: offers.filter(item => item.payload?.offersMeasurementVersion !== "141").length, offerReached: ordered.filter(item => item.eventType === "offers_reached" && compareAnalyticsEventOrder(item, photo[0]) > 0).length,
       offerViews: ordered.filter(item => item.eventType === "offers_viewed" && compareAnalyticsEventOrder(item, photo[0]) > 0).length, mostOffers, latestInputs, economicRows: [...offers, ...completed] };
   }
 
@@ -3248,7 +3268,7 @@
         content.append(block);
       });
       content.append(node("h4", { text: "Cosa è successo dopo le letture" }));
-      content.append(node("p", { text: `Confronti avviati: ${model.comparisons} · Confronti terminati negli eventi: ${model.completed} · Visioni confermate: ${model.offerViews} · Massimo offerte generate in un confronto: ${model.mostOffers}.` }));
+      content.append(node("p", { text: `Confronti avviati: ${model.comparisons} · Confronti terminati negli eventi: ${model.completed} · Arrivi (storico): ${model.offerLegacy} · Arrivi misurati: ${model.offerReached} · Offerte viste: ${model.offerViews} · Massimo offerte generate in un confronto: ${model.mostOffers}.` }));
       const inputs = model.latestInputs;
       if (inputs) {
         const available = [
@@ -3502,7 +3522,8 @@
         node("small", { text: affiliateRoute.navigationEvent || affiliateRoute.pageEvent ? "Passaggio registrato" : "Pagina dedotta dal click partner storico" })
       ]));
     } else {
-      sessionFacts.push(node("div", {}, [node("span", { text: "Visione offerte" }), node("strong", { text: rows.some(item => item.eventType === "offers_viewed") ? "Confermata (viewport)" : "Non confermata" })]));
+      sessionFacts.push(node("div", {}, [node("span", { text: "Arrivo classifica" }), node("strong", { text: rows.some(item => item.eventType === "offers_reached") ? "Registrato (viewport)" : rows.some(item => item.eventType === "offers_rendered" && item.payload?.offersMeasurementVersion !== "141") ? "Criterio storico" : "Non registrato" })]));
+      sessionFacts.push(node("div", {}, [node("span", { text: "Offerte viste" }), node("strong", { text: rows.some(item => item.eventType === "offers_viewed") ? "Registrate (viewport)" : "Nessun evento di visione" })]));
       sessionFacts.push(node("div", {}, [node("span", { text: "Offerte" }), node("strong", { text: offersCount != null ? `${offersCount} generate` : "Generazione non registrata" })]));
     }
     if (renderedOfferEvent) {
@@ -3702,8 +3723,8 @@
     if (outcome.includes("analisi interrotta") || outcome.includes("dati mancanti") || outcome.includes("analisi parziale") || outcome.includes("senza completamento")) return "journey-caution";
     if (row.otp_verificato || outcome.includes("email verificata") || outcome.includes("codice verificato") || outcome.includes("numero verificato")) return "journey-verified";
     if (row.otp_inviato || outcome.includes("codice email inviato") || outcome.includes("codice inviato via email") || outcome.includes("codice inviato via sms")) return "journey-verification-pending";
-    if (outcome.includes("azione su offerta")) return "journey-offer-action";
-    if (row.offerte_visualizzate || outcome.includes("offerte visualizzate")) return "journey-offers";
+    if (outcome.includes("azione su offerta") || outcome.includes("card cliccata")) return "journey-offer-action";
+    if (row.classifica_raggiunta || row.offerte_storico || row.offerte_visualizzate || outcome.includes("offerte visualizzate")) return "journey-offers";
     if (outcome.includes("confronto completato")) return "journey-comparison-done";
     if (outcome.includes("confronto avviato")) return "journey-comparison";
     if (outcome.includes("pdf:") || outcome.includes("percorso pdf")) return "journey-data";
@@ -3723,7 +3744,7 @@
       return "";
     }
     if (step.state !== "done") return "";
-    if ((steps.length >= 8 && index === 5) || (steps.length === 4 && index === 2)) return "stage-offer-action";
+    if (note.includes("card selezionata")) return "stage-offer-action";
     if (/offerte/.test(label)) return "stage-offers";
     if (/confronto/.test(label)) return "stage-comparison-done";
     if (/dati|pdf|profilo medio/.test(label)) return "stage-data";
@@ -3733,8 +3754,14 @@
     return "stage-neutral";
   }
 
+  document.addEventListener("change", event => {
+    if (event.target?.id === "journeyMeasurementFilter") { analyticsPages.journeys = 1; renderJourneyAnalytics(); }
+  });
+
   function renderJourneyAnalytics() {
-    const rows = Array.isArray(cache.journeys) ? cache.journeys : [];
+    const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
+    const mode = byId("journeyMeasurementFilter")?.value || "all";
+    const rows = allRows.filter(row => mode === "all" || row.misurazione_offerte === mode);
     const summary = cache.journeySummary || {};
     text(byId("journeySelfService"), formatNumber(summary.landingSelfService || 0));
     text(byId("journeyAssisted"), formatNumber(summary.landingAssisted || 0));
@@ -3742,7 +3769,11 @@
     text(byId("journeyPhoto"), formatNumber(summary.photo || 0));
     text(byId("journeyPdf"), formatNumber(summary.pdf || 0));
     text(byId("journeyManual"), formatNumber(summary.manual || 0));
-    text(byId("journeyOffersGenerated"), formatNumber(summary.offersGenerated || 0));
+    text(byId("journeyOffersLegacy"), formatNumber(summary.offersLegacy || 0));
+    text(byId("journeyOffersReached"), formatNumber(summary.offersReached || 0));
+    text(byId("journeyNewClick"), formatNumber(summary.newSelfService || 0));
+    text(byId("journeyNewReached"), formatNumber(summary.newReachedAfterClick || 0));
+    text(byId("journeyNewViewed"), formatNumber(summary.newViewedAfterClick || 0));
     text(byId("journeyOffers"), formatNumber(summary.offersViewed || 0));
     text(byId("journeyCardClicks"), formatNumber(summary.cardClicked || 0));
     const cardCtr = Number(summary.offersViewed || 0)
@@ -3763,13 +3794,14 @@
       const intentBasis = row.intento_base || "";
       const comparison = row.percorso_sequenza || row.percorso_confronto || "—";
       const comparisonBasis = row.percorso_base ? ` · ${row.percorso_base}` : "";
+      const measuredSteps = [String(row.scelta_percorso || "").includes("autonomia") ? "Clic autonomia" : "", row.classifica_raggiunta ? "Classifica raggiunta" : "", row.offerte_storico ? "Arrivo (storico)" : "", row.offerte_visualizzate ? "Offerte viste" : "", row.card_cliccata ? "Card cliccata" : ""].filter(Boolean).join(" → ");
       body.append(node("tr", {}, [
         node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
         node("td", { className: "analytics-journey-intent" }, [node("strong", { text: intent }), node("small", { text: intentBasis })]),
         node("td", {}, [node("strong", { text: source }), node("small", { text: [row.campaign, row.term].filter(Boolean).join(" · ") })]),
         node("td", { text: row.scelta_percorso || "—" }),
         node("td", {}, [node("strong", { text: comparison }), node("small", { text: comparisonBasis.replace(/^ · /, "") })]),
-        node("td", {}, [badge(row.esito_sessione || "—", analyticsJourneyOutcomeTone(row)), node("small", { text: row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "" })]),
+        node("td", {}, [badge(row.esito_sessione || "—", analyticsJourneyOutcomeTone(row)), node("small", { text: [row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "", row.misurazione_offerte ? `Tracking: ${row.misurazione_offerte}` : ""].filter(Boolean).join(" · ") }), node("small", { text: measuredSteps })]),
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
@@ -3805,7 +3837,7 @@
 
   function offerOutcomeTone(row = {}) {
     if (row.switcho || row.partner || row.azione_offerta) return "ok";
-    if (row.offerte_visualizzate) return "info";
+    if (row.offerte_visualizzate || row.classifica_raggiunta || row.offerte_storico) return "info";
     if (row.confronto_reale) return "warn";
     return "warn";
   }
@@ -3844,7 +3876,7 @@
         mergeBlocked: row.pdf_merge_blocked,
       });
       const diagnostics = [readableReason ? `Motivo: ${readableReason}` : "", row.pdf_missing_fields ? `Mancanti: ${row.pdf_missing_fields}` : "", row.pdf_diagnostic_codes ? `Codici: ${row.pdf_diagnostic_codes}` : "", row.pdf_analysis_stages ? `Fase: ${row.pdf_analysis_stages}` : ""].filter(Boolean).join(" · ") || "Nessuna diagnostica registrata";
-      const afterPdf = row.switcho ? "Switcho" : row.azione_offerta ? "Azione offerta" : row.offerte_visualizzate ? "Offerte viste" : row.confronto_reale ? "Confronto completato" : row.abbandono_fase || "—";
+      const afterPdf = row.switcho ? "Switcho" : row.azione_offerta ? "Azione offerta" : row.offerte_visualizzate ? "Offerte viste" : row.classifica_raggiunta ? "Classifica raggiunta" : row.offerte_storico ? "Arrivo offerte (criterio storico)" : row.confronto_reale ? "Confronto completato" : row.abbandono_fase || "—";
       const analysisTone = pdfSessionTone(row);
       const pdfTone = pdfProgressTone(row);
       const offerTone = offerOutcomeTone(row);
@@ -3860,7 +3892,7 @@
         node("td", {}, [analyticsCellDetails("PDF", pdfTone, "Passaggi PDF", [steps])]),
         node("td", { className: "analytics-pdf-status" }, [analyticsCellDetails("Analisi", analysisTone, row.pdf_esito || "Esito non disponibile", [analysisMeta])]),
         node("td", {}, [analyticsCellDetails(row.pdf_missing_field_count ? `${row.pdf_missing_field_count} mancanti` : "Diagnostica", row.pdf_missing_field_count ? "warn" : analysisTone === "danger" ? "danger" : "info", row.pdf_missing_field_count ? `${row.pdf_missing_field_count} dati mancanti` : "Diagnostica PDF", [diagnostics])]),
-        node("td", {}, [analyticsCellDetails(row.offerte_visualizzate || row.azione_offerta || row.switcho || row.partner ? "Offerte" : "Dopo PDF", offerTone, afterPdf, [row.provider || row.offerta ? [row.provider, row.offerta].filter(Boolean).join(" · ") : ""])]),
+        node("td", {}, [analyticsCellDetails(row.offerte_visualizzate || row.classifica_raggiunta || row.offerte_storico || row.azione_offerta || row.switcho || row.partner ? "Offerte" : "Dopo PDF", offerTone, afterPdf, [row.provider || row.offerta ? [row.provider, row.offerta].filter(Boolean).join(" · ") : ""])]),
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
@@ -3878,12 +3910,14 @@
     text(byId("photoJourneyMissing"), formatNumber(summary.missingDataSessions || 0));
     text(byId("photoJourneyUnreadable"), formatNumber(summary.unreadableSessions || 0));
     text(byId("photoJourneyAutoCompare"), formatNumber(summary.autoCompareSessions || 0));
-    text(byId("photoJourneyOffers"), formatNumber(summary.offersReachedSessions || 0));
+    text(byId("photoJourneyOffersLegacy"), formatNumber(summary.offersLegacySessions || 0));
+    text(byId("photoJourneyOffersReached"), formatNumber(summary.offersReachedSessions || 0));
+    text(byId("photoJourneyOffers"), formatNumber(summary.offersViewedSessions || 0));
     const sessions = Number(summary.sessions || 0);
-    const offers = Number(summary.offersReachedSessions || 0);
+    const offers = Number(summary.offersViewedSessions || 0);
     const status = byId("photoJourneyStatus");
     if (status) status.textContent = sessions
-      ? `${formatNumber(offers)} sessioni su ${formatNumber(sessions)} con foto hanno una visione offerte registrata. Conteggi per sessione unica nel mese visualizzato.`
+      ? `${formatNumber(summary.offersLegacySessions || 0)} arrivi secondo il criterio storico; ${formatNumber(summary.offersReachedSessions || 0)} arrivi misurati; ${formatNumber(offers)} visioni registrate. Totale sessioni foto: ${formatNumber(sessions)}.`
       : "Nessuna sessione foto registrata nel mese visualizzato.";
   }
 

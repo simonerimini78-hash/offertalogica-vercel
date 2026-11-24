@@ -1262,6 +1262,8 @@ const PHOTO_JOURNEY_EVENT_TYPES = Object.freeze([
   "bill_photo_analysis_completed",
   "bill_photo_analysis_failed",
   "bill_photo_comparison_auto_started",
+  "offers_rendered",
+  "offers_reached",
   "offers_viewed",
 ]);
 const PHOTO_JOURNEY_PAGE_SIZE = 1000;
@@ -1304,7 +1306,7 @@ function photoJourneySummaryFromRows(rows = []) {
   const sets = {
     sessions: new Set(), camera: new Set(), gallery: new Set(), selected: new Set(), started: new Set(),
     completed: new Set(), complete: new Set(), missing: new Set(), unreadable: new Set(), failed: new Set(),
-    autoCompare: new Set(), offersReached: new Set(),
+    autoCompare: new Set(), offersLegacy: new Set(), offersReached: new Set(), offersViewed: new Set(),
   };
 
   groups.forEach((events, sessionId) => {
@@ -1331,8 +1333,11 @@ function photoJourneySummaryFromRows(rows = []) {
       .map((event) => new Date(event.createdAt || 0).getTime())
       .filter(Number.isFinite)
       .sort((a, b) => a - b)[0] || 0;
-    if (firstPhotoAt && ordered.some((event) => event.eventType === "offers_viewed" && new Date(event.createdAt || 0).getTime() >= firstPhotoAt)) {
-      sets.offersReached.add(sessionId);
+    if (firstPhotoAt) {
+      const signals = offerJourneySignals(ordered.filter(event => new Date(event.createdAt || 0).getTime() >= firstPhotoAt));
+      if (signals.legacy) sets.offersLegacy.add(sessionId);
+      if (signals.reached) sets.offersReached.add(sessionId);
+      if (signals.viewed) sets.offersViewed.add(sessionId);
     }
   });
 
@@ -1348,7 +1353,9 @@ function photoJourneySummaryFromRows(rows = []) {
     unreadableSessions: sets.unreadable.size,
     failedSessions: sets.failed.size,
     autoCompareSessions: sets.autoCompare.size,
+    offersLegacySessions: sets.offersLegacy.size,
     offersReachedSessions: sets.offersReached.size,
+    offersViewedSessions: sets.offersViewed.size,
   };
 }
 
@@ -1545,6 +1552,25 @@ function activityFunnelFromEvents(events = []) {
   return funnel;
 }
 
+// V141: keep the legacy render-based metric, but never substitute it for observed arrival or viewing.
+function offerJourneySignals(events = []) {
+  const ordered = [...events].sort(compareAnalyticsEventOrder);
+  const real = event => !isAutomaticLandingPreview({ dataOrigin: event.dataOrigin || event.payload?.dataOrigin });
+  const marked = event => event.payload?.offersMeasurementVersion === "141";
+  const render = event => event.eventType === "offers_rendered" && real(event) && Number(event.payload?.visibleOffersCount ?? event.visibleOffersCount) > 0;
+  const isArrival = event => event.eventType === "offers_reached" && real(event) && marked(event);
+  const isView = event => event.eventType === "offers_viewed" && real(event);
+  const clickIndex = ordered.findIndex(event => event.eventType === "landing_self_service_click" && marked(event));
+  const arrivalIndex = clickIndex < 0 ? -1 : ordered.findIndex((event, index) => index > clickIndex && isArrival(event));
+  const viewIndex = arrivalIndex < 0 ? -1 : ordered.findIndex((event, index) => index > arrivalIndex && isView(event) && marked(event));
+  const legacy = ordered.some(event => event.eventType === "offers_rendered" && real(event) && !marked(event));
+  const legacyJourney = ordered.some(event => ["landing_self_service_click", "offers_rendered", "offers_viewed"].includes(event.eventType) && real(event) && !marked(event));
+  const newTracking = ordered.some(marked);
+  return { generated: ordered.some(render), legacy, reached: ordered.some(isArrival), viewed: ordered.some(isView),
+    newTracking, mode: newTracking ? (legacyJourney ? "misto" : "nuovo") : "storico",
+    newClick: clickIndex >= 0, reachedAfterClick: arrivalIndex >= 0, viewedAfterClick: viewIndex >= 0 };
+}
+
 function sessionFunnelFromGroups(groups = []) {
   const funnel = {
     entries: 0,
@@ -1559,7 +1585,12 @@ function sessionFunnelFromGroups(groups = []) {
     pdfCompleted: 0,
     comparisons: 0,
     offersGenerated: 0,
+    offersLegacy: 0,
+    offersReached: 0,
     offersViewed: 0,
+    newSelfService: 0,
+    newReachedAfterClick: 0,
+    newViewedAfterClick: 0,
     cardClickedWithView: 0,
     switcho: 0,
     leadModalOpened: 0,
@@ -1584,8 +1615,9 @@ function sessionFunnelFromGroups(groups = []) {
     const hasPdfSignal = pathSignals.paths.has("pdf");
     const hasSwitcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
       .some((type) => eventTypes.has(type));
-    const hasGeneratedOffers = group.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event) && Number(event.payload?.visibleOffersCount ?? event.visibleOffersCount) > 0);
-    const hasRealOffers = group.some((event) => event.eventType === "offers_viewed" && !isAutomaticLandingPreview(event));
+    const offerSignals = offerJourneySignals(group);
+    const hasGeneratedOffers = offerSignals.generated;
+    const hasRealOffers = offerSignals.viewed;
 
     funnel.entries += 1;
     if (hasSelfService || hasAssisted) funnel.pathSelected += 1;
@@ -1599,6 +1631,11 @@ function sessionFunnelFromGroups(groups = []) {
     if (eventTypes.has("pdf_analysis_completed")) funnel.pdfCompleted += 1;
     if (hasRealComparison) funnel.comparisons += 1;
     if (hasGeneratedOffers) funnel.offersGenerated += 1;
+    if (offerSignals.legacy) funnel.offersLegacy += 1;
+    if (offerSignals.reached) funnel.offersReached += 1;
+    if (offerSignals.newClick) funnel.newSelfService += 1;
+    if (offerSignals.reachedAfterClick) funnel.newReachedAfterClick += 1;
+    if (offerSignals.viewedAfterClick) funnel.newViewedAfterClick += 1;
     if (hasRealOffers) funnel.offersViewed += 1;
     if (hasRealOffers && eventTypes.has("offer_card_clicked")) funnel.cardClickedWithView += 1;
     if (hasSwitcho) funnel.switcho += 1;
@@ -1853,6 +1890,7 @@ function analyticsEventExportRows(rows = []) {
       created_at: row.created_at || "",
       client_timestamp: p.client_timestamp || p.clientTimestamp || "",
       session_event_seq: p.session_event_seq ?? p.sessionEventSeq ?? "",
+      offers_measurement_version: p.offersMeasurementVersion || "",
       session_id: p.sessionId || "",
       page: p.page || "",
       customer_type: p.customerType || "",
@@ -2121,8 +2159,9 @@ function analyticsSessionExportRows(rawRows = []) {
     const switchoEvent = [...ordered].reverse().find((event) => ["switcho_landing_opened", "offer_switcho_redirect", "assistance_switcho_redirect", "business_switcho_requested"].includes(event.eventType));
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
-    const offersGenerated = ordered.some((event) => event.eventType === "offers_rendered" && !isAutomaticLandingPreview(event) && Number(event.payload?.visibleOffersCount ?? event.visibleOffersCount) > 0);
-    const offersViewed = ordered.some((event) => event.eventType === "offers_viewed" && !isAutomaticLandingPreview(event));
+    const offerSignals = offerJourneySignals(ordered);
+    const offersGenerated = offerSignals.generated;
+    const offersViewed = offerSignals.viewed;
     const cardClicked = eventTypes.has("offer_card_clicked");
     const cardClickedStandard = ordered.some((event) =>
       event.eventType === "offer_card_clicked"
@@ -2168,8 +2207,11 @@ function analyticsSessionExportRows(rawRows = []) {
     if (switcho) finalOutcome = "Passaggio a Switcho";
     else if (partner) finalOutcome = "Passaggio partner";
     else if (offerAction) finalOutcome = "Azione su offerta";
+    else if (cardClicked) { finalOutcome = "Card cliccata"; abandonmentStage = "card"; }
     else if (offersViewed) { finalOutcome = "Offerte visualizzate"; abandonmentStage = "offerte"; }
-    else if (offersGenerated) { finalOutcome = "Offerte generate, visione non confermata"; abandonmentStage = "visibilità non confermata"; }
+    else if (offerSignals.reached) { finalOutcome = "Classifica raggiunta"; abandonmentStage = "classifica"; }
+    else if (offerSignals.legacy) { finalOutcome = "Arrivo offerte (criterio storico)"; abandonmentStage = "offerte (storico)"; }
+    else if (offersGenerated) { finalOutcome = "Confronto completato"; abandonmentStage = "confronto"; }
     else if (hasRealComparison) { finalOutcome = "Confronto completato"; abandonmentStage = "dopo confronto"; }
     else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF: analisi interrotta / abbandonata"; abandonmentStage = "analisi PDF"; }
     else if (pdfCompletedEvent && rawPdfOutcome === "failed") { finalOutcome = "PDF: errore tecnico"; abandonmentStage = "analisi PDF"; }
@@ -2225,7 +2267,13 @@ function analyticsSessionExportRows(rawRows = []) {
       confronto_avviato: ordered.some((event) => event.eventType === "comparison_started" && !isAutomaticLandingPreview(event)),
       confronto_reale: hasRealComparison,
       offerte_generate: offersGenerated,
+      offerte_storico: offerSignals.legacy,
+      classifica_raggiunta: offerSignals.reached,
       offerte_visualizzate: offersViewed,
+      misurazione_offerte: offerSignals.mode,
+      autonomia_nuovo_tracking: offerSignals.newClick,
+      classifica_dopo_autonomia: offerSignals.reachedAfterClick,
+      visione_dopo_autonomia: offerSignals.viewedAfterClick,
       card_cliccata: cardClicked,
       card_cliccata_standard: cardClickedStandard,
       card_cliccata_personalizzata: cardClickedPrecise,
@@ -2319,6 +2367,11 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     pdfCompleted: items.filter((row) => row.pdf_analisi_completata).length,
     comparisons: items.filter((row) => row.confronto_reale).length,
     offersGenerated: items.filter((row) => row.offerte_generate).length,
+    offersLegacy: items.filter((row) => row.offerte_storico).length,
+    offersReached: items.filter((row) => row.classifica_raggiunta).length,
+    newSelfService: items.filter((row) => row.autonomia_nuovo_tracking).length,
+    newReachedAfterClick: items.filter((row) => row.classifica_dopo_autonomia).length,
+    newViewedAfterClick: items.filter((row) => row.visione_dopo_autonomia).length,
     offersViewed: items.filter((row) => row.offerte_visualizzate).length,
     cardClickedWithView: items.filter((row) => row.offerte_visualizzate && row.card_cliccata).length,
     cardClicked: items.filter((row) => row.card_cliccata).length,
@@ -2379,6 +2432,11 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     pdfInterrupted: count((row) => row.pdf_analisi_interrotta),
     pdfWithMissingFields: count((row) => Number(row.pdf_missing_field_count || 0) > 0 || Boolean(row.pdf_missing_fields)),
     offersGenerated: count((row) => row.offerte_generate),
+    offersLegacy: count((row) => row.offerte_storico),
+    offersReached: count((row) => row.classifica_raggiunta),
+    newSelfService: count((row) => row.autonomia_nuovo_tracking),
+    newReachedAfterClick: count((row) => row.classifica_dopo_autonomia),
+    newViewedAfterClick: count((row) => row.visione_dopo_autonomia),
     offersViewed: count((row) => row.offerte_visualizzate),
     cardClickedWithView: count((row) => row.offerte_visualizzate && row.card_cliccata),
     cardClicked: count((row) => row.card_cliccata),
@@ -2601,12 +2659,12 @@ export default async function handler(req, res) {
         if (exportScope === "pdf") sessionRows = sessionRows.filter((row) => row.pdf_scelto);
         if (exportScope === "switcho") sessionRows = sessionRows.filter((row) => row.switcho);
         if (exportScope === "traffic") sessionRows = sessionRows.filter((row) => row.source || row.term || row.referrer || row.landing);
-        if (exportScope === "offers") sessionRows = sessionRows.filter((row) => row.offerte_generate || row.offerte_visualizzate || row.azione_offerta || row.provider || row.offerta);
+        if (exportScope === "offers") sessionRows = sessionRows.filter((row) => row.offerte_generate || row.classifica_raggiunta || row.offerte_visualizzate || row.azione_offerta || row.provider || row.offerta);
         if (exportScope === "landing") sessionRows = sessionRows.filter((row) => row.scelta_percorso || String(row.event_types || "").includes("landing_view"));
         const headers = [
           "session_id", "first_at", "last_at", "events_count", "event_types", "visitor_type", "visitor_label",
           "source", "medium", "campaign", "term", "content", "campaign_id", "adgroup_id", "creative_id", "match_type", "device", "ads_network", "click_id_type", "click_id", "referrer", "landing",
-          "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_generate", "offerte_visualizzate", "numero_offerte",
+          "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_generate", "offerte_storico", "classifica_raggiunta", "offerte_visualizzate", "misurazione_offerte", "autonomia_nuovo_tracking", "classifica_dopo_autonomia", "visione_dopo_autonomia", "numero_offerte",
           "pdf_scelto", "pdf_scelto_registrato", "pdf_picker_aperto", "pdf_file_selezionato", "pdf_file_selezionati", "pdf_file_accettati", "pdf_duplicati",
           "pdf_analisi_avviata", "pdf_analisi_completata", "pdf_analisi_interrotta", "pdf_esito", "pdf_file_count", "pdf_success_count", "pdf_unrecognized_count", "pdf_error_count",
           "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_reason", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
@@ -2623,7 +2681,7 @@ export default async function handler(req, res) {
       }
       const eventRows = analyticsEventExportRows(rows);
       const headers = [
-        "id", "lead_id", "event_type", "created_at", "client_timestamp", "session_event_seq", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
+        "id", "lead_id", "event_type", "created_at", "client_timestamp", "session_event_seq", "offers_measurement_version", "session_id", "page", "customer_type", "data_origin", "source", "lead_source",
         "traffic_source", "traffic_medium", "traffic_campaign", "traffic_term", "traffic_content", "traffic_campaign_id", "traffic_adgroup_id",
         "traffic_creative_id", "traffic_match_type", "traffic_device", "traffic_network", "traffic_referrer", "traffic_landing_page",
         "traffic_click_id_type", "traffic_click_id", "article_slug", "article_title", "article_category", "article_type", "article_canonical", "consent_action", "consent_source", "traffic_agent", "traffic_reason", "event_integrity", "verified", "staff_mode", "path_choice", "trigger", "tipo_prezzo", "tipo_fornitura", "regione_gas", "potenza_kw", "luce_consumo_kwh", "gas_consumo_smc", "fornitore_attuale", "fornitore_luce_attuale", "fornitore_gas_attuale", "fornitore_nuova_offerta", "context", "field", "mode", "has_pending_url", "assisted", "business_catalog_offers_count", "business_catalog_dual_offers_count", "demo_mode", "tool_code", "tool_action", "tool_outcome", "tool_context", "tool_version", "ranking_offers_count", "best_partner_saving", "best_saving",

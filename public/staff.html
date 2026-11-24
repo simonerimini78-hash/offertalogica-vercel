@@ -123,7 +123,7 @@
 <header class="topbar">
   <div class="brand">
     <img src="/assets/logo-offertalogica-icon.png" alt="OffertaLogica">
-    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.60</p></div>
+    <div><h1>Control Center OffertaLogica</h1><p>Centro operativo per clienti, pratiche, verifiche e dati · v0.37.61</p></div>
   </div>
   <div class="top-actions" id="staffTopActions" hidden>
     <span class="staff-chip" id="staffIdentity">Staff</span>
@@ -188,7 +188,7 @@
         <section class="panel"><div class="panel-head"><h3>Priorità operative</h3><small>Pratiche raccolte dai moduli operativi</small></div><div class="panel-body" id="overviewTasks"><div class="empty">Caricamento…</div></div></section>
         <section class="panel"><div class="panel-head"><h3>Acquisizione e conversione</h3><small>Funnel essenziale</small></div><div class="panel-body"><div class="funnel" id="overviewFunnel"></div></div></section>
       </div>
-      <div class="version">Control Center Staff v0.37.60</div>
+      <div class="version">Control Center Staff v0.37.61</div>
     </section>
 
     <section class="view" data-staff-view="cases">
@@ -432,8 +432,8 @@
       <section class="panel" id="analyticsJourneysPanel" style="margin-top:14px">
         <div class="panel-head"><div><h3>Percorsi nel sito</h3><small id="analyticsJourneyScope">Una riga per sessione recente. I KPI restano separati dalla tabella e il CSV esporta il periodo completo.</small></div><div class="analytics-module-actions"><button class="button secondary compact" type="button" data-analytics-refresh>Aggiorna</button><button class="button secondary compact" type="button" data-analytics-export="paths">CSV</button></div></div>
         <div class="panel-body">
-          <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric priority"><span>Vedi subito offerte</span><strong id="journeyAverage">0</strong><small>Prima stima senza bolletta</small></article><article class="metric"><span>Foto bolletta</span><strong id="journeyPhoto">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>Classifiche generate</span><strong id="journeyOffersGenerated">0</strong></article><article class="metric"><span>Offerte viste (viewport)</span><strong id="journeyOffers">0</strong><small>Solo visioni registrate; storico non misurato</small></article><article class="metric priority"><span>Card cliccate</span><strong id="journeyCardClicks">0</strong><small id="journeyCardMeta">CTR card —</small></article><article class="metric"><span>Personalizzazione da card</span><strong id="journeyPersonalization">0</strong><small>Dalla card alla bolletta</small></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
-          <details class="analytics-details" open><summary>Sessioni — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Intenzione</th><th>Provenienza</th><th>Percorso landing</th><th>Confronto</th><th>Esito</th><th>Sessione</th></tr></thead><tbody id="journeyRows"></tbody></table></div><div class="analytics-pagination" id="journeyPagination"></div></div></details>
+          <div class="metrics"><article class="metric priority"><span>Autonomia</span><strong id="journeySelfService">0</strong></article><article class="metric"><span>Guidato → Switcho</span><strong id="journeyAssisted">0</strong></article><article class="metric priority"><span>Vedi subito offerte</span><strong id="journeyAverage">0</strong><small>Prima stima senza bolletta</small></article><article class="metric"><span>Foto bolletta</span><strong id="journeyPhoto">0</strong></article><article class="metric"><span>PDF</span><strong id="journeyPdf">0</strong></article><article class="metric"><span>Manuale</span><strong id="journeyManual">0</strong></article><article class="metric"><span>Arrivo offerte (criterio storico)</span><strong id="journeyOffersLegacy">0</strong><small>Classifica generata: criterio precedente</small></article><article class="metric"><span>Classifica raggiunta</span><strong id="journeyOffersReached">0</strong><small>Solo arrivi misurati</small></article><article class="metric"><span>Clic autonomia (nuovo tracking)</span><strong id="journeyNewClick">0</strong></article><article class="metric"><span>Arrivi dopo clic autonomia</span><strong id="journeyNewReached">0</strong></article><article class="metric"><span>Offerte viste dopo arrivo</span><strong id="journeyNewViewed">0</strong></article><article class="metric"><span>Offerte viste (viewport)</span><strong id="journeyOffers">0</strong><small>Solo visioni registrate; storico non misurato</small></article><article class="metric priority"><span>Card cliccate</span><strong id="journeyCardClicks">0</strong><small id="journeyCardMeta">CTR card —</small></article><article class="metric"><span>Personalizzazione da card</span><strong id="journeyPersonalization">0</strong><small>Dalla card alla bolletta</small></article><article class="metric"><span>Switcho</span><strong id="journeySwitcho">0</strong></article><article class="metric"><span>Sessioni analizzabili</span><strong id="journeySessions">0</strong></article></div>
+          <label for="journeyMeasurementFilter">Consultazione sessioni </label><select id="journeyMeasurementFilter"><option value="all">Tutte</option><option value="storico">Storico</option><option value="nuovo">Nuovo tracking</option><option value="misto">Sessioni miste</option></select><small> Il filtro riguarda la tabella; i KPI e il CSV comprendono l’intero periodo selezionato.</small><details class="analytics-details" open><summary>Sessioni — 10 risultati per pagina</summary><div class="analytics-details-content"><div class="table-wrap"><table class="data-table analytics-compact-table"><thead><tr><th>Data</th><th>Intenzione</th><th>Provenienza</th><th>Percorso landing</th><th>Confronto</th><th>Esito</th><th>Sessione</th></tr></thead><tbody id="journeyRows"></tbody></table></div><div class="analytics-pagination" id="journeyPagination"></div></div></details>
           <div class="analytics-module-note">“Intenzione” mostra il termine/keyword quando disponibile; altrimenti è esplicitamente un’inferenza dal comportamento registrato, non ciò che la persona pensa.</div>
         </div>
       </section>
@@ -459,7 +459,7 @@
             <article class="metric"><span>Dati mancanti</span><strong id="photoJourneyMissing">0</strong></article>
             <article class="metric"><span>Non leggibili</span><strong id="photoJourneyUnreadable">0</strong></article>
             <article class="metric"><span>Confronto automatico</span><strong id="photoJourneyAutoCompare">0</strong></article>
-            <article class="metric"><span>Offerte viste (viewport)</span><strong id="photoJourneyOffers">0</strong></article>
+            <article class="metric"><span>Arrivo offerte (storico)</span><strong id="photoJourneyOffersLegacy">0</strong></article><article class="metric"><span>Classifica raggiunta</span><strong id="photoJourneyOffersReached">0</strong></article><article class="metric"><span>Offerte viste (viewport)</span><strong id="photoJourneyOffers">0</strong></article>
           </div>
           <div class="landing-path-status" id="photoJourneyStatus">Il conteggio è per sessione unica, non per numero grezzo di eventi.</div>
         </div>
@@ -601,7 +601,7 @@
 </div>
 <div id="staffUpdateNotice" class="staff-update" role="status" aria-live="polite"><span id="staffUpdateNoticeText">Nuova versione disponibile.</span><button id="staffApplyUpdate" type="button" hidden>AGGIORNA</button></div>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.115.0/dist/umd/supabase.js"></script>
-<script src="/staff.js?v=0.37.60"></script>
+<script src="/staff.js?v=0.37.61"></script>
 <script src="/staff-governance-v2.5B.js"></script>
 <script defer src="/staff-management.js?v=0.36.95"></script>
 <script defer src="/staff-economics.js?v=0.37.40"></script>
@@ -706,7 +706,7 @@
 </script>
 <script>
   (()=>{
-    const CURRENT_RELEASE="0.37.60";
+    const CURRENT_RELEASE="0.37.61";
     const PRODUCTION_ORIGIN="https://staff.offertalogica.it";
     const isVercelDeployment=()=>location.hostname.toLowerCase().endsWith(".vercel.app");
     const redirectDeploymentToProduction=()=>{if(!isVercelDeployment())return false;const target=new URL(`${location.pathname}${location.search}${location.hash}`,PRODUCTION_ORIGIN);if(target.href===location.href)return false;location.replace(target.href);return true};
