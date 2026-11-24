@@ -1,5 +1,16 @@
 (() => {
   'use strict';
+
+  // Recupero facoltativo V137: caricato solo se la sessione ha una classifica media pendente.
+  try {
+    if (JSON.parse(sessionStorage.getItem('olLandingAverageRecoveryV137') || 'null')?.status === 'pending' && !document.querySelector('script[data-ol-average-recovery]')) {
+      const recovery = document.createElement('script');
+      recovery.src = '/assets/ol-landing-average-recovery.js?v=0.10.137';
+      recovery.setAttribute('data-ol-average-recovery', '1');
+      document.head.appendChild(recovery);
+    }
+  } catch {}
+
   if (!document.querySelector('script[data-ol-journey-tracking]')) {
     const journeyScript = document.createElement('script');
     journeyScript.src = '/assets/ol-journey-tracking.js?v=0.10.43';

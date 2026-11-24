@@ -1,6 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.137" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -15531,6 +15532,7 @@ function linkStaffSenzaTracking(link) {
 }
 
 window.apriLeadModal = function apriLeadModal(source = "manual") {
+  window.OLLandingAverageRecovery?.cancel();
   const modal = document.getElementById("lead-modal-backdrop");
   const title = document.getElementById("lead-modal-title");
   const copy = document.getElementById("lead-modal-copy");
@@ -16291,6 +16293,7 @@ function configuraPopupConsensoOfferta(richiedeConsenso) {
 }
 
 window.apriConsensoOfferta = function apriConsensoOfferta(offerta) {
+  window.OLLandingAverageRecovery?.cancel();
   LEAD_STATE.selectedOffer = {
     id: String(offerta?.id || ""),
     commercialOfferId: String(offerta?.commercialOfferId || offerta?.certificazione?.partnerOriginalId || offerta?.id || ""),
@@ -16742,6 +16745,7 @@ function registraClickoutCommerciale(source = "commercial_redirect", offer = nul
 function apriClickoutCommercialeStessaScheda(url, offer = null, source = "commercial_redirect") {
   const target = String(url || "").trim();
   if (!/^https:\/\//i.test(target)) return false;
+  window.OLLandingAverageRecovery?.cancel();
 
   let navigated = false;
   const navigate = () => {
@@ -21820,8 +21824,6 @@ function ottimizzaRisultatiMobile() {
   if (!section || !group || !heading || !firstCard || group.style.display === "none") return;
 
   document.body.classList.add("mobile-fast-results");
-  const prompt = document.getElementById("offers-personalize-prompt");
-  if (prompt && !percorsoMediaDirettoLanding()) prompt.hidden = true;
 
   const metodo = modalitaCalcolo === "media"
     ? metodologiaProfiloConfronto()
@@ -21865,8 +21867,8 @@ function ottimizzaRisultatiMobile() {
   }
 }
 
-const OL_LANDING_AVERAGE_PROMPT = { timer: null, elapsed: 0, last: null, firstId: "", shown: false };
-const OL_LANDING_AVERAGE_PROMPT_KEY = "olLandingAveragePromptV134Shown";
+let OL_LANDING_RECOVERY_RETURN_HANDLED = false;
+let OL_LANDING_RECOVERY_RENDERED = false;
 
 function percorsoMediaDirettoLanding() {
   const params = new URLSearchParams(window.location.search || "");
@@ -21897,36 +21899,15 @@ function riordinaBlocchiMediaLanding(active) {
   order.forEach(block => { if (anchor.nextElementSibling !== block) anchor.after(block); anchor = block; });
 }
 
-function bloccoVisibilePromptMediaLanding() {
-  return [...document.querySelectorAll('[aria-modal="true"], #tariffa-modal, #ol-menu-backdrop.is-open, #guided-assistant-panel.is-open, #iubenda-cs-banner .iubenda-cs-content')]
-    .some(element => {
-      for (let node = element; node; node = node.parentElement) {
-        const style = getComputedStyle(node);
-        if (node.hidden || node.getAttribute("aria-hidden") === "true" || style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse" || Number(style.opacity) === 0) return false;
-      }
-      const rect = element.getBoundingClientRect();
-      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
-    });
-}
-
 function nascondiPromptMediaLanding(stop = false) {
   const prompt = document.getElementById("offers-personalize-prompt");
-  if (prompt) {
-    prompt.hidden = true;
-    prompt.setAttribute("aria-hidden", "true");
-  }
-  if (stop) {
-    clearInterval(OL_LANDING_AVERAGE_PROMPT.timer);
-    OL_LANDING_AVERAGE_PROMPT.timer = null;
-    OL_LANDING_AVERAGE_PROMPT.last = null;
-  }
+  if (prompt) { prompt.hidden = true; prompt.setAttribute("aria-hidden", "true"); }
+  if (stop) window.OLLandingAverageRecovery?.cancel();
 }
 
 function aggiornaPromptBollettaDopoOfferte() {
-  const prompt = document.getElementById("offers-personalize-prompt");
-  if (!prompt) return;
   if (!percorsoMediaDirettoLanding()) {
-    nascondiPromptMediaLanding(true);
+    if (modalitaCalcolo !== "media" || isGuidedView() || LEAD_STATE.customerType !== "privato") window.OLLandingAverageRecovery?.cancel();
     return;
   }
   const average = !SOCIAL_ENTRY_STATE.active && !staffModeAttiva() && LEAD_STATE.customerType === "privato"
@@ -21934,44 +21915,19 @@ function aggiornaPromptBollettaDopoOfferte() {
   const first = average ? primaCardMediaLanding() : null;
   riordinaBlocchiMediaLanding(Boolean(first));
   document.body.classList.toggle("ol-landing-average-results", Boolean(first));
-  if (first) document.getElementById("ol-external-average-status")?.remove();
-  if (!first || SOCIAL_ENTRY_STATE.personalizationDismissed) {
-    nascondiPromptMediaLanding(true);
+  if (!first) return;
+  OL_LANDING_RECOVERY_RENDERED = true;
+  document.getElementById("ol-external-average-status")?.remove();
+  if (new URLSearchParams(location.search).get("ol_personalize") === "1" && !OL_LANDING_RECOVERY_RETURN_HANDLED) {
+    OL_LANDING_RECOVERY_RETURN_HANDLED = true;
+    const url = new URL(location.href);
+    url.searchParams.delete("ol_personalize");
+    try { history.replaceState(history.state, "", url.toString()); } catch {}
+    // Il rientro esplicito da un'altra pagina riusa la stessa classifica e i tre metodi esistenti.
+    window.requestAnimationFrame(apriPersonalizzazioneDaPromptLanding);
     return;
   }
-  const state = OL_LANDING_AVERAGE_PROMPT;
-  if (state.shown || state.timer !== null) return;
-  try { if (sessionStorage.getItem(OL_LANDING_AVERAGE_PROMPT_KEY) === "1") return; } catch {}
-  state.timer = window.setInterval(() => {
-    const card = primaCardMediaLanding();
-    const now = performance.now();
-    if (SOCIAL_ENTRY_STATE.personalizationDismissed || modalitaCalcolo !== "media" || isGuidedView()
-      || LEAD_STATE.customerType !== "privato" || document.body.classList.contains("mobile-fast-mode-pdf")
-      || document.body.classList.contains("mobile-fast-mode-manual")) {
-      nascondiPromptMediaLanding(true);
-      return;
-    }
-    const blocked = bloccoVisibilePromptMediaLanding();
-    if (state.shown) {
-      // Non sovrapporre il prompt ad altri percorsi e non riproporlo dopo averlo chiuso.
-      if (blocked || !card || prompt.hidden) nascondiPromptMediaLanding(true);
-      return;
-    }
-    const firstId = String(LEAD_STATE.firstOfferId || "");
-    if (state.firstId !== firstId) { state.firstId = firstId; state.elapsed = 0; state.last = null; }
-    const rect = card?.getBoundingClientRect();
-    const height = window.visualViewport?.height || window.innerHeight || document.documentElement.clientHeight;
-    const top = window.visualViewport?.offsetTop || 0;
-    const visible = rect && rect.height > 0 && Math.min(rect.bottom, top + height) - Math.max(rect.top, top) >= Math.min(rect.height, height) * 0.5;
-    if (document.visibilityState !== "visible" || blocked || !visible) { state.last = null; return; }
-    if (state.last !== null) state.elapsed += Math.min(now - state.last, 300);
-    state.last = now;
-    if (state.elapsed < 15000) return;
-    state.shown = true;
-    try { sessionStorage.setItem(OL_LANDING_AVERAGE_PROMPT_KEY, "1"); } catch {}
-    prompt.hidden = false;
-    prompt.setAttribute("aria-hidden", "false");
-  }, 250);
+  if (!SOCIAL_ENTRY_STATE.personalizationDismissed) window.OLLandingAverageRecovery?.arm();
 }
 
 function apriPersonalizzazioneDaPromptLanding() {
@@ -21993,6 +21949,7 @@ function continuaConStimaMedia() {
 }
 
 function caricaBollettaDaOfferte(options = {}) {
+  window.OLLandingAverageRecovery?.cancel();
   SOCIAL_ENTRY_STATE.personalizationDismissed = true;
   const prompt = document.getElementById("offers-personalize-prompt");
   if (prompt) prompt.hidden = true;
@@ -22100,24 +22057,27 @@ function collegaEventiUX() {
   document.getElementById("landing-assisted")?.addEventListener("click", apriPercorsoAssistitoDaLanding);
   document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
-  document.getElementById("offers-upload-bill")?.addEventListener("click", apriPersonalizzazioneDaPromptLanding);
-  document.getElementById("offers-keep-average")?.addEventListener("click", continuaConStimaMedia);
-  if (percorsoMediaDirettoLanding()) {
-    document.addEventListener("click", (event) => {
-      if (event.target?.closest?.("#mobile-fast-photo, #mobile-fast-pdf, #mobile-fast-manual, #btn-segmento-business, #btn-attiva-precisi")) {
+  window.OLLandingAverageRecovery?.configure({
+    element: () => document.getElementById("offers-personalize-prompt"),
+    notReady: () => percorsoMediaDirettoLanding() && !OL_LANDING_RECOVERY_RENDERED,
+    ineligible: () => staffModeAttiva() || LEAD_STATE.customerType === "business" || SOCIAL_ENTRY_STATE.personalizationDismissed
+      || isGuidedView() || (percorsoMediaDirettoLanding() && OL_LANDING_RECOVERY_RENDERED && (modalitaCalcolo !== "media" || document.body.classList.contains("mobile-fast-mode-pdf") || document.body.classList.contains("mobile-fast-mode-manual"))),
+    accept: () => {
+      if (percorsoMediaDirettoLanding() && primaCardMediaLanding()) apriPersonalizzazioneDaPromptLanding();
+      else window.OLLandingAverageRecovery.returnToPersonalization();
+    },
+    dismiss: continuaConStimaMedia,
+  });
+  document.addEventListener("click", (event) => {
+    if (event.target?.closest?.("#mobile-fast-photo, #mobile-fast-pdf, #mobile-fast-manual, #btn-segmento-business, #btn-attiva-precisi")) {
+      if (percorsoMediaDirettoLanding() || window.OLLandingAverageRecovery?.active()) {
         SOCIAL_ENTRY_STATE.personalizationDismissed = true;
         nascondiPromptMediaLanding(true);
         if (event.target?.closest?.("#mobile-fast-manual, #btn-segmento-business, #btn-attiva-precisi")
           && PDF_UPLOAD_SOURCE_STATE.pending?.source === "offers_personalization") PDF_UPLOAD_SOURCE_STATE.pending = null;
-      } else if (event.target?.closest?.('#offerte-ranking-group [id^="link-partner-"]') && OL_LANDING_AVERAGE_PROMPT.shown) {
-        nascondiPromptMediaLanding(true);
       }
-    }, true);
-    document.addEventListener("keydown", (event) => {
-      const prompt = document.getElementById("offers-personalize-prompt");
-      if (event.key === "Escape" && prompt && !prompt.hidden && !bloccoVisibilePromptMediaLanding()) continuaConStimaMedia();
-    });
-  }
+    }
+  }, true);
   // OFFERTALOGICA_PUBLIC_V115_20260928: ogni nuovo PDF selezionato avvia subito l'analisi
   // su mobile e desktop. Il pulsante manuale resta solo come fallback tecnico.
   document.getElementById("pdf-static-input")?.addEventListener("change", (event) => {
@@ -23837,7 +23797,8 @@ if (document.readyState === "loading") {
             btnMedi?.click();
             window.setTimeout(() => {
               if (directLanding) tracciaSceltaPercorsoConfronto("average", "comparison_method_choice");
-              window.__OL_A11Y_RESULTS_PENDING__ = true;
+              // Il rientro esplicito alla personalizzazione non deve avviare uno scroll concorrente alla classifica.
+              window.__OL_A11Y_RESULTS_PENDING__ = !(directLanding && new URLSearchParams(location.search).get("ol_personalize") === "1");
               try { window.avviaComparazioneDati?.(); }
               finally {
                 if (directLanding) {
