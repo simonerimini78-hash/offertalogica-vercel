@@ -14457,6 +14457,72 @@ function aggiornaCoperturaConsumer(classificate, mostrate) {
   elemento.textContent = testoCoperturaConsumer(classificate, mostrate);
 }
 
+// V140: a rendered ranking is not a viewed ranking. Name and annual price must each be visible for 1 s.
+let olOfferViewStop = null;
+function olObserveOfferViews(items, origin) {
+  olOfferViewStop?.();
+  if (window.__OL_LANDING_PREVIEW_CALC__ || !items.length || !trackingApiDisponibile() || staffTrackingEscluso()) return;
+  const states = items.map(item => ({item, name: {since: null, seen: null}, price: {since: null, seen: null}}));
+  let lastSample = null, timer = null;
+  function visiblePart(el) {
+    if (!el || !el.isConnected || !el.textContent.trim()) return false;
+    const r = el.getBoundingClientRect();
+    const vv = window.visualViewport;
+    const left = vv?.offsetLeft || 0, top = vv?.offsetTop || 0;
+    const right = left + (vv?.width || document.documentElement.clientWidth);
+    const bottom = top + (vv?.height || document.documentElement.clientHeight);
+    if (r.width <= 0 || r.height <= 0 || r.left < left || r.right > right || r.top < top || r.bottom > bottom) return false;
+    for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (node.hidden || style.display === "none" || style.visibility !== "visible" || Number(style.opacity) === 0 || node.getAttribute("aria-hidden") === "true") return false;
+    }
+    // Reject occlusion by banners, sticky headers, dialogs or other cards.
+    return [0.2, 0.5, 0.8].every(f => {
+      const hit = document.elementFromPoint(r.left + r.width * f, r.top + r.height / 2);
+      return hit && (hit === el || el.contains(hit));
+    });
+  }
+  function reset() {
+    lastSample = null;
+    for (const state of states) for (const part of [state.name, state.price]) { part.since = null; part.seen = null; }
+  }
+  function stop() {
+    clearInterval(timer);
+    document.removeEventListener("visibilitychange", reset);
+    window.removeEventListener("pagehide", reset);
+    if (olOfferViewStop === stop) olOfferViewStop = null;
+  }
+  function sample(part, visible, now) {
+    if (part.seen !== null && now - part.seen > 30000) part.seen = null;
+    if (!visible) { part.since = null; return; }
+    if (part.since === null) part.since = now;
+    if (now - part.since >= 1000) part.seen = now;
+  }
+  function tick() {
+    if (document.visibilityState !== "visible" || window.__OL_LANDING_PREVIEW_CALC__) { reset(); return; }
+    const now = performance.now();
+    if (lastSample !== null && now - lastSample > 450) reset();
+    lastSample = now;
+    for (const state of states) {
+      const {item, name, price} = state;
+      sample(name, visiblePart(item.card.querySelector(".partner-title")), now);
+      sample(price, visiblePart(item.card.querySelector(".offer-cost-line strong")), now);
+      if (name.seen === null || price.seen === null) continue;
+      stop();
+      trackEvent("offers_viewed", {
+        dataOrigin: origin, trigger: "viewport_offer_1s",
+        offerId: String(item.offerta?.id || ""), offerName: item.offerta?.nome || "",
+        provider: item.offerta?.provider || "", displayRank: item.posizioneGruppo,
+      });
+      return;
+    }
+  }
+  olOfferViewStop = stop;
+  document.addEventListener("visibilitychange", reset);
+  window.addEventListener("pagehide", reset);
+  timer = setInterval(tick, 200);
+}
+
 function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitura) {
   // OFFERTALOGICA_PUBLIC_V117_20260928_SELECTED_OFFER_CARD
   // La proposta scelta dal menu facoltativo deve poter essere proseguita con la stessa
@@ -14871,6 +14937,7 @@ function aggiornaOfferteProposte(attuale, costoAttuale, tipoTariffa, tipoFornitu
   }
   aggiornaPromptBollettaDopoOfferte();
   ottimizzaRisultatiMobile();
+  olObserveOfferViews(visibili, determinaOrigineDatoLead());
 }
 
 function aggiornaConsumiDaMasterSeMedia() {

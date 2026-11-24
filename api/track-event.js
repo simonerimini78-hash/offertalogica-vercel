@@ -18,6 +18,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "comparison_missing_current_price",
   "comparison_completed",
   "offers_rendered",
+  "offers_viewed",
   "offers_unlocked",
   "offers_bill_prompt_dismissed",
   "offers_bill_prompt_clicked",
@@ -544,6 +545,10 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    if (eventType === "offers_viewed" && (payload.trigger !== "viewport_offer_1s" || !payload.offerId || !text(body.sessionId, 90) || !Number.isInteger(payload.displayRank) || payload.displayRank < 1 || payload.dataOrigin === "landing_average_profile")) {
+      json(res, 400, { ok: false, error: "Segnale di visibilità offerta non valido" });
+      return;
+    }
     const toolValidation = validateInteractiveToolPayload(eventType, payload);
     if (!toolValidation.ok) {
       json(res, toolValidation.status || 400, { ok: false, error: toolValidation.error || "Evento strumento non autorizzato" });
