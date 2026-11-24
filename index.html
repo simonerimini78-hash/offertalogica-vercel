@@ -21898,12 +21898,14 @@ function riordinaBlocchiMediaLanding(active) {
 }
 
 function bloccoVisibilePromptMediaLanding() {
-  return [...document.querySelectorAll('[aria-modal="true"], #tariffa-modal, #ol-menu-backdrop, #guided-assistant-panel.is-open, #iubenda-cs-banner')]
+  return [...document.querySelectorAll('[aria-modal="true"], #tariffa-modal, #ol-menu-backdrop.is-open, #guided-assistant-panel.is-open, #iubenda-cs-banner .iubenda-cs-content')]
     .some(element => {
+      for (let node = element; node; node = node.parentElement) {
+        const style = getComputedStyle(node);
+        if (node.hidden || node.getAttribute("aria-hidden") === "true" || style.display === "none" || style.visibility === "hidden" || style.visibility === "collapse" || Number(style.opacity) === 0) return false;
+      }
       const rect = element.getBoundingClientRect();
-      const style = getComputedStyle(element);
-      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight
-        && style.visibility !== "hidden" && style.opacity !== "0";
+      return rect.width > 0 && rect.height > 0 && rect.bottom > 0 && rect.top < window.innerHeight;
     });
 }
 
