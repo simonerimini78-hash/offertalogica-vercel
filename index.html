@@ -8632,6 +8632,7 @@ function trackEvent(eventType, payload = {}) {
       ...payload,
       client_timestamp: clientTimestamp,
       session_event_seq: sessionEventSeq,
+      offersMeasurementVersion: "141",
       trafficSource: attribution.trafficSource,
       trafficMedium: attribution.trafficMedium,
       trafficCampaign: attribution.trafficCampaign,
@@ -14457,13 +14458,13 @@ function aggiornaCoperturaConsumer(classificate, mostrate) {
   elemento.textContent = testoCoperturaConsumer(classificate, mostrate);
 }
 
-// V140: a rendered ranking is not a viewed ranking. Name and annual price must each be visible for 1 s.
+// V141: generation, arrival in ranking viewport and card viewing are separate signals.
 let olOfferViewStop = null;
 function olObserveOfferViews(items, origin) {
   olOfferViewStop?.();
   if (window.__OL_LANDING_PREVIEW_CALC__ || !items.length || !trackingApiDisponibile() || staffTrackingEscluso()) return;
   const states = items.map(item => ({item, name: {since: null, seen: null}, price: {since: null, seen: null}}));
-  let lastSample = null, timer = null;
+  let lastSample = null, timer = null, reached = false, arrivalSince = null;
   function visiblePart(el) {
     if (!el || !el.isConnected || !el.textContent.trim()) return false;
     const r = el.getBoundingClientRect();
@@ -14482,7 +14483,31 @@ function olObserveOfferViews(items, origin) {
       return hit && (hit === el || el.contains(hit));
     });
   }
+  // Arrival: a visible part of the actual results heading or card, not the landing preview.
+  // Require a 200 ms uninterrupted sample; card viewing retains the independent 1 s rule.
+  function visibleRankingPart(el) {
+    if (!el || !el.isConnected) return false;
+    for (let node = el; node && node.nodeType === 1; node = node.parentElement) {
+      const style = getComputedStyle(node);
+      if (node.hidden || style.display === "none" || style.visibility !== "visible" || Number(style.opacity) === 0 || node.getAttribute("aria-hidden") === "true") return false;
+    }
+    const r = el.getBoundingClientRect(), vv = window.visualViewport;
+    const left = Math.max(r.left, vv?.offsetLeft || 0), top = Math.max(r.top, vv?.offsetTop || 0);
+    const right = Math.min(r.right, (vv?.offsetLeft || 0) + (vv?.width || document.documentElement.clientWidth));
+    const bottom = Math.min(r.bottom, (vv?.offsetTop || 0) + (vv?.height || document.documentElement.clientHeight));
+    if (right - left < Math.min(80, r.width) || bottom - top < Math.min(32, r.height) || right <= left || bottom <= top) return false;
+    return [0.25, 0.5, 0.75].every(f => {
+      const hit = document.elementFromPoint(left + (right-left)*f, top + (bottom-top)/2);
+      return hit && (hit === el || el.contains(hit));
+    });
+  }
+  function markReached() {
+    if (reached) return;
+    reached = true;
+    trackEvent("offers_reached", { dataOrigin: origin, trigger: "viewport_ranking_200ms", visibleOffersCount: items.length });
+  }
   function reset() {
+    arrivalSince = null;
     lastSample = null;
     for (const state of states) for (const part of [state.name, state.price]) { part.since = null; part.seen = null; }
   }
@@ -14503,11 +14528,19 @@ function olObserveOfferViews(items, origin) {
     const now = performance.now();
     if (lastSample !== null && now - lastSample > 450) reset();
     lastSample = now;
+    if (!reached) {
+      const heading = document.querySelector("#offerte-ranking-group .mobile-results-heading-copy, #offerte-ranking-group .offers-list-heading > div:first-child");
+      const arrivalVisible = visibleRankingPart(heading) || states.some(({item}) => visibleRankingPart(item.card));
+      if (!arrivalVisible) arrivalSince = null;
+      else if (arrivalSince === null) arrivalSince = now;
+      else if (now - arrivalSince >= 200) markReached();
+    }
     for (const state of states) {
       const {item, name, price} = state;
       sample(name, visiblePart(item.card.querySelector(".partner-title")), now);
       sample(price, visiblePart(item.card.querySelector(".offer-cost-line strong")), now);
       if (name.seen === null || price.seen === null) continue;
+      markReached(); // A measured card view also guarantees the ranking was reached.
       stop();
       trackEvent("offers_viewed", {
         dataOrigin: origin, trigger: "viewport_offer_1s",

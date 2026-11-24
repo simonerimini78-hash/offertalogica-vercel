@@ -18,6 +18,7 @@ const ALLOWED_EVENT_TYPES = new Set([
   "comparison_missing_current_price",
   "comparison_completed",
   "offers_rendered",
+  "offers_reached",
   "offers_viewed",
   "offers_unlocked",
   "offers_bill_prompt_dismissed",
@@ -320,6 +321,7 @@ function sanitizePayload(payload = {}) {
     pdfUploadProvider: text(input.pdfUploadProvider, 100),
     pathChoice: text(input.pathChoice, 40).toLowerCase(),
     trigger: text(input.trigger, 80).toLowerCase(),
+    offersMeasurementVersion: text(input.offersMeasurementVersion, 12) === "141" ? "141" : "",
     // V125 guided questionnaire: only coarse, non-personal consumption summary.
     people: [1, 2, 3, 4, 5].includes(Number(input.people)) ? Number(input.people) : null,
     appliances: [0, 1, 2, 3].includes(Number(input.appliances)) ? Number(input.appliances) : null,
@@ -545,6 +547,10 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    if (eventType === "offers_reached" && (payload.offersMeasurementVersion !== "141" || payload.trigger !== "viewport_ranking_200ms" || !text(body.sessionId, 90) || !Number.isInteger(payload.visibleOffersCount) || payload.visibleOffersCount < 1 || payload.dataOrigin === "landing_average_profile")) {
+      json(res, 400, { ok: false, error: "Evento arrivo offerte non valido" });
+      return;
+    }
     if (eventType === "offers_viewed" && (payload.trigger !== "viewport_offer_1s" || !payload.offerId || !text(body.sessionId, 90) || !Number.isInteger(payload.displayRank) || payload.displayRank < 1 || payload.dataOrigin === "landing_average_profile")) {
       json(res, 400, { ok: false, error: "Segnale di visibilità offerta non valido" });
       return;
