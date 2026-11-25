@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <script src="/assets/ol-landing-average-recovery.js?v=0.10.142" data-ol-average-recovery defer></script>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.143" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -17831,9 +17831,12 @@ function avviaPassoSuccessivoPdfDesktopAutomatico({ validCurrent = [] } = {}) {
 function attivaFocusOfferteMobile() {
   if (!esperienzaPdfMobileAttiva()) return;
   document.body.classList.add("mobile-offers-focus");
-  document.getElementById("guided-assistant-panel")?.classList.remove("is-open");
-  document.getElementById("guided-assistant-toggle")?.setAttribute("aria-expanded", "false");
-  document.getElementById("guided-assistant-mobile-toggle")?.setAttribute("aria-expanded", "false");
+  if (typeof window.chiudiAssistenteGuidato === "function") window.chiudiAssistenteGuidato();
+  else {
+    document.getElementById("guided-assistant-panel")?.classList.remove("is-open");
+    document.getElementById("guided-assistant-toggle")?.setAttribute("aria-expanded", "false");
+    document.getElementById("guided-assistant-mobile-toggle")?.setAttribute("aria-expanded", "false");
+  }
 }
 
 function portaAlTeaserOfferteMobile() {
@@ -22950,6 +22953,11 @@ if (document.readyState === "loading") {
     let percorsoOliAvviato = false;
     let ultimoPercorso = "";
     let faseSceltaAttivata = false;
+    let oliStage = 1;
+    const oliActions = new Set(["pdf", "foto", "media", "manuale", "business", "completa", "avvia", "offerte", "contatti", "privacy"]);
+    function trackOli(type, item, context = "") {
+        if (typeof trackEvent === "function") trackEvent(type, { section: "oli", item, context, placement: `oli_step_${oliStage}` });
+    }
 
     if (!panel || !toggle || !message) return;
 
@@ -22980,6 +22988,9 @@ if (document.readyState === "loading") {
     }
 
     function impostaFase(numero, etichetta) {
+        const changed = oliStage !== numero;
+        oliStage = numero;
+        if (changed && panel.classList.contains("is-open")) trackOli("oli_stage_changed", String(numero));
         if (stageLabel) stageLabel.textContent = `Passo ${numero} di 4 · ${etichetta}`;
         panel.querySelectorAll("[data-oli-step]").forEach((item) => {
             const fase = Number(item.dataset.oliStep);
@@ -23056,13 +23067,14 @@ if (document.readyState === "loading") {
         mobileToggle?.setAttribute("title", offertePronte ? "OLI: offerte pronte da consultare" : "Continua con OLI");
     }
 
-    function setOpen(isOpen) {
+    function setOpen(isOpen, reason = isOpen ? "programmatic" : "action") {
         const wasOpen = panel.classList.contains("is-open");
         if (isOpen) aggiornaProssimoPasso();
         panel.classList.toggle("is-open", isOpen);
         toggle.setAttribute("aria-expanded", isOpen ? "true" : "false");
         mobileToggle?.setAttribute("aria-expanded", isOpen ? "true" : "false");
-        if (isOpen && !wasOpen && typeof trackEvent === "function") trackEvent("assistance_guide_opened", { assistant: "OLI" });
+        if (isOpen && !wasOpen) trackOli("assistance_guide_opened", reason);
+        if (!isOpen && wasOpen) trackOli("oli_closed", reason);
     }
 
     function resetMobileTogglePosition() {
@@ -23146,7 +23158,7 @@ if (document.readyState === "loading") {
             card.scrollIntoView({ behavior: "smooth", block: "center" });
             card.classList.add("guided-assistant-highlight");
             window.setTimeout(() => card.classList.remove("guided-assistant-highlight"), 1800);
-            if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: "oli_offers_viewed", assistant: "OLI" });
+            trackOli("oli_navigation_requested", "offers_card");
             return;
         }
         aggiornaProssimoPasso();
@@ -23163,10 +23175,12 @@ if (document.readyState === "loading") {
             return;
         }
         try { window.sessionStorage.setItem("ol_guide_landing_action", action); } catch { /* Storage facoltativo. */ }
+        trackOli("oli_navigation_requested", "calculator", action);
         window.location.assign(urlCalcolatoreDaLanding());
     }
 
     function handleAction(action) {
+        if (oliActions.has(action)) trackOli("oli_action_clicked", action, landingAttivaPerOli() ? "landing" : "calculator");
         // Il calcolatore della landing e' nascosto: prima entra nell'interfaccia attiva.
         // Il selettore file richiede poi un nuovo clic esplicito sul calcolatore.
         if (landingAttivaPerOli() && ["pdf", "foto", "media", "manuale", "business", "completa", "avvia", "offerte", "contatti"].includes(action)) {
@@ -23176,7 +23190,6 @@ if (document.readyState === "loading") {
         percorsoOliAvviato = true;
         if (["pdf", "foto", "media", "manuale", "business"].includes(action)) ultimoPercorso = action;
         aggiornaIndicatoreOli();
-        if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: `oli_${action}`, assistant: "OLI" });
         switch (action) {
             case "pdf":
                 preparaPercorsoPdf();
@@ -23254,7 +23267,7 @@ if (document.readyState === "loading") {
                     if (typeof LEAD_STATE !== "undefined" && LEAD_STATE.assistance) LEAD_STATE.assistance.reason = "oli_user_requested";
                     setOpen(false);
                     window.apriLeadModal("assistance_callback");
-                    if (typeof trackEvent === "function") trackEvent("site_action_clicked", { action: "oli_contact_requested", assistant: "OLI" });
+                    trackOli("oli_navigation_requested", "contact_form");
                 } else setMessage("Il modulo di assistenza non è disponibile al momento.");
                 break;
             case "privacy":
@@ -23287,7 +23300,7 @@ if (document.readyState === "loading") {
             percorsoOliAvviato = true;
             ultimoPercorso = entryAction;
             aggiornaIndicatoreOli();
-            setOpen(true);
+            setOpen(true, "landing_resume");
             setMessage(instruction);
             impostaPassaggio(label, entryAction);
             if (entryAction === "pdf" || entryAction === "foto") preparaPercorsoPdf();
@@ -23300,16 +23313,16 @@ if (document.readyState === "loading") {
         window.setTimeout(() => close?.focus(), 30);
     };
 
-    toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
-    mobileToggle?.addEventListener("click", () => setOpen(!panel.classList.contains("is-open")));
+    toggle.addEventListener("click", () => setOpen(!panel.classList.contains("is-open"), "desktop_toggle"));
+    mobileToggle?.addEventListener("click", () => setOpen(!panel.classList.contains("is-open"), "mobile_toggle"));
     close?.addEventListener("click", () => {
-        setOpen(false);
+        setOpen(false, "close_button");
         (mobileQuery.matches ? mobileToggle : toggle)?.focus();
     });
     panel.addEventListener("keydown", (event) => {
         if (event.key !== "Escape") return;
         event.preventDefault();
-        setOpen(false);
+        setOpen(false, "escape");
         (mobileQuery.matches ? mobileToggle : toggle)?.focus();
     });
     window.addEventListener("resize", positionMobileToggleNearIubenda, { passive: true });
@@ -23336,6 +23349,10 @@ if (document.readyState === "loading") {
     if (selectedPdf) observer.observe(selectedPdf, { childList: true, subtree: true, attributes: true, attributeFilter: ["hidden"] });
     const manual = document.getElementById("btn-attiva-precisi");
     if (manual) observer.observe(manual, { attributes: true, attributeFilter: ["class"] });
+    panel.querySelectorAll(".guided-assistant-resources-links a[href]").forEach(link => {
+        link.addEventListener("click", () => trackOli("oli_resource_clicked", link.getAttribute("href") || ""));
+    });
+    window.chiudiAssistenteGuidato = () => setOpen(false, "offers_focus");
     document.querySelectorAll("[data-assistant-action]").forEach((button) => {
         button.addEventListener("click", () => handleAction(button.dataset.assistantAction));
     });

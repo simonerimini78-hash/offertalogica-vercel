@@ -59,6 +59,11 @@ const ALLOWED_EVENT_TYPES = new Set([
   "assistance_prompt_shown",
   "assistance_prompt_closed",
   "assistance_guide_opened",
+  "oli_action_clicked",
+  "oli_closed",
+  "oli_stage_changed",
+  "oli_resource_clicked",
+  "oli_navigation_requested",
   "assistance_callback_started",
   "assistance_callback_verified",
   "comparison_path_selected",
@@ -550,6 +555,20 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    const oliActions = ["pdf", "foto", "media", "manuale", "business", "completa", "avvia", "offerte", "contatti", "privacy"];
+    const oliItems = {
+      assistance_guide_opened: ["desktop_toggle", "mobile_toggle", "programmatic", "landing_resume"],
+      oli_action_clicked: oliActions,
+      oli_closed: ["desktop_toggle", "mobile_toggle", "close_button", "escape", "action", "offers_focus"],
+      oli_stage_changed: ["1", "2", "3", "4"],
+      oli_resource_clicked: ["/offerte-luce-gas-aggiornate.html", "/come-leggere-bolletta-luce-gas.html", "/prezzo-fisso-o-variabile-luce-gas.html", "/come-cambiare-fornitore-luce-gas.html", "/pun-psv-spread-luce-gas.html", "/truffe-telefoniche-luce-gas.html", "/tutela-energia.html"],
+      oli_navigation_requested: ["calculator", "offers_card", "contact_form"],
+    };
+    if (eventType.startsWith("oli_") || (eventType === "assistance_guide_opened" && payload.section === "oli")) {
+      if (payload.section !== "oli" || !oliItems[eventType]?.includes(payload.item) || !/^oli_step_[1-4]$/.test(payload.placement) || !["", "landing", "calculator", ...oliActions].includes(payload.context) || !text(body.sessionId, 90)) {
+        return json(res, 400, { ok: false, error: "Evento OLI non valido" });
+      }
+    }
     if (["offers_bill_prompt_shown", "offers_bill_prompt_accepted", "offers_bill_prompt_closed"].includes(eventType) && (payload.trigger !== "landing_average_recovery" || payload.dataOrigin !== "arera_average_profile" || payload.pdfUploadSource !== "offers_personalization" || !text(body.sessionId, 90))) {
       json(res, 400, { ok: false, error: "Evento popup automatico non valido" });
       return;
