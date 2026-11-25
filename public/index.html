@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <script src="/assets/ol-landing-average-recovery.js?v=0.10.139" data-ol-average-recovery defer></script>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.142" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -22025,6 +22025,22 @@ function aggiornaPromptBollettaDopoOfferte() {
   if (!SOCIAL_ENTRY_STATE.personalizationDismissed) window.OLLandingAverageRecovery?.arm();
 }
 
+// Separate the automatic recovery prompt from the pre-existing bill CTA.
+const OL_RECOVERY_ANALYTICS_SENT = new Set();
+function tracciaPromptAutomaticoMedia(action) {
+  if (!trackingApiDisponibile() || staffTrackingEscluso() || !["shown", "accepted", "closed"].includes(action)) return;
+  const sid = analyticsSessionId();
+  if (!sid) return;
+  const key = `olRecoveryAnalytics142:${sid}:${action}`;
+  try { if (sessionStorage.getItem(key) === "1") return; } catch {}
+  if (OL_RECOVERY_ANALYTICS_SENT.has(key)) return;
+  OL_RECOVERY_ANALYTICS_SENT.add(key);
+  try { sessionStorage.setItem(key, "1"); } catch {}
+  try {
+    trackEvent(`offers_bill_prompt_${action}`, { dataOrigin: "arera_average_profile", trigger: "landing_average_recovery", pdfUploadSource: "offers_personalization" });
+  } catch { OL_RECOVERY_ANALYTICS_SENT.delete(key); try { sessionStorage.removeItem(key); } catch {} }
+}
+
 function apriPersonalizzazioneDaPromptLanding() {
   if (!percorsoMediaDirettoLanding()) return caricaBollettaDaOfferte({ source: "offers_personalization" });
   SOCIAL_ENTRY_STATE.personalizationDismissed = true;
@@ -22153,6 +22169,7 @@ function collegaEventiUX() {
   document.getElementById("landing-free-app")?.addEventListener("click", () => tracciaAccessoAppLanding("free"));
   document.getElementById("landing-premium-app")?.addEventListener("click", () => tracciaAccessoAppLanding("premium"));
   window.OLLandingAverageRecovery?.configure({
+    observe: tracciaPromptAutomaticoMedia,
     element: () => document.getElementById("offers-personalize-prompt"),
     ineligible: () => staffModeAttiva(),
     accept: () => {

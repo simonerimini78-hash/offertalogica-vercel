@@ -21,6 +21,9 @@ const ALLOWED_EVENT_TYPES = new Set([
   "offers_reached",
   "offers_viewed",
   "offers_unlocked",
+  "offers_bill_prompt_shown",
+  "offers_bill_prompt_accepted",
+  "offers_bill_prompt_closed",
   "offers_bill_prompt_dismissed",
   "offers_bill_prompt_clicked",
   "lead_modal_opened",
@@ -547,6 +550,10 @@ export default async function handler(req, res) {
     }
 
     const payload = sanitizePayload(body.payload);
+    if (["offers_bill_prompt_shown", "offers_bill_prompt_accepted", "offers_bill_prompt_closed"].includes(eventType) && (payload.trigger !== "landing_average_recovery" || payload.dataOrigin !== "arera_average_profile" || payload.pdfUploadSource !== "offers_personalization" || !text(body.sessionId, 90))) {
+      json(res, 400, { ok: false, error: "Evento popup automatico non valido" });
+      return;
+    }
     if (eventType === "offers_reached" && (payload.offersMeasurementVersion !== "141" || payload.trigger !== "viewport_ranking_200ms" || !text(body.sessionId, 90) || !Number.isInteger(payload.visibleOffersCount) || payload.visibleOffersCount < 1 || payload.dataOrigin === "landing_average_profile")) {
       json(res, 400, { ok: false, error: "Evento arrivo offerte non valido" });
       return;

@@ -81,6 +81,7 @@
     url.searchParams.set('ol_personalize', '1');
     location.assign(url.toString());
   }
+  function observe(action) { try { config?.observe?.(action); } catch {} }
   function getPrompt() {
     if (prompt) return prompt;
     prompt = config?.element?.() || document.getElementById('offers-personalize-prompt');
@@ -105,11 +106,13 @@
       @media(max-height:460px){html body #offers-personalize-prompt.ol-recovery-prompt:not([hidden]){max-height:calc(100vh - 24px)}html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{grid-template-columns:1fr 1fr}}
     `;
     document.head.appendChild(css);
-    prompt.querySelector('#offers-upload-bill').addEventListener('click', () => {
+    prompt.querySelector('#offers-upload-bill').addEventListener('click', event => {
+      if (event.isTrusted && ownVisible && document.visibilityState === 'visible' && panelReachable(prompt)) observe("accepted");
       cancel();
       config?.accept?.();
     });
-    prompt.querySelector('#offers-keep-average').addEventListener('click', () => {
+    prompt.querySelector('#offers-keep-average').addEventListener('click', event => {
+      if (event.isTrusted && ownVisible && document.visibilityState === 'visible' && panelReachable(prompt)) observe("closed");
       cancel(); config?.dismiss?.();
     });
     return prompt;
@@ -132,6 +135,7 @@
     panel.setAttribute('aria-hidden', 'false');
     if (!panelReachable(panel)) { hide(); return; }
     ownVisible = true;
+    observe("shown");
     // Non salvare uno stato "shown": pagehide, menu e overlay sono reversibili.
     // Solo una scelta esplicita passa la sessione a cancelled.
   }
