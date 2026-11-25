@@ -1926,6 +1926,8 @@ function analyticsEventExportRows(rows = []) {
       fornitore_gas_attuale: p.fornitoreGasAttuale || "",
       fornitore_nuova_offerta: p.fornitoreNuovaOfferta || "",
       context: p.context || "",
+      oli_item: OLI_EVENT_TYPES.has(String(row.event_type || "")) ? p.item || "" : "",
+      oli_placement: OLI_EVENT_TYPES.has(String(row.event_type || "")) ? p.placement || "" : "",
       field: p.field || "",
       mode: p.mode || "",
       has_pending_url: p.hasPendingUrl ?? "",
@@ -2032,6 +2034,31 @@ function exportSessionActiveSeconds(events = []) {
   return Math.round(total);
 }
 
+const OLI_EVENT_TYPES = new Set(["assistance_guide_opened", "oli_action_clicked", "oli_closed", "oli_stage_changed", "oli_resource_clicked", "oli_navigation_requested"]);
+const OLI_ACTIONS = ["pdf", "foto", "media", "manuale", "business", "completa", "avvia", "offerte", "contatti", "privacy"];
+function oliSessionEvidence(ordered) {
+  const events = ordered.filter(event => OLI_EVENT_TYPES.has(event.eventType));
+  const count = type => events.filter(event => event.eventType === type).length;
+  const opens = events.filter(event => event.eventType === "assistance_guide_opened");
+  const actions = events.filter(event => event.eventType === "oli_action_clicked");
+  return { events:events.length, opens:opens.length, legacyOpens:opens.filter(event => event.payload?.section !== "oli").length,
+    resumed:opens.filter(event => event.payload?.item === "landing_resume").length,
+    desktopOpens:opens.filter(event => event.payload?.section === "oli" && event.payload?.item === "desktop_toggle").length,
+    mobileOpens:opens.filter(event => event.payload?.section === "oli" && event.payload?.item === "mobile_toggle").length,
+    contextualOpens:opens.filter(event => event.payload?.section === "oli" && event.payload?.item === "programmatic").length,
+    actions:actions.length, landingActions:actions.filter(event=>event.payload?.context === "landing").length,
+    calculatorActions:actions.filter(event=>event.payload?.context === "calculator").length,
+    choices:Object.fromEntries(OLI_ACTIONS.map(action => [action, actions.filter(event => event.payload?.item === action).length])),
+    closed:count("oli_closed"), explicitClosed:events.filter(event=>event.eventType === "oli_closed" && ["close_button","escape","desktop_toggle","mobile_toggle"].includes(event.payload?.item)).length,
+    resources:count("oli_resource_clicked"), navigation:count("oli_navigation_requested"), stages:count("oli_stage_changed") };
+}
+function aggregateOli(rows) {
+  const values = rows.map(row=>row.oli).filter(value=>value?.events);
+  const sum = key=>values.reduce((total,value)=>total+Number(value[key]||0),0);
+  return {sessions:values.length, sessionsWithChoice:values.filter(value=>value.actions>0).length,
+    ...Object.fromEntries(["events","opens","legacyOpens","resumed","desktopOpens","mobileOpens","contextualOpens","actions","landingActions","calculatorActions","closed","explicitClosed","resources","navigation","stages"].map(key=>[key,sum(key)])),
+    choices:Object.fromEntries(OLI_ACTIONS.map(action=>[action,values.reduce((total,value)=>total+Number(value.choices?.[action]||0),0)]))};
+}
 function analyticsSessionExportRows(rawRows = []) {
   const groups = new Map();
   rawRows.forEach((row) => {
@@ -2062,7 +2089,9 @@ function analyticsSessionExportRows(rawRows = []) {
     const landing = ordered.find((event) => event.eventType === "landing_view") || first;
     const attributionEvent = ordered.find((event) => event.payload?.trafficSource && event.payload.trafficSource !== "direct") || landing || first;
     const attribution = attributionEvent.payload || {};
-    const eventTypes = new Set(ordered.map((event) => event.eventType).filter(Boolean));
+    const eventCounts = new Map();
+    for (const event of ordered) if (event.eventType) eventCounts.set(event.eventType,(eventCounts.get(event.eventType)||0)+1);
+    const eventTypes = new Set(eventCounts.keys());
     const firstPayload = first.payload || {};
     const lastPayload = last.payload || {};
     const offerEvent = [...ordered].reverse().find((event) => event.payload?.offerName || event.payload?.provider) || last;
@@ -2230,6 +2259,7 @@ function analyticsSessionExportRows(rawRows = []) {
       last_at: last.createdAt || "",
       events_count: ordered.length,
       event_types: [...eventTypes].join(" | "),
+      event_counts: Object.fromEntries(eventCounts),
       visitor_type: visitor.type,
       visitor_label: visitor.label,
       source: normalizeTrafficSource(attribution.trafficSource || attribution.source || attribution.leadSource || "direct"),
@@ -2253,6 +2283,7 @@ function analyticsSessionExportRows(rawRows = []) {
       percorso_confronto: comparisonPath,
       percorso_sequenza: comparisonPathSequence,
       percorso_base: pathBasis,
+      oli: oliSessionEvidence(ordered),
       profilo_medio_scelto: pathSignals.paths.has("average"),
       foto_scelta: hasPhotoSignal,
       foto_scelta_registrata: ordered.some((event) =>
@@ -2371,10 +2402,20 @@ function analyticsJourneyRows(rawRows = []) {
   return analyticsSessionExportRows(rawRows).filter((row) => row.session_id && !row.esclusa_analytics && !["known_bot", "automation"].includes(row.visitor_type));
 }
 
+function aggregateJourneyEventCounts(rows) {
+  const counts = new Map();
+  for (const row of rows) for (const [type, amount] of Object.entries(row.event_counts || {})) {
+    const value = counts.get(type) || { type, sessions:0, events:0 };
+    value.sessions++; value.events += amount; counts.set(type,value);
+  }
+  return [...counts.values()].sort((a,b)=>b.sessions-a.sessions || a.type.localeCompare(b.type));
+}
 function analyticsJourneySummary(rows = [], rawRows = []) {
   const count = (predicate) => rows.filter(predicate).length;
   const funnelFromRows = (items = []) => ({
     entries: items.length,
+    oli: aggregateOli(items),
+    eventCounts: aggregateJourneyEventCounts(items),
     pathSelected: items.filter(row => /autonomia|guidato/.test(String(row.scelta_percorso))).length,
     selfServiceSelected: items.filter((row) => String(row.scelta_percorso).includes("autonomia")).length,
     assistedSelected: items.filter((row) => String(row.scelta_percorso).includes("guidato")).length,
@@ -2547,13 +2588,13 @@ export function buildFunnelSnapshot(monthlyRows, period, landingRange) {
   return { period, journeys, summary, journeySummary, timings, landingPath, switcho:switchoAnalyticsFromRawRows(monthlyRows), offerRoutes, photoJourneySummary:photoJourneySummaryFromRows(monthlyRows) };
 }
 
-export function funnelPage(snapshot, { part = "journeys", page = 1, source = "", measurement = "all" } = {}) {
-  const rows = part === "pdf" ? snapshot.journeys.filter(row=>row.pdf_scelto) : snapshot.journeys.filter(row=>(!source || row.source===source) && (measurement==="all" || row.misurazione_offerte===measurement));
+export function funnelPage(snapshot, { part = "journeys", page = 1, source = "", measurement = "all", behavior = "all", eventType = "", search = "" } = {}) {
+  const rows = part === "pdf" ? snapshot.journeys.filter(row=>row.pdf_scelto) : snapshot.journeys.filter(row=>(!source || row.source===source) && (measurement==="all" || row.misurazione_offerte===measurement) && (behavior!=="oli" || row.oli?.events>0) && (!eventType || Object.hasOwn(row.event_counts || {},eventType)) && (!search || [row.session_id,row.campaign,row.term].some(value=>String(value||"").toLowerCase().includes(search.toLowerCase()))));
   const total = rows.length;
   const current = Math.min(Math.max(1, Math.floor(Number(page) || 1)), Math.max(1, Math.ceil(total/FUNNEL_PAGE_SIZE)));
   const pageRows = rows.slice((current-1)*FUNNEL_PAGE_SIZE, current*FUNNEL_PAGE_SIZE);
   // The table only needs these fields; all remaining detail is fetched by session ID or CSV.
-  const keys = ["session_id","first_at","device","source","campaign","term","intento","intento_base","scelta_percorso","percorso_sequenza","percorso_confronto","percorso_base","esito_sessione","abbandono_fase","misurazione_offerte","classifica_raggiunta","offerte_storico","offerte_visualizzate","card_cliccata","tempo_attivo_secondi","tempo_landing_secondi","tempo_calcolatore_secondi","tempo_offerte_secondi","tempo_otp_secondi","last_at","ultimo_evento","events_count","percorsi_dettaglio","switcho","partner","otp_verificato","otp_inviato"];
+  const keys = ["session_id","first_at","device","source","campaign","term","intento","intento_base","scelta_percorso","percorso_sequenza","percorso_confronto","percorso_base","esito_sessione","abbandono_fase","misurazione_offerte","classifica_raggiunta","offerte_storico","offerte_visualizzate","card_cliccata","tempo_attivo_secondi","tempo_landing_secondi","tempo_calcolatore_secondi","tempo_offerte_secondi","tempo_otp_secondi","last_at","ultimo_evento","events_count","percorsi_dettaglio","switcho","partner","otp_verificato","otp_inviato","oli"];
   return { rows:part==="pdf"?pageRows:pageRows.map(row=>Object.fromEntries(keys.map(key=>[key,row[key]]))), total, page:current, pageSize:FUNNEL_PAGE_SIZE };
 }
 
@@ -2804,7 +2845,7 @@ export default async function handler(req, res) {
           "pdf_dati_confermati", "pdf_autofill_aperto", "pdf_autofill_confermato", "pdf_campi_autofill", "pdf_campi_selezionati", "pdf_campi_saltati",
           "lead_id", "lead_creato", "popup_lead", "otp_richiesto", "otp_inviato", "otp_verificato", "offerta_sbloccata", "azione_offerta", "switcho", "switcho_source", "partner",
           "provider", "offerta", "ranking_economico", "ranking_visuale", "costo_annuo", "risparmio_annuo", "tempo_attivo_secondi", "tempo_landing_secondi", "tempo_calcolatore_secondi", "tempo_offerte_secondi",
-          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "esito_sessione", "abbandono_fase", "ultimo_evento"
+          "tempo_otp_secondi", "prima_azione_secondi", "offerte_raggiunte_secondi", "esito_sessione", "abbandono_fase", "ultimo_evento", "oli"
         ];
         const filenameScope = ({
           sessions: "funnel-sessioni", paths: "percorsi", pdf: "percorso-pdf", switcho: "percorso-switcho",
@@ -2826,7 +2867,7 @@ export default async function handler(req, res) {
         "destination_type", "destination_status", "display_group", "economy_rank", "display_rank", "annual_cost", "annual_delta", "network", "model",
         "redirect", "routing_version", "engagement_stage", "engagement_reason", "engagement_active_seconds", "engagement_elapsed_seconds",
         "engagement_landing_seconds", "engagement_calculator_seconds", "engagement_offers_seconds", "engagement_otp_seconds",
-        "engagement_first_action_seconds", "engagement_offers_reached_seconds", "telemetry", "reason", "payload_json"
+        "engagement_first_action_seconds", "engagement_offers_reached_seconds", "telemetry", "reason", "payload_json", "oli_item", "oli_placement"
       ];
       return sendAnalyticsCsv(res, csvFromObjects(eventRows, headers), `offertalogica-analytics-completo-${exportRangeLabel}-${date}.csv`);
     } catch (error) {
@@ -2933,7 +2974,8 @@ export default async function handler(req, res) {
       const source = String(url.searchParams.get("source") || "").slice(0,80);
       const measurementValue = String(url.searchParams.get("measurement") || "all");
       const measurement = FUNNEL_MEASUREMENT_MODES.has(measurementValue)?measurementValue:"all";
-      const page = funnelPage(snapshot,{page:url.searchParams.get("page"),source,measurement});
+      const behavior = url.searchParams.get("behavior")==="oli"?"oli":"all";
+      const page = funnelPage(snapshot,{page:url.searchParams.get("page"),source,measurement,behavior,eventType:String(url.searchParams.get("eventType")||"").slice(0,80),search:String(url.searchParams.get("search")||"").trim().slice(0,120)});
       const includeDiagnostics = url.searchParams.get("diagnostics")==="1";
       const includePdf = url.searchParams.get("pdf")==="1";
       const changed = requestedId !== entry.id;

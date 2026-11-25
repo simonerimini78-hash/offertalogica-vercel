@@ -154,6 +154,11 @@
     business_lead_modal_requested: "Contatto business richiesto",
     business_photovoltaic_tool_opened: "Fotovoltaico business aperto",
     comparison_incomplete_data: "Confronto: dati incompleti",
+    comparison_implausible_data: "Confronto: dati non plausibili",
+    navigation_menu_opened: "Menu navigazione aperto",
+    switcho_direct_opened: "Switcho aperto direttamente",
+    alternative_offer_request_started: "Richiesta alternativa avviata",
+    alternative_offer_request_verified: "Richiesta alternativa verificata",
     comparison_started: "Confronto avviato",
     comparison_missing_current_price: "Confronto: tariffa attuale incompleta",
     comparison_completed: "Confronto completato",
@@ -200,7 +205,12 @@
     partner_funnel_opened: "Percorso partner aperto",
     assistance_prompt_shown: "Invito assistenza mostrato",
     assistance_prompt_closed: "Invito assistenza chiuso",
-    assistance_guide_opened: "Guida assistenza aperta",
+    assistance_guide_opened: "OLI: guida aperta",
+    oli_action_clicked: "OLI: scelta",
+    oli_closed: "OLI: chiusura",
+    oli_stage_changed: "OLI: cambio fase",
+    oli_resource_clicked: "OLI: guida selezionata",
+    oli_navigation_requested: "OLI: navigazione richiesta",
     assistance_callback_started: "Richiamata richiesta",
     assistance_callback_verified: "Richiamata verificata",
     pdf_no_file_selected: "Nessuna bolletta selezionata",
@@ -1931,6 +1941,28 @@
     });
   }
 
+  const OLI_ACTION_LABELS = {pdf:"PDF",foto:"Foto",media:"Stima ARERA",manuale:"Manuale",business:"Business",completa:"Completa dati",avvia:"Avvia confronto",offerte:"Vai alle offerte",contatti:"Assistenza",privacy:"Privacy"};
+  const OLI_EVENT_TYPES = new Set(["assistance_guide_opened","oli_action_clicked","oli_closed","oli_stage_changed","oli_resource_clicked","oli_navigation_requested"]);
+  function oliEventDescription(event) {
+    const item = event.item || event.payload?.item || "";
+    const names = {desktop_toggle:"pulsante desktop",mobile_toggle:"pulsante mobile",programmatic:"apertura contestuale",landing_resume:"ripresa dalla landing",close_button:"pulsante chiudi",escape:"tasto Escape",action:"dopo una scelta",offers_focus:"passaggio alle offerte",calculator:"calcolatore",offers_card:"card delle offerte",contact_form:"modulo assistenza"};
+    const label=OLI_ACTION_LABELS[item]||names[item]||item;
+    const context=event.context || event.payload?.context || "";
+    const stage=String(event.placement || event.payload?.placement || "").match(/^oli_step_([1-4])$/)?.[1];
+    return `${staffEventLabel(event.eventType)}${label?` · ${label}`:" · dettaglio storico non disponibile"}${context?` · ${OLI_ACTION_LABELS[context]||context}`:""}${stage?` · fase ${stage}/4`:""}`;
+  }
+  function renderOliSummary(target, oli) {
+    clear(target); if (!target) return;
+    if (!oli) { target.append(node("small",{text:"Dati OLI non disponibili per questa risposta."})); return; }
+    const expanded=Boolean(target.dataset.expanded==="1");
+    const summary = node("p",{text:`${formatNumber(oli.sessions)} sessioni con OLI · ${formatNumber(oli.opens)} aperture · ${formatNumber(oli.actions)} scelte in ${formatNumber(oli.sessionsWithChoice)} sessioni`});
+    const openingBreakdown = node("small",{text:`Aperture volontarie da pulsante: ${formatNumber(oli.desktopOpens||0)} desktop e ${formatNumber(oli.mobileOpens||0)} mobile · Contestuali ${formatNumber(oli.contextualOpens||0)} · Riprese dalla landing ${formatNumber(oli.resumed||0)} · Storiche non attribuibili ${formatNumber(oli.legacyOpens||0)}. Scelte: ${formatNumber(oli.landingActions||0)} dalla landing, ${formatNumber(oli.calculatorActions||0)} dal calcolatore.`});
+    target.append(summary,openingBreakdown,node("small",{text:`Chiusure ${formatNumber(oli.closed)} (esplicite ${formatNumber(oli.explicitClosed)}) · Guide ${formatNumber(oli.resources)} · Navigazioni richieste ${formatNumber(oli.navigation)} · Cambi fase ${formatNumber(oli.stages)}. Il tracking storico non distingue le scelte; zero non significa che OLI non sia stato usato.`}));
+    const table = node("div",{className:"table-wrap"},[node("table",{className:"data-table analytics-compact-table"},[node("thead",{},[node("tr",{},[node("th",{text:"Scelta OLI"}),node("th",{text:"Clic registrati"})])]),node("tbody",{},Object.entries(OLI_ACTION_LABELS).map(([key,label])=>node("tr",{},[node("td",{text:label}),node("td",{text:formatNumber(oli.choices?.[key]||0)})])))])]);
+    const details=node("details",{className:"analytics-details"},[node("summary",{text:"Tutte le scelte OLI"}),table]);
+    details.open=expanded; details.addEventListener("toggle",()=>{target.dataset.expanded=details.open?"1":"0";});
+    target.append(details);
+  }
   function renderCompactAnalyticsFunnel(target, funnel = {}, timings = {}) {
     if (!target) return;
     const secondaryOpen=Boolean(target.querySelector("details")?.open);
@@ -1944,8 +1976,8 @@
     const used = new Set();
     for (const [label, keys] of groups) {
       keys.forEach(key=>used.add(key));
-      const grid = node("div", {className:"funnel"});
-      target.append(node("h4", {text:label, attrs:{style:"margin:12px 0 8px"}}),grid);
+      const grid = node("div", {className:keys.includes("entries")?"funnel":"funnel analytics-funnel-dense"});
+      target.append(node("h4", {text:label, attrs:{style:"margin:10px 0 6px"}}),grid);
       renderSessionFunnel(grid,funnel,keys.map(key=>sessionFunnelDefinitions.find(item=>item[0]===key)).filter(Boolean));
       if (keys.includes("newSelfService")) {
         const click=Number(funnel.newSelfService||0), reached=Number(funnel.newReachedAfterClick||0), viewed=Number(funnel.newViewedAfterClick||0);
@@ -1956,7 +1988,7 @@
     const routeKeys = new Set(["averageSelected","photoSelected","pdfSelected","manualSelected","guidedSelected","businessCalculated"]);
     const secondary = node("details",{className:"analytics-details"});
     secondary.open=secondaryOpen;
-    const secondaryGrid = node("div",{className:"funnel"});
+    const secondaryGrid = node("div",{className:"funnel analytics-funnel-dense"});
     secondary.append(node("summary",{text:"Altri passaggi, verifiche e personalizzazione"}),secondaryGrid);
     renderSessionFunnel(secondaryGrid,funnel,sessionFunnelDefinitions.filter(([key])=>!used.has(key)&&!routeKeys.has(key)));
     target.append(secondary);
@@ -1968,6 +2000,21 @@
     }
   }
 
+  function renderTrafficComparison(target, rows=[], funnels={}) {
+    clear(target); if (!target) return;
+    if (!rows.length) { target.append(node("div",{className:"empty",text:"Nessuna sessione nel mese visualizzato"})); return; }
+    const header=["Provenienza","Sessioni","Autonomia","Guidato","Offerte viste","Switcho","Partner / fornitore","OLI"];
+    const table=node("table",{className:"data-table analytics-compact-table"},[
+      node("thead",{},[node("tr",{},header.map(label=>node("th",{text:label})))]),
+      node("tbody",{},rows.map(item=>{
+        const f=funnels[item.key];
+        const select=node("button",{className:"button secondary compact",type:"button",text:item.label||analyticsSourceLabel(item.key)});
+        select.addEventListener("click",()=>{const filter=byId("analyticsSourceFilter"); if(filter){filter.value=item.key;filter.dispatchEvent(new Event("change",{bubbles:true}));}});
+        const values=[item.count,f?.selfServiceSelected,f?.assistedSelected,f?.offersViewed,f?.switcho,f?.partnerRedirects,f?.oli?.sessions];
+        return node("tr",{},[node("td",{},[select]),...values.map(value=>node("td",{text:value==null?"—":formatNumber(value)}))]);
+      }))]);
+    target.append(node("div",{className:"table-wrap"},[table]),node("small",{text:"Clicca sulla provenienza per filtrare funnel e sessioni. Le colonne sono conteggi di sessioni distinte e non vanno sommate."}));
+  }
   function renderRankList(target, rows = [], emptyLabel = "Nessun dato") {
     clear(target);
     if (!rows.length) {
@@ -2112,7 +2159,7 @@
     "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect",
     "offer_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect",
     "offer_request_recorded", "offer_request_failed", "business_photovoltaic_tool_opened",
-    "session_engagement", "article_view", "cookie_consent_choice"
+    "session_engagement", "article_view", "cookie_consent_choice", "assistance_guide_opened", "oli_action_clicked", "oli_closed", "oli_stage_changed", "oli_resource_clicked", "oli_navigation_requested"
   ];
 
   function analyticsOrigin(event = {}) {
@@ -2155,7 +2202,7 @@
     if (!byId("analyticsArchiveDetails")?.open || !cache.archiveLoaded) return;
     const selectedOrigin = originSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
-    const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
+    const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...Object.keys(STAFF_EVENT_LABELS_IT), ...observedEventTypes])].sort();
     const validFilters = new Set(["__lead_otp__", ...eventTypes]);
     [...selectedAnalyticsEventFilters].forEach(value => { if (!validFilters.has(value)) selectedAnalyticsEventFilters.delete(value); });
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
@@ -2339,6 +2386,7 @@
   }
 
   function analyticsEventValueText(event = {}) {
+    if (OLI_EVENT_TYPES.has(String(event.eventType || ""))) return oliEventDescription(event);
     if (String(event.eventType || "") === "article_view") return [event.articleTitle || event.articleSlug || "articolo", event.articleCategory || ""].filter(Boolean).join(" · ");
     if (String(event.eventType || "") === "cookie_consent_choice") return event.consentAction === "accept" ? "cookie accettati" : event.consentAction === "reject" ? "cookie rifiutati" : "preferenze cookie aperte";
     if (String(event.eventType || "") === "session_engagement") {
@@ -2407,7 +2455,7 @@
     "offer_request_started", "offer_verified_direct_redirect", "offer_request_recorded", "offer_request_failed", "offer_switcho_redirect",
     "activation_channel_choice_opened", "activation_channel_selected", "provider_site_redirect",
     "switcho_landing_opened", "offer_redirect", "partner_funnel_opened",
-    "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened",
+    "assistance_prompt_shown", "assistance_prompt_closed", "assistance_guide_opened", "oli_action_clicked", "oli_closed", "oli_stage_changed", "oli_resource_clicked", "oli_navigation_requested",
     "assistance_callback_started", "assistance_callback_verified", "assistance_switcho_redirect",
     "business_switcho_requested", "business_calculation_completed", "business_calculation_incomplete", "switcho_direct_opened",
     "article_view", "cookie_consent_choice",
@@ -2691,6 +2739,7 @@
 
   function analyticsSessionEventDescription(item = {}, sessionRows = []) {
     const type = String(item.eventType || "");
+    if (OLI_EVENT_TYPES.has(type)) return oliEventDescription(item);
     const origin = item.dataOrigin ? staffDataOriginLabel(item) : "";
     const offers = Number(item.visibleOffersCount);
     const saving = Number(item.bestSaving);
@@ -2828,7 +2877,7 @@
     return [
       item.eventType, item.pathChoice, item.dataOrigin, item.analysisStatus, item.diagnosticCode,
       item.offerId, item.articleSlug, item.consentAction, item.visibleOffersCount, item.bestSaving,
-      item.destinationType, item.destination, item.item, item.section, item.service, item.actionKind, item.page, item.reason, item.trigger, item.pdfUploadSource, item.pdfUploadOfferId,
+      item.destinationType, item.destination, item.item, item.section, item.service, item.actionKind, item.page, item.reason, item.trigger, item.pdfUploadSource, item.pdfUploadOfferId, item.context, item.placement,
     ].map(value => String(value ?? "")).join("|");
   }
 
@@ -2861,7 +2910,7 @@
   }
 
   function analyticsReadableSessionRows(rows = []) {
-    const main = rows.filter(item => SESSION_MAIN_EVENT_TYPES.has(String(item.eventType || "")) && !analyticsReadableGenericActionRedundant(item, rows));
+    const main = rows.filter(item => String(item.eventType || "") !== "session_engagement");
     const out = [];
     let previousPath = "";
     main.forEach(item => {
@@ -3453,6 +3502,10 @@
     return item?.label || known[key] || key || "Tutte le provenienze";
   }
 
+  function formatAnalyticsEventTime(value) {
+    if(!value)return "—"; const date=new Date(value); if(Number.isNaN(date.getTime()))return "—";
+    return new Intl.DateTimeFormat("it-IT",{day:"2-digit",month:"2-digit",year:"numeric",hour:"2-digit",minute:"2-digit",second:"2-digit"}).format(date);
+  }
   function renderAnalyticsSessionTechnicalRows(rows = []) {
     const technicalList = byId("analyticsSessionTechnicalEvents");
     if (!technicalList) return;
@@ -3462,7 +3515,7 @@
       const offer = [item.provider, item.offerName].filter(Boolean).join(" · ");
       const detail = [origin, offer, analyticsEventValueText(item) !== "—" ? analyticsEventValueText(item) : ""].filter(Boolean).join(" · ") || "—";
       const sequenceLabel = item.sessionEventSeq != null ? ` · seq ${item.sessionEventSeq}` : "";
-      const clientLabel = item.clientTimestamp ? ` · client ${formatDate(item.clientTimestamp)}` : "";
+      const clientLabel = item.clientTimestamp ? ` · client ${formatAnalyticsEventTime(item.clientTimestamp)}` : "";
       const csvButton = node("button", { className: "button secondary compact", type: "button", text: "CSV evento" });
       csvButton.addEventListener("click", () => { void downloadAnalyticsMappedCsv([item], `offertalogica-evento-${item.id}-${new Date().toISOString().slice(0, 10)}.csv`, "analytics_event"); });
       const payloadDetails = node("details", { className: "analytics-raw-payload" }, [
@@ -3470,7 +3523,7 @@
         node("pre", { text: JSON.stringify(item.payload || {}, null, 2) }),
       ]);
       technicalList.append(node("div", { className: "analytics-session-event technical" }, [
-        node("time", { text: formatDate(item.createdAt) }),
+        node("time", { text: formatAnalyticsEventTime(item.createdAt) }),
         node("div", {}, [badge(staffEventLabel(item), "info"), node("small", { text: `#${item.id}${sequenceLabel}${clientLabel}` })]),
         node("div", {}, [
           node("strong", { text: staffEngagementReasonLabel(item.engagementReason) || item.reason || "Dettaglio tecnico" }),
@@ -3624,6 +3677,7 @@
       const steps=[has("comparison_started")?"avviato":"",has("comparison_completed")||has("business_calculation_completed")?"completato":"",subset.some(item=>item.eventType==="offers_rendered"&&item.payload?.offersMeasurementVersion!=="141")?"arrivo storico":"",has("offers_reached")?"classifica raggiunta":"",has("offers_viewed")?"offerta vista":"",has("offer_card_clicked")?"card cliccata":""].filter(Boolean);
       sessionFacts.push(node("div",{},[node("span",{text:journeyRouteName(route)||route}),node("strong",{text:steps.join(" → ")||"Percorso rilevato"})]));
     }
+    if (rows.some(item=>OLI_EVENT_TYPES.has(item.eventType))) sessionFacts.push(node("div",{},[node("span",{text:"OLI"}),node("strong",{text:`${rows.filter(item=>item.eventType==="assistance_guide_opened").length} aperture · ${rows.filter(item=>item.eventType==="oli_action_clicked").length} scelte`})]));
     if (rows.some(item=>item.eventType==="offers_bill_prompt_shown")) sessionFacts.push(node("div",{},[node("span",{text:"Popup automatico"}),node("strong",{text:rows.some(item=>item.eventType==="offers_bill_prompt_accepted")?"Visualizzato · accettazione registrata":rows.some(item=>item.eventType==="offers_bill_prompt_closed")?"Visualizzato · chiusura registrata":"Visualizzato · nessuna azione rilevata"})]));
     if (rows.some(item=>item.eventType==="offers_bill_prompt_clicked" && (item.pdfUploadSource||item.payload?.pdfUploadSource)==="offers_personalization")) sessionFacts.push(node("div",{},[node("span",{text:"Invito personalizzazione"}),node("strong",{text:"Accettazione registrata"})]));
     if (renderedOfferEvent) {
@@ -3703,7 +3757,7 @@
     } else {
       readableRows.forEach(group => {
         const item = group.item;
-        const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_");
+        const isAutomatic = String(item.eventType || "").startsWith("assistance_prompt_") || item.eventType === "oli_stage_changed" || (item.eventType === "assistance_guide_opened" && ["programmatic","landing_resume"].includes(item.item)) || (item.eventType === "oli_closed" && ["action","offers_focus"].includes(item.item));
         const readableTone = analyticsReadableEventTone(item);
         const displayTimestamp = item.clientTimestamp || item.createdAt;
         const orderNote = item.sessionEventSeq != null
@@ -3713,7 +3767,7 @@
           ? `Ripetuto ${group.items.length} volte · seq ${group.items.map(row => row.sessionEventSeq ?? `ID ${row.id}`).join(", ")}`
           : "";
         list.append(node("div", { className: `analytics-session-event readable ${readableTone}` }, [
-          node("time", { text: formatDate(displayTimestamp) }),
+          node("time", { text: formatAnalyticsEventTime(displayTimestamp) }),
           node("div", {}, [badge(staffEventLabel(item), readableTone === "error" ? "danger" : readableTone), ...(group.items.length > 1 ? [node("span", { className: "analytics-session-repeat", text: `×${group.items.length}` })] : [])]),
           node("div", {}, [node("strong", { text: group.description }), node("small", { text: [isAutomatic ? "Evento automatico: non conta come azione dell’utente" : "", repeatNote, orderNote].filter(Boolean).join(" · ") })])
         ]));
@@ -3854,8 +3908,12 @@
     return "stage-neutral";
   }
 
+  byId("journeyFiltersReset")?.addEventListener("click",()=>{
+    for(const [id,value] of [["journeyMeasurementFilter","all"],["journeyBehaviorFilter","all"],["journeyEventTypeFilter",""],["journeySearch",""]]) if(byId(id))byId(id).value=value;
+    analyticsPages.journeys=1;requestFunnelPage();
+  });
   document.addEventListener("change", event => {
-    if (event.target?.id === "journeyMeasurementFilter") { analyticsPages.journeys = 1; requestFunnelPage(); }
+    if (["journeyMeasurementFilter","journeyBehaviorFilter","journeyEventTypeFilter","journeySearch"].includes(event.target?.id)) { analyticsPages.journeys = 1; requestFunnelPage(); }
   });
 
   const STAFF_JOURNEY_ROUTES = {average:"Profilo medio ARERA",manual:"Manuale",pdf:"PDF",photo:"Foto",guided:"Tre domande (stima)",business:"Business",document_unknown:"Documento non attribuibile"};
@@ -3868,22 +3926,37 @@
     for(const [key,label] of Object.entries(STAFF_JOURNEY_ROUTES)){
       const row=metrics[key]||{};
       const cell=stage=>node("td",{text:key==="business"&&["started","legacy","reached","viewed"].includes(stage)&&!row[stage]?"Non misurato":row[stage]==null?"—":formatNumber(row[stage])});
-      body.append(node("tr",{},[node("td",{text:label}),...["selected","started","completed","legacy","reached","viewed","card","redirect","request"].map(cell)]));
+      body.append(node("tr",{},[node("td",{text:label}),...["selected","started","completed","generated","legacy","reached","viewed","card","redirect","request"].map(cell)]));
     }
     text(byId("journeyRouteMetricsScope"),source?`Provenienza: ${analyticsSourceLabel(source)}`:"Tutte le provenienze · sessioni distinte per percorso");
   }
   function routeEvidenceText(row={}) {
     return Object.entries(row.percorsi_dettaglio||{}).filter(([,v])=>v.selected).map(([key,v])=>{
-      const steps=[v.started?"confronto avviato":"",v.completed?"completato":"",v.legacy?"arrivo storico":"",v.reached?"classifica raggiunta":"",v.viewed?"offerta vista":"",v.card?"card cliccata":"",v.redirect?"redirect":"",v.request?"richiesta":""].filter(Boolean);
+      const steps=[v.started?"confronto avviato":"",v.completed?"completato":"",v.generated?"classifica generata":"",v.legacy?"arrivo storico":"",v.reached?"classifica raggiunta":"",v.viewed?"offerta vista":"",v.card?"card cliccata":"",v.redirect?"redirect":"",v.request?"richiesta":""].filter(Boolean);
       return `${journeyRouteName(key)}: ${steps.join(" → ")||"percorso rilevato"}`;
     }).join(" · ");
+  }
+  function renderMonthlyEventFilter() {
+    const select=byId("journeyEventTypeFilter"); if (!select) return;
+    const previous=select.value;
+    const counts=cache.journeySummary?.sessionFunnel?.eventCounts||[];
+    // All channels' types remain selectable even when the selected channel has no matches.
+    select.replaceChildren(node("option",{value:"",text:"Qualsiasi evento"}),...counts.map(item=>node("option",{value:item.type,text:`${staffEventLabel(item.type)} · ${formatNumber(item.sessions)} sessioni`})));
+    if(previous && !counts.some(item=>item.type===previous)) select.append(node("option",{value:previous,text:`${staffEventLabel(previous)} · nessuna sessione`}));
+    select.value=previous;
+    const source=String(byId("analyticsSourceFilter")?.value||"");
+    const items=(source?cache.journeySummary?.sessionFunnelsBySource?.[source]?.eventCounts:counts)||[];
+    const body=byId("journeyEventInventoryRows"); clear(body);
+    if(body) for(const item of items) body.append(node("tr",{},[node("td",{text:staffEventLabel(item.type)}),node("td",{text:formatNumber(item.events)}),node("td",{text:formatNumber(item.sessions)})]));
   }
   function renderJourneyAnalytics() {
     const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
     const mode = byId("journeyMeasurementFilter")?.value || "all";
+    const behavior = byId("journeyBehaviorFilter")?.value || "all";
     const sourceFilter=String(byId("analyticsSourceFilter")?.value||"");
-    const rows = cache.journeyPage ? allRows : allRows.filter(row => (!sourceFilter||row.source===sourceFilter) && (mode === "all" || row.misurazione_offerte === mode));
+    const rows = cache.journeyPage ? allRows : allRows.filter(row => (!sourceFilter||row.source===sourceFilter) && (mode === "all" || row.misurazione_offerte === mode) && (behavior!=="oli" || row.oli?.events>0));
     renderJourneyRouteMetrics();
+    renderMonthlyEventFilter();
     const body = byId("journeyRows");
     if (!body) return;
     if(cache.funnelLoading)return;
@@ -3898,12 +3971,12 @@
       const comparisonBasis = row.percorso_base ? ` · ${row.percorso_base}` : "";
       const measuredSteps = [String(row.scelta_percorso || "").includes("autonomia") ? "Clic autonomia" : "", row.classifica_raggiunta ? "Classifica raggiunta" : "", row.offerte_storico ? "Arrivo (storico)" : "", row.offerte_visualizzate ? "Offerte viste" : "", row.card_cliccata ? "Card cliccata" : ""].filter(Boolean).join(" → ");
       body.append(node("tr", {}, [
-        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: [row.device, Number(row.tempo_attivo_secondi)>0?`${formatNumber(row.tempo_attivo_secondi)} s attivi`:"tempo attivo non misurato"].filter(Boolean).join(" · ") })]),
+        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: [({m:"Mobile",c:"Computer",t:"Tablet"})[row.device]||row.device, Number(row.tempo_attivo_secondi)>0?`${formatDurationSeconds(row.tempo_attivo_secondi)} attivi`:"tempo attivo non misurato"].filter(Boolean).join(" · ") })]),
         node("td", { className: "analytics-journey-intent" }, [node("strong", { text: intent }), node("small", { text: intentBasis })]),
         node("td", {}, [node("strong", { text: source }), node("small", { text: [row.campaign, row.term].filter(Boolean).join(" · ") })]),
         node("td", { text: row.scelta_percorso || "—" }),
         node("td", {}, [node("strong", { text: comparison }), node("small", { text: comparisonBasis.replace(/^ · /, "") })]),
-        node("td", {}, [badge(row.esito_sessione || "—", analyticsJourneyOutcomeTone(row)), node("small", { text: [row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "", row.misurazione_offerte ? `Tracking: ${row.misurazione_offerte}` : ""].filter(Boolean).join(" · ") }), node("small", { text: measuredSteps }), node("small", { text: routeEvidenceText(row) })]),
+        node("td", {}, [badge(row.esito_sessione || "—", analyticsJourneyOutcomeTone(row)), node("small", { text: [row.abbandono_fase ? `Ultima fase: ${row.abbandono_fase}` : "", row.misurazione_offerte ? `Tracking: ${row.misurazione_offerte}` : ""].filter(Boolean).join(" · ") }), node("small", { text: measuredSteps }), node("small", { text: routeEvidenceText(row) }), ...(row.oli?.events?[node("small",{text:`OLI · ${row.oli.opens} aperture · ${row.oli.actions} scelte`})]:[])]),
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
@@ -4207,12 +4280,13 @@
     text(byId("analyticsLinkedLeads"), formatNumber(summary.linkedLeads || 0));
     text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerifiedAfterSent || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
     renderCompactAnalyticsFunnel(byId("analyticsFunnel"), sessionFunnel, sourceFilter ? cache.funnelTimings?.bySource?.[sourceFilter] : cache.funnelTimings?.all);
+    renderOliSummary(byId("analyticsOliSummary"), sessionFunnel.oli);
     if (byId("analyticsDiagnostics")?.open && cache.diagnosticsLoaded) {
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderOfferRoutingRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
     renderOfferRoutingRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
     }
-    renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione nel mese visualizzato");
+    renderTrafficComparison(byId("analyticsTrafficSources"), fullSummary.trafficSources || summary.trafficSources || [], sourceFunnels);
     const baseline = cache.analyticsBaseline || {};
     const period = cache.analyticsPeriod && typeof cache.analyticsPeriod === "object" ? cache.analyticsPeriod : {};
     text(byId("analyticsBaseline"), period.month
@@ -4639,7 +4713,7 @@
     const month=analyticsSelectedMonth(), landingRange=String(byId("landingPathRange")?.value||"30d");
     const source=String(byId("analyticsSourceFilter")?.value||""), measurement=String(byId("journeyMeasurementFilter")?.value||"all");
     const diagnostics=Boolean(byId("analyticsDiagnostics")?.open), pdf=diagnostics&&Boolean(byId("analyticsPdfDetails")?.open);
-    const query=new URLSearchParams({mode:"funnel",month,landingRange,source,measurement,page:String(analyticsPages.journeys),pdfPage:String(analyticsPages.pdf),snapshot:cache.funnelSnapshot,snapshotTo:cache.funnelSnapshot?String(cache.analyticsPeriod?.to||""):"",refresh:refresh?"1":"0",diagnostics:diagnostics?"1":"0",pdf:pdf?"1":"0"});
+    const query=new URLSearchParams({mode:"funnel",month,landingRange,source,measurement,behavior:byId("journeyBehaviorFilter")?.value||"all",eventType:byId("journeyEventTypeFilter")?.value||"",search:byId("journeySearch")?.value?.trim()||"",page:String(analyticsPages.journeys),pdfPage:String(analyticsPages.pdf),snapshot:cache.funnelSnapshot,snapshotTo:cache.funnelSnapshot?String(cache.analyticsPeriod?.to||""):"",refresh:refresh?"1":"0",diagnostics:diagnostics?"1":"0",pdf:pdf?"1":"0"});
     try {
       const payload=await staffFetch(`/api/staff-analytics?${query}`);
       if(sequence!==analyticsLoadSequence || month!==analyticsSelectedMonth())return;
@@ -4674,6 +4748,7 @@
       cache.funnelLoading=false;setMessage("error",friendlyError(error));
       const body=byId("journeyRows");if(body){clear(body);body.append(node("tr",{},[node("td",{text:"Dati non disponibili. Premi Aggiorna per riprovare.",attrs:{colspan:"7"}})]));}
       text(byId("analyticsFunnel"),"Dati non aggiornati. Premi Aggiorna per riprovare.");
+      text(byId("analyticsOliSummary"),"Dati OLI non aggiornati."); clear(byId("journeyEventInventoryRows"));
     }}
   }
 
@@ -4682,7 +4757,7 @@
     cache.analytics=[];cache.archiveLoaded=false;cache.diagnosticsLoaded=false;cache.pdfPage=null;cache.funnelSnapshot="";
     cache.journeyPage=null;cache.journeys=[];cache.journeySummary={};cache.analyticsSummary={};cache.funnelTimings={};
     cache.landingPath=null;cache.switcho={rows:[],summary:{}};cache.offerRoutes={summary:{}};cache.photoJourneySummary={};
-    clear(byId("analyticsTimingRows"));clear(byId("journeyRouteMetricsRows"));clear(byId("analyticsTrafficSources"));
+    clear(byId("analyticsTimingRows"));clear(byId("journeyRouteMetricsRows"));clear(byId("analyticsTrafficSources"));clear(byId("journeyEventInventoryRows"));text(byId("analyticsOliSummary"),"Caricamento dati OLI…");
     text(byId("analyticsFunnel"),"Caricamento del mese selezionato…");clear(byId("journeyRows"));clear(byId("journeyPagination"));
     Object.keys(analyticsPages).forEach(key=>{analyticsPages[key]=1;});
     await requestFunnelPage({refresh:true,silent});
