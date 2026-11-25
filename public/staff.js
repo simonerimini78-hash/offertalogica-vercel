@@ -31,6 +31,7 @@
   let analyticsLoadSequence = 0;
   let analyticsSummarySequence = 0;
   let analyticsSessionRows = [];
+  let analyticsSessionSequence = 0;
   let selectedSupplierKey = "";
   let supplierPickerActiveIndex = -1;
   let selectedRegistrySupplierId = "";
@@ -47,9 +48,17 @@
     supplierNumbers: [],
     analytics: [],
     analyticsSummary: {},
+    overviewAnalyticsSummary: {},
     analyticsAggregationMode: "",
     journeyWindow: null,
     journeys: [],
+    journeyPage: null,
+    pdfPage: null,
+    funnelSnapshot: "",
+    funnelLoading: false,
+    funnelTimings: {},
+    diagnosticsLoaded: false,
+    archiveLoaded: false,
     journeySummary: {},
     switcho: { rows: [], summary: {} },
     offerRoutes: { summary: {} },
@@ -1890,11 +1899,11 @@
     ])));
   }
 
-  function renderSessionFunnel(target, funnel = {}) {
+  function renderSessionFunnel(target, funnel = {}, definitions = sessionFunnelDefinitions) {
     clear(target);
     if (!target) return;
     const entries = Number(funnel.entries || 0);
-    sessionFunnelDefinitions.forEach(([key, label]) => {
+    definitions.forEach(([key, label]) => {
       const count = Number(funnel[key] || 0);
       const offersViewed = Number(funnel.offersViewed || 0);
       const cardClickedStandard = Number(funnel.cardClickedStandard || 0);
@@ -1910,7 +1919,7 @@
         : key === "entries"
         ? "Sessioni uniche"
         : key === "cardClicked"
-          ? (offersViewed ? `${formatNumber((Number(funnel.cardClickedWithView || 0) / offersViewed) * 100, 1)}% con clic successivo alla visione della stessa classifica` : "— delle sessioni che hanno visto offerte")
+          ? (offersViewed ? `${formatNumber((Number(funnel.cardClickedWithView || 0) / offersViewed) * 100, 1)}% con clic dopo visione della stessa classifica · standard ${formatNumber(funnel.cardClickedStandard||0)}, personalizzate ${formatNumber(funnel.cardClickedPrecise||0)}, stimate ${formatNumber(funnel.cardClickedEstimated||0)}` : `— tasso non misurato · standard ${formatNumber(funnel.cardClickedStandard||0)}, personalizzate ${formatNumber(funnel.cardClickedPrecise||0)}, stimate ${formatNumber(funnel.cardClickedEstimated||0)}`)
           : key === "billPersonalizationFromOffer"
             ? (cardClickedStandard ? `${formatNumber((count / cardClickedStandard) * 100, 1)}% delle card standard cliccate` : "— delle card standard cliccate")
             : entries
@@ -1920,6 +1929,43 @@
         node("strong", { text: count }), node("span", { text: label }), node("small", { text: detail })
       ]));
     });
+  }
+
+  function renderCompactAnalyticsFunnel(target, funnel = {}, timings = {}) {
+    if (!target) return;
+    const secondaryOpen=Boolean(target.querySelector("details")?.open);
+    clear(target);
+    const groups = [
+      ["Ingressi e risultati commerciali", ["entries","selfServiceSelected","assistedSelected","offersReached","offersViewed","cardClicked","switcho","partnerRedirects","requestRecorded"]],
+      ["Autonomia — nuovo tracking (stessa sequenza)", ["newSelfService","newReachedAfterClick","newViewedAfterClick"]],
+      ["Storico — criterio precedente", ["offersLegacy"]],
+      ["Popup automatico di personalizzazione", ["popupShown","popupAcceptedMeasured","popupClosedMeasured","popupNoAction","popupCompleted","popupCard"]],
+    ];
+    const used = new Set();
+    for (const [label, keys] of groups) {
+      keys.forEach(key=>used.add(key));
+      const grid = node("div", {className:"funnel"});
+      target.append(node("h4", {text:label, attrs:{style:"margin:12px 0 8px"}}),grid);
+      renderSessionFunnel(grid,funnel,keys.map(key=>sessionFunnelDefinitions.find(item=>item[0]===key)).filter(Boolean));
+      if (keys.includes("newSelfService")) {
+        const click=Number(funnel.newSelfService||0), reached=Number(funnel.newReachedAfterClick||0), viewed=Number(funnel.newViewedAfterClick||0);
+        target.append(node("small",{text:`Senza arrivo registrato dopo il clic: ${formatNumber(Math.max(0,click-reached))} · Senza visione registrata dopo l’arrivo: ${formatNumber(Math.max(0,reached-viewed))}. Solo coorte con nuovo tracking.`}));
+      }
+    }
+    // Modalities already have their own non-duplicated table below.
+    const routeKeys = new Set(["averageSelected","photoSelected","pdfSelected","manualSelected","guidedSelected","businessCalculated"]);
+    const secondary = node("details",{className:"analytics-details"});
+    secondary.open=secondaryOpen;
+    const secondaryGrid = node("div",{className:"funnel"});
+    secondary.append(node("summary",{text:"Altri passaggi, verifiche e personalizzazione"}),secondaryGrid);
+    renderSessionFunnel(secondaryGrid,funnel,sessionFunnelDefinitions.filter(([key])=>!used.has(key)&&!routeKeys.has(key)));
+    target.append(secondary);
+    const body = byId("analyticsTimingRows");
+    clear(body);
+    if (body) for (const [key,label] of Object.entries({active:"Tempo attivo totale",landing:"Landing",calculator:"Calcolatore",offers:"Fase offerte",otp:"Verifica contatto",firstAction:"Prima azione",reach:"Raggiungimento fase offerte"})) {
+      const item = timings[key] || {};
+      body.append(node("tr",{},[node("td",{text:label}),node("td",{text:item.median==null?"—":`${formatNumber(item.median,1)} s`}),node("td",{text:formatNumber(item.measured||0)})]));
+    }
   }
 
   function renderRankList(target, rows = [], emptyLabel = "Nessun dato") {
@@ -2024,6 +2070,13 @@
     if (!ensureLandingTrafficMetrics()) return;
     const landing = cache.landingPath;
     const traffic = landing?.traffic || {};
+    const num = value=>landing?.ok?formatNumber(value||0):"—";
+    for (const [id,key] of Object.entries({landingPathViews:"views",landingPathSelections:"totalSelections",landingPathSelfCount:"selfServiceClicks",landingPathAssistedCount:"assistedClicks"})) text(byId(id),num(landing?.[key]));
+    for (const [id,key,bar] of [["landingPathSelfShare","selfServiceShare","landingPathSelfBar"],["landingPathAssistedShare","assistedShare","landingPathAssistedBar"]]) {
+      const value=landing?.[key]; text(byId(id),value==null?"—":`${formatNumber(value,1)}%`);
+      if(byId(bar))byId(bar).style.width=`${Math.min(100,Math.max(0,Number(value)||0))}%`;
+    }
+    text(byId("landingPathStatus"),landing?.ok?"Conteggi del periodo selezionato. Le percentuali confrontano i click sui due percorsi; non sono vendite.":"Statistiche landing non disponibili.");
     const available = Boolean(landing?.ok && landing?.configured !== false);
     const probable = Number(traffic.probablePersonViews);
     const knownBot = Number(traffic.knownBotViews);
@@ -2094,16 +2147,18 @@
     const sourceSelect = byId("analyticsSourceFilter");
     if (!compatibilitySelect || !eventOptions || !originSelect || !sourceSelect) return;
 
-    const selectedOrigin = originSelect.value;
     const selectedSource = sourceSelect.value;
+    const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
+      ? cache.journeySummary.trafficSources : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
+    sourceSelect.replaceChildren(node("option",{value:"",text:"Tutte le provenienze"}),...trafficSources.map(item=>node("option",{value:String(item.key||""),text:`${item.label||item.key} (${formatNumber(item.count||0)})`})));
+    sourceSelect.value=trafficSources.some(item=>String(item.key||"")===selectedSource)?selectedSource:"";
+    if (!byId("analyticsArchiveDetails")?.open || !cache.archiveLoaded) return;
+    const selectedOrigin = originSelect.value;
     const observedEventTypes = cache.analytics.map(event => String(event.eventType || "").trim()).filter(Boolean);
     const eventTypes = [...new Set([...EXPECTED_ANALYTICS_EVENT_TYPES, ...observedEventTypes])].sort();
     const validFilters = new Set(["__lead_otp__", ...eventTypes]);
     [...selectedAnalyticsEventFilters].forEach(value => { if (!validFilters.has(value)) selectedAnalyticsEventFilters.delete(value); });
     const origins = [...new Set(cache.analytics.map(analyticsOrigin).filter(Boolean))].sort();
-    const trafficSources = Array.isArray(cache.journeySummary?.trafficSources) && cache.journeySummary.trafficSources.length
-      ? cache.journeySummary.trafficSources
-      : Array.isArray(cache.analyticsSummary?.trafficSources) ? cache.analyticsSummary.trafficSources : [];
 
     compatibilitySelect.replaceChildren(node("option", { value: "", text: "Tutti gli eventi" }));
     compatibilitySelect.value = "";
@@ -2130,15 +2185,7 @@
       node("option", { value: "", text: "Tutte le origini" }),
       ...origins.map(value => node("option", { value, text: staffDataOriginLabel(value) }))
     );
-    sourceSelect.replaceChildren(
-      node("option", { value: "", text: "Tutte le provenienze" }),
-      ...trafficSources.map(item => node("option", {
-        value: String(item.key || ""),
-        text: `${item.label || item.key} (${formatNumber(item.count || 0)})`
-      }))
-    );
     originSelect.value = origins.includes(selectedOrigin) ? selectedOrigin : "";
-    sourceSelect.value = trafficSources.some(item => String(item.key || "") === selectedSource) ? selectedSource : "";
     updateAnalyticsEventFilterUi();
   }
 
@@ -3436,6 +3483,7 @@
   }
 
   function closeAnalyticsSession() {
+    ++analyticsSessionSequence;
     analyticsSessionRows = [];
     const panel = byId("analyticsSessionPanel");
     if (panel) panel.hidden = true;
@@ -3477,6 +3525,7 @@
   async function openAnalyticsSession(event = {}) {
     const sessionId = String(event.sessionId || "");
     if (!sessionId) return;
+    const sequence=++analyticsSessionSequence;
     let rows = cache.analytics
       .filter(item => String(item.sessionId || "") === sessionId)
       .slice()
@@ -3484,6 +3533,7 @@
     try {
       setMessage("info", "Caricamento storico completo della sessione…");
       const payload = await staffFetch(`/api/staff-analytics?sessionId=${encodeURIComponent(sessionId)}&limit=5000`);
+      if(sequence!==analyticsSessionSequence)return;
       const completeRows = (Array.isArray(payload.events) ? payload.events : [])
         .filter(item => String(item.sessionId || "") === sessionId)
         .slice()
@@ -3493,6 +3543,7 @@
         setMessage("success", `Sessione completa caricata: ${rows.length} eventi.`);
       }
     } catch (error) {
+      if(sequence!==analyticsSessionSequence)return;
       if (!rows.length) {
         setMessage("error", `Impossibile caricare la sessione: ${friendlyError(error)}`);
         return;
@@ -3804,7 +3855,7 @@
   }
 
   document.addEventListener("change", event => {
-    if (event.target?.id === "journeyMeasurementFilter") { analyticsPages.journeys = 1; renderJourneyAnalytics(); }
+    if (event.target?.id === "journeyMeasurementFilter") { analyticsPages.journeys = 1; requestFunnelPage(); }
   });
 
   const STAFF_JOURNEY_ROUTES = {average:"Profilo medio ARERA",manual:"Manuale",pdf:"PDF",photo:"Foto",guided:"Tre domande (stima)",business:"Business",document_unknown:"Documento non attribuibile"};
@@ -3831,52 +3882,13 @@
     const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
     const mode = byId("journeyMeasurementFilter")?.value || "all";
     const sourceFilter=String(byId("analyticsSourceFilter")?.value||"");
-    const rows = allRows.filter(row => (!sourceFilter||row.source===sourceFilter) && (mode === "all" || row.misurazione_offerte === mode));
-    const fullSummary=cache.journeySummary||{};
-    const sourceSummary=fullSummary.sessionFunnelsBySource?.[sourceFilter]||{};
-    const summary=sourceFilter?{...sourceSummary,landingSelfService:sourceSummary.selfServiceSelected,landingAssisted:sourceSummary.assistedSelected,average:sourceSummary.averageSelected,photo:sourceSummary.photoSelected,pdf:sourceSummary.pdfSelected,manual:sourceSummary.manualSelected,guided:sourceSummary.guidedSelected,sessions:sourceSummary.entries}:fullSummary;
-    text(byId("journeySelfService"), formatNumber(summary.landingSelfService || 0));
-    text(byId("journeyAssisted"), formatNumber(summary.landingAssisted || 0));
-    text(byId("journeyAverage"), formatNumber(summary.average || 0));
-    text(byId("journeyPhoto"), formatNumber(summary.photo || 0));
-    text(byId("journeyPdf"), formatNumber(summary.pdf || 0));
-    text(byId("journeyManual"), formatNumber(summary.manual || 0));
-    text(byId("journeyGuided"), formatNumber(summary.guided || 0));
-    text(byId("journeyBusiness"), formatNumber(summary.businessCalculated || 0));
-    text(byId("journeyPopupShown"), summary.popupShown == null ? "—" : formatNumber(summary.popupShown));
-    text(byId("journeyPopupAcceptedMeasured"), summary.popupAcceptedMeasured == null ? "—" : formatNumber(summary.popupAcceptedMeasured));
-    text(byId("journeyPopupClosedMeasured"), summary.popupClosedMeasured == null ? "—" : formatNumber(summary.popupClosedMeasured));
-    text(byId("journeyPopupNoAction"), summary.popupNoAction == null ? "—" : formatNumber(summary.popupNoAction));
-    text(byId("journeyPopupActionUnpaired"), summary.popupActionUnpaired == null ? "—" : formatNumber(summary.popupActionUnpaired));
-    text(byId("journeyPopupMethod"), summary.popupMethod == null ? "—" : formatNumber(summary.popupMethod));
-    text(byId("journeyPopupCompleted"), summary.popupCompleted == null ? "—" : formatNumber(summary.popupCompleted));
-    text(byId("journeyPopupViewed"), summary.popupViewed == null ? "—" : formatNumber(summary.popupViewed));
-    text(byId("journeyPopupCard"), summary.popupCard == null ? "—" : formatNumber(summary.popupCard));
-    text(byId("journeyPopupLegacyAccepted"), summary.popupLegacyAccepted == null ? "—" : formatNumber(summary.popupLegacyAccepted));
-    text(byId("journeyPopupLegacyDismissed"), summary.popupLegacyDismissed == null ? "—" : formatNumber(summary.popupLegacyDismissed));
-    text(byId("journeyPopupRate"), summary.popupShown > 0 ? `${formatNumber(100 * Number(summary.popupAcceptedMeasured || 0) / summary.popupShown, 1)}% dei popup visualizzati` : "— · nessuna comparsa misurata");
-    text(byId("journeyPopupCompletionRate"), summary.popupAcceptedMeasured > 0 ? `${formatNumber(100 * Number(summary.popupCompleted || 0) / summary.popupAcceptedMeasured, 1)}% delle accettazioni misurate` : "—");
-    text(byId("journeyPopupCardRate"), summary.popupCompleted > 0 ? `${formatNumber(100 * Number(summary.popupCard || 0) / summary.popupCompleted, 1)}% dei confronti sui consumi completati` : "—");
-    text(byId("journeyRequestRecorded"), formatNumber(summary.requestRecorded || 0));
+    const rows = cache.journeyPage ? allRows : allRows.filter(row => (!sourceFilter||row.source===sourceFilter) && (mode === "all" || row.misurazione_offerte === mode));
     renderJourneyRouteMetrics();
-    text(byId("journeyOffersLegacy"), formatNumber(summary.offersLegacy || 0));
-    text(byId("journeyOffersReached"), formatNumber(summary.offersReached || 0));
-    text(byId("journeyNewClick"), formatNumber(summary.newSelfService || 0));
-    text(byId("journeyNewReached"), formatNumber(summary.newReachedAfterClick || 0));
-    text(byId("journeyNewViewed"), formatNumber(summary.newViewedAfterClick || 0));
-    text(byId("journeyOffers"), formatNumber(summary.offersViewed || 0));
-    text(byId("journeyCardClicks"), formatNumber(summary.cardClicked || 0));
-    const cardCtr = Number(summary.offersViewed || 0)
-      ? `${formatNumber((Number(summary.cardClickedWithView || 0) / Number(summary.offersViewed || 0)) * 100, 1)}%` : "—";
-    const cardSplit = `standard ${formatNumber(summary.cardClickedStandard || 0)} · personalizzate ${formatNumber(summary.cardClickedPrecise || 0)} · stimate ${formatNumber(summary.cardClickedEstimated || 0)}`;
-    text(byId("journeyCardMeta"), `Clic successivo alla visione della stessa classifica: ${cardCtr} · ${cardSplit}`);
-    text(byId("journeyPersonalization"), formatNumber(summary.billPersonalizationFromOffer || 0));
-    text(byId("journeySwitcho"), formatNumber(summary.switcho || 0));
-    text(byId("journeySessions"), formatNumber(summary.sessions ?? rows.length));
     const body = byId("journeyRows");
     if (!body) return;
+    if(cache.funnelLoading)return;
     clear(body);
-    const pageData = analyticsPageRows(rows, "journeys");
+    const pageData = cache.journeyPage ? {rows} : analyticsPageRows(rows, "journeys");
     if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione disponibile.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(row => {
       const source = analyticsSourceLabel(row.source || "direct");
@@ -3886,7 +3898,7 @@
       const comparisonBasis = row.percorso_base ? ` · ${row.percorso_base}` : "";
       const measuredSteps = [String(row.scelta_percorso || "").includes("autonomia") ? "Clic autonomia" : "", row.classifica_raggiunta ? "Classifica raggiunta" : "", row.offerte_storico ? "Arrivo (storico)" : "", row.offerte_visualizzate ? "Offerte viste" : "", row.card_cliccata ? "Card cliccata" : ""].filter(Boolean).join(" → ");
       body.append(node("tr", {}, [
-        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: row.device || "" })]),
+        node("td", {}, [node("strong", { text: formatDate(row.first_at) }), node("small", { text: [row.device, Number(row.tempo_attivo_secondi)>0?`${formatNumber(row.tempo_attivo_secondi)} s attivi`:"tempo attivo non misurato"].filter(Boolean).join(" · ") })]),
         node("td", { className: "analytics-journey-intent" }, [node("strong", { text: intent }), node("small", { text: intentBasis })]),
         node("td", {}, [node("strong", { text: source }), node("small", { text: [row.campaign, row.term].filter(Boolean).join(" · ") })]),
         node("td", { text: row.scelta_percorso || "—" }),
@@ -3895,7 +3907,7 @@
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
-    renderAnalyticsPagination(byId("journeyPagination"), rows.length, "journeys", renderJourneyAnalytics);
+    renderAnalyticsPagination(byId("journeyPagination"), cache.journeyPage?.total ?? rows.length, "journeys", () => requestFunnelPage());
   }
 
   function analyticsCellDetails(label, tone, title, lines = []) {
@@ -3934,7 +3946,7 @@
 
   function renderPdfJourneyAnalytics() {
     const allRows = Array.isArray(cache.journeys) ? cache.journeys : [];
-    const rows = allRows.filter(row => Boolean(row.pdf_scelto));
+    const rows = cache.pdfPage?.rows || [];
     const summary = cache.journeySummary || {};
     text(byId("pdfJourneySelected"), formatNumber(summary.pdf || 0));
     text(byId("pdfJourneyPicker"), formatNumber(summary.pdfPickerOpened || 0));
@@ -3947,7 +3959,7 @@
     const body = byId("pdfJourneyRows");
     if (!body) return;
     clear(body);
-    const pageData = analyticsPageRows(rows, "pdf");
+    const pageData = {rows};
     if (!rows.length) body.append(node("tr", {}, [node("td", { text: "Nessuna sessione PDF disponibile.", attrs: { colspan: "7" } })]));
     pageData.rows.forEach(row => {
       const steps = [
@@ -3987,7 +3999,7 @@
         node("td", {}, [node("div", { className: "row-actions" }, [journeySessionButton(row.session_id)])])
       ]));
     });
-    renderAnalyticsPagination(byId("pdfJourneyPagination"), rows.length, "pdf", renderPdfJourneyAnalytics);
+    renderAnalyticsPagination(byId("pdfJourneyPagination"), cache.pdfPage?.total ?? rows.length, "pdf", () => requestFunnelPage());
   }
 
   function renderPhotoJourneyAnalytics() {
@@ -4194,10 +4206,12 @@
     text(byId("analyticsSessions"), formatNumber(summary.attributedSessions || baseSessionFunnel.entries || 0));
     text(byId("analyticsLinkedLeads"), formatNumber(summary.linkedLeads || 0));
     text(byId("analyticsOtpRate"), sessionFunnel.otpSent ? `${Math.round((Number(sessionFunnel.otpVerifiedAfterSent || 0) / Number(sessionFunnel.otpSent)) * 100)}%` : "—");
-    renderSessionFunnel(byId("analyticsFunnel"), sessionFunnel);
+    renderCompactAnalyticsFunnel(byId("analyticsFunnel"), sessionFunnel, sourceFilter ? cache.funnelTimings?.bySource?.[sourceFilter] : cache.funnelTimings?.all);
+    if (byId("analyticsDiagnostics")?.open && cache.diagnosticsLoaded) {
     renderActivityFunnel(byId("analyticsActivity"), activityFunnel);
     renderOfferRoutingRankList(byId("analyticsProviders"), fullSummary.topProviders || summary.topProviders || [], "Nessun provider cliccato");
     renderOfferRoutingRankList(byId("analyticsOffers"), fullSummary.topOffers || summary.topOffers || [], "Nessuna offerta cliccata");
+    }
     renderRankList(byId("analyticsTrafficSources"), (fullSummary.trafficSources || summary.trafficSources || []).map((item) => ({ key: item.label || analyticsSourceLabel(item.key), count: item.count })), "Nessuna sessione nel mese visualizzato");
     const baseline = cache.analyticsBaseline || {};
     const period = cache.analyticsPeriod && typeof cache.analyticsPeriod === "object" ? cache.analyticsPeriod : {};
@@ -4210,19 +4224,21 @@
     const journeyScope = byId("analyticsJourneyScope");
     if (journeyScope) {
       const loaded = Number(cache.journeyWindow?.loadedEvents || 0);
-      journeyScope.textContent = cache.analyticsAggregationMode === "monthly_single_scan"
+      journeyScope.textContent = cache.analyticsAggregationMode === "monthly_paged" ? `Vista mensile: ${formatNumber(loaded)} eventi analizzati; 10 sessioni per pagina. Dettaglio completo su richiesta.` : cache.analyticsAggregationMode === "monthly_single_scan"
         ? `Vista mensile: KPI e sessioni sono calcolati sul mese selezionato (${formatNumber(loaded)} eventi), con una sola lettura server del periodo per ridurre il carico.`
         : ["database","full_journey_scan"].includes(cache.analyticsAggregationMode)
           ? `KPI calcolati sull’intero archivio. La tabella carica solo le sessioni recenti (${formatNumber(loaded)} eventi al massimo) per restare veloce; il CSV esporta il periodo completo.`
           : `Modalità compatibilità: KPI e tabella usano i dati recenti caricati (${formatNumber(loaded || cache.analytics.length)} eventi).`;
     }
-    renderLandingTraffic();
     renderJourneyAnalytics();
-    renderPdfJourneyAnalytics();
-    renderPhotoJourneyAnalytics();
-    renderSwitchoAnalytics();
-    renderOfferRouteAnalytics();
-
+    if (byId("analyticsDiagnostics")?.open && cache.diagnosticsLoaded) {
+      renderLandingTraffic();
+      if (byId("analyticsPdfDetails")?.open && cache.pdfPage) renderPdfJourneyAnalytics();
+      renderPhotoJourneyAnalytics();
+      renderSwitchoAnalytics();
+      renderOfferRouteAnalytics();
+    }
+    if (!byId("analyticsArchiveDetails")?.open || !cache.archiveLoaded) return;
     const filteredEvents = filteredAnalyticsEvents();
     const body = byId("analyticsRows");
     clear(body);
@@ -4596,39 +4612,89 @@
     if (!silent) setMessage("success", "Utilizzo strumenti aggiornato.");
   }
 
+  let analyticsArchiveSequence = 0;
+  let analyticsArchiveInFlight = false;
+  async function loadAnalyticsArchive() {
+    if (!byId("analyticsArchiveDetails")?.open || cache.archiveLoaded || analyticsArchiveInFlight) return;
+    const sequence=++analyticsArchiveSequence, month=analyticsSelectedMonth();
+    analyticsArchiveInFlight=true;
+    text(byId("analyticsFilterInfo"),"Caricamento archivio eventi…");
+    try {
+      const payload=await staffFetch(`/api/staff-analytics?mode=funnel-events&month=${encodeURIComponent(month)}`);
+      if(sequence!==analyticsArchiveSequence || month!==analyticsSelectedMonth())return;
+      cache.analytics=Array.isArray(payload.events)?payload.events:[];
+      cache.archiveLoaded=true;
+      if(!cache.funnelLoading)renderAnalytics();
+    } catch(error) { if(sequence===analyticsArchiveSequence)text(byId("analyticsFilterInfo"),`Archivio non disponibile: ${friendlyError(error)}`); }
+    finally { if(sequence===analyticsArchiveSequence)analyticsArchiveInFlight=false; }
+  }
+
+  async function requestFunnelPage({refresh=false,silent=true} = {}) {
+    const sequence=++analyticsLoadSequence;
+    cache.funnelLoading=true;
+    const loadingBody=byId("journeyRows");
+    if(loadingBody){clear(loadingBody);loadingBody.append(node("tr",{},[node("td",{text:"Caricamento sessioni…",attrs:{colspan:"7"}})]));}
+    clear(byId("journeyPagination"));
+    if(!silent)setMessage("info","Aggiornamento analytics…");
+    const month=analyticsSelectedMonth(), landingRange=String(byId("landingPathRange")?.value||"30d");
+    const source=String(byId("analyticsSourceFilter")?.value||""), measurement=String(byId("journeyMeasurementFilter")?.value||"all");
+    const diagnostics=Boolean(byId("analyticsDiagnostics")?.open), pdf=diagnostics&&Boolean(byId("analyticsPdfDetails")?.open);
+    const query=new URLSearchParams({mode:"funnel",month,landingRange,source,measurement,page:String(analyticsPages.journeys),pdfPage:String(analyticsPages.pdf),snapshot:cache.funnelSnapshot,snapshotTo:cache.funnelSnapshot?String(cache.analyticsPeriod?.to||""):"",refresh:refresh?"1":"0",diagnostics:diagnostics?"1":"0",pdf:pdf?"1":"0"});
+    try {
+      const payload=await staffFetch(`/api/staff-analytics?${query}`);
+      if(sequence!==analyticsLoadSequence || month!==analyticsSelectedMonth())return;
+      if(!payload.page || !Array.isArray(payload.page.rows))throw new Error("Risposta paginata analytics non disponibile");
+      const changed=cache.funnelSnapshot!==payload.snapshot;
+      cache.funnelSnapshot=payload.snapshot||"";
+      if(payload.summary)cache.analyticsSummary=payload.summary;
+      if(payload.journeySummary){cache.journeySummary=payload.journeySummary;cache.analyticsSummary=payload.journeySummary;}
+      if(payload.timings)cache.funnelTimings=payload.timings;
+      if(payload.landingPath)cache.landingPath=payload.landingPath;
+      if(payload.journeyWindow)cache.journeyWindow=payload.journeyWindow;
+      cache.analyticsAggregationMode=payload.aggregationMode;
+      cache.analyticsPeriod=payload.period;
+      cache.journeyPage=payload.page;cache.journeys=payload.page.rows;analyticsPages.journeys=payload.page.page;
+      if(changed){cache.diagnosticsLoaded=false;cache.pdfPage=null;}
+      if(payload.diagnostics){
+        cache.diagnosticsLoaded=true;cache.switcho=payload.diagnostics.switcho;cache.offerRoutes=payload.diagnostics.offerRoutes;cache.photoJourneySummary=payload.diagnostics.photoJourneySummary;
+        cache.journeySummary.topProviders=payload.diagnostics.topProviders;cache.journeySummary.topOffers=payload.diagnostics.topOffers;
+      }
+      if(payload.pdfPage){cache.pdfPage=payload.pdfPage;analyticsPages.pdf=payload.pdfPage.page;}
+      // If a previous month's selected channel no longer exists, re-read the same snapshot unfiltered.
+      const sources=cache.journeySummary?.trafficSources||[];
+      if(source && !sources.some(item=>item.key===source)){
+        if(byId("analyticsSourceFilter"))byId("analyticsSourceFilter").value="";
+        analyticsPages.journeys=1;
+        return requestFunnelPage({silent});
+      }
+      cache.funnelLoading=false;
+      renderAnalytics();
+      if(!silent)setMessage("success","Analytics aggiornati.");
+    } catch(error){if(sequence===analyticsLoadSequence){
+      cache.funnelLoading=false;setMessage("error",friendlyError(error));
+      const body=byId("journeyRows");if(body){clear(body);body.append(node("tr",{},[node("td",{text:"Dati non disponibili. Premi Aggiorna per riprovare.",attrs:{colspan:"7"}})]));}
+      text(byId("analyticsFunnel"),"Dati non aggiornati. Premi Aggiorna per riprovare.");
+    }}
+  }
+
   async function loadAnalytics({ silent = false } = {}) {
-    const sequence = ++analyticsLoadSequence;
-    if (!silent) setMessage("info", "Aggiornamento analytics…");
-    const landingRange = String(byId("landingPathRange")?.value || "30d");
-    const month = analyticsSelectedMonth();
-    const payload = await staffFetch(`/api/staff-analytics?limit=2000&landingRange=${encodeURIComponent(landingRange)}&month=${encodeURIComponent(month)}`);
-    if (sequence !== analyticsLoadSequence) return;
-    cache.analytics = Array.isArray(payload.events) ? payload.events : [];
-    cache.analyticsSummary = payload.summary || {};
-    cache.analyticsAggregationMode = String(payload.aggregationMode || "");
-    cache.journeyWindow = payload.journeyWindow && typeof payload.journeyWindow === "object" ? payload.journeyWindow : null;
-    cache.journeys = Array.isArray(payload.journeys) ? payload.journeys : [];
-    cache.journeySummary = payload.journeySummary || {};
-    cache.switcho = payload.switcho && typeof payload.switcho === "object" ? payload.switcho : { rows: [], summary: {} };
-    cache.offerRoutes = payload.offerRoutes && typeof payload.offerRoutes === "object" ? payload.offerRoutes : { summary: {} };
-    cache.photoJourneySummary = payload.photoJourneySummary && typeof payload.photoJourneySummary === "object" ? payload.photoJourneySummary : {};
-    cache.landingPath = payload.landingPath || null;
-    cache.analyticsBaseline = payload.baseline || null;
-    cache.analyticsPeriod = payload.period && typeof payload.period === "object" ? payload.period : { month, label: analyticsMonthLabel(month) };
-    Object.keys(analyticsPages).forEach(key => { analyticsPages[key] = 1; });
-    renderAnalytics();
-    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
-    if (!silent) setMessage("success", "Analytics aggiornati.");
+    ++analyticsArchiveSequence;analyticsArchiveInFlight=false;
+    cache.analytics=[];cache.archiveLoaded=false;cache.diagnosticsLoaded=false;cache.pdfPage=null;cache.funnelSnapshot="";
+    cache.journeyPage=null;cache.journeys=[];cache.journeySummary={};cache.analyticsSummary={};cache.funnelTimings={};
+    cache.landingPath=null;cache.switcho={rows:[],summary:{}};cache.offerRoutes={summary:{}};cache.photoJourneySummary={};
+    clear(byId("analyticsTimingRows"));clear(byId("journeyRouteMetricsRows"));clear(byId("analyticsTrafficSources"));
+    text(byId("analyticsFunnel"),"Caricamento del mese selezionato…");clear(byId("journeyRows"));clear(byId("journeyPagination"));
+    Object.keys(analyticsPages).forEach(key=>{analyticsPages[key]=1;});
+    await requestFunnelPage({refresh:true,silent});
+    if(byId("analyticsArchiveDetails")?.open)await loadAnalyticsArchive();
   }
 
   async function loadAnalyticsSummary() {
     const sequence = ++analyticsSummarySequence;
     const payload = await staffFetch("/api/staff-analytics?mode=overview&limit=2000");
     if (sequence !== analyticsSummarySequence) return;
-    cache.analyticsSummary = payload.summary || {};
-    cache.analyticsAggregationMode = String(payload.aggregationMode || cache.analyticsAggregationMode || "");
-    cache.analyticsBaseline = payload.baseline || cache.analyticsBaseline || null;
-    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
+    cache.overviewAnalyticsSummary=payload.summary||{};
+    renderSessionFunnel(byId("overviewFunnel"), cache.overviewAnalyticsSummary.sessionFunnel || {});
   }
 
   function addressLabel(address) {
@@ -6740,7 +6806,7 @@
       list.append(leadButton);
     }
     target.append(list);
-    renderSessionFunnel(byId("overviewFunnel"), cache.analyticsSummary.sessionFunnel || {});
+    renderSessionFunnel(byId("overviewFunnel"), cache.overviewAnalyticsSummary.sessionFunnel || {});
   }
 
   async function loadOverview({ silent = false } = {}) {
@@ -7080,6 +7146,9 @@
       loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error)));
     });
     byId("landingPathRange")?.addEventListener("change", () => loadAnalytics({ silent: true }).catch(error => setMessage("error", friendlyError(error))));
+    byId("analyticsDiagnostics")?.addEventListener("toggle", () => {if(byId("analyticsDiagnostics")?.open && !cache.diagnosticsLoaded)requestFunnelPage();});
+    byId("analyticsPdfDetails")?.addEventListener("toggle", () => {if(byId("analyticsDiagnostics")?.open && byId("analyticsPdfDetails")?.open && !cache.pdfPage)requestFunnelPage();});
+    byId("analyticsArchiveDetails")?.addEventListener("toggle", () => {if(byId("analyticsArchiveDetails")?.open){if(cache.archiveLoaded&&!cache.funnelLoading)renderAnalytics();else loadAnalyticsArchive();}});
     byId("switchoRange")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("switchoSourceFilter")?.addEventListener("change", () => { analyticsPages.switcho = 1; renderSwitchoAnalytics(); });
     byId("analyticsEventFilter")?.addEventListener("change", () => { analyticsPages.events = 1; renderAnalytics(); });
@@ -7090,7 +7159,7 @@
       closeAnalyticsSession();
       analyticsPages.events = 1;
       analyticsPages.journeys = 1;
-      renderAnalytics();
+      requestFunnelPage();
     });
     byId("analyticsSessionCsv")?.addEventListener("click", () => {
       if (!analyticsSessionRows.length) return;
@@ -7109,7 +7178,8 @@
       if (byId("analyticsSourceFilter")) byId("analyticsSourceFilter").value = "";
       closeAnalyticsSession();
       analyticsPages.events = 1;
-      renderAnalytics();
+      analyticsPages.journeys = 1;
+      requestFunnelPage();
     });
     byId("collaboratorRefresh").addEventListener("click", () => loadCollaborators().catch(error => setMessage("error", friendlyError(error))));
     byId("collaboratorShowRemoved").addEventListener("click", () => {

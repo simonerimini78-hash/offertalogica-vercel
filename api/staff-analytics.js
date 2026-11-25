@@ -2508,6 +2508,76 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
   };
 }
 
+// Staff Funnel: a short-lived, bounded read-only snapshot of derived monthly data.
+// Every request is independently authorized before accessing the snapshot. No raw
+// event payloads are retained. Cold instances may recompute the same month.
+const FUNNEL_SNAPSHOT_TTL = 120_000;
+const FUNNEL_SNAPSHOT_MAX = 2;
+const funnelSnapshots = new Map();
+const FUNNEL_PAGE_SIZE = 10;
+const FUNNEL_MEASUREMENT_MODES = new Set(["all", "storico", "transizione", "nuovo", "misto"]);
+
+function funnelTimingSummary(rows = []) {
+  const metrics = { active: "tempo_attivo_secondi", landing: "tempo_landing_secondi", calculator: "tempo_calcolatore_secondi", offers: "tempo_offerte_secondi", otp: "tempo_otp_secondi", firstAction: "prima_azione_secondi", reach: "offerte_raggiunte_secondi" };
+  return Object.fromEntries(Object.entries(metrics).map(([key, field]) => {
+    const values = rows.map(row => row[field]).filter(value => value !== "" && value != null && Number.isFinite(Number(value)) && Number(value) > 0).map(Number).sort((a,b)=>a-b);
+    const middle = Math.floor(values.length / 2);
+    return [key, { measured: values.length, median: values.length ? (values.length % 2 ? values[middle] : (values[middle-1] + values[middle]) / 2) : null }];
+  }));
+}
+
+export function buildFunnelSnapshot(monthlyRows, period, landingRange) {
+  const journeys = analyticsJourneyRows(monthlyRows);
+  const exactSummary = analyticsJourneySummary(journeys, monthlyRows);
+  const offerSelectionSummary = offerSelectionSummaryFromRows(monthlyRows);
+  const offerRoutes = { ok:true, configured:customerDbConfiguredForLandingAnalytics(), from:period.from, to:period.to, summary:summarizeOfferRouteEvents(monthlyRows.map(offerRouteEventFromRow).filter(Boolean)) };
+  const routeSummary = offerRoutes.summary || {};
+  const decorate = (rows, details) => {
+    const lookup = new Map((details || []).map(item => [String(item.key || "").trim().toLowerCase(), item]));
+    return rows.map(item => ({...item, routeStats:lookup.get(String(item.key || "").trim().toLowerCase()) || null}));
+  };
+  const topProviders = decorate(offerSelectionSummary.topProviders?.length ? offerSelectionSummary.topProviders : exactSummary.topProviders || [], routeSummary.providerDetails);
+  const topOffers = decorate(offerSelectionSummary.topOffers?.length ? offerSelectionSummary.topOffers : exactSummary.topOffers || [], routeSummary.offerDetails);
+  const summary = {...exactSummary, recentEvents:monthlyRows.length, linkedLeads:new Set(monthlyRows.map(row=>String(row?.lead_id || "").trim()).filter(Boolean)).size, attributedSessions:journeys.length, topProviders, topOffers, funnel:exactSummary.activity || {}};
+  const journeySummary = {...summary, topProviders, topOffers, offerSelections:offerSelectionSummary.selections ?? exactSummary.offerAction ?? 0};
+  const landingFrom = analyticsRelativeRangeFrom({...period,partial:false}, landingRange);
+  const landingRows = monthlyRows.filter(row => new Date(row?.created_at || 0).getTime() >= new Date(landingFrom).getTime());
+  const landingPath = {ok:true, configured:customerDbConfiguredForLandingAnalytics(), range:landingRange, from:landingFrom, to:period.to, ...classifyLandingPathRows(landingRows)};
+  const timings = { all:funnelTimingSummary(journeys), bySource:Object.fromEntries(exactSummary.trafficSources.map(({key})=>[key,funnelTimingSummary(journeys.filter(row=>row.source===key))])) };
+  return { period, journeys, summary, journeySummary, timings, landingPath, switcho:switchoAnalyticsFromRawRows(monthlyRows), offerRoutes, photoJourneySummary:photoJourneySummaryFromRows(monthlyRows) };
+}
+
+export function funnelPage(snapshot, { part = "journeys", page = 1, source = "", measurement = "all" } = {}) {
+  const rows = part === "pdf" ? snapshot.journeys.filter(row=>row.pdf_scelto) : snapshot.journeys.filter(row=>(!source || row.source===source) && (measurement==="all" || row.misurazione_offerte===measurement));
+  const total = rows.length;
+  const current = Math.min(Math.max(1, Math.floor(Number(page) || 1)), Math.max(1, Math.ceil(total/FUNNEL_PAGE_SIZE)));
+  const pageRows = rows.slice((current-1)*FUNNEL_PAGE_SIZE, current*FUNNEL_PAGE_SIZE);
+  // The table only needs these fields; all remaining detail is fetched by session ID or CSV.
+  const keys = ["session_id","first_at","device","source","campaign","term","intento","intento_base","scelta_percorso","percorso_sequenza","percorso_confronto","percorso_base","esito_sessione","abbandono_fase","misurazione_offerte","classifica_raggiunta","offerte_storico","offerte_visualizzate","card_cliccata","tempo_attivo_secondi","tempo_landing_secondi","tempo_calcolatore_secondi","tempo_offerte_secondi","tempo_otp_secondi","last_at","ultimo_evento","events_count","percorsi_dettaglio","switcho","partner","otp_verificato","otp_inviato"];
+  return { rows:part==="pdf"?pageRows:pageRows.map(row=>Object.fromEntries(keys.map(key=>[key,row[key]]))), total, page:current, pageSize:FUNNEL_PAGE_SIZE };
+}
+
+async function readFunnelSnapshot(period, landingRange, owner, refresh, requestedId, requestedTo) {
+  const now = Date.now();
+  for (const [key, entry] of funnelSnapshots) if (entry.expires <= now) funnelSnapshots.delete(key);
+  const key = `${owner}:${period.month}:${landingRange}`;
+  const cached = owner && !refresh ? funnelSnapshots.get(key) : null;
+  if (cached && cached.id === requestedId && cached.expires > now) return cached;
+  const monthStart=Date.parse(period.from), monthEnd=Math.min(Date.parse(period.to),now);
+  const requestedCutoff=Date.parse(requestedTo||"");
+  // Preserve the same time cutoff on cold instances; explicit refresh takes a new snapshot.
+  const cutoff=!refresh&&requestedId&&Number.isFinite(requestedCutoff)&&requestedCutoff>=monthStart&&requestedCutoff<=monthEnd?requestedCutoff:monthEnd;
+  const snapshotPeriod = {...period, to:new Date(cutoff).toISOString()};
+  const data = buildFunnelSnapshot(await loadAnalyticsExportRows(snapshotPeriod.from,snapshotPeriod.to),snapshotPeriod,landingRange);
+  const entry = {id:crypto.randomUUID(), expires:Date.now()+FUNNEL_SNAPSHOT_TTL, data};
+  if (owner) {
+    funnelSnapshots.delete(key);
+    funnelSnapshots.set(key,entry);
+    while (funnelSnapshots.size>FUNNEL_SNAPSHOT_MAX) funnelSnapshots.delete(funnelSnapshots.keys().next().value);
+  }
+  return entry;
+}
+
 function sendAnalyticsCsv(res, csv, filename) {
   res.statusCode = 200;
   res.setHeader("Content-Type", "text/csv; charset=utf-8");
@@ -2672,6 +2742,7 @@ export default async function handler(req, res) {
     }
 
     const result = await deleteCustomerAnalytics({ id, ids, all: resetAll });
+    if (result.ok) funnelSnapshots.clear();
 
     try {
       await writeStaffAudit({
@@ -2843,6 +2914,38 @@ export default async function handler(req, res) {
     } catch(error) {
       return json(res,503,{ok:false,status:"journey_summary_unavailable",error:String(error?.message||error),authorizedBy});
     }
+  }
+
+  if (mode === "funnel" || mode === "funnel-events") {
+    if (!period) return json(res,400,{ok:false,error:"Mese analytics non valido"});
+    if (!customerDbConfiguredForLandingAnalytics()) return json(res,503,{ok:false,error:"Customer DB analytics non configurato"});
+    try {
+      // No HTTP/shared browser cache of authenticated analytics responses.
+      res.setHeader("Cache-Control","private, no-store");
+      if (mode === "funnel-events") {
+        const events = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(await listCustomerAnalytics({limit:2000,from:period.from,to:period.to,paginate:true})));
+        return json(res,events.ok?200:500,{...events,authorizedBy});
+      }
+      const owner = String(identity.user?.id || "");
+      const requestedId = String(url.searchParams.get("snapshot") || "").slice(0,64);
+      const entry = await readFunnelSnapshot(period,landingRange,owner,url.searchParams.get("refresh")==="1",requestedId,String(url.searchParams.get("snapshotTo")||"").slice(0,40));
+      const snapshot = entry.data;
+      const source = String(url.searchParams.get("source") || "").slice(0,80);
+      const measurementValue = String(url.searchParams.get("measurement") || "all");
+      const measurement = FUNNEL_MEASUREMENT_MODES.has(measurementValue)?measurementValue:"all";
+      const page = funnelPage(snapshot,{page:url.searchParams.get("page"),source,measurement});
+      const includeDiagnostics = url.searchParams.get("diagnostics")==="1";
+      const includePdf = url.searchParams.get("pdf")==="1";
+      const changed = requestedId !== entry.id;
+      // Always include summary when rebuilt so pages and KPI cannot use different snapshots.
+      const includeSummary = changed || url.searchParams.get("refresh")==="1" || !requestedId;
+      const {topProviders,topOffers} = snapshot.summary;
+      const {topProviders:unusedProviders,topOffers:unusedOffers,...compactJourneySummary} = snapshot.journeySummary;
+      return json(res,200,{ok:true,configured:true,status:"ready",snapshot:entry.id,checkedAt:new Date().toISOString(),period:snapshot.period,aggregationMode:"monthly_paged",authorizedBy,
+        ...(includeSummary?{journeySummary:compactJourneySummary,timings:snapshot.timings,landingPath:snapshot.landingPath,journeyWindow:{loadedEvents:snapshot.summary.events,recentOnly:false}}:{}),
+        page, ...(includePdf?{pdfPage:funnelPage(snapshot,{part:"pdf",page:url.searchParams.get("pdfPage")})}:{}),
+        ...(includeDiagnostics?{diagnostics:{switcho:snapshot.switcho,offerRoutes:snapshot.offerRoutes,photoJourneySummary:snapshot.photoJourneySummary,topProviders,topOffers}}:{})});
+    } catch(error) { console.error("staff-funnel",error);return json(res,503,{ok:false,error:String(error?.message||error||"funnel_error"),authorizedBy}); }
   }
 
   if (period && mode !== "overview") {
