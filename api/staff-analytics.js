@@ -1,4 +1,5 @@
 import crypto from "node:crypto";
+import { analyzeJourneyEvidence, aggregateJourneyRoutes, journeyPathChoice, journeyIsExcluded, journeyIsSwitchoRedirect, journeyIsPartnerRedirect, journeyIsRequest, journeyCardClass, JOURNEY_LABELS, JOURNEY_ROUTES, JOURNEY_STAGES } from "../lib/staffJourneyEvidence.js";
 import { isIP } from "node:net";
 import { clientIp, json, method, requireAllowedOrigin } from "../lib/http.js";
 import { deleteCustomerAnalytics, listCustomerAnalytics } from "../lib/customerDb.js";
@@ -1210,7 +1211,7 @@ function offerSelectionSummaryFromRows(rows = []) {
   const cardClickSessionsBySource = new Map();
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const payload = rawAnalyticsPayload(row);
-    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
+    if (journeyIsExcluded({ payload })) return;
     const provider = String(payload.provider || "").trim();
     const offerName = String(payload.offerName || "").trim();
     if (!provider && !offerName) return;
@@ -1262,6 +1263,9 @@ const PHOTO_JOURNEY_EVENT_TYPES = Object.freeze([
   "bill_photo_analysis_completed",
   "bill_photo_analysis_failed",
   "bill_photo_comparison_auto_started",
+  "comparison_path_selected", "comparison_started", "comparison_completed",
+  "pdf_picker_opened", "pdf_file_selected", "pdf_analysis_started", "pdf_analysis_completed",
+  "guided_three_questions_started", "guided_three_questions_completed", "manual_known_consumption_selected",
   "offers_rendered",
   "offers_reached",
   "offers_viewed",
@@ -1292,11 +1296,11 @@ function photoJourneySummaryFromRows(rows = []) {
   const groups = new Map();
   (Array.isArray(rows) ? rows : []).forEach((row) => {
     const payload = rawAnalyticsPayload(row);
-    if (payload.staffMode === true || String(payload.trafficAgent || "").toLowerCase() === "automation") return;
     const sessionId = String(payload.sessionId || "").trim();
     if (!sessionId) return;
     if (!groups.has(sessionId)) groups.set(sessionId, []);
     groups.get(sessionId).push({
+      id: row.id,
       eventType: String(row.event_type || ""),
       createdAt: row.created_at || "",
       payload,
@@ -1310,7 +1314,8 @@ function photoJourneySummaryFromRows(rows = []) {
   };
 
   groups.forEach((events, sessionId) => {
-    const ordered = [...events].sort((a, b) => new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime());
+    if(events.some(journeyIsExcluded))return;
+    const ordered = [...events].sort(compareAnalyticsEventOrder);
     const photoEvents = ordered.filter((event) => event.eventType.startsWith("bill_photo_"));
     if (!photoEvents.length) return;
     sets.sessions.add(sessionId);
@@ -1329,16 +1334,11 @@ function photoJourneySummaryFromRows(rows = []) {
     if (statuses.includes("success_missing_data")) sets.missing.add(sessionId);
     if (statuses.includes("unreadable") || sets.failed.has(sessionId)) sets.unreadable.add(sessionId);
 
-    const firstPhotoAt = photoEvents
-      .map((event) => new Date(event.createdAt || 0).getTime())
-      .filter(Number.isFinite)
-      .sort((a, b) => a - b)[0] || 0;
-    if (firstPhotoAt) {
-      const signals = offerJourneySignals(ordered.filter(event => new Date(event.createdAt || 0).getTime() >= firstPhotoAt));
-      if (signals.legacy) sets.offersLegacy.add(sessionId);
-      if (signals.reached) sets.offersReached.add(sessionId);
-      if (signals.viewed) sets.offersViewed.add(sessionId);
-    }
+    const evidence = analyzeJourneyEvidence(ordered).routes.photo;
+    if (evidence.legacy) sets.offersLegacy.add(sessionId);
+    if (evidence.reached) sets.offersReached.add(sessionId);
+    if (evidence.viewed) sets.offersViewed.add(sessionId);
+
   });
 
   return {
@@ -1417,16 +1417,7 @@ const COMPARISON_PATH_SIGNAL_EVENT_TYPES = new Set([
 ]);
 
 function comparisonEventPathChoice(event = {}) {
-  const raw = String(event.pathChoice || event.payload?.pathChoice || "").trim().toLowerCase();
-  const trigger = String(event.trigger || event.payload?.trigger || "").trim().toLowerCase();
-  if (["average", "media", "profilo_medio", "arera_average_profile"].includes(raw)) return "average";
-  if (["manual", "manuale", "manual_input"].includes(raw)) return "manual";
-  if (["photo", "foto", "bill_photo"].includes(raw)) return "photo";
-  if (["pdf", "pdf_upload"].includes(raw)) {
-    if (trigger === "photo_camera_choice") return "photo";
-    return "pdf";
-  }
-  return "";
+  return journeyPathChoice(event);
 }
 
 function comparisonEventDataOrigin(event = {}) {
@@ -1434,66 +1425,11 @@ function comparisonEventDataOrigin(event = {}) {
 }
 
 function comparisonPathSignals(events = []) {
-  const ordered = [...(Array.isArray(events) ? events : [])].sort(compareAnalyticsEventOrder);
-  const sequence = [];
-  let explicitCount = 0;
-  let inferredCount = 0;
-  const push = (path, basis) => {
-    if (!path) return;
-    if (sequence[sequence.length - 1]?.path === path) {
-      if (basis === "registrato") sequence[sequence.length - 1].basis = "registrato";
-      return;
-    }
-    sequence.push({ path, basis });
-    if (basis === "registrato") explicitCount += 1;
-    else inferredCount += 1;
-  };
-
-  ordered.forEach((event) => {
-    const eventType = String(event.eventType || event.event_type || "");
-    if (eventType === "comparison_path_selected") {
-      push(comparisonEventPathChoice(event), "registrato");
-      return;
-    }
-
-    // Foto e PDF restano distinti: il frontend usa pathChoice=pdf anche per la foto,
-    // ma il trigger esplicito permette di ricostruire correttamente il pulsante scelto.
-    if (eventType.startsWith("bill_photo_")) {
-      push("photo", "inferito");
-      return;
-    }
-
-    // Qualunque evento PDF rappresenta un segnale reale del ramo PDF, anche nello storico.
-    if (eventType.startsWith("pdf_")) {
-      push("pdf", "inferito");
-      return;
-    }
-
-    // Gli origin vengono usati solo su eventi di confronto significativi.
-    // landing_view può ereditare manual_input e non deve mai diventare una scelta manuale.
-    if (!COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(eventType)) return;
-    const origin = comparisonEventDataOrigin(event);
-    if (!origin || origin === LANDING_AUTOMATIC_DATA_ORIGIN) return;
-    if (origin === "pdf_upload") push("pdf", "inferito");
-    else if (origin === "manual_input") push("manual", "inferito");
-    else if (origin === "arera_average_profile") push("average", "inferito");
-  });
-
-  return {
-    sequence,
-    paths: new Set(sequence.map((item) => item.path)),
-    latest: sequence[sequence.length - 1]?.path || "",
-    hasExplicit: explicitCount > 0,
-    hasInferred: inferredCount > 0,
-  };
+  return analyzeJourneyEvidence([...events].sort(compareAnalyticsEventOrder));
 }
 
 function comparisonPathLabel(path = "") {
-  if (path === "average") return "vedi subito le offerte";
-  if (path === "manual") return "manuale";
-  if (path === "photo") return "foto bolletta";
-  if (path === "pdf") return "pdf";
-  return "";
+  return JOURNEY_LABELS[path] || "";
 }
 
 function activityFunnelFromEvents(events = []) {
@@ -1554,21 +1490,7 @@ function activityFunnelFromEvents(events = []) {
 
 // V141: keep the legacy render-based metric, but never substitute it for observed arrival or viewing.
 function offerJourneySignals(events = []) {
-  const ordered = [...events].sort(compareAnalyticsEventOrder);
-  const real = event => !isAutomaticLandingPreview({ dataOrigin: event.dataOrigin || event.payload?.dataOrigin });
-  const marked = event => event.payload?.offersMeasurementVersion === "141";
-  const render = event => event.eventType === "offers_rendered" && real(event) && Number(event.payload?.visibleOffersCount ?? event.visibleOffersCount) > 0;
-  const isArrival = event => event.eventType === "offers_reached" && real(event) && marked(event);
-  const isView = event => event.eventType === "offers_viewed" && real(event);
-  const clickIndex = ordered.findIndex(event => event.eventType === "landing_self_service_click" && marked(event));
-  const arrivalIndex = clickIndex < 0 ? -1 : ordered.findIndex((event, index) => index > clickIndex && isArrival(event));
-  const viewIndex = arrivalIndex < 0 ? -1 : ordered.findIndex((event, index) => index > arrivalIndex && isView(event) && marked(event));
-  const legacy = ordered.some(event => event.eventType === "offers_rendered" && real(event) && !marked(event));
-  const legacyJourney = ordered.some(event => ["landing_self_service_click", "offers_rendered", "offers_viewed"].includes(event.eventType) && real(event) && !marked(event));
-  const newTracking = ordered.some(marked);
-  return { generated: ordered.some(render), legacy, reached: ordered.some(isArrival), viewed: ordered.some(isView),
-    newTracking, mode: newTracking ? (legacyJourney ? "misto" : "nuovo") : "storico",
-    newClick: clickIndex >= 0, reachedAfterClick: arrivalIndex >= 0, viewedAfterClick: viewIndex >= 0 };
+  return analyzeJourneyEvidence([...events].sort(compareAnalyticsEventOrder));
 }
 
 function sessionFunnelFromGroups(groups = []) {
@@ -1580,6 +1502,25 @@ function sessionFunnelFromGroups(groups = []) {
     averageSelected: 0,
     photoSelected: 0,
     manualSelected: 0,
+    guidedSelected: 0,
+    guidedCompleted: 0,
+    businessCalculated: 0,
+    popupAccepted: 0,
+    popupDismissed: 0,
+    popupShown: 0,
+    popupAcceptedMeasured: 0,
+    popupClosedMeasured: 0,
+    popupNoAction: 0,
+    popupActionUnpaired: 0,
+    popupMethod: 0,
+    popupCompleted: 0,
+    popupViewed: 0,
+    popupCard: 0,
+    popupLegacyAccepted: 0,
+    popupLegacyDismissed: 0,
+    cardClickedEstimated: 0,
+    requestRecorded: 0,
+    partnerRedirects: 0,
     pdfSelected: 0,
     pdfStarted: 0,
     pdfCompleted: 0,
@@ -1606,16 +1547,18 @@ function sessionFunnelFromGroups(groups = []) {
     redirects: 0,
   };
 
+  const routeEvidence=[];
   groups.forEach((group) => {
     const eventTypes = new Set(group.map((event) => event.eventType).filter(Boolean));
     const hasRealComparison = group.some((event) => isRealComparisonCompleted(event));
     const hasSelfService = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
-    const pathSignals = comparisonPathSignals(group);
+    const pathSignals = offerJourneySignals(group);
+    routeEvidence.push(pathSignals.routes);
+    if(pathSignals.otpAfterSent)funnel.otpVerifiedAfterSent=(funnel.otpVerifiedAfterSent||0)+1;
     const hasPdfSignal = pathSignals.paths.has("pdf");
-    const hasSwitcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
-      .some((type) => eventTypes.has(type));
-    const offerSignals = offerJourneySignals(group);
+    const hasSwitcho = pathSignals.switcho;
+    const offerSignals = pathSignals;
     const hasGeneratedOffers = offerSignals.generated;
     const hasRealOffers = offerSignals.viewed;
 
@@ -1627,6 +1570,24 @@ function sessionFunnelFromGroups(groups = []) {
     if (pathSignals.paths.has("photo")) funnel.photoSelected += 1;
     if (pathSignals.paths.has("manual")) funnel.manualSelected += 1;
     if (pathSignals.paths.has("pdf")) funnel.pdfSelected += 1;
+    if (pathSignals.paths.has("guided")) funnel.guidedSelected += 1;
+    if (pathSignals.guidedCompleted) funnel.guidedCompleted += 1;
+    if (pathSignals.businessCalculated) funnel.businessCalculated += 1;
+    if (pathSignals.popupAccepted) funnel.popupAccepted += 1;
+    if (pathSignals.popupDismissed) funnel.popupDismissed += 1;
+    if (pathSignals.popupShown) funnel.popupShown += 1;
+    if (pathSignals.popupAcceptedMeasured) funnel.popupAcceptedMeasured += 1;
+    if (pathSignals.popupClosedMeasured) funnel.popupClosedMeasured += 1;
+    if (pathSignals.popupShown && !pathSignals.popupAcceptedMeasured && !pathSignals.popupClosedMeasured && !pathSignals.popupActionUnpaired && !pathSignals.popupAccepted && !pathSignals.popupDismissed) funnel.popupNoAction += 1;
+    if (pathSignals.popupActionUnpaired || (pathSignals.popupShown && ((pathSignals.popupAccepted && !pathSignals.popupAcceptedMeasured) || (pathSignals.popupDismissed && !pathSignals.popupClosedMeasured)))) funnel.popupActionUnpaired += 1;
+    if (pathSignals.popupMethod) funnel.popupMethod += 1;
+    if (pathSignals.popupCompleted) funnel.popupCompleted += 1;
+    if (pathSignals.popupViewed) funnel.popupViewed += 1;
+    if (pathSignals.popupCard) funnel.popupCard += 1;
+    if (pathSignals.popupAccepted && !pathSignals.popupAcceptedMeasured) funnel.popupLegacyAccepted += 1;
+    if (pathSignals.popupDismissed && !pathSignals.popupClosedMeasured) funnel.popupLegacyDismissed += 1;
+    if (pathSignals.request) funnel.requestRecorded += 1;
+    if (pathSignals.partner) funnel.partnerRedirects += 1;
     if (eventTypes.has("pdf_analysis_started")) funnel.pdfStarted += 1;
     if (eventTypes.has("pdf_analysis_completed")) funnel.pdfCompleted += 1;
     if (hasRealComparison) funnel.comparisons += 1;
@@ -1637,7 +1598,7 @@ function sessionFunnelFromGroups(groups = []) {
     if (offerSignals.reachedAfterClick) funnel.newReachedAfterClick += 1;
     if (offerSignals.viewedAfterClick) funnel.newViewedAfterClick += 1;
     if (hasRealOffers) funnel.offersViewed += 1;
-    if (hasRealOffers && eventTypes.has("offer_card_clicked")) funnel.cardClickedWithView += 1;
+    if (offerSignals.cardAfterView) funnel.cardClickedWithView += 1;
     if (hasSwitcho) funnel.switcho += 1;
     if (eventTypes.has("lead_modal_opened")) funnel.leadModalOpened += 1;
     if (eventTypes.has("otp_request_started")) funnel.otpRequestStarted += 1;
@@ -1645,24 +1606,15 @@ function sessionFunnelFromGroups(groups = []) {
     if (eventTypes.has("otp_verified")) funnel.otpVerified += 1;
     if (eventTypes.has("offers_unlocked")) funnel.offersUnlocked += 1;
     if (eventTypes.has("offer_card_clicked")) funnel.cardClicked += 1;
-    if (group.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.mode || "").toLowerCase() === "media"
-        || String(event.source || "").toLowerCase() === "offer_card_media")
-    )) funnel.cardClickedStandard += 1;
-    if (group.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.mode || "").toLowerCase() === "precise"
-        || String(event.source || "").toLowerCase() === "offer_card_precise")
-    )) funnel.cardClickedPrecise += 1;
-    if (group.some((event) =>
-      event.eventType === "offers_bill_prompt_clicked"
-      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.pdfUploadSource || "").toLowerCase())
-    )) funnel.billPersonalizationFromOffer += 1;
+    if (group.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "standard")) funnel.cardClickedStandard += 1;
+    if (group.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "precise")) funnel.cardClickedPrecise += 1;
+    if (group.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "estimated")) funnel.cardClickedEstimated += 1;
+    if (offerSignals.cardPersonalization) funnel.billPersonalizationFromOffer += 1;
+
     const hasCommercialActivationChoice = group.some((event) => {
       if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
-      const route = String(event?.route || "").trim();
-      const channel = String(event?.channel || "").trim();
+      const route = String(event?.route || event?.payload?.route || "").trim();
+      const channel = String(event?.channel || event?.payload?.channel || "").trim();
       if (route === "internal_activatable_view" || channel === "internal") return false;
       return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
         || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
@@ -1670,9 +1622,11 @@ function sessionFunnelFromGroups(groups = []) {
     if (hasCommercialActivationChoice || ["offer_click_locked", "offer_consent_opened", "offer_partner_consent_confirmed", "offer_switcho_redirect", "offer_redirect", "offer_request_recorded"].some((type) => eventTypes.has(type))) {
       funnel.offerAction += 1;
     }
-    if (eventTypes.has("offer_redirect") || hasSwitcho) funnel.redirects += 1;
+    if (offerSignals.partner || hasSwitcho) funnel.redirects += 1;
   });
 
+  funnel.routeMetrics=aggregateJourneyRoutes(routeEvidence);
+  funnel.otpVerifiedAfterSent ||= 0;
   return funnel;
 }
 
@@ -1772,13 +1726,14 @@ function enhanceAnalyticsForStaff(result, trafficSignals = new Map()) {
     visitorCounts[visitor.type] = (visitorCounts[visitor.type] || 0) + 1;
     const hasSessionId = String(groupKey || "").startsWith("session:");
     const groupSource = sourceForSessionGroup(group);
-    const sourceEligible = hasSessionId && (visitor.type === "probable_person"
-      || group.some((event) => event.trafficAgent === "browser"));
+    const sourceEligible = hasSessionId && !group.some(journeyIsExcluded) && !["known_bot","automation"].includes(visitor.type);
+    const journeyEvidence = offerJourneySignals(group);
     if (sourceEligible) {
       attributedSessionGroups.push(group);
       increment(trafficSourceSessions, groupSource);
     }
     group.forEach((event) => {
+      event.journeyRoute = journeyEvidence.routeByEvent.get(event) || "";
       event.visitorType = visitor.type;
       event.visitorLabel = visitor.label;
       event.visitorReason = visitor.reason;
@@ -1848,7 +1803,7 @@ function analyticsExportRangeFrom(value) {
 async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
   const query = new URLSearchParams({
     select: "id,lead_id,event_type,created_at,payload",
-    order: "created_at.asc",
+    order: "created_at.asc,id.asc",
     limit: String(limit),
     offset: String(offset),
   });
@@ -1873,6 +1828,40 @@ async function loadAnalyticsExportRows(from, to = "") {
   }
   const overflow = await fetchAnalyticsExportPage(from, to, ANALYTICS_EXPORT_MAX_ROWS, 1);
   if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
+  return rows;
+}
+
+// A full, stable scan for funnel KPIs. Do not mix the old SQL RPC's counters
+// with a recent-event denominator. Fetch only fields used in journey summaries.
+const JOURNEY_SUMMARY_FIELDS = Object.freeze([
+  "sessionId","session_event_seq","sessionEventSeq","client_timestamp","clientTimestamp","trafficAgent","staffMode","demoMode",
+  "dataOrigin","customerType","offersMeasurementVersion","pathChoice","trigger","trafficSource","source","leadSource","trafficMedium",
+  "trafficCampaign","trafficTerm","trafficContent","trafficCampaignId","trafficAdGroupId","trafficCreativeId","trafficMatchType","trafficDevice","trafficNetwork",
+  "trafficReferrer","trafficLandingPage","trafficClickIdType","trafficClickId","page","destination","provider","offerId","offerName","route","channel","destinationType","destinationStatus",
+  "visibleOffersCount","rankingOffersCount","mode","pdfUploadSource","comparisonAutoStarted","analysisStatus","inputSource","missingFieldCount",
+  "successCount","unrecognizedCount","errorCount","fileCount","selectedCount","acceptedCount","duplicateCount","bestSaving","annualDelta","annualCost","economyRank","displayRank",
+  "missingFields","diagnosticCode","diagnosticCodes","analysisStage","analysisStages","documentKinds","commodities","mixedDocuments","mergeBlocked","pdfUploadOfferId","pdfUploadOfferName","pdfUploadProvider","reviewFieldCount","ocrReviewCount","fieldCount","skippedCount","engagementActiveSeconds","engagementLandingSeconds","engagementCalculatorSeconds","engagementOffersSeconds","engagementOtpSeconds","engagementFirstActionSeconds","engagementOffersReachedSeconds"
+]);
+async function loadJourneySummaryRows(from = CAMPAIGN_BASELINE_ISO, to = new Date().toISOString()) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const rows = [];
+  const select = ["id", "lead_id", "event_type", "created_at", ...JOURNEY_SUMMARY_FIELDS.map(key => `j_${key}:payload->${key}`)].join(",");
+  const fetchPage = async (offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) => {
+    const query = new URLSearchParams({select, order:"created_at.asc,id.asc",limit:String(limit),offset:String(offset)});
+    if (from) query.append("created_at", `gte.${from}`);
+    if (to) query.append("created_at", `lt.${to}`);
+    const response = await fetch(`${customerDbBaseUrl()}/rest/v1/${CUSTOMER_DB_EVENTS_TABLE}?${query}`,{method:"GET",headers:customerDbReadHeaders()});
+    if (!response.ok) throw new Error(`Customer DB journey summary error ${response.status}`);
+    const page = await response.json();
+    if (!Array.isArray(page)) throw new Error("Risposta analytics non valida");
+    return page.map(({id,lead_id,event_type,created_at,...fields}) => ({id,lead_id,event_type,created_at,payload:Object.fromEntries(JOURNEY_SUMMARY_FIELDS.filter(key => fields[`j_${key}`] != null).map(key => [key,fields[`j_${key}`]]))}));
+  };
+  for(let offset=0;offset<ANALYTICS_EXPORT_MAX_ROWS;offset+=4*ANALYTICS_EXPORT_PAGE_SIZE){
+    const offsets=Array.from({length:4},(_,i)=>offset+i*ANALYTICS_EXPORT_PAGE_SIZE).filter(n=>n<ANALYTICS_EXPORT_MAX_ROWS);
+    const pages=await Promise.all(offsets.map(n=>fetchPage(n)));
+    for(const page of pages){rows.push(...page);if(page.length<ANALYTICS_EXPORT_PAGE_SIZE)return rows;}
+  }
+  if((await fetchPage(ANALYTICS_EXPORT_MAX_ROWS,1)).length)throw new Error("Riepilogo oltre il limite sicuro: nessun KPI parziale");
   return rows;
 }
 
@@ -2080,7 +2069,7 @@ function analyticsSessionExportRows(rawRows = []) {
     const offerPayload = offerEvent.payload || {};
     const engagementEvents = ordered.filter((event) => event.eventType === "session_engagement");
     const engagementLast = engagementEvents[engagementEvents.length - 1]?.payload || {};
-    const hasRealComparison = ordered.some((event) => event.eventType === "comparison_completed" && String(event.dataOrigin || "").toLowerCase() !== LANDING_AUTOMATIC_DATA_ORIGIN);
+    const hasRealComparison = ordered.some(isRealComparisonCompleted);
     const hasSelf = eventTypes.has("landing_self_service_click");
     const hasAssisted = eventTypes.has("landing_assisted_click");
     const affiliatePartnerEvent = [...ordered].reverse().find((event) => event.eventType === "partner_funnel_opened" && (
@@ -2110,7 +2099,8 @@ function analyticsSessionExportRows(rawRows = []) {
     const hasPhotoSignal = pathSignals.paths.has("photo");
     const hasPdfSignal = pathSignals.paths.has("pdf");
 
-    const pdfEvents = ordered.filter((event) => event.eventType.startsWith("pdf_") || (COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(event.eventType) && comparisonEventDataOrigin(event) === "pdf_upload"));
+    const pdfEvents = ordered.filter(event => pathSignals.routeByEvent.get(event)==="pdf" && (event.eventType.startsWith("pdf_") || COMPARISON_PATH_SIGNAL_EVENT_TYPES.has(event.eventType)));
+    const pdfEventTypes=new Set(pdfEvents.map(event=>event.eventType));
     const pdfCompletedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_completed");
     const pdfInterruptedEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_analysis_interrupted");
     const pdfPayloads = pdfEvents.map((event) => event.payload || {});
@@ -2137,7 +2127,7 @@ function analyticsSessionExportRows(rawRows = []) {
       else if ((unrecognizedCount || 0) > 0) pdfOutcome = "documento non riconosciuto";
       else pdfOutcome = "completata (storico senza dettaglio esito)";
     }
-    if (!pdfOutcome && eventTypes.has("pdf_analysis_started")) pdfOutcome = "avviata, esito non registrato";
+    if (!pdfOutcome && pdfEventTypes.has("pdf_analysis_started")) pdfOutcome = "avviata, esito non registrato";
     if (!pdfOutcome && hasPdfSignal) pdfOutcome = "percorso PDF avviato";
 
     const missingFields = uniqueList(pdfPayloads.map((payload) => payload.missingFields));
@@ -2153,34 +2143,24 @@ function analyticsSessionExportRows(rawRows = []) {
       mergeBlocked: Boolean(latestPdfPayload.mergeBlocked),
     });
 
-    const switcho = ["offer_switcho_redirect", "switcho_landing_opened", "business_switcho_requested", "assistance_switcho_redirect"]
-      .some((type) => eventTypes.has(type));
-    const partner = eventTypes.has("offer_redirect") || eventTypes.has("offer_partner_consent_confirmed") || eventTypes.has("partner_funnel_opened") || switcho;
-    const switchoEvent = [...ordered].reverse().find((event) => ["switcho_landing_opened", "offer_switcho_redirect", "assistance_switcho_redirect", "business_switcho_requested"].includes(event.eventType));
+    const switcho = pathSignals.switcho;
+    const partner = pathSignals.partner;
+    const switchoEvent = [...ordered].reverse().find(journeyIsSwitchoRedirect);
     const visitor = visitorDescriptor(ordered);
     const leadId = ordered.map((event) => event.leadId).find(Boolean) || "";
-    const offerSignals = offerJourneySignals(ordered);
+    const offerSignals = pathSignals;
     const offersGenerated = offerSignals.generated;
     const offersViewed = offerSignals.viewed;
     const cardClicked = eventTypes.has("offer_card_clicked");
-    const cardClickedStandard = ordered.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.payload?.mode || "").toLowerCase() === "media"
-        || String(event.payload?.source || "").toLowerCase() === "offer_card_media")
-    );
-    const cardClickedPrecise = ordered.some((event) =>
-      event.eventType === "offer_card_clicked"
-      && (String(event.payload?.mode || "").toLowerCase() === "precise"
-        || String(event.payload?.source || "").toLowerCase() === "offer_card_precise")
-    );
-    const billPersonalizationFromOffer = ordered.some((event) =>
-      event.eventType === "offers_bill_prompt_clicked"
-      && ["offer_card", "offer_path", "offer_card_media"].includes(String(event.payload?.pdfUploadSource || "").toLowerCase())
-    );
+    const cardClickedStandard = ordered.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "standard");
+    const cardClickedPrecise = ordered.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "precise");
+    const cardClickedEstimated = ordered.some(event => event.eventType === "offer_card_clicked" && journeyCardClass(event) === "estimated");
+    const billPersonalizationFromOffer = offerSignals.cardPersonalization;
+
     const hasCommercialActivationChoice = ordered.some((event) => {
       if (!["activation_channel_choice_opened", "activation_channel_selected"].includes(String(event?.eventType || ""))) return false;
-      const route = String(event?.route || "").trim();
-      const channel = String(event?.channel || "").trim();
+      const route = String(event?.route || event?.payload?.route || "").trim();
+      const channel = String(event?.channel || event?.payload?.channel || "").trim();
       if (route === "internal_activatable_view" || channel === "internal") return false;
       return ["offertalogica_partner", "switcho_provider", "provider_site"].includes(route)
         || ["bill_upload", "switcho", "provider_site", "partner_redirect"].includes(channel);
@@ -2206,30 +2186,46 @@ function analyticsSessionExportRows(rawRows = []) {
     let abandonmentStage = "";
     if (switcho) finalOutcome = "Passaggio a Switcho";
     else if (partner) finalOutcome = "Passaggio partner";
+    else if (offerSignals.request) finalOutcome = "Richiesta / assistenza registrata";
+    else if (eventTypes.has("offer_request_failed")) { finalOutcome = "Richiesta offerta non riuscita"; abandonmentStage = "richiesta"; }
+    else if (eventTypes.has("offer_partner_consent_confirmed")) { finalOutcome = "Consenso partner confermato"; abandonmentStage = "consenso"; }
+    else if (eventTypes.has("otp_verified")) { finalOutcome = "Verifica codice completata"; abandonmentStage = "verifica"; }
+    else if (eventTypes.has("otp_sent")) { finalOutcome = "Codice inviato"; abandonmentStage = "verifica"; }
+    else if (eventTypes.has("otp_request_started")) { finalOutcome = "Codice richiesto"; abandonmentStage = "verifica"; }
     else if (offerAction) finalOutcome = "Azione su offerta";
     else if (cardClicked) { finalOutcome = "Card cliccata"; abandonmentStage = "card"; }
+    else if (offerSignals.popupAccepted && !Object.entries(offerSignals.routes).some(([route, flags])=>route!=="average" && flags.viewed)) { finalOutcome = "Personalizzazione richiesta"; abandonmentStage = "personalizzazione"; }
+    else if (offerSignals.businessCalculated) { finalOutcome = "Calcolo business completato"; abandonmentStage = "business"; }
     else if (offersViewed) { finalOutcome = "Offerte visualizzate"; abandonmentStage = "offerte"; }
     else if (offerSignals.reached) { finalOutcome = "Classifica raggiunta"; abandonmentStage = "classifica"; }
     else if (offerSignals.legacy) { finalOutcome = "Arrivo offerte (criterio storico)"; abandonmentStage = "offerte (storico)"; }
     else if (offersGenerated) { finalOutcome = "Confronto completato"; abandonmentStage = "confronto"; }
     else if (hasRealComparison) { finalOutcome = "Confronto completato"; abandonmentStage = "dopo confronto"; }
-    else if (eventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF: analisi interrotta / abbandonata"; abandonmentStage = "analisi PDF"; }
+    else if (pdfEventTypes.has("pdf_analysis_interrupted")) { finalOutcome = "PDF: analisi interrotta / abbandonata"; abandonmentStage = "analisi PDF"; }
     else if (pdfCompletedEvent && rawPdfOutcome === "failed") { finalOutcome = "PDF: errore tecnico"; abandonmentStage = "analisi PDF"; }
     else if (pdfCompletedEvent && rawPdfOutcome === "unrecognized") { finalOutcome = "PDF: documento non riconosciuto"; abandonmentStage = "analisi PDF"; }
     else if (pdfCompletedEvent && rawPdfOutcome === "success_missing_data") { finalOutcome = "PDF: dati mancanti / da confermare"; abandonmentStage = "conferma dati PDF"; }
     else if (pdfCompletedEvent && rawPdfOutcome === "partial") { finalOutcome = "PDF: analisi parziale"; abandonmentStage = "verifica dati PDF"; }
     else if (pdfCompletedEvent) { finalOutcome = `PDF: ${pdfOutcome || "analisi completata"}`; abandonmentStage = "dopo analisi PDF"; }
-    else if (eventTypes.has("pdf_analysis_started")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
+    else if (pdfEventTypes.has("pdf_analysis_started")) { finalOutcome = "PDF avviato senza completamento"; abandonmentStage = "analisi PDF"; }
     else if (hasPdfSignal) { finalOutcome = "Percorso PDF senza analisi avviata"; abandonmentStage = "caricamento PDF"; }
     else if (eventTypes.has("comparison_started")) { finalOutcome = "Confronto avviato"; abandonmentStage = "confronto"; }
+    else if (eventTypes.has("bill_photo_analysis_failed")) { finalOutcome = "Foto: lettura fallita"; abandonmentStage = "analisi foto"; }
+    else if (eventTypes.has("bill_photo_analysis_completed")) { finalOutcome = "Foto: lettura conclusa"; abandonmentStage = "dopo lettura foto"; }
+    else if (eventTypes.has("bill_photo_analysis_started")) { finalOutcome = "Foto: lettura avviata"; abandonmentStage = "analisi foto"; }
+    else if (offerSignals.guidedCompleted) { finalOutcome = "3 domande completate"; abandonmentStage = "3 domande"; }
+    else if (offerSignals.guidedStarted) { finalOutcome = "3 domande avviate"; abandonmentStage = "3 domande"; }
+    else if (hasPhotoSignal) { finalOutcome = "Percorso foto scelto"; abandonmentStage = "foto"; }
+    else if (pathSignals.paths.has("manual")) { finalOutcome = "Percorso manuale scelto"; abandonmentStage = "manuale"; }
     else if (hasSelf || hasAssisted) { finalOutcome = "Percorso scelto"; abandonmentStage = hasAssisted ? "passaggio guidato" : "scelta modalità confronto"; }
     else if (eventTypes.has("landing_view")) { finalOutcome = "Solo landing"; abandonmentStage = "landing"; }
 
-    const selectionEvent = [...ordered].reverse().find((event) => event.eventType === "pdf_file_selected")?.payload || {};
-    const previewOpened = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_opened")?.payload || {};
-    const previewConfirmed = [...ordered].reverse().find((event) => event.eventType === "pdf_autofill_preview_confirmed")?.payload || {};
+    const selectionEvent = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_file_selected")?.payload || {};
+    const previewOpened = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_autofill_preview_opened")?.payload || {};
+    const previewConfirmed = [...pdfEvents].reverse().find((event) => event.eventType === "pdf_autofill_preview_confirmed")?.payload || {};
     return {
       session_id: String(firstPayload.sessionId || ""),
+      esclusa_analytics: ordered.some(journeyIsExcluded),
       first_at: first.createdAt || "",
       last_at: last.createdAt || "",
       events_count: ordered.length,
@@ -2264,6 +2260,28 @@ function analyticsSessionExportRows(rawRows = []) {
         && comparisonEventPathChoice(event) === "photo"
       ),
       manuale_scelto: pathSignals.paths.has("manual"),
+      tre_domande_scelte: pathSignals.paths.has("guided"),
+      tre_domande_completate: offerSignals.guidedCompleted,
+      business_calcolato: offerSignals.businessCalculated,
+      business_switcho_richiesto: offerSignals.businessRequested,
+      popup_personalizzazione_accettato: offerSignals.popupAccepted,
+      popup_personalizzazione_chiuso: offerSignals.popupDismissed,
+      popup_personalizzazione_mostrato: offerSignals.popupShown,
+      popup_accettato_dopo_visione: offerSignals.popupAcceptedMeasured,
+      popup_chiuso_dopo_visione: offerSignals.popupClosedMeasured,
+      popup_senza_azione: offerSignals.popupShown && !offerSignals.popupAcceptedMeasured && !offerSignals.popupClosedMeasured && !offerSignals.popupActionUnpaired && !offerSignals.popupAccepted && !offerSignals.popupDismissed,
+      popup_azione_senza_visione: offerSignals.popupActionUnpaired || (offerSignals.popupShown && ((offerSignals.popupAccepted && !offerSignals.popupAcceptedMeasured) || (offerSignals.popupDismissed && !offerSignals.popupClosedMeasured))),
+      popup_metodo_scelto: offerSignals.popupMethod,
+      popup_personalizzazione_completata: offerSignals.popupCompleted,
+      popup_offerte_viste: offerSignals.popupViewed,
+      popup_card_cliccata: offerSignals.popupCard,
+      popup_accettazione_precedente: offerSignals.popupAccepted && !offerSignals.popupAcceptedMeasured,
+      popup_chiusura_precedente: offerSignals.popupDismissed && !offerSignals.popupClosedMeasured,
+      richiesta_registrata: offerSignals.request,
+      consenso_partner: eventTypes.has("offer_partner_consent_confirmed"),
+      card_dopo_visione: offerSignals.cardAfterView,
+      otp_verificato_dopo_invio: offerSignals.otpAfterSent,
+      percorsi_dettaglio: offerSignals.routes,
       confronto_avviato: ordered.some((event) => event.eventType === "comparison_started" && !isAutomaticLandingPreview(event)),
       confronto_reale: hasRealComparison,
       offerte_generate: offersGenerated,
@@ -2277,15 +2295,16 @@ function analyticsSessionExportRows(rawRows = []) {
       card_cliccata: cardClicked,
       card_cliccata_standard: cardClickedStandard,
       card_cliccata_personalizzata: cardClickedPrecise,
+      card_cliccata_stimata: cardClickedEstimated,
       personalizzazione_da_card: billPersonalizationFromOffer,
       numero_offerte: ordered.map((event) => Number(event.payload?.visibleOffersCount)).filter((value) => Number.isFinite(value) && value > 0).pop() || "",
       pdf_scelto: hasPdfSignal,
       pdf_scelto_registrato: ordered.some((event) =>
         event.eventType === "comparison_path_selected"
-        && comparisonEventPathChoice(event) === "pdf"
+        && pathSignals.routeByEvent.get(event) === "pdf"
       ),
-      pdf_picker_aperto: eventTypes.has("pdf_picker_opened"),
-      pdf_file_selezionato: eventTypes.has("pdf_file_selected"),
+      pdf_picker_aperto: pdfEventTypes.has("pdf_picker_opened"),
+      pdf_file_selezionato: pdfEventTypes.has("pdf_file_selected"),
       pdf_upload_source: selectionEvent.pdfUploadSource || latestPdfPayload.pdfUploadSource || "",
       pdf_upload_offer_id: selectionEvent.pdfUploadOfferId || latestPdfPayload.pdfUploadOfferId || "",
       pdf_upload_offer_name: selectionEvent.pdfUploadOfferName || latestPdfPayload.pdfUploadOfferName || "",
@@ -2293,9 +2312,9 @@ function analyticsSessionExportRows(rawRows = []) {
       pdf_file_selezionati: selectionEvent.selectedCount ?? "",
       pdf_file_accettati: selectionEvent.acceptedCount ?? "",
       pdf_duplicati: selectionEvent.duplicateCount ?? "",
-      pdf_analisi_avviata: eventTypes.has("pdf_analysis_started"),
-      pdf_analisi_completata: eventTypes.has("pdf_analysis_completed"),
-      pdf_analisi_interrotta: eventTypes.has("pdf_analysis_interrupted"),
+      pdf_analisi_avviata: pdfEventTypes.has("pdf_analysis_started"),
+      pdf_analisi_completata: pdfEventTypes.has("pdf_analysis_completed"),
+      pdf_analisi_interrotta: pdfEventTypes.has("pdf_analysis_interrupted"),
       pdf_esito: pdfOutcome,
       pdf_file_count: latestPdfPayload.fileCount ?? "",
       pdf_success_count: latestPdfPayload.successCount ?? "",
@@ -2311,9 +2330,9 @@ function analyticsSessionExportRows(rawRows = []) {
       pdf_commodities: commodities.join(" | "),
       pdf_mixed_documents: latestPdfPayload.mixedDocuments ?? "",
       pdf_merge_blocked: latestPdfPayload.mergeBlocked ?? "",
-      pdf_dati_confermati: eventTypes.has("pdf_data_confirmed"),
-      pdf_autofill_aperto: eventTypes.has("pdf_autofill_preview_opened"),
-      pdf_autofill_confermato: eventTypes.has("pdf_autofill_preview_confirmed"),
+      pdf_dati_confermati: pdfEventTypes.has("pdf_data_confirmed"),
+      pdf_autofill_aperto: pdfEventTypes.has("pdf_autofill_preview_opened"),
+      pdf_autofill_confermato: pdfEventTypes.has("pdf_autofill_preview_confirmed"),
       pdf_campi_autofill: previewOpened.fieldCount ?? "",
       pdf_campi_selezionati: previewConfirmed.selectedCount ?? "",
       pdf_campi_saltati: previewConfirmed.skippedCount ?? "",
@@ -2349,19 +2368,40 @@ function analyticsSessionExportRows(rawRows = []) {
 }
 
 function analyticsJourneyRows(rawRows = []) {
-  return analyticsSessionExportRows(rawRows).filter((row) => row.session_id && !["known_bot", "automation"].includes(row.visitor_type));
+  return analyticsSessionExportRows(rawRows).filter((row) => row.session_id && !row.esclusa_analytics && !["known_bot", "automation"].includes(row.visitor_type));
 }
 
 function analyticsJourneySummary(rows = [], rawRows = []) {
   const count = (predicate) => rows.filter(predicate).length;
   const funnelFromRows = (items = []) => ({
     entries: items.length,
-    pathSelected: items.filter((row) => row.scelta_percorso).length,
+    pathSelected: items.filter(row => /autonomia|guidato/.test(String(row.scelta_percorso))).length,
     selfServiceSelected: items.filter((row) => String(row.scelta_percorso).includes("autonomia")).length,
     assistedSelected: items.filter((row) => String(row.scelta_percorso).includes("guidato")).length,
     averageSelected: items.filter((row) => row.profilo_medio_scelto).length,
     photoSelected: items.filter((row) => row.foto_scelta).length,
     manualSelected: items.filter((row) => row.manuale_scelto).length,
+    guidedSelected: items.filter(row => row.tre_domande_scelte).length,
+    guidedCompleted: items.filter(row => row.tre_domande_completate).length,
+    businessCalculated: items.filter(row => row.business_calcolato).length,
+    popupAccepted: items.filter(row => row.popup_personalizzazione_accettato).length,
+    popupDismissed: items.filter(row => row.popup_personalizzazione_chiuso).length,
+    popupShown: items.filter(row => row.popup_personalizzazione_mostrato).length,
+    popupAcceptedMeasured: items.filter(row => row.popup_accettato_dopo_visione).length,
+    popupClosedMeasured: items.filter(row => row.popup_chiuso_dopo_visione).length,
+    popupNoAction: items.filter(row => row.popup_senza_azione).length,
+    popupActionUnpaired: items.filter(row => row.popup_azione_senza_visione).length,
+    popupMethod: items.filter(row => row.popup_metodo_scelto).length,
+    popupCompleted: items.filter(row => row.popup_personalizzazione_completata).length,
+    popupViewed: items.filter(row => row.popup_offerte_viste).length,
+    popupCard: items.filter(row => row.popup_card_cliccata).length,
+    popupLegacyAccepted: items.filter(row => row.popup_accettazione_precedente).length,
+    popupLegacyDismissed: items.filter(row => row.popup_chiusura_precedente).length,
+    partnerRedirects: items.filter(row => row.partner).length,
+    requestRecorded: items.filter(row => row.richiesta_registrata).length,
+    otpVerifiedAfterSent: items.filter(row => row.otp_verificato_dopo_invio).length,
+    cardClickedEstimated: items.filter(row => row.card_cliccata_stimata).length,
+    routeMetrics: aggregateJourneyRoutes(items.map(row=>row.percorsi_dettaglio)),
     pdfSelected: items.filter((row) => row.pdf_scelto).length,
     pdfStarted: items.filter((row) => row.pdf_analisi_avviata).length,
     pdfCompleted: items.filter((row) => row.pdf_analisi_completata).length,
@@ -2373,7 +2413,7 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     newReachedAfterClick: items.filter((row) => row.classifica_dopo_autonomia).length,
     newViewedAfterClick: items.filter((row) => row.visione_dopo_autonomia).length,
     offersViewed: items.filter((row) => row.offerte_visualizzate).length,
-    cardClickedWithView: items.filter((row) => row.offerte_visualizzate && row.card_cliccata).length,
+    cardClickedWithView: items.filter(row => row.card_dopo_visione).length,
     cardClicked: items.filter((row) => row.card_cliccata).length,
     cardClickedStandard: items.filter((row) => row.card_cliccata_standard).length,
     cardClickedPrecise: items.filter((row) => row.card_cliccata_personalizzata).length,
@@ -2395,7 +2435,8 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     if (row.azione_offerta && row.provider) increment(providerCounts, row.provider);
     if (row.azione_offerta && row.offerta) increment(offerCounts, `${row.provider || "Fornitore"} - ${row.offerta}`);
   });
-  const activityEvents = (Array.isArray(rawRows) ? rawRows : []).map((row) => {
+  const eligibleSessions = new Set(rows.map(row=>row.session_id));
+  const activityEvents = (Array.isArray(rawRows) ? rawRows : []).filter(row => eligibleSessions.has(String(rawAnalyticsPayload(row).sessionId || ""))).map((row) => {
     const payload = rawAnalyticsPayload(row);
     return {
       eventType: String(row.event_type || ""),
@@ -2423,6 +2464,25 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     photo: count((row) => row.foto_scelta),
     photoSelectedRecorded: count((row) => row.foto_scelta_registrata),
     manual: count((row) => row.manuale_scelto),
+    guided: count(row => row.tre_domande_scelte),
+    guidedCompleted: count(row => row.tre_domande_completate),
+    businessCalculated: count(row => row.business_calcolato),
+    popupAccepted: count(row => row.popup_personalizzazione_accettato),
+    popupDismissed: count(row => row.popup_personalizzazione_chiuso),
+    popupShown: count(row => row.popup_personalizzazione_mostrato),
+    popupAcceptedMeasured: count(row => row.popup_accettato_dopo_visione),
+    popupClosedMeasured: count(row => row.popup_chiuso_dopo_visione),
+    popupNoAction: count(row => row.popup_senza_azione),
+    popupActionUnpaired: count(row => row.popup_azione_senza_visione),
+    popupMethod: count(row => row.popup_metodo_scelto),
+    popupCompleted: count(row => row.popup_personalizzazione_completata),
+    popupViewed: count(row => row.popup_offerte_viste),
+    popupCard: count(row => row.popup_card_cliccata),
+    popupLegacyAccepted: count(row => row.popup_accettazione_precedente),
+    popupLegacyDismissed: count(row => row.popup_chiusura_precedente),
+    requestRecorded: count(row => row.richiesta_registrata),
+    cardClickedEstimated: count(row => row.card_cliccata_stimata),
+    routeMetrics: aggregateJourneyRoutes(rows.map(row=>row.percorsi_dettaglio)),
     pdf: count((row) => row.pdf_scelto),
     pdfSelectedRecorded: count((row) => row.pdf_scelto_registrato),
     pdfPickerOpened: count((row) => row.pdf_picker_aperto),
@@ -2438,7 +2498,7 @@ function analyticsJourneySummary(rows = [], rawRows = []) {
     newReachedAfterClick: count((row) => row.classifica_dopo_autonomia),
     newViewedAfterClick: count((row) => row.visione_dopo_autonomia),
     offersViewed: count((row) => row.offerte_visualizzate),
-    cardClickedWithView: count((row) => row.offerte_visualizzate && row.card_cliccata),
+    cardClickedWithView: count(row => row.card_dopo_visione),
     cardClicked: count((row) => row.card_cliccata),
     cardClickedStandard: count((row) => row.card_cliccata_standard),
     cardClickedPrecise: count((row) => row.card_cliccata_personalizzata),
@@ -2665,6 +2725,8 @@ export default async function handler(req, res) {
           "session_id", "first_at", "last_at", "events_count", "event_types", "visitor_type", "visitor_label",
           "source", "medium", "campaign", "term", "content", "campaign_id", "adgroup_id", "creative_id", "match_type", "device", "ads_network", "click_id_type", "click_id", "referrer", "landing",
           "intento", "intento_base", "scelta_percorso", "percorso_confronto", "percorso_sequenza", "percorso_base", "profilo_medio_scelto", "manuale_scelto", "confronto_avviato", "confronto_reale", "offerte_generate", "offerte_storico", "classifica_raggiunta", "offerte_visualizzate", "misurazione_offerte", "autonomia_nuovo_tracking", "classifica_dopo_autonomia", "visione_dopo_autonomia", "numero_offerte",
+          "foto_scelta", "foto_scelta_registrata", "tre_domande_scelte", "tre_domande_completate", "business_calcolato", "business_switcho_richiesto",
+          "popup_personalizzazione_accettato", "popup_personalizzazione_chiuso", "popup_personalizzazione_mostrato", "popup_accettato_dopo_visione", "popup_chiuso_dopo_visione", "popup_senza_azione", "popup_azione_senza_visione", "popup_metodo_scelto", "popup_personalizzazione_completata", "popup_offerte_viste", "popup_card_cliccata", "popup_accettazione_precedente", "popup_chiusura_precedente", "richiesta_registrata", "consenso_partner", "card_dopo_visione", "card_cliccata", "card_cliccata_standard", "card_cliccata_personalizzata", "card_cliccata_stimata", "personalizzazione_da_card", "percorsi_dettaglio",
           "pdf_scelto", "pdf_scelto_registrato", "pdf_picker_aperto", "pdf_file_selezionato", "pdf_file_selezionati", "pdf_file_accettati", "pdf_duplicati",
           "pdf_analisi_avviata", "pdf_analisi_completata", "pdf_analisi_interrotta", "pdf_esito", "pdf_file_count", "pdf_success_count", "pdf_unrecognized_count", "pdf_error_count",
           "pdf_missing_fields", "pdf_missing_field_count", "pdf_review_field_count", "pdf_diagnostic_reason", "pdf_diagnostic_codes", "pdf_analysis_stages", "pdf_document_kinds", "pdf_commodities", "pdf_mixed_documents", "pdf_merge_blocked",
@@ -2771,45 +2833,16 @@ export default async function handler(req, res) {
   }
 
   if (mode === "overview") {
-    let databaseSummary = null;
     try {
-      databaseSummary = await loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO);
-    } catch (error) {
-      console.error("staff-analytics-summary", error);
+      const rows = await loadJourneySummaryRows(CAMPAIGN_BASELINE_ISO);
+      const journeys = analyticsJourneyRows(rows);
+      const summary = analyticsJourneySummary(journeys, rows);
+      return json(res, 200, {ok:true, configured:customerDbConfiguredForLandingAnalytics(), status:"ready",
+        summary:{...summary, recentEvents:rows.length, attributedSessions:journeys.length, linkedLeads:new Set(journeys.map(row=>row.lead_id).filter(Boolean)).size, funnel:summary.activity},
+        aggregationMode:"full_journey_scan", baseline:{from:CAMPAIGN_BASELINE_ISO,label:CAMPAIGN_BASELINE_LABEL,timezone:ANALYTICS_TIME_ZONE}, authorizedBy,checkedAt:new Date().toISOString()});
+    } catch(error) {
+      return json(res,503,{ok:false,status:"journey_summary_unavailable",error:String(error?.message||error),authorizedBy});
     }
-    if (databaseSummary) {
-      return json(res, 200, {
-        ok: true,
-        configured: true,
-        status: "ready",
-        summary: databaseSummary,
-        aggregationMode: "database",
-        baseline: {
-          from: CAMPAIGN_BASELINE_ISO,
-          label: CAMPAIGN_BASELINE_LABEL,
-          timezone: "Europe/Rome",
-        },
-        authorizedBy,
-        checkedAt: new Date().toISOString(),
-      });
-    }
-
-    const rawResult = await listCustomerAnalytics({ limit });
-    const result = enhanceAnalyticsForStaff(analyticsFromCampaignBaseline(rawResult));
-    return json(res, result.ok ? 200 : 500, {
-      ok: result.ok,
-      configured: result.configured,
-      status: result.status,
-      summary: result.summary || {},
-      aggregationMode: "recent_fallback",
-      baseline: {
-        from: CAMPAIGN_BASELINE_ISO,
-        label: CAMPAIGN_BASELINE_LABEL,
-        timezone: "Europe/Rome",
-      },
-      authorizedBy,
-      checkedAt: new Date().toISOString(),
-    });
   }
 
   if (period && mode !== "overview") {
@@ -2838,11 +2871,9 @@ export default async function handler(req, res) {
         ...item,
         routeStats: routeMap.get(String(item?.key || "").trim().toLowerCase()) || null,
       }));
-      const sessionFunnel = { ...(exactSummary.sessionFunnel || {}), cardClicked: Number(offerSelectionSummary.cardClicks || exactSummary.cardClicked || 0) };
-      const sessionFunnelsBySource = { ...(exactSummary.sessionFunnelsBySource || {}) };
-      Object.entries(offerSelectionSummary.cardClicksBySource || {}).forEach(([sourceKey, count]) => {
-        sessionFunnelsBySource[sourceKey] = { ...(sessionFunnelsBySource[sourceKey] || {}), cardClicked: Number(count || 0) };
-      });
+      const sessionFunnel = exactSummary.sessionFunnel || {};
+      const sessionFunnelsBySource = exactSummary.sessionFunnelsBySource || {};
+
       const linkedLeadIds = new Set(monthlyRows.map((row) => String(row?.lead_id || "").trim()).filter(Boolean));
       const summary = {
         ...(result.summary || {}),
@@ -2938,7 +2969,7 @@ export default async function handler(req, res) {
       console.error("staff-analytics-recent-journeys", error);
       return [];
     }),
-    loadDatabaseAnalyticsSummary(CAMPAIGN_BASELINE_ISO).catch((error) => {
+    loadJourneySummaryRows(CAMPAIGN_BASELINE_ISO).then(rows=>analyticsJourneySummary(analyticsJourneyRows(rows),rows)).catch((error) => {
       console.error("staff-analytics-summary", error);
       return null;
     }),
@@ -2970,22 +3001,9 @@ export default async function handler(req, res) {
   }));
   const clickedProviders = decorateRouteRows(rawClickedProviders, providerRouteMap);
   const clickedOffers = decorateRouteRows(rawClickedOffers, offerRouteMap);
-  const mergedSessionFunnel = {
-    ...(recentJourneySummary.sessionFunnel || {}),
-    ...(exactSummary?.sessionFunnel || {}),
-  };
-  if (offerSelectionSummary) mergedSessionFunnel.cardClicked = Number(offerSelectionSummary.cardClicks || 0);
-  const recentFunnelsBySource = recentJourneySummary.sessionFunnelsBySource || {};
-  const exactFunnelsBySource = exactSummary?.sessionFunnelsBySource || {};
-  const cardClicksBySource = offerSelectionSummary?.cardClicksBySource || {};
-  const mergedSessionFunnelsBySource = {};
-  new Set([...Object.keys(recentFunnelsBySource), ...Object.keys(exactFunnelsBySource), ...Object.keys(cardClicksBySource)]).forEach((sourceKey) => {
-    mergedSessionFunnelsBySource[sourceKey] = {
-      ...(recentFunnelsBySource[sourceKey] || {}),
-      ...(exactFunnelsBySource[sourceKey] || {}),
-      cardClicked: Number(cardClicksBySource[sourceKey] || 0),
-    };
-  });
+  const mergedSessionFunnel = exactSummary?.sessionFunnel || recentJourneySummary.sessionFunnel || {};
+  const mergedSessionFunnelsBySource = exactSummary?.sessionFunnelsBySource || recentJourneySummary.sessionFunnelsBySource || {};
+
   const summary = exactSummary
     ? { ...(result.summary || {}), ...exactSummary, topProviders: clickedProviders, topOffers: clickedOffers, funnel: exactSummary.activity || exactSummary.funnel || result.summary?.funnel || {} }
     : { ...(result.summary || {}), topProviders: clickedProviders, topOffers: clickedOffers };
@@ -3007,7 +3025,7 @@ export default async function handler(req, res) {
       loadedEvents: recentAnalyticsRows.length,
       recentOnly: true,
     },
-    aggregationMode: exactSummary ? "database" : "recent_fallback",
+    aggregationMode: exactSummary ? "full_journey_scan" : "recent_fallback",
     switcho,
     offerRoutes,
     photoJourneySummary,
