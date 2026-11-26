@@ -1,8 +1,8 @@
 {
-  "versioneDati": "partner-menu-2026-11-25-v1",
+  "versioneDati": "partner-menu-2026-11-26-v1",
   "schemaVersion": 1,
   "fonte": "Offerte partner dirette validate nelle cartelle 20_ATTIVE; le offerte con condizioni economiche incomplete sono pubblicate separatamente e restano escluse dal ranking.",
-  "aggiornatoIl": "2026-11-25",
+  "aggiornatoIl": "2026-11-26",
   "offerte": [
     {
       "providerKey": "greenius",
@@ -610,106 +610,6 @@
       "fornitore": "Greenius",
       "commodity": "gas",
       "tipo": "variabile",
-      "nome": "IN CONTROL CASA",
-      "codice": "027184GNVML01XXXXX2611DOGCAPRES2",
-      "pivaVenditore": "04362490403",
-      "dataInizio": "",
-      "dataFine": "2026-11-25",
-      "customerType": "domestico",
-      "tipoClienteCodice": "PARTNER_DIRECT",
-      "tipoOffertaCodice": "PARTNER_DIRECT",
-      "durataMesi": null,
-      "indiceRiferimento": "psv",
-      "prezzo": 0.985,
-      "quotaFissaAnnua": 168.0,
-      "url": "#",
-      "fonte": "CTE partner diretta GREENIUS",
-      "score": 900,
-      "qualitaPrezzo": "partner_cte_validata",
-      "provenienzaPrezzo": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "projectionRule": "min(indice corrente + spread, CAP)",
-        "sourceDocument": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf"
-      },
-      "provenienzaQuotaFissa": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "sourceDocument": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf"
-      },
-      "sconti": [],
-      "dettagliTecnici": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "partners": [
-          {
-            "partnerKey": "greenius",
-            "partnerLabel": "GREENIUS"
-          }
-        ],
-        "commercialFamily": "in control casa",
-        "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2611DOGCAPRES2",
-        "sourceFile": "16_11_2026__30_11_2026__027184GNVML01XXXXX2611DOGCAPRES2.pdf",
-        "sourceHash": "ee49a11351a385ad38bd50be5e912770aad4eac327db70c4e4c1a9179a08cd9f",
-        "economics": {
-          "indexName": "PSV",
-          "indexValueAtProjection": 0.945436,
-          "fixedPrice": null,
-          "spread": 0.165,
-          "annualFixedFee": 168.0,
-          "networkLosses": {
-            "rankingPriceConvention": null
-          },
-          "variableComponents": [],
-          "fixedComponents": [],
-          "cap": {
-            "enabled": true,
-            "value": 0.985,
-            "unit": "EUR/Smc",
-            "validForMonths": 12,
-            "rule": "min(indice + spread, cap)"
-          },
-          "discounts": [
-            {
-              "name": "Bonus SDD",
-              "value": 12.0,
-              "unit": "EUR/anno",
-              "condition": "Pagamento tramite SDD",
-              "includedInRanking": false
-            }
-          ]
-        },
-        "requirements": {
-          "sdd": true,
-          "digitalInvoice": null,
-          "powerConstraints": null,
-          "geographicConstraints": null,
-          "other": []
-        }
-      },
-      "sourceType": "partner_direct",
-      "partnerKey": "greenius",
-      "partnerKeys": [
-        "greenius"
-      ],
-      "commercialFamily": "in control casa",
-      "canonicalKey": "04362490403|gas|027184GNVML01XXXXX2611DOGCAPRES2"
-    },
-    {
-      "providerKey": "greenius",
-      "providerLabel": "Greenius",
-      "fornitore": "Greenius",
-      "commodity": "gas",
-      "tipo": "variabile",
       "nome": "CASA SMERALDO",
       "codice": "027184GSVML01XXXXX2609DOGPSVRESJ",
       "pivaVenditore": "04362490403",
@@ -895,106 +795,6 @@
       ],
       "commercialFamily": "la stessa",
       "canonicalKey": "04362490403|luce|027184ESFML01XXB2611DOE0FFIXCANA"
-    },
-    {
-      "providerKey": "greenius",
-      "providerLabel": "Greenius",
-      "fornitore": "Greenius",
-      "commodity": "luce",
-      "tipo": "variabile",
-      "nome": "IN CONTROL CASA 24 MESI",
-      "codice": "027184ENVML01XXB2611DOEF0CAPRES2",
-      "pivaVenditore": "04362490403",
-      "dataInizio": "",
-      "dataFine": "2026-11-25",
-      "customerType": "domestico",
-      "tipoClienteCodice": "PARTNER_DIRECT",
-      "tipoOffertaCodice": "PARTNER_DIRECT",
-      "durataMesi": null,
-      "indiceRiferimento": "pun",
-      "prezzo": 0.235,
-      "quotaFissaAnnua": 168.0,
-      "url": "#",
-      "fonte": "CTE partner diretta GREENIUS",
-      "score": 900,
-      "qualitaPrezzo": "partner_cte_validata",
-      "provenienzaPrezzo": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "projectionRule": "min(indice corrente + spread netto perdite, CAP)",
-        "sourceDocument": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf"
-      },
-      "provenienzaQuotaFissa": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "sourceDocument": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf"
-      },
-      "sconti": [],
-      "dettagliTecnici": {
-        "sourceType": "partner_direct",
-        "partnerKey": "greenius",
-        "partnerKeys": [
-          "greenius"
-        ],
-        "partners": [
-          {
-            "partnerKey": "greenius",
-            "partnerLabel": "GREENIUS"
-          }
-        ],
-        "commercialFamily": "in control casa",
-        "canonicalKey": "04362490403|luce|027184ENVML01XXB2611DOEF0CAPRES2",
-        "sourceFile": "16_11_2026__30_11_2026__027184ENVML01XXB2611DOEF0CAPRES2.pdf",
-        "sourceHash": "9f2a5204fbc59251782edb1c29f9943337b7e86a89153e21af9ba765513c3695",
-        "economics": {
-          "indexName": "PUN",
-          "indexValueAtProjection": 0.230817,
-          "fixedPrice": null,
-          "spread": 0.0295,
-          "annualFixedFee": 168.0,
-          "networkLosses": {
-            "rankingPriceConvention": "net"
-          },
-          "variableComponents": [],
-          "fixedComponents": [],
-          "cap": {
-            "enabled": true,
-            "value": 0.235,
-            "unit": "EUR/kWh",
-            "validForMonths": 12,
-            "rule": "min(indice + spread, cap)"
-          },
-          "discounts": [
-            {
-              "name": "Bonus SDD",
-              "value": 12.0,
-              "unit": "EUR/anno",
-              "condition": "Pagamento tramite SDD",
-              "includedInRanking": false
-            }
-          ]
-        },
-        "requirements": {
-          "sdd": true,
-          "digitalInvoice": null,
-          "powerConstraints": null,
-          "geographicConstraints": null,
-          "other": []
-        }
-      },
-      "sourceType": "partner_direct",
-      "partnerKey": "greenius",
-      "partnerKeys": [
-        "greenius"
-      ],
-      "commercialFamily": "in control casa",
-      "canonicalKey": "04362490403|luce|027184ENVML01XXB2611DOEF0CAPRES2"
     },
     {
       "providerKey": "greenius",
@@ -5458,9 +5258,9 @@
   ],
   "statistiche": {
     "fileAttiviLetti": 56,
-    "offertePrivateAttive": 22,
+    "offertePrivateAttive": 20,
     "offerteBusinessAttive": 25,
     "offerteParzialiAttive": 4,
-    "offerteScaduteEscluse": 5
+    "offerteScaduteEscluse": 7
   }
 }
