@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { clientIp, json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -111,6 +112,49 @@ function requestHeader(req, name, max = 500) {
   const value = req?.headers?.[normalized];
   if (Array.isArray(value)) return text(value.join(" "), max);
   return text(value, max);
+}
+
+// Synthetic QA is deliberately excluded at ingress, before rate limits and
+// analytics persistence. Only the server-side hash of a random QA token is
+// configured in production. Browserless sets two Secure, host-only cookies:
+// ol_site_qa_token (HttpOnly secret) and ol_site_qa_run (non-secret run id).
+// Unknown, partial, duplicated or invalid QA cookies fail closed.
+const QA_TOKEN_COOKIE = "ol_site_qa_token";
+const QA_RUN_COOKIE = "ol_site_qa_run";
+const QA_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
+const QA_RUN_PATTERN = /^QA-[A-Za-z0-9_-]{8,80}$/;
+
+function cookieValues(req, name) {
+  const raw = String(req?.headers?.cookie || "");
+  const values = raw.split(";").map((part) => part.trim()).flatMap((part) => {
+    const eq = part.indexOf("=");
+    return eq > 0 && part.slice(0, eq).trim() === name
+      ? [part.slice(eq + 1).trim()] : [];
+  });
+  return { values };
+}
+
+function verifiedQaSession(req) {
+  const token = cookieValues(req, QA_TOKEN_COOKIE);
+  const run = cookieValues(req, QA_RUN_COOKIE);
+  if (!token.values.length && !run.values.length) {
+    return { status: "absent" };
+  }
+  if (token.values.length !== 1 || run.values.length !== 1) {
+    return { status: "invalid" };
+  }
+  const suppliedToken = token.values[0];
+  const runId = run.values[0];
+  const expectedHash = String(process.env.OL_QA_TOKEN_SHA256 || "").trim().toLowerCase();
+  if (!QA_TOKEN_PATTERN.test(suppliedToken)
+    || !QA_TOKEN_PATTERN.test(expectedHash)
+    || !QA_RUN_PATTERN.test(runId)) {
+    return { status: "invalid" };
+  }
+  const actual = crypto.createHash("sha256").update(suppliedToken, "utf8").digest();
+  const expected = Buffer.from(expectedHash, "hex");
+  if (!crypto.timingSafeEqual(actual, expected)) return { status: "invalid" };
+  return { status: "verified", runId };
 }
 
 function classifyTrafficAgent(req) {
@@ -279,8 +323,48 @@ function requireAnalyticsBrowserOrigin(req, res) {
 }
 
 export default async function handler(req, res) {
+  // Browserless preflight: GET is successful only with both verified QA cookies.
+  // Anonymous GET requests keep the original 405 response.
+  if (req.method === "GET") {
+    const qa = verifiedQaSession(req);
+    if (qa.status === "absent") return method(req, res, ["POST"]);
+    if (qa.status !== "verified") return json(res, 403, { ok: false, error: "Identita QA non valida" });
+    return json(res, 200, { ok: true, status: "QA_READY", qa_run_id: qa.runId });
+  }
   if (!method(req, res, ["POST"])) return;
   if (!requireAnalyticsBrowserOrigin(req, res)) return;
+
+  // Invalid/partial QA credentials fail closed. Without both QA cookies the
+  // client is indistinguishable from a normal visitor: Browserless must first
+  // pass the authenticated GET preflight before navigating a page.
+  // Verified runs are diagnostic-only, with no lead_events write or impact on
+  // the production analytics rate-limit bucket.
+  const qa = verifiedQaSession(req);
+  if (qa.status === "invalid") {
+    return json(res, 403, { ok: false, error: "Identita QA non valida" });
+  }
+  if (qa.status === "verified") {
+    try {
+      const body = await readJson(req);
+      const eventType = text(body?.eventType || body?.type, 80);
+      if (!/^[a-z0-9_:-]{2,80}$/i.test(eventType) || !ALLOWED_EVENT_TYPES.has(eventType)) {
+        return json(res, 400, { ok: false, error: "Evento non autorizzato" });
+      }
+      console.info("offertalogica_synthetic_qa_event_ignored", {
+        qa_run_id: qa.runId,
+        event_type: eventType,
+        session_id: text(body.sessionId, 90),
+        page: text(body.page, 220),
+      });
+      return json(res, 200, {
+        ok: true, stored: false, skipped: true,
+        traffic_type: "SYNTHETIC_QA", qa_run_id: qa.runId,
+      });
+    } catch {
+      return json(res, 400, { ok: false, error: "Evento QA non valido" });
+    }
+  }
+
   if (!(await enforceRateLimit(req, res, { label: "track-event", ...rateLimitConfig("TRACK_EVENT", 240, 3600) }))) return;
 
   try {
