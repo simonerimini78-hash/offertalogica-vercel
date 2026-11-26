@@ -1,3 +1,4 @@
+import crypto from "node:crypto";
 import { clientIp, json, leadSessionSubject, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { findUsageCountExclusion, persistAnalyticsEvent } from "../lib/customerDb.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
@@ -175,6 +176,41 @@ const ALLOWED_INTERACTIVE_TOOL_ACTIONS = new Set([
 
 function text(value, max = 120) {
   return String(value || "").trim().slice(0, max);
+}
+
+// Synthetic QA is excluded before analytics persistence. The server stores
+// only the SHA-256 hash of a 32-byte random token, never the token itself.
+// Browserless supplies two Secure, host-only cookies; absent cookies preserve
+// normal behavior, while partial, duplicated or invalid credentials fail closed.
+const QA_TOKEN_COOKIE = "ol_site_qa_token";
+const QA_RUN_COOKIE = "ol_site_qa_run";
+const QA_TOKEN_PATTERN = /^[a-f0-9]{64}$/;
+const QA_RUN_PATTERN = /^QA-[A-Za-z0-9_-]{8,80}$/;
+
+function qaCookieValues(req, name) {
+  const raw = String(req?.headers?.cookie || "");
+  return raw.split(";").map((part) => part.trim()).flatMap((part) => {
+    const separator = part.indexOf("=");
+    return separator > 0 && part.slice(0, separator).trim() === name
+      ? [part.slice(separator + 1).trim()] : [];
+  });
+}
+
+function verifiedQaSession(req) {
+  const tokens = qaCookieValues(req, QA_TOKEN_COOKIE);
+  const runs = qaCookieValues(req, QA_RUN_COOKIE);
+  if (!tokens.length && !runs.length) return { status: "absent" };
+  if (tokens.length !== 1 || runs.length !== 1) return { status: "invalid" };
+  const supplied = tokens[0];
+  const runId = runs[0];
+  const expectedHash = String(process.env.OL_QA_TOKEN_SHA256 || "").trim().toLowerCase();
+  if (!QA_TOKEN_PATTERN.test(supplied)
+    || !QA_TOKEN_PATTERN.test(expectedHash)
+    || !QA_RUN_PATTERN.test(runId)) return { status: "invalid" };
+  const actual = crypto.createHash("sha256").update(supplied, "utf8").digest();
+  const expected = Buffer.from(expectedHash, "hex");
+  if (!crypto.timingSafeEqual(actual, expected)) return { status: "invalid" };
+  return { status: "verified", runId };
 }
 
 function numberOrNull(value) {
@@ -541,8 +577,45 @@ function requireAnalyticsBrowserOrigin(req, res) {
 }
 
 export default async function handler(req, res) {
+  // Read-only Browserless preflight; anonymous GET remains unsupported.
+  if (req.method === "GET") {
+    const qa = verifiedQaSession(req);
+    if (qa.status === "absent") return method(req, res, ["POST"]);
+    if (qa.status !== "verified") return json(res, 403, { ok: false, error: "Identita QA non valida" });
+    return json(res, 200, { ok: true, status: "QA_READY", qa_run_id: qa.runId });
+  }
   if (!method(req, res, ["POST"])) return;
   if (!requireAnalyticsBrowserOrigin(req, res)) return;
+
+  // QA requests must never reach rate limits, usage counters, lead integrity
+  // lookups or the production analytics database. A missing cookie pair is
+  // indistinguishable from real traffic: Browserless MUST pass GET preflight.
+  const qa = verifiedQaSession(req);
+  if (qa.status === "invalid") {
+    return json(res, 403, { ok: false, error: "Identita QA non valida" });
+  }
+  if (qa.status === "verified") {
+    try {
+      const body = await readJson(req);
+      const eventType = text(body?.eventType || body?.type, 80);
+      if (!/^[a-z0-9_:-]{2,80}$/i.test(eventType) || !ALLOWED_EVENT_TYPES.has(eventType)) {
+        return json(res, 400, { ok: false, error: "Evento non autorizzato" });
+      }
+      console.info("offertalogica_synthetic_qa_event_ignored", {
+        qa_run_id: qa.runId,
+        event_type: eventType,
+        session_id: text(body.sessionId, 90),
+        page: text(body.page, 220),
+      });
+      return json(res, 200, {
+        ok: true, stored: false, skipped: true,
+        traffic_type: "SYNTHETIC_QA", qa_run_id: qa.runId,
+      });
+    } catch {
+      return json(res, 400, { ok: false, error: "Evento QA non valido" });
+    }
+  }
+
   if (!(await enforceRateLimit(req, res, { label: "track-event", ...rateLimitConfig("TRACK_EVENT", 240, 3600) }))) return;
 
   try {
