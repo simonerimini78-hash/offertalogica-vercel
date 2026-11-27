@@ -1,3 +1,4 @@
+import { issueStaffPreviewProof } from "../lib/staffPreviewProof.js";
 import { json, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { enforceRateLimit, rateLimitConfig } from "../lib/rateLimit.js";
 import { persistentStoreConfigured } from "../lib/store.js";
@@ -33,7 +34,7 @@ function previewBootstrap(res, target) {
   res.setHeader("Referrer-Policy", "no-referrer");
   res.setHeader("X-Robots-Tag", "noindex, nofollow, noarchive");
   res.setHeader("Content-Security-Policy", "default-src 'none'; script-src 'unsafe-inline'; connect-src 'self'; style-src 'unsafe-inline'; base-uri 'none'; frame-ancestors 'none'");
-  res.end(`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anteprima Staff OffertaLogica</title><style>body{font-family:system-ui,sans-serif;padding:32px;color:#17342c}p{max-width:640px;line-height:1.5}</style></head><body><p id="status">Attivazione modalità Staff…</p><script>(async()=>{const status=document.getElementById("status");const params=new URLSearchParams(location.hash.slice(1));const ticket=String(params.get("staffPreview")||"").trim();history.replaceState(null,"",location.pathname+location.search);if(!ticket){status.textContent="Ticket Staff mancante.";return}try{const response=await fetch("/api/staff-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticket,target:${safeTarget}}),cache:"no-store"});const payload=await response.json();if(!response.ok||payload?.ok!==true)throw new Error(payload?.error||"Ticket non valido");sessionStorage.setItem("offertalogicaStaffMode","true");location.replace(${safeTarget});}catch(error){status.textContent=String(error?.message||error||"Attivazione Staff non riuscita");}})();</script></body></html>`);
+  res.end(`<!doctype html><html lang="it"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Anteprima Staff OffertaLogica</title><style>body{font-family:system-ui,sans-serif;padding:32px;color:#17342c}p{max-width:640px;line-height:1.5}</style></head><body><p id="status">Attivazione modalità Staff…</p><script>(async()=>{const status=document.getElementById("status");const params=new URLSearchParams(location.hash.slice(1));const ticket=String(params.get("staffPreview")||"").trim();history.replaceState(null,"",location.pathname+location.search);if(!ticket){status.textContent="Ticket Staff mancante.";return}try{const response=await fetch("/api/staff-preview",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify({ticket,target:${safeTarget}}),cache:"no-store"});const payload=await response.json();if(!response.ok||payload?.ok!==true)throw new Error(payload?.error||"Ticket non valido");sessionStorage.setItem("offertalogicaStaffMode","true");if(payload.previewProof)sessionStorage.setItem("offertalogicaStaffPreviewProof",payload.previewProof);else sessionStorage.removeItem("offertalogicaStaffPreviewProof");location.replace(${safeTarget});}catch(error){status.textContent=String(error?.message||error||"Attivazione Staff non riuscita");}})();</script></body></html>`);
 }
 
 async function verifyWithStaffBackend(ticket, target) {
@@ -115,6 +116,7 @@ export default async function handler(req, res) {
       mode: "staff",
       target,
       activatedAt: new Date().toISOString(),
+      previewProof: issueStaffPreviewProof(),
     });
   } catch {
     return json(res, 400, { ok: false, error: "Richiesta staff non valida" });

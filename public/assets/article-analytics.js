@@ -4,7 +4,7 @@
   var TRAFFIC_ATTRIBUTION_STORAGE_KEY='offertalogicaTrafficAttributionV1';
   var ANALYTICS_EVENT_SEQUENCE_STORAGE_KEY='offertalogica.analytics.session_event_seq.v1';
   var analyticsSequenceMemory=0;
-  function analyticsAvailable(){return window.location.protocol==='https:'||/\.vercel\.app$/i.test(window.location.hostname);}
+  function analyticsAvailable(){if(window.OLStaffPreview?.active)return false;try{if(sessionStorage.getItem('offertalogicaStaffMode')==='true')return false;}catch(_){}return window.location.protocol==='https:'||/\.vercel\.app$/i.test(window.location.hostname);}
   function text(value,max){return String(value||'').trim().slice(0,max||160);}
   function analyticsSessionId(){
     try{

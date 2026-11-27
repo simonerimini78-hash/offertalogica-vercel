@@ -1,7 +1,8 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-    <script src="/assets/ol-landing-average-recovery.js?v=0.10.143" data-ol-average-recovery defer></script>
+    <script src="/assets/ol-staff-preview.js?v=0.10.145"></script>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.145" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -106,13 +107,7 @@
     <script>window._iub=window._iub||[];window._iub.csConfiguration=window._iub.csConfiguration||{};window._iub.csConfiguration.floatingPreferencesButtonDisplay=false;</script>
     <script type="text/javascript" src="https://embeds.iubenda.com/widgets/7a8d1e4e-6d87-44e3-9842-5e8991323410.js"></script>
     <!-- Google tag (gtag.js) - Google Ads -->
-    <script async src="https://www.googletagmanager.com/gtag/js?id=AW-18424345732"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-      gtag('config', 'AW-18424345732');
-    </script>
+    <script>window.OLStaffPreview.loadGoogleTag(["AW-18424345732"]);</script>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>OffertaLogica | Calcolatore offerte luce e gas</title>
@@ -4531,7 +4526,8 @@
         const staffHomeRequested = params.get("staffHome") === "1";
         const calculatorBypass = params.get("landing") === "0" || String(params.get("entry") || "").toLowerCase() === "calculator";
         if (window.matchMedia?.("(max-width: 700px)")?.matches) document.documentElement.classList.add("mobile-fast-flow");
-        const requested = staffHomeRequested || (!staffPreview && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass));
+        const staffMobilePreview = staffSessionActive && sessionStorage.getItem("offertalogicaStaffMobilePreview") === "true";
+        const requested = staffHomeRequested || ((!staffPreview || staffMobilePreview) && (Boolean(window.__OFFERTALOGICA_LANDING_FORCE__) || !calculatorBypass));
         window.__OFFERTALOGICA_LANDING_REQUESTED__ = requested;
         window.__OFFERTALOGICA_SOCIAL_ENTRY_REQUESTED__ = requested;
         if (requested) document.documentElement.classList.add("social-entry-requested");
@@ -15353,49 +15349,12 @@ function apriAnteprimaRisultatiStaff() {
   target.search = "";
   target.hash = "";
   target.searchParams.set("compare_start", "average");
+  target.searchParams.set("landing", "0");
   window.location.assign(`${target.pathname}${target.search}`);
 }
 
 function apriAnteprimaRisultatiMobileStaff() {
-  if (!staffModeAttiva()) {
-    staffPreviewStatus("La modalità staff non è attiva.", true);
-    return;
-  }
-
-  const target = new URL(window.location.origin + "/");
-  target.searchParams.set("compare_start", "average");
-
-  const width = 390;
-  const height = 844;
-  const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
-  const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
-  const features = [
-    "popup=yes",
-    `width=${width}`,
-    `height=${height}`,
-    `left=${left}`,
-    `top=${top}`,
-    "resizable=yes",
-    "scrollbars=yes",
-  ].join(",");
-
-  const mobileWindow = window.open("about:blank", "offertalogica-staff-offers-mobile-preview", features);
-  if (!mobileWindow) {
-    staffPreviewStatus("Il browser ha bloccato la finestra Offerte mobile. Consenti i popup e riprova.", true);
-    return;
-  }
-
-  try {
-    mobileWindow.sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
-    mobileWindow.sessionStorage.setItem(STAFF_MOBILE_PREVIEW_STORAGE_KEY, "true");
-    mobileWindow.location.replace(target.toString());
-    mobileWindow.resizeTo(width, height);
-    mobileWindow.focus();
-    chiudiPannelloAnteprimeStaff();
-  } catch {
-    mobileWindow.close();
-    staffPreviewStatus("Impossibile aprire l'anteprima Offerte mobile in questa finestra del browser.", true);
-  }
+  apriAnteprimaMobileStaff(true);
 }
 
 function apriHomeStaff() {
@@ -15418,47 +15377,20 @@ function apriPaginaAnteprimaStaff(target = "") {
   window.location.assign(safeTarget);
 }
 
-function apriAnteprimaMobileStaff() {
-  if (!staffModeAttiva()) {
-    staffPreviewStatus("La modalità staff non è attiva.", true);
-    return;
-  }
-
-  const target = new URL(window.location.href);
-  ["staff", "staffToken", "previewToken", "staffPreview", "staffMobile"].forEach((key) => target.searchParams.delete(key));
-  target.hash = "";
-
-  const width = 390;
-  const height = 844;
-  const left = Math.max(0, Math.round((window.screen.availWidth - width) / 2));
-  const top = Math.max(0, Math.round((window.screen.availHeight - height) / 2));
-  const features = [
-    "popup=yes",
-    `width=${width}`,
-    `height=${height}`,
-    `left=${left}`,
-    `top=${top}`,
-    "resizable=yes",
-    "scrollbars=yes",
-  ].join(",");
-
-  const mobileWindow = window.open("about:blank", "offertalogica-staff-mobile-preview", features);
-  if (!mobileWindow) {
-    staffPreviewStatus("Il browser ha bloccato la finestra Mobile. Consenti i popup per OffertaLogica e riprova.", true);
-    return;
-  }
-
+function apriAnteprimaMobileStaff(offers = false) {
+  if (!staffModeAttiva()) { staffPreviewStatus("La modalità staff non è attiva.", true); return; }
+  const mobileWindow = window.open("about:blank", "_blank", "popup=yes,width=540,height=970,resizable=yes,scrollbars=yes");
+  if (!mobileWindow) { staffPreviewStatus("Consenti i popup per aprire l’anteprima mobile.", true); return; }
   try {
+    // Separate top-level tab storage; the iframe shares only this test session.
     mobileWindow.sessionStorage.setItem(STAFF_MODE_STORAGE_KEY, "true");
     mobileWindow.sessionStorage.setItem(STAFF_MOBILE_PREVIEW_STORAGE_KEY, "true");
-    mobileWindow.location.replace(target.toString());
-    mobileWindow.resizeTo(width, height);
+    const proof = sessionStorage.getItem("offertalogicaStaffPreviewProof");
+    if (proof) mobileWindow.sessionStorage.setItem("offertalogicaStaffPreviewProof", proof);
+    mobileWindow.location.replace(new URL("/staff-mobile-preview.html" + (offers === true ? "?offers=1" : ""), location.origin).href);
     mobileWindow.focus();
     chiudiPannelloAnteprimeStaff();
-  } catch {
-    mobileWindow.close();
-    staffPreviewStatus("Impossibile aprire l'anteprima Mobile in questa finestra del browser.", true);
-  }
+  } catch { mobileWindow.close(); staffPreviewStatus("Impossibile aprire l’anteprima mobile.", true); }
 }
 
 function creaPannelloAnteprimeStaff() {
@@ -15538,15 +15470,10 @@ function aggiornaBannerStaff() {
       staffPreviewStatus("");
     });
     document.getElementById("staff-mode-exit")?.addEventListener("click", () => {
-      STAFF_TRACKING_BLOCKED_EARLY = false;
-      sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-      LEAD_STATE.staffMode = false;
-      LEAD_STATE.staffActivatedAt = "";
-      LEAD_STATE.verified = false;
-      LEAD_STATE.leadId = "";
-      chiudiPannelloAnteprimeStaff();
-      aggiornaBannerStaff();
-      window.avviaComparazioneDati?.();
+      // Do not turn the Staff test history into a tracked customer session.
+      window.close();
+      document.body.textContent = "Verifica Staff terminata. Chiudi questa scheda.";
+
     });
   } else {
     creaPannelloAnteprimeStaff();
@@ -15563,7 +15490,7 @@ function abilitaModalitaStaff(activatedAt = "") {
 
 async function inizializzaModalitaStaff() {
   const staffRequest = leggiTicketStaffDaUrl();
-  if (staffRequest.off) {
+  if (staffRequest.off && !anteprimaMobileStaffAttiva()) {
     STAFF_TRACKING_BLOCKED_EARLY = false;
     sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
     LEAD_STATE.staffMode = false;
@@ -15593,12 +15520,12 @@ async function inizializzaModalitaStaff() {
     });
     const payload = await response.json();
     if (!response.ok || !payload.ok) throw new Error(payload.error || "Ticket Staff non valido");
+    if (payload.previewProof) sessionStorage.setItem("offertalogicaStaffPreviewProof", payload.previewProof);
     abilitaModalitaStaff(payload.activatedAt || "");
   } catch (error) {
-    STAFF_TRACKING_BLOCKED_EARLY = false;
-    sessionStorage.removeItem(STAFF_MODE_STORAGE_KEY);
-    LEAD_STATE.staffMode = false;
-    aggiornaBannerStaff();
+    // Fail closed: do not turn a rejected Staff test into a customer visit.
+    STAFF_TRACKING_BLOCKED_EARLY = true;
+    document.body.textContent = "Verifica Staff non riuscita. Chiudi la finestra e riapri Verifica sito dal gestionale.";
     console.warn("Modalita staff non attivata", error.message);
   }
 }
@@ -15883,7 +15810,8 @@ function completaLeadVerificato() {
       redirect: Boolean(url),
     });
     if (url) {
-      window.location.href = url;
+      if (staffTrackingEscluso()) window.OLStaffPreview?.external(url);
+      else window.location.href = url;
       return;
     }
     LEAD_STATE.assistance.reason = `Business | ${LEAD_STATE.selectedOffer?.provider || "Fornitore"} | ${LEAD_STATE.selectedOffer?.name || "offerta selezionata"}`.slice(0, 180);
@@ -16845,6 +16773,7 @@ function registraClickoutCommerciale(source = "commercial_redirect", offer = nul
 function apriClickoutCommercialeStessaScheda(url, offer = null, source = "commercial_redirect") {
   const target = String(url || "").trim();
   if (!/^https:\/\//i.test(target)) return false;
+  if (staffTrackingEscluso()) { window.OLStaffPreview?.external(target); return true; }
   window.OLLandingAverageRecovery?.cancel();
 
   let navigated = false;
@@ -22009,7 +21938,7 @@ function nascondiPromptMediaLanding(stop = false) {
 
 function aggiornaPromptBollettaDopoOfferte() {
   if (!percorsoMediaDirettoLanding()) return;
-  const average = !SOCIAL_ENTRY_STATE.active && !staffModeAttiva() && LEAD_STATE.customerType === "privato"
+  const average = !SOCIAL_ENTRY_STATE.active && LEAD_STATE.customerType === "privato"
     && modalitaCalcolo === "media" && !isGuidedView();
   const first = average ? primaCardMediaLanding() : null;
   riordinaBlocchiMediaLanding(Boolean(first));
@@ -22174,7 +22103,7 @@ function collegaEventiUX() {
   window.OLLandingAverageRecovery?.configure({
     observe: tracciaPromptAutomaticoMedia,
     element: () => document.getElementById("offers-personalize-prompt"),
-    ineligible: () => staffModeAttiva(),
+    ineligible: () => false,
     accept: () => {
       if (percorsoMediaDirettoLanding() && primaCardMediaLanding()) apriPersonalizzazioneDaPromptLanding();
       else window.OLLandingAverageRecovery.returnToPersonalization();

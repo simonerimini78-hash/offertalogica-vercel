@@ -1,3 +1,4 @@
+import { staffPreviewProofStatus } from "../lib/staffPreviewProof.js";
 import crypto from "node:crypto";
 import { clientIp, json, leadSessionSubject, method, readJson, requireAllowedOrigin } from "../lib/http.js";
 import { findUsageCountExclusion, persistAnalyticsEvent } from "../lib/customerDb.js";
@@ -586,6 +587,9 @@ export default async function handler(req, res) {
   }
   if (!method(req, res, ["POST"])) return;
   if (!requireAnalyticsBrowserOrigin(req, res)) return;
+  const previewStatus = staffPreviewProofStatus(req);
+  if (previewStatus === "invalid") return json(res, 403, {ok:false,error:"Verifica Staff non valida"});
+  if (previewStatus === "verified") return json(res, 200, {ok:true,skipped:true,reason:"staff_preview"});
 
   // QA requests must never reach rate limits, usage counters, lead integrity
   // lookups or the production analytics database. A missing cookie pair is

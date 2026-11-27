@@ -157,6 +157,8 @@
   }
   // Non utilizzare beforeunload, history trap o navigazioni annullate.
   document.addEventListener('mouseout', event => {
+    // An iPhone viewport has no desktop mouse-exit intent.
+    if (window.OLStaffPreview?.mobile) return;
     if (event.relatedTarget === null && event.clientY <= 0 && matchMedia('(hover: hover) and (pointer: fine)').matches) tick(true);
   });
   document.addEventListener('visibilitychange', () => { if (document.visibilityState === 'visible') resume(); });

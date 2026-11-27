@@ -1,3 +1,4 @@
+import { staffPreviewProofStatus } from "../lib/staffPreviewProof.js";
 import crypto from "node:crypto";
 import fs from "node:fs/promises";
 import os from "node:os";
@@ -316,6 +317,9 @@ function publicError(error) {
 export default async function handler(req, res) {
   if (!method(req, res, ["POST"])) return;
   if (!requireAllowedBrowserOrigin(req, res)) return;
+  const previewStatus = staffPreviewProofStatus(req);
+  if (previewStatus === "invalid") return json(res, 403, { ok:false, code:"staff_preview_invalid", error:"Verifica Staff scaduta. Riapri Verifica sito." });
+  const staffPreview = previewStatus === "verified";
   if (pdfAiKillSwitchEnabled()) {
     res.setHeader("Retry-After", "300");
     return json(res, 503, { ok: false, code: "AI_TEMPORARILY_DISABLED", error: "Servizio IA temporaneamente non disponibile" });
@@ -360,7 +364,7 @@ export default async function handler(req, res) {
         analysisStage,
         elapsedMs: Date.now() - requestStartedAt,
         errorCode: error ? String(error?.code || error?.name || error?.message || "pdf_analysis_error").slice(0, 120) : "",
-        source: archiveContext?.source || "",
+        source: staffPreview ? "staff_preview" : archiveContext?.source || "",
         toolCode: archiveContext?.source === "simulator" ? "simulatore_bolletta" : "",
         occurredAt: aiAccountingOccurredAt,
       });
@@ -468,7 +472,7 @@ export default async function handler(req, res) {
     await recordAiEconomicCost({ outcome: "success", normalized });
     analysisStage = "archive_success";
     const canArchive = inputKind === "pdf" && analysisDeadlineAt - Date.now() >= 7_000;
-    const archive = inputKind === "photo"
+    const archive = staffPreview ? { stored: false, reason: "staff_preview" } : inputKind === "photo"
       ? { stored: false, reason: "photo_not_archived" }
       : canArchive
         ? await archivePdfAnalysis({
@@ -485,7 +489,7 @@ export default async function handler(req, res) {
     // Salva SOLO il risultato tecnico anonimizzato della foto dal server.
     // Il risultato non dipende dalla consegna dell'evento nel browser; non archiviamo la foto.
     let photoDiagnosticStored = null;
-    if (inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
+    if (!staffPreview && inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
       const result = await persistAnalyticsEvent({
         eventType: "bill_photo_server_diagnostic",
         sessionId: String(archiveContext.sessionId).slice(0,90),
@@ -510,7 +514,8 @@ export default async function handler(req, res) {
     const remainingMs = analysisDeadlineAt - Date.now();
     await recordAiEconomicCost({ outcome: "failed", error });
     let archive = { stored: false, reason: "not_attempted" };
-    if (inputKind === "pdf" && validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
+    if (staffPreview) { archive = { stored: false, reason: "staff_preview" }; }
+    else if (inputKind === "pdf" && validPdf && temporaryFilePath && fileMetadata && remainingMs >= 7_000) {
       try {
         archive = await archivePdfAnalysis({
           filePath: temporaryFilePath,
@@ -551,7 +556,7 @@ export default async function handler(req, res) {
     });
     console.error("[pdf-analysis-error]", JSON.stringify(logPayload));
 
-    if (inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
+    if (!staffPreview && inputKind === "photo" && archiveContext?.origin === "public_calculator" && /^[a-z0-9-]{16,90}$/i.test(String(archiveContext.sessionId || ""))) {
       await persistAnalyticsEvent({
         eventType: "bill_photo_server_diagnostic",
         sessionId: String(archiveContext.sessionId).slice(0,90), page: "/",

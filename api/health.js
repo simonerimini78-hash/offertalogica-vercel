@@ -9,8 +9,9 @@ const EDITORIAL_SITE = "https://offertalogica.it";
 const EDITORIAL_SUPABASE_URL = String(process.env.EDITORIAL_SUPABASE_URL || "https://kzxdamhfmzaxonpkytcf.supabase.co").replace(/\/+$/, "");
 const EDITORIAL_SUPABASE_KEY = String(process.env.EDITORIAL_SUPABASE_ANON_KEY || "sb_publishable_poz1xBKiXceLCFV3u_tPIg_5_-ycHcl").trim();
 const EDITORIAL_PUBLIC_SELECT = "slug,title,excerpt,content,category,featured_image_url,featured_image_alt,sources,seo_title,seo_description,published_at,updated_at,author_slug,author_display_name,author_bio,author_avatar_url,author_website_url,author_linkedin_url,category_name";
+const STAFF_PREVIEW_GUARD = "<script src=\"/assets/ol-staff-preview.js?v=0.10.145\"></script>";
 const GOOGLE_TAG_ID = "AW-18424345732";
-const GOOGLE_TAG_HTML = `<script async src="https://www.googletagmanager.com/gtag/js?id=${GOOGLE_TAG_ID}"></script><script>window.dataLayer=window.dataLayer||[];function gtag(){dataLayer.push(arguments);}gtag('js',new Date());gtag('config','${GOOGLE_TAG_ID}');</script>`;
+const GOOGLE_TAG_HTML = `<script>window.OLStaffPreview.loadGoogleTag(["${GOOGLE_TAG_ID}"]);</script>`;
 
 function requestToken(req) {
   const auth = String(req.headers.authorization || "");
@@ -409,7 +410,7 @@ function sendEditorialHtml(req, res, status, html, { indexable = false } = {}) {
   res.setHeader("Cache-Control", indexable ? "public, max-age=0, s-maxage=300, stale-while-revalidate=86400" : "no-store");
   res.setHeader("X-Robots-Tag", indexable ? "index, follow" : "noindex, follow");
   if (req.method === "HEAD") return res.end();
-  return res.end(html);
+  return res.end(html.replace(/<head>/i, `<head>${STAFF_PREVIEW_GUARD}`));
 }
 
 async function handleEditorialArticle(req, res, slugValue) {
