@@ -1800,7 +1800,7 @@ function analyticsExportRangeFrom(value) {
   return String(value || "baseline").toLowerCase() === "all" ? "" : CAMPAIGN_BASELINE_ISO;
 }
 
-async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE) {
+async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPORT_PAGE_SIZE, { strict = false } = {}) {
   const query = new URLSearchParams({
     select: "id,lead_id,event_type,created_at,payload",
     order: "created_at.asc,id.asc",
@@ -1815,6 +1815,7 @@ async function fetchAnalyticsExportPage(from, to, offset, limit = ANALYTICS_EXPO
   );
   if (!response.ok) throw new Error(`Customer DB analytics export error ${response.status}`);
   const rows = await response.json();
+  if (strict && !Array.isArray(rows)) throw new Error("Risposta analytics non valida");
   return Array.isArray(rows) ? rows : [];
 }
 
@@ -1827,6 +1828,28 @@ async function loadAnalyticsExportRows(from, to = "") {
     if (page.length < ANALYTICS_EXPORT_PAGE_SIZE) return rows;
   }
   const overflow = await fetchAnalyticsExportPage(from, to, ANALYTICS_EXPORT_MAX_ROWS, 1);
+  if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
+  return rows;
+}
+
+// The monthly funnel keeps the full payload and the same ordering/cutoff as CSV.
+// Bounded parallel reads reduce sequential network waits without projecting away
+// fields or changing the existing CSV reader. Consume pages strictly in order.
+const FUNNEL_READ_CONCURRENCY = 3;
+export async function loadFunnelRows(from, to) {
+  if (!customerDbConfiguredForLandingAnalytics()) return [];
+  const rows = [];
+  for (let offset = 0; offset < ANALYTICS_EXPORT_MAX_ROWS; offset += FUNNEL_READ_CONCURRENCY * ANALYTICS_EXPORT_PAGE_SIZE) {
+    const offsets = Array.from({length:FUNNEL_READ_CONCURRENCY}, (_, i) => offset + i * ANALYTICS_EXPORT_PAGE_SIZE)
+      .filter(value => value < ANALYTICS_EXPORT_MAX_ROWS);
+    const pages = await Promise.allSettled(offsets.map(value => fetchAnalyticsExportPage(from, to, value, ANALYTICS_EXPORT_PAGE_SIZE, {strict:true})));
+    for (const page of pages) {
+      if (page.status === "rejected") throw page.reason;
+      rows.push(...page.value);
+      if (page.value.length < ANALYTICS_EXPORT_PAGE_SIZE) return rows;
+    }
+  }
+  const overflow = await fetchAnalyticsExportPage(from, to, ANALYTICS_EXPORT_MAX_ROWS, 1, {strict:true});
   if (overflow.length) throw new Error("Export analytics oltre il limite di lettura sicura: nessun CSV parziale generato");
   return rows;
 }
@@ -2603,14 +2626,19 @@ async function readFunnelSnapshot(period, landingRange, owner, refresh, requeste
   for (const [key, entry] of funnelSnapshots) if (entry.expires <= now) funnelSnapshots.delete(key);
   const key = `${owner}:${period.month}:${landingRange}`;
   const cached = owner && !refresh ? funnelSnapshots.get(key) : null;
-  if (cached && cached.id === requestedId && cached.expires > now) return cached;
+  if (cached && cached.id === requestedId && cached.expires > now) return {...cached, timing:{cacheHit:true}};
   const monthStart=Date.parse(period.from), monthEnd=Math.min(Date.parse(period.to),now);
   const requestedCutoff=Date.parse(requestedTo||"");
   // Preserve the same time cutoff on cold instances; explicit refresh takes a new snapshot.
   const cutoff=!refresh&&requestedId&&Number.isFinite(requestedCutoff)&&requestedCutoff>=monthStart&&requestedCutoff<=monthEnd?requestedCutoff:monthEnd;
   const snapshotPeriod = {...period, to:new Date(cutoff).toISOString()};
-  const data = buildFunnelSnapshot(await loadAnalyticsExportRows(snapshotPeriod.from,snapshotPeriod.to),snapshotPeriod,landingRange);
-  const entry = {id:crypto.randomUUID(), expires:Date.now()+FUNNEL_SNAPSHOT_TTL, data};
+  const readStarted = performance.now();
+  const rows = await loadFunnelRows(snapshotPeriod.from,snapshotPeriod.to);
+  const readMs = performance.now() - readStarted;
+  const aggregateStarted = performance.now();
+  const data = buildFunnelSnapshot(rows,snapshotPeriod,landingRange);
+  const entry = {id:crypto.randomUUID(), expires:Date.now()+FUNNEL_SNAPSHOT_TTL, data,
+    timing:{cacheHit:false,readMs,aggregateMs:performance.now()-aggregateStarted}};
   if (owner) {
     funnelSnapshots.delete(key);
     funnelSnapshots.set(key,entry);
@@ -2946,9 +2974,13 @@ export default async function handler(req, res) {
 
   if (mode === "overview") {
     try {
+      const readStarted = performance.now();
       const rows = await loadJourneySummaryRows(CAMPAIGN_BASELINE_ISO);
+      const readMs = performance.now() - readStarted;
+      const aggregateStarted = performance.now();
       const journeys = analyticsJourneyRows(rows);
       const summary = analyticsJourneySummary(journeys, rows);
+      res.setHeader("Server-Timing", `overview_db;dur=${readMs.toFixed(1)}, overview_aggregate;dur=${(performance.now()-aggregateStarted).toFixed(1)}`);
       return json(res, 200, {ok:true, configured:customerDbConfiguredForLandingAnalytics(), status:"ready",
         summary:{...summary, recentEvents:rows.length, attributedSessions:journeys.length, linkedLeads:new Set(journeys.map(row=>row.lead_id).filter(Boolean)).size, funnel:summary.activity},
         aggregationMode:"full_journey_scan", baseline:{from:CAMPAIGN_BASELINE_ISO,label:CAMPAIGN_BASELINE_LABEL,timezone:ANALYTICS_TIME_ZONE}, authorizedBy,checkedAt:new Date().toISOString()});
@@ -2970,6 +3002,8 @@ export default async function handler(req, res) {
       const owner = String(identity.user?.id || "");
       const requestedId = String(url.searchParams.get("snapshot") || "").slice(0,64);
       const entry = await readFunnelSnapshot(period,landingRange,owner,url.searchParams.get("refresh")==="1",requestedId,String(url.searchParams.get("snapshotTo")||"").slice(0,40));
+      res.setHeader("Server-Timing", entry.timing.cacheHit ? "funnel_cache;desc=hit" :
+        `funnel_db;dur=${entry.timing.readMs.toFixed(1)}, funnel_aggregate;dur=${entry.timing.aggregateMs.toFixed(1)}`);
       const snapshot = entry.data;
       const source = String(url.searchParams.get("source") || "").slice(0,80);
       const measurementValue = String(url.searchParams.get("measurement") || "all");
