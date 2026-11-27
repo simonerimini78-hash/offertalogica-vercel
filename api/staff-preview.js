@@ -117,7 +117,7 @@ export default async function handler(req, res) {
         ok: true,
         target,
         expiresIn: PREVIEW_TICKET_TTL_SECONDS,
-        url: `https://offertalogica.it${target}#staffPreview=${encodeURIComponent(ticket)}`,
+        url: `https://offertalogica.it/api/staff-preview?target=${encodeURIComponent(target)}#staffPreview=${encodeURIComponent(ticket)}`,
       });
     }
 
