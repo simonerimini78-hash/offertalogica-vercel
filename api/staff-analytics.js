@@ -1858,7 +1858,7 @@ export async function loadFunnelRows(from, to) {
 // with a recent-event denominator. Fetch only fields used in journey summaries.
 const JOURNEY_SUMMARY_FIELDS = Object.freeze([
   "sessionId","session_event_seq","sessionEventSeq","client_timestamp","clientTimestamp","trafficAgent","staffMode","demoMode",
-  "dataOrigin","customerType","offersMeasurementVersion","pathChoice","trigger","trafficSource","source","leadSource","trafficMedium",
+  "dataOrigin","customerType","offersMeasurementVersion","pathChoice","trigger","item","section","context","engagementStage","trafficSource","source","leadSource","trafficMedium",
   "trafficCampaign","trafficTerm","trafficContent","trafficCampaignId","trafficAdGroupId","trafficCreativeId","trafficMatchType","trafficDevice","trafficNetwork",
   "trafficReferrer","trafficLandingPage","trafficClickIdType","trafficClickId","page","destination","provider","offerId","offerName","route","channel","destinationType","destinationStatus",
   "visibleOffersCount","rankingOffersCount","mode","pdfUploadSource","comparisonAutoStarted","analysisStatus","inputSource","missingFieldCount",

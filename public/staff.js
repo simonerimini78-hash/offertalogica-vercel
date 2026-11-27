@@ -4772,6 +4772,47 @@
     renderSessionFunnel(byId("overviewFunnel"), cache.overviewAnalyticsSummary.sessionFunnel || {});
   }
 
+  // Use the same authenticated client as every other Staff operation. A blocked
+  // popup must never prevent access to the signed, fail-closed public bootstrap.
+  async function openStaffSitePreview(button) {
+    if (!button || button.disabled) return;
+    const target = String(button.dataset.staffPreviewTarget || "/").trim() || "/";
+    let popup = null;
+    try { popup = window.open("about:blank", "_blank"); } catch (_) {}
+    button.disabled = true;
+    setMessage("info", "Attivazione modalità Staff…");
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 20000);
+    try {
+      const payload = await staffFetch("/api/staff-preview", {
+        method: "POST", cache: "no-store", signal: controller.signal,
+        headers: {"Content-Type": "application/json"},
+        body: JSON.stringify({action: "issue", target})
+      });
+      const url = new URL(String(payload.url || ""));
+      if (payload.ok !== true || url.origin !== "https://offertalogica.it" || url.pathname !== "/api/staff-preview" ||
+          !new URLSearchParams(url.hash.slice(1)).get("staffPreview") || url.searchParams.get("target") !== target) {
+        throw new Error("Ticket di verifica sito non valido. Nessuna pagina pubblica aperta.");
+      }
+      let opened = false;
+      try { if (popup && !popup.closed) { popup.location.replace(url.href); opened = true; } } catch (_) {}
+      if (opened) {
+        setMessage("success", "Verifica sito aperta. Controlla nella nuova scheda che la modalità Staff sia attiva.");
+      } else {
+        // Same-tab fallback preserves the signed bootstrap, never opens the ordinary landing.
+        try { if (popup && !popup.closed) popup.close(); } catch (_) {}
+        window.location.assign(url.href);
+      }
+    } catch (error) {
+      try { if (popup && !popup.closed) popup.close(); } catch (_) {}
+      const message = error?.name === "AbortError" ? "Tempo di attesa della verifica Staff scaduto. Riprova." : friendlyError(error);
+      setMessage("error", `Verifica sito non riuscita: ${message}`);
+    } finally {
+      clearTimeout(timeout);
+      button.disabled = false;
+    }
+  }
+
   function addressLabel(address) {
     if (!address || typeof address !== "object") return "—";
     return address.formatted || [address.street, address.city, address.province].filter(Boolean).join(", ") || "—";
@@ -7113,6 +7154,7 @@
     byId("staffLogout").addEventListener("click", logout);
     byId("staffDeniedLogout").addEventListener("click", logout);
     byId("staffRefresh").addEventListener("click", () => refreshTab(activeTab).catch(error => setMessage("error", friendlyError(error))));
+    document.querySelectorAll("[data-staff-preview-target]").forEach(button => button.addEventListener("click", () => void openStaffSitePreview(button)));
     document.querySelectorAll("[data-staff-tab]").forEach(button => button.addEventListener("click", () => setTab(button.dataset.staffTab)));
     byId("caseRefresh").addEventListener("click", () => loadCases().catch(error => setMessage("error", friendlyError(error))));
     byId("caseSearch").addEventListener("input", renderCases);
