@@ -2,7 +2,7 @@
 <html lang="it">
 <head>
     <script src="/assets/ol-staff-preview.js?v=0.10.145"></script>
-    <script src="/assets/ol-landing-average-recovery.js?v=0.10.145" data-ol-average-recovery defer></script>
+    <script src="/assets/ol-landing-average-recovery.js?v=0.10.147" data-ol-average-recovery defer></script>
     <!--Tradedoubler site verification cidd973bbed-1203-458b-841b-ed0a9816a8f2-->
     <!-- OFFERTALOGICA_PUBLIC_V87_20260912: cookie strip compatta con comandi sempre accessibili -->
     <script>
@@ -3317,14 +3317,12 @@
             padding: 10px 12px;
             box-shadow: 0 6px 24px rgba(15,23,42,.18);
         }
-        body.ol-landing-average-results #offers-personalize-prompt strong { font-size: 15px; line-height: 1.25; }
-        body.ol-landing-average-results #offers-personalize-prompt p { margin-bottom: 8px; font-size: 13px; line-height: 1.3; }
         body.ol-landing-average-results #offers-personalize-prompt .offers-personalize-actions button {
             min-height: 44px; padding: 7px 8px; font-size: 14px; line-height: 1.2;
         }
-        .offers-personalize-prompt strong { display: block; margin-bottom: 4px; font-size: 16px; }
-        .offers-personalize-prompt p { margin: 0 0 12px; color: #475569; font-size: 13px; line-height: 1.45; }
-        .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+        body.ol-landing-average-results #offers-personalize-prompt .offers-personalize-actions button.offers-personalize-upload { min-height: 54px; padding: 10px 12px; font-size: 16px; }
+        .offers-personalize-prompt strong { display: block; margin: 0 0 10px; font-size: 19px; font-weight: 700; line-height: 1.3; text-align: center; }
+        .offers-personalize-actions { display: grid; grid-template-columns: 1fr 1fr; align-items: center; gap: 8px; }
         .offers-personalize-actions button {
             min-height: 56px;
             border-radius: 12px;
@@ -3335,17 +3333,30 @@
             cursor: pointer;
             text-align: center;
         }
-        .offers-personalize-upload { border: 0; background: var(--logo-green-gradient); color: #fff; }
+        .offers-personalize-actions button.offers-personalize-upload {
+            min-height: 64px;
+            border: 0;
+            background: linear-gradient(135deg, #166534 0%, #16a34a 48%, #22c55e 100%);
+            color: #fff;
+            box-shadow: 0 4px 12px rgba(22,163,74,.20);
+            animation: olPersonalizeCtaBreathe 3.4s ease-in-out infinite;
+        }
+        @keyframes olPersonalizeCtaBreathe {
+            0%, 100% { transform: scale(1); box-shadow: 0 4px 12px rgba(22,163,74,.20); }
+            50% { transform: scale(1.008); box-shadow: 0 5px 16px rgba(22,163,74,.30); }
+        }
         .offers-personalize-continue { border: 1px solid #cbd5e1; background: #fff; color: #334155; }
         @media (max-width: 420px) {
             .social-entry-card { gap: 12px; }
             .social-entry-logo { width: min(74vw, 270px); }
             .social-entry-disclaimer { font-size: 11.5px; }
             .social-entry-cta { min-height: 62px; font-size: 19px; }
+        }
+        @media (max-width: 480px) {
             .offers-personalize-actions { grid-template-columns: 1fr; }
         }
         @media (prefers-reduced-motion: reduce) {
-            .social-entry-cta { animation: none; }
+            .social-entry-cta, .offers-personalize-actions button.offers-personalize-upload { animation: none; }
         }
 
         /* OFFERTALOGICA_MOBILE_FAST_FLOW_V1_20260905 */
@@ -22344,7 +22355,6 @@ if (document.readyState === "loading") {
 </div>
 <div class="offers-personalize-prompt" id="offers-personalize-prompt" hidden aria-hidden="true">
     <strong>Vuoi sapere quanto risparmieresti con i tuoi consumi reali?</strong>
-    <p>Carica la bolletta: confronteremo le offerte usando i tuoi consumi, senza perdere la stima che stai visualizzando.</p>
     <div class="offers-personalize-actions">
         <button type="button" class="offers-personalize-upload" id="offers-upload-bill">Carica la bolletta</button>
         <button type="button" class="offers-personalize-continue" id="offers-keep-average">Continua con la stima media</button>

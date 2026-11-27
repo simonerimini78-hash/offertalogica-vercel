@@ -96,13 +96,13 @@
     css.textContent = `
       html body #offers-personalize-prompt.ol-recovery-prompt[hidden]{display:none!important}
       html body #offers-personalize-prompt.ol-recovery-prompt:not([hidden]){display:block!important;position:fixed!important;z-index:12000;bottom:max(12px,env(safe-area-inset-bottom));left:12px;width:min(420px,calc(100% - 24px));max-height:48vh;overflow:auto;box-sizing:border-box;margin:0;padding:10px 12px;box-shadow:0 6px 24px rgba(15,23,42,.18);border:1px solid #bfdbfe;border-radius:12px;background:linear-gradient(135deg,#f8fbff 0%,#f0fdf4 100%);color:#0f172a;text-align:left}
-      html body #offers-personalize-prompt.ol-recovery-prompt strong{display:block;margin:0 0 4px;font-size:15px;line-height:1.25}
-      html body #offers-personalize-prompt.ol-recovery-prompt p{margin:0 0 8px;color:#475569;font-size:13px;line-height:1.3}
-      html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+      html body #offers-personalize-prompt.ol-recovery-prompt strong{display:block;margin:0 0 10px;font-size:19px;font-weight:700;line-height:1.3;text-align:center}
+      html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{display:grid;grid-template-columns:1fr 1fr;align-items:center;gap:8px}
       html body #offers-personalize-prompt.ol-recovery-prompt button{min-height:44px;padding:7px 8px;font-family:inherit;font-size:14px;font-weight:900;line-height:1.2;cursor:pointer;text-align:center;border-radius:12px;margin:0;white-space:normal}
-      html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-upload{border:0;background:var(--logo-green-gradient,linear-gradient(135deg,#048a3d 0%,#16a34a 46%,#7ed321 100%));color:#fff}
+      html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-upload{min-height:54px;padding:10px 12px;font-size:16px;border:0;background:linear-gradient(135deg,#166534 0%,#16a34a 48%,#22c55e 100%);color:#fff;box-shadow:0 4px 12px rgba(22,163,74,.20);animation:olPersonalizeCtaBreathe 3.4s ease-in-out infinite}
       html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-continue{border:1px solid #cbd5e1;background:#fff;color:#334155}
-      @media(max-width:420px){html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{grid-template-columns:1fr}}
+      @media(max-width:480px){html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{grid-template-columns:1fr}}
+      @media(prefers-reduced-motion:reduce){html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-upload{animation:none}}
       @media(max-height:460px){html body #offers-personalize-prompt.ol-recovery-prompt:not([hidden]){max-height:calc(100vh - 24px)}html body #offers-personalize-prompt.ol-recovery-prompt .offers-personalize-actions{grid-template-columns:1fr 1fr}}
     `;
     document.head.appendChild(css);
