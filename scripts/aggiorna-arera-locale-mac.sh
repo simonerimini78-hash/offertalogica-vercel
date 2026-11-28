@@ -780,7 +780,22 @@ fi
 # Un errore partner non deve bloccare ARERA, energia o parametri regolati.
 snapshot_group "partner" "${PARTNER_FILES[@]}"
 log "Normalizzo le CTE partner e aggiorno il catalogo delle sole offerte approvate."
-if ensure_pdf_reader && python3 "$ROOT_DIR/scripts/update-partner-offers.py" --package-root "$ROOT_DIR"; then
+# Partner: il motore autonomo alimenta 20_ATTIVE; questo wrapper pubblica soltanto
+# le attive quando il collegamento locale e stato abilitato esplicitamente.
+run_partner_catalog_update() {
+  local marker="$HOME/OffertLogica/Motore-Partner/abilitato"
+  if [ -e "$marker" ] || [ -L "$marker" ]; then
+    if [ ! -f "$marker" ] || [ -L "$marker" ]; then
+      log "ERRORE: marcatore Partner non valido; nessun ritorno al vecchio normalizzatore."
+      return 1
+    fi
+    log "Motore Partner autonomo abilitato: pubblico esclusivamente 20_ATTIVE."
+    python3 "$ROOT_DIR/scripts/update-partner-offers.py" --package-root "$ROOT_DIR" --publish-only
+  else
+    ensure_pdf_reader && python3 "$ROOT_DIR/scripts/update-partner-offers.py" --package-root "$ROOT_DIR"
+  fi
+}
+if run_partner_catalog_update; then
   if (cd "$ROOT_DIR" && node scripts/validate-calculator-data.mjs); then
     PARTNER_STATUS="normalizzate/validate"
   else
